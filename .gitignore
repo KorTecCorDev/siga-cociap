@@ -1,0 +1,29 @@
+# Dependencias
+/vendor/
+
+# Configuración local (contiene credenciales)
+/config/database.php
+
+# Storage generado
+/storage/logs/*.log
+/storage/uploads/*
+/storage/pdfs/*
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+
+# PHP
+*.cache
+
+# Mantener carpetas vacías con .gitkeep
+!storage/logs/.gitkeep
+!storage/uploads/.gitkeep
+!storage/pdfs/.gitkeep
