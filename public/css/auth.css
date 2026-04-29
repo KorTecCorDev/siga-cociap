@@ -1,0 +1,326 @@
+/* ═══════════════════════════════════════════════
+   auth.css — Módulo de autenticación SIGA-COCIAP
+   ═══════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --brand-dark:    #0f2d4e;
+    --brand-mid:     #1e3a5f;
+    --brand-accent:  #2563eb;
+    --brand-light:   #dbeafe;
+    --text-primary:  #1e293b;
+    --text-muted:    #64748b;
+    --border:        #e2e8f0;
+    --error:         #dc2626;
+    --error-bg:      #fef2f2;
+    --success:       #16a34a;
+    --success-bg:    #f0fdf4;
+    --warning:       #d97706;
+    --warning-bg:    #fffbeb;
+    --radius:        10px;
+}
+
+body.auth-body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #f1f5f9;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+/* ── Wrapper principal ── */
+.auth-wrapper {
+    display: flex;
+    width: 100%;
+    max-width: 900px;
+    min-height: 560px;
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .12);
+}
+
+/* ── Panel izquierdo — branding institucional ── */
+.auth-brand {
+    flex: 0 0 340px;
+    background: linear-gradient(160deg, var(--brand-dark) 0%, var(--brand-mid) 60%, #1a4a7a 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 36px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Círculo decorativo de fondo */
+.auth-brand::before {
+    content: '';
+    position: absolute;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .04);
+    top: -80px;
+    right: -80px;
+}
+.auth-brand::after {
+    content: '';
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .03);
+    bottom: -60px;
+    left: -40px;
+}
+
+.auth-brand__inner {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    color: #fff;
+}
+
+.auth-brand__logo {
+    width: 72px;
+    height: 72px;
+    background: rgba(255, 255, 255, .12);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 36px;
+}
+
+.auth-brand__sistema {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+}
+
+.auth-brand__nombre {
+    font-size: 13px;
+    color: rgba(255,255,255,.7);
+    line-height: 1.5;
+    margin-bottom: 28px;
+}
+
+.auth-brand__divider {
+    width: 40px;
+    height: 2px;
+    background: rgba(255,255,255,.3);
+    margin: 0 auto 24px;
+    border-radius: 2px;
+}
+
+.auth-brand__institucion {
+    font-size: 14px;
+    color: rgba(255,255,255,.85);
+    line-height: 1.6;
+    margin-bottom: 8px;
+}
+
+.auth-brand__institucion strong {
+    font-weight: 600;
+    color: #fff;
+}
+
+.auth-brand__unasam {
+    font-size: 11px;
+    color: rgba(255,255,255,.5);
+    letter-spacing: .5px;
+    text-transform: uppercase;
+}
+
+/* ── Panel derecho — formulario ── */
+.auth-form-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 40px;
+}
+
+.auth-form-panel__inner {
+    width: 100%;
+    max-width: 360px;
+}
+
+/* ── Caja del formulario de login ── */
+.login-box__header {
+    margin-bottom: 28px;
+}
+
+.login-box__title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.login-box__subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+/* ── Alertas flash ── */
+.alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 20px;
+    line-height: 1.4;
+}
+.alert__icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.alert--error   { background: var(--error-bg);   color: var(--error);   border: 1px solid #fecaca; }
+.alert--success { background: var(--success-bg); color: var(--success); border: 1px solid #bbf7d0; }
+.alert--warning { background: var(--warning-bg); color: var(--warning); border: 1px solid #fde68a; }
+
+/* ── Formulario ── */
+.login-form { display: flex; flex-direction: column; gap: 18px; }
+
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+
+.form-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 12px;
+    font-size: 16px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.form-input {
+    width: 100%;
+    padding: 11px 12px 11px 40px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+    outline: none;
+}
+
+.form-input:focus {
+    border-color: var(--brand-accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+}
+
+.form-input--error {
+    border-color: var(--error);
+}
+
+.form-input--error:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, .1);
+}
+
+.input-toggle-pass {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: opacity .15s;
+    opacity: .6;
+}
+
+.input-toggle-pass:hover { opacity: 1; }
+
+.form-error {
+    font-size: 12px;
+    color: var(--error);
+    margin-top: 2px;
+}
+
+/* ── Botón de login ── */
+.btn-login {
+    width: 100%;
+    padding: 13px;
+    background: var(--brand-accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-login:hover  { background: #1d4ed8; }
+.btn-login:active { transform: scale(.99); }
+.btn-login:disabled {
+    background: #93c5fd;
+    cursor: not-allowed;
+}
+
+/* ── Footer del formulario ── */
+.login-box__footer {
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.login-box__help {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    text-align: center;
+}
+
+.login-box__help-contact {
+    font-weight: 500;
+    color: #475569;
+}
+
+/* ── Responsivo ── */
+@media (max-width: 640px) {
+    .auth-wrapper {
+        flex-direction: column;
+        min-height: auto;
+        border-radius: 12px;
+    }
+
+    .auth-brand {
+        flex: none;
+        padding: 32px 24px;
+    }
+
+    .auth-brand__logo { width: 52px; height: 52px; font-size: 26px; }
+    .auth-brand__sistema { font-size: 22px; }
+    .auth-brand__nombre { display: none; }
+    .auth-brand__divider { margin-bottom: 16px; }
+
+    .auth-form-panel {
+        padding: 32px 24px;
+    }
+}

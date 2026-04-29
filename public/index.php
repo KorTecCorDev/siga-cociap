@@ -42,12 +42,11 @@ require_once APP_PATH   . '/Helpers/helpers.php';
 require_once CORE_PATH . '/Session.php';
 Core\Session::start();
 
-// Cargar rutas y despachar
-require_once ROOT_PATH . '/routes/web.php';
+// ── Router: cargar, registrar rutas y despachar ─────────────
 require_once CORE_PATH . '/Router.php';
 
-$router = new Core\Router();
-require_once ROOT_PATH . '/routes/web.php';
+$router = new \Core\Router();
 
-// Registrar rutas y ejecutar
+require_once ROOT_PATH . '/routes/web.php'; // registra las rutas en $router
+
 $router->dispatch();
