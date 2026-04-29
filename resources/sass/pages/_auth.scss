@@ -199,8 +199,15 @@ body.auth-body {
 .input-icon {
     position: absolute;
     left: 12px;
-    font-size: $font-size-lg;
+    display: flex;
+    align-items: center;
     pointer-events: none;
+
+    img {
+        width: 18px;
+        height: 18px;
+        opacity: .5;
+    }
 }
 
 .form-input {
@@ -232,11 +239,19 @@ body.auth-body {
     background: none;
     border: none;
     cursor: pointer;
-    font-size: $font-size-lg;
     padding: 4px;
-    opacity: .6;
+    display: flex;
+    align-items: center;
     transition: $transition;
-    &:hover { opacity: 1; }
+
+    img {
+        width: 20px;
+        height: 20px;
+        opacity: .5;
+        transition: $transition;
+    }
+
+    &:hover img { opacity: 1; }
 }
 
 .form-error {

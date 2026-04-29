@@ -39,7 +39,9 @@
         <div class="form-group">
             <label class="form-label" for="dni">Número de DNI</label>
             <div class="input-wrapper">
-                <span class="input-icon">🪪</span>
+                <span class="input-icon">
+                        <img src="<?= url('assets/icons/user.svg') ?>" alt="Usuario">
+                </span>
                 <input
                     class="form-input <?= isset($errores['dni']) ? 'form-input--error' : '' ?>"
                     type="text"
@@ -63,7 +65,9 @@
         <div class="form-group">
             <label class="form-label" for="password">Contraseña</label>
             <div class="input-wrapper">
-                <span class="input-icon">🔒</span>
+                <span class="input-icon">
+                    <img src="<?= url('assets/icons/pass.svg') ?>" alt="Contraseña">
+                </span>
                 <input
                     class="form-input <?= isset($errores['password']) ? 'form-input--error' : '' ?>"
                     type="password"
@@ -73,8 +77,13 @@
                     autocomplete="current-password"
                     required
                 >
-                <button type="button" class="input-toggle-pass" aria-label="Mostrar contraseña" title="Mostrar contraseña">
-                    <span class="eye-icon" data-show="👁" data-hide="🙈">👁</span>
+                <button type="button" class="input-toggle-pass"
+                    aria-label="Mostrar contraseña"
+                    data-icon-show="<?= url('assets/icons/eye_open.svg') ?>"
+                    data-icon-hide="<?= url('assets/icons/eye_close.svg') ?>">
+                    <span class="eye-icon">
+                        <img id="eye-icon-img" src="<?= url('assets/icons/eye_open.svg') ?>" alt="Mostrar contraseña">
+                    </span>
                 </button>
             </div>
             <?php if (isset($errores['password'])): ?>

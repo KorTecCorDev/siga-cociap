@@ -10,14 +10,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const passInput = document.getElementById('password');
 
     if (toggleBtn && passInput) {
-        const eyeIcon = toggleBtn.querySelector('.eye-icon');
+        const eyeImg = document.getElementById('eye-icon-img');
 
         toggleBtn.addEventListener('click', () => {
             const isPassword = passInput.type === 'password';
+
+            // Cambiar tipo del input
             passInput.type = isPassword ? 'text' : 'password';
-            eyeIcon.textContent = isPassword
-                ? eyeIcon.dataset.hide
-                : eyeIcon.dataset.show;
+
+            // Cambiar ícono según estado
+            eyeImg.src = isPassword
+                ? toggleBtn.dataset.iconHide
+                : toggleBtn.dataset.iconShow;
+
+            // Actualizar aria-label
             toggleBtn.setAttribute('aria-label',
                 isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
             );
