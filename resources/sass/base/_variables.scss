@@ -4,11 +4,11 @@
 // ============================================================
 
 // ── Paleta principal ─────────────────────────────────────────
-// Cambia estos valores según los colores institucionales del COCIAP
-$brand-dark:      #0f2d4e;      // panel izquierdo login (más oscuro)
-$brand-mid:       #1e3a5f;      // panel izquierdo login (medio)
-$brand-accent:    #2563eb;      // botones, links, elementos activos
-$brand-light:     #dbeafe;      // fondos suaves, badges
+// ── Paleta institucional COCIAP ──────────────────────────────
+$brand-dark:      #1a3a5c;      // azul marino oscuro — panel izquierdo login
+$brand-mid:       #1e6fa8;      // azul agua del río — gradiente medio
+$brand-accent:    #e07b1a;      // naranja de la máscara — botones y acciones
+$brand-light:     #fef3e2;      // naranja muy suave — fondos y badges
 
 // ── Colores de texto ─────────────────────────────────────────
 $text-primary:    #1e293b;

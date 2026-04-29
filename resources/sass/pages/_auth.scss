@@ -25,7 +25,12 @@ body.auth-body {
 // ── Panel izquierdo — branding ───────────────────────────────
 .auth-brand {
     flex: 0 0 340px;
-    background: linear-gradient(160deg, $brand-dark 0%, $brand-mid 60%, darken($brand-mid, 5%) 100%);
+    background: linear-gradient(
+        160deg,
+        $brand-dark 0%,       // azul marino
+        $brand-mid  65%,      // azul agua
+        #1a5c3a     100%      // verde del nevado
+    );
     display: flex;
     align-items: center;
     justify-content: center;
