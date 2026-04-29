@@ -56,21 +56,20 @@ body.auth-body {
     }
 
     &__logo {
-        width: 80px;
-        height: 80px;
-        background: rgba(255,255,255,.12);
+        width: 150px;
+        height: 150px;
+        background: transparent;    // sin círculo de fondo
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         margin: 0 auto $spacing-lg;
-        font-size: 38px;
 
-        // Si se usa imagen en vez de emoji
         img {
-            width: 52px;
-            height: 52px;
+            width: 150px;
+            height: 150px;
             object-fit: contain;
+            display: block;
         }
     }
 

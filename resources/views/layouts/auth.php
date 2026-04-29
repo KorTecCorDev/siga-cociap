@@ -18,8 +18,7 @@
             <div class="auth-brand__inner">
                 <div class="auth-brand__logo">
                     <img src="<?= url('assets/img/logo_cociap.png') ?>" 
-                        alt="Logo_COCIAP" 
-                        style="width:52px;height:52px;object-fit:contain;">
+                        alt="Logo_COCIAP">
                 </div>
                 <h1 class="auth-brand__sistema">SIGA-COCIAP</h1>
                 <p class="auth-brand__nombre">Sistema Integrado de<br>Gestión Académica</p>
