@@ -1,0 +1,68 @@
+// ============================================================
+// _variables.scss — Tokens de diseño SIGA-COCIAP
+// Cambia los colores aquí y se aplican en toda la aplicación
+// ============================================================
+
+// ── Paleta principal ─────────────────────────────────────────
+// Cambia estos valores según los colores institucionales del COCIAP
+$brand-dark:      #0f2d4e;      // panel izquierdo login (más oscuro)
+$brand-mid:       #1e3a5f;      // panel izquierdo login (medio)
+$brand-accent:    #2563eb;      // botones, links, elementos activos
+$brand-light:     #dbeafe;      // fondos suaves, badges
+
+// ── Colores de texto ─────────────────────────────────────────
+$text-primary:    #1e293b;
+$text-secondary:  #475569;
+$text-muted:      #94a3b8;
+$text-white:      #ffffff;
+
+// ── Colores de fondo ─────────────────────────────────────────
+$bg-body:         #f1f5f9;
+$bg-white:        #ffffff;
+$bg-secondary:    #f8fafc;
+
+// ── Bordes ───────────────────────────────────────────────────
+$border-color:    #e2e8f0;
+$border-radius:   10px;
+$border-radius-sm: 6px;
+$border-radius-lg: 14px;
+
+// ── Estados ──────────────────────────────────────────────────
+$color-success:   #16a34a;
+$color-success-bg:#f0fdf4;
+$color-error:     #dc2626;
+$color-error-bg:  #fef2f2;
+$color-warning:   #d97706;
+$color-warning-bg:#fffbeb;
+$color-info:      #0284c7;
+$color-info-bg:   #f0f9ff;
+
+// ── Tipografía ───────────────────────────────────────────────
+$font-family:     'Inter', system-ui, -apple-system, sans-serif;
+$font-size-base:  14px;
+$font-size-sm:    12px;
+$font-size-lg:    16px;
+$font-size-xl:    20px;
+$font-size-2xl:   24px;
+$line-height:     1.5;
+
+// ── Espaciado ────────────────────────────────────────────────
+$spacing-xs:  4px;
+$spacing-sm:  8px;
+$spacing-md:  16px;
+$spacing-lg:  24px;
+$spacing-xl:  32px;
+$spacing-2xl: 48px;
+
+// ── Sombras ──────────────────────────────────────────────────
+$shadow-sm:   0 1px 3px rgba(0,0,0,.08);
+$shadow-md:   0 4px 16px rgba(0,0,0,.08);
+$shadow-lg:   0 20px 60px rgba(0,0,0,.12);
+
+// ── Transiciones ─────────────────────────────────────────────
+$transition:  all .15s ease;
+
+// ── Layout ───────────────────────────────────────────────────
+$sidebar-width:     240px;
+$topbar-height:     56px;
+$content-max-width: 1200px;

@@ -8,7 +8,6 @@ use PDOException;
 /**
  * Database
  * Conexión PDO singleton. Un solo punto de acceso a la BD en toda la app.
- * Equivalente al DB facade de Laravel.
  */
 class Database
 {
@@ -38,18 +37,15 @@ class Database
                 PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
             ]);
         } catch (PDOException $e) {
-            // En producción: loguear y mostrar página de error genérica
-            if (config('app.debug')) {
-                throw $e;
-            }
-            http_response_code(500);
-            exit('Error de conexión a la base de datos.');
+            // Muestra el error real — cambiar en producción
+            throw new \RuntimeException(
+                '[Database] Error de conexión: ' . $e->getMessage()
+            );
         }
 
         return self::$instance;
     }
 
-    /** Shortcut para obtener la conexión */
     public static function get(): PDO
     {
         return self::connect();

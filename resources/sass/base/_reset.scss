@@ -1,0 +1,33 @@
+// _reset.scss — Reset y estilos base
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: $font-size-base;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    font-family: $font-family;
+    color: $text-primary;
+    background: $bg-body;
+    line-height: $line-height;
+    -webkit-font-smoothing: antialiased;
+}
+
+img, svg { display: block; max-width: 100%; }
+
+a { color: $brand-accent; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+ul, ol { list-style: none; }
+
+button { cursor: pointer; font-family: inherit; }
+
+input, textarea, select {
+    font-family: inherit;
+    font-size: inherit;
+}

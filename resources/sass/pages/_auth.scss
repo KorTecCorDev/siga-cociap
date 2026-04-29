@@ -1,0 +1,285 @@
+// _auth.scss — Módulo de autenticación
+// Reemplaza public/css/auth.css — compilado en public/css/app.css
+
+body.auth-body {
+    background: $bg-body;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: $spacing-md;
+}
+
+// ── Wrapper principal ────────────────────────────────────────
+.auth-wrapper {
+    display: flex;
+    width: 100%;
+    max-width: 900px;
+    min-height: 560px;
+    background: $bg-white;
+    border-radius: $border-radius-lg;
+    overflow: hidden;
+    box-shadow: $shadow-lg;
+}
+
+// ── Panel izquierdo — branding ───────────────────────────────
+.auth-brand {
+    flex: 0 0 340px;
+    background: linear-gradient(160deg, $brand-dark 0%, $brand-mid 60%, darken($brand-mid, 5%) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: $spacing-2xl $spacing-xl;
+    position: relative;
+    overflow: hidden;
+
+    // Círculos decorativos
+    &::before, &::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255,255,255,.04);
+    }
+    &::before { width: 320px; height: 320px; top: -80px; right: -80px; }
+    &::after  { width: 200px; height: 200px; bottom: -60px; left: -40px; }
+
+    &__inner {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        color: $text-white;
+    }
+
+    &__logo {
+        width: 80px;
+        height: 80px;
+        background: rgba(255,255,255,.12);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto $spacing-lg;
+        font-size: 38px;
+
+        // Si se usa imagen en vez de emoji
+        img {
+            width: 52px;
+            height: 52px;
+            object-fit: contain;
+        }
+    }
+
+    &__sistema {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        margin-bottom: $spacing-xs;
+    }
+
+    &__nombre {
+        font-size: 13px;
+        color: rgba(255,255,255,.7);
+        line-height: 1.5;
+        margin-bottom: $spacing-lg;
+    }
+
+    &__divider {
+        width: 40px;
+        height: 2px;
+        background: rgba(255,255,255,.3);
+        margin: 0 auto $spacing-lg;
+        border-radius: 2px;
+    }
+
+    &__institucion {
+        font-size: 14px;
+        color: rgba(255,255,255,.85);
+        line-height: 1.6;
+        margin-bottom: $spacing-sm;
+
+        strong { font-weight: 600; color: $text-white; }
+    }
+
+    &__unasam {
+        font-size: 11px;
+        color: rgba(255,255,255,.5);
+        letter-spacing: .5px;
+        text-transform: uppercase;
+    }
+}
+
+// ── Panel derecho — formulario ───────────────────────────────
+.auth-form-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: $spacing-2xl $spacing-xl;
+
+    &__inner {
+        width: 100%;
+        max-width: 360px;
+    }
+}
+
+// ── Caja del login ───────────────────────────────────────────
+.login-box {
+    &__header { margin-bottom: $spacing-lg; }
+
+    &__title {
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $text-primary;
+        margin-bottom: $spacing-xs;
+    }
+
+    &__subtitle {
+        font-size: $font-size-base;
+        color: $text-muted;
+    }
+
+    &__footer {
+        margin-top: $spacing-lg;
+        padding-top: $spacing-md;
+        border-top: 1px solid $border-color;
+    }
+
+    &__help {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        line-height: 1.6;
+        text-align: center;
+    }
+
+    &__help-contact {
+        font-weight: 500;
+        color: $text-secondary;
+    }
+}
+
+// ── Alertas ──────────────────────────────────────────────────
+.alert {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-sm;
+    padding: 10px $spacing-md;
+    border-radius: $border-radius;
+    font-size: $font-size-sm;
+    margin-bottom: $spacing-md;
+    line-height: 1.4;
+
+    &__icon { font-size: $font-size-base; flex-shrink: 0; margin-top: 1px; }
+
+    &--error   { background: $color-error-bg;   color: $color-error;   border: 1px solid lighten($color-error, 35%); }
+    &--success { background: $color-success-bg; color: $color-success; border: 1px solid lighten($color-success, 40%); }
+    &--warning { background: $color-warning-bg; color: $color-warning; border: 1px solid lighten($color-warning, 30%); }
+}
+
+// ── Formulario ───────────────────────────────────────────────
+.login-form { display: flex; flex-direction: column; gap: 18px; }
+
+.form-group  { display: flex; flex-direction: column; gap: 5px; }
+
+.form-label {
+    font-size: $font-size-sm;
+    font-weight: 500;
+    color: $text-primary;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 12px;
+    font-size: $font-size-lg;
+    pointer-events: none;
+}
+
+.form-input {
+    width: 100%;
+    padding: 11px 12px 11px 40px;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius;
+    font-size: $font-size-base;
+    font-family: $font-family;
+    color: $text-primary;
+    background: $bg-white;
+    transition: $transition;
+    outline: none;
+
+    &:focus {
+        border-color: $brand-accent;
+        box-shadow: 0 0 0 3px rgba($brand-accent, .1);
+    }
+
+    &--error {
+        border-color: $color-error;
+        &:focus { box-shadow: 0 0 0 3px rgba($color-error, .1); }
+    }
+}
+
+.input-toggle-pass {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: $font-size-lg;
+    padding: 4px;
+    opacity: .6;
+    transition: $transition;
+    &:hover { opacity: 1; }
+}
+
+.form-error {
+    font-size: $font-size-sm;
+    color: $color-error;
+}
+
+// ── Botón de login ───────────────────────────────────────────
+.btn-login {
+    width: 100%;
+    padding: 13px;
+    background: $brand-accent;
+    color: $text-white;
+    border: none;
+    border-radius: $border-radius;
+    font-size: $font-size-lg;
+    font-weight: 600;
+    font-family: $font-family;
+    cursor: pointer;
+    transition: $transition;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-sm;
+
+    &:hover    { background: darken($brand-accent, 8%); }
+    &:active   { transform: scale(.99); }
+    &:disabled { background: lighten($brand-accent, 20%); cursor: not-allowed; }
+}
+
+// ── Responsivo ───────────────────────────────────────────────
+@media (max-width: 640px) {
+    .auth-wrapper {
+        flex-direction: column;
+        min-height: auto;
+        border-radius: $border-radius;
+    }
+
+    .auth-brand {
+        flex: none;
+        padding: $spacing-xl $spacing-lg;
+
+        &__logo    { width: 56px; height: 56px; font-size: 26px; }
+        &__sistema { font-size: 22px; }
+        &__nombre  { display: none; }
+    }
+
+    .auth-form-panel { padding: $spacing-xl $spacing-lg; }
+}

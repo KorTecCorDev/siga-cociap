@@ -1,0 +1,23 @@
+// ============================================================
+// app.scss — SIGA-COCIAP
+// Archivo principal. Importa todos los parciales en orden.
+// Compilado por Gulp → public/css/app.css
+// ============================================================
+
+// 1. Variables y configuración global
+@import 'base/variables';
+@import 'base/reset';
+@import 'base/typography';
+
+// 2. Componentes reutilizables
+@import 'components/buttons';
+@import 'components/forms';
+@import 'components/alerts';
+@import 'components/cards';
+@import 'components/tables';
+@import 'components/navbar';
+@import 'components/sidebar';
+
+// 3. Páginas específicas
+@import 'pages/auth';
+@import 'pages/dashboard';

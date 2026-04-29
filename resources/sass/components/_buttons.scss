@@ -1,0 +1,39 @@
+// _buttons.scss — Botones globales del sistema
+// Se irá completando con cada módulo
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-xs;
+    padding: 8px $spacing-md;
+    border: none;
+    border-radius: $border-radius;
+    font-size: $font-size-base;
+    font-weight: 500;
+    font-family: $font-family;
+    cursor: pointer;
+    transition: $transition;
+    text-decoration: none;
+
+    &--primary {
+        background: $brand-accent;
+        color: $text-white;
+        &:hover { background: darken($brand-accent, 8%); color: $text-white; }
+    }
+
+    &--secondary {
+        background: $bg-secondary;
+        color: $text-primary;
+        border: 1px solid $border-color;
+        &:hover { background: darken($bg-secondary, 4%); }
+    }
+
+    &--danger {
+        background: $color-error;
+        color: $text-white;
+        &:hover { background: darken($color-error, 8%); }
+    }
+
+    &--sm { padding: 5px $spacing-sm; font-size: $font-size-sm; }
+    &--lg { padding: 12px $spacing-lg; font-size: $font-size-lg; }
+}
