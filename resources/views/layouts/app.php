@@ -12,7 +12,7 @@
     <!-- Navbar superior -->
     <nav class="navbar">
         <div class="navbar__brand">
-            <img src="<?= url('assets/img/logo-cociap.png') ?>"
+            <img src="<?= url('assets/img/logo_cociap.png') ?>"
                  alt="COCIAP" class="navbar__logo">
             <span class="navbar__nombre">SIGA-COCIAP</span>
         </div>
