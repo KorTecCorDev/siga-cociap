@@ -1,1 +1,120 @@
-// _dashboard.scss — pendiente
+// ── Dashboard admin — grid de cards ─────────────────────────
+.welcome {
+    margin-bottom: $spacing-xl;
+
+    h1 {
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $text-primary;
+        margin-bottom: $spacing-xs;
+    }
+
+    p {
+        font-size: $font-size-base;
+        color: $text-muted;
+    }
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: $spacing-md;
+}
+
+.cards .card {
+    border-radius: $border-radius-lg;
+    padding: $spacing-lg;
+    border: 1px solid $border-color;
+    transition: $transition;
+    background: $bg-white;
+
+    &:hover {
+        box-shadow: $shadow-md;
+        transform: translateY(-2px);
+    }
+
+    a {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .card__icon {
+        font-size: 32px;
+        margin-bottom: $spacing-sm;
+    }
+
+    .card__title {
+        font-size: $font-size-lg;
+        font-weight: 600;
+        margin-bottom: $spacing-xs;
+        color: $text-primary;
+    }
+
+    .card__desc {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+}
+
+// ── Grid de cargas académicas ────────────────────────────────
+.cargas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: $spacing-md;
+}
+
+.carga-item {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+    padding: $spacing-md;
+    background: $bg-white;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius-lg;
+    text-decoration: none;
+    color: $text-primary;
+    transition: $transition;
+
+    &:hover {
+        border-color: $brand-accent;
+        box-shadow: $shadow-md;
+        transform: translateY(-2px);
+        text-decoration: none;
+        color: $text-primary;
+    }
+
+    &--disabled {
+        opacity: .5;
+        pointer-events: none;
+    }
+
+    &__seccion {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        font-weight: 500;
+    }
+
+    &__nombre {
+        font-size: $font-size-lg;
+        font-weight: 600;
+        color: $text-primary;
+        line-height: 1.3;
+    }
+
+    &__tag {
+        display: inline-block;
+        font-size: 10px;
+        background: $brand-light;
+        color: $brand-accent;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+
+    &__horas {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin-top: auto;
+    }
+}
