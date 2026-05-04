@@ -1,1 +1,207 @@
-// _dashboard.scss — pendiente
+// _dashboard.scss — Estilos del sistema interno (post-login)
+
+// ── Layout general ───────────────────────────────────────────
+.app-body {
+    background: $bg-body;
+    min-height: 100vh;
+}
+
+.app-main {
+    max-width: $content-max-width;
+    margin: 0 auto;
+    padding: $spacing-xl $spacing-lg;
+}
+
+// ── Encabezado de página ────────────────────────────────────
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    margin-bottom: $spacing-xl;
+    flex-wrap: wrap;
+}
+
+.page-title {
+    font-size: $font-size-2xl;
+    font-weight: 700;
+    color: $text-primary;
+    margin: 0;
+    flex: 1;
+}
+
+.page-subtitle {
+    font-size: $font-size-base;
+    color: $text-muted;
+    margin: 4px 0 0;
+}
+
+// ── Utilidades de espaciado ──────────────────────────────────
+.mb-md  { margin-bottom: $spacing-md; }
+.mb-lg  { margin-bottom: $spacing-lg; }
+.mb-xl  { margin-bottom: $spacing-xl; }
+
+// ── Grid de cargas académicas ────────────────────────────────
+.cargas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: $spacing-md;
+}
+
+.carga-item {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+    padding: $spacing-md;
+    background: $bg-white;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius-lg;
+    text-decoration: none;
+    color: $text-primary;
+    transition: $transition;
+
+    &:hover {
+        border-color: $brand-accent;
+        box-shadow: $shadow-md;
+        transform: translateY(-2px);
+        text-decoration: none;
+        color: $text-primary;
+    }
+
+    &--disabled {
+        opacity: .5;
+        pointer-events: none;
+    }
+
+    &__seccion {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        font-weight: 500;
+    }
+
+    &__nombre {
+        font-size: $font-size-lg;
+        font-weight: 600;
+        color: $text-primary;
+        line-height: 1.3;
+    }
+
+    &__tag {
+        display: inline-block;
+        font-size: 10px;
+        background: $brand-light;
+        color: $brand-accent;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+
+    &__horas {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin-top: auto;
+    }
+}
+
+// ── Tarjeta de competencia ───────────────────────────────────
+.competencia-card {
+    background: $bg-white;
+    border: 0.5px solid $border-color;
+    border-radius: $border-radius-lg;
+    margin-bottom: $spacing-lg;
+    overflow: hidden;
+
+    &__header {
+        padding: $spacing-md $spacing-lg;
+        background: $bg-secondary;
+        border-bottom: 0.5px solid $border-color;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: $spacing-md;
+    }
+
+    &__codigo {
+        font-size: 11px;
+        font-weight: 600;
+        color: $brand-accent;
+        background: $brand-light;
+        padding: 2px 8px;
+        border-radius: 20px;
+        margin-right: $spacing-sm;
+    }
+
+    &__nombre {
+        font-size: $font-size-base;
+        font-weight: 600;
+        color: $text-primary;
+        margin: 0;
+        display: inline;
+    }
+
+    &__body {
+        padding: $spacing-lg;
+    }
+}
+
+// ── Bloque de criterio ───────────────────────────────────────
+.criterio-bloque {
+    border: 0.5px solid $border-color;
+    border-radius: $border-radius;
+    margin-bottom: $spacing-md;
+    overflow: hidden;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: $spacing-sm $spacing-md;
+        background: $bg-secondary;
+        border-bottom: 0.5px solid $border-color;
+    }
+
+    &__nombre {
+        font-size: $font-size-base;
+        font-weight: 500;
+        color: $text-primary;
+        margin: 0;
+    }
+}
+
+// ── Footer del formulario de notas ───────────────────────────
+.form-notas__footer {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    padding: $spacing-sm $spacing-md;
+    background: $bg-secondary;
+    border-top: 0.5px solid $border-color;
+}
+
+.form-notas__status {
+    font-size: $font-size-sm;
+
+    &.status--success { color: $color-success; }
+    &.status--error   { color: $color-error;   }
+    &.status--warning { color: $color-warning; }
+    &.status--loading { color: $text-muted;    }
+}
+
+// ── Agregar criterio ─────────────────────────────────────────
+.agregar-criterio {
+    display: flex;
+    gap: $spacing-sm;
+    margin-top: $spacing-md;
+    align-items: center;
+
+    .form-input {
+        flex: 1;
+    }
+}
+
+// ── Responsivo ───────────────────────────────────────────────
+@media (max-width: 640px) {
+    .app-main { padding: $spacing-md; }
+    .page-header { flex-direction: column; align-items: flex-start; }
+    .cargas-grid { grid-template-columns: 1fr; }
+    .tabla-notas { font-size: $font-size-sm; }
+}

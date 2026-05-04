@@ -1,1 +1,48 @@
-// _tables.scss — pendiente
+// _tables.scss — Tablas del sistema
+.tabla-notas {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-base;
+    margin-bottom: $spacing-md;
+
+    th {
+        background: $bg-secondary;
+        padding: 8px $spacing-md;
+        text-align: left;
+        font-weight: 500;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        border-bottom: 1px solid $border-color;
+    }
+
+    td {
+        padding: 7px $spacing-md;
+        border-bottom: 0.5px solid $border-color;
+        color: $text-primary;
+        vertical-align: middle;
+    }
+
+    tr:hover td { background: $bg-secondary; }
+    tr:last-child td { border-bottom: none; }
+
+    .input-nota {
+        width: 70px;
+        padding: 5px 8px;
+        border: 1.5px solid $border-color;
+        border-radius: $border-radius-sm;
+        font-size: $font-size-base;
+        text-align: center;
+        font-family: $font-family;
+        transition: $transition;
+
+        &:focus {
+            outline: none;
+            border-color: $brand-accent;
+            box-shadow: 0 0 0 3px rgba($brand-accent, .1);
+        }
+
+        &.input--error {
+            border-color: $color-error;
+        }
+    }
+}

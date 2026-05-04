@@ -1,1 +1,40 @@
-// _forms.scss — pendiente
+// _forms.scss — Formularios generales del sistema
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: $spacing-md;
+}
+
+.form-label {
+    font-size: $font-size-sm;
+    font-weight: 500;
+    color: $text-primary;
+}
+
+.form-input {
+    width: 100%;
+    padding: 9px $spacing-md;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius;
+    font-size: $font-size-base;
+    font-family: $font-family;
+    color: $text-primary;
+    background: $bg-white;
+    transition: $transition;
+    outline: none;
+
+    &:focus {
+        border-color: $brand-accent;
+        box-shadow: 0 0 0 3px rgba($brand-accent, .1);
+    }
+
+    &--error {
+        border-color: $color-error;
+    }
+}
+
+.form-error {
+    font-size: $font-size-sm;
+    color: $color-error;
+}
