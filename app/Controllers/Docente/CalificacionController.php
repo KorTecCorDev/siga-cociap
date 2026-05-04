@@ -1,0 +1,328 @@
+<?php
+
+namespace App\Controllers\Docente;
+
+use App\Controllers\BaseController;
+use App\Models\CalificacionModel;
+use App\Models\CriterioModel;
+use Core\Session;
+
+/**
+ * CalificacionController
+ * Panel del docente para gestión de criterios y notas.
+ */
+class CalificacionController extends BaseController
+{
+    private CalificacionModel $calModel;
+    private CriterioModel     $critModel;
+
+    public function __construct()
+    {
+        $this->requireRole(['docente', 'admin', 'registro_academico']);
+        $this->calModel  = new CalificacionModel();
+        $this->critModel = new CriterioModel();
+    }
+
+    /**
+     * GET /docente/mis-cargas
+     * Lista las cargas académicas del docente en el periodo activo.
+     */
+    public function misCargas(): void
+    {
+        $user    = Session::user();
+        $cargas  = $this->getCargas($user['id']);
+        $periodo = $this->getPeriodoActivo();
+
+        $this->view('docente/mis-cargas', [
+            'titulo'  => 'Mis cargas académicas',
+            'cargas'  => $cargas,
+            'periodo' => $periodo,
+        ]);
+    }
+
+    /**
+     * GET /docente/calificaciones/{carga_id}
+     * Muestra las competencias y criterios de una carga.
+     */
+    public function formulario(string $cargaId): void
+    {
+        $cargaId = (int) $cargaId;
+        $periodo = $this->getPeriodoActivo();
+
+        if (!$periodo) {
+            $this->redirectWithError(
+                url('docente/mis-cargas'),
+                'No hay un periodo activo.'
+            );
+        }
+
+        $carga = $this->validarCargaDocente($cargaId);
+        if (!$carga) {
+            $this->redirectWithError(
+                url('docente/mis-cargas'),
+                'Carga no encontrada.'
+            );
+        }
+
+        $bloqueado    = $this->calModel->periodoEstaBloqueado($periodo['id']);
+        $competencias = $this->critModel->getCompetenciasConCriterios(
+            $cargaId,
+            $periodo['id']
+        );
+        $alumnos = $this->getAlumnosSeccion($carga['seccion_id']);
+
+        $this->view('docente/calificaciones', [
+            'titulo'       => 'Calificaciones — ' . ($carga['nombre_display'] ?? ''),
+            'carga'        => $carga,
+            'periodo'      => $periodo,
+            'competencias' => $competencias,
+            'alumnos'      => $alumnos,
+            'bloqueado'    => $bloqueado,
+        ]);
+    }
+
+    /**
+     * POST /docente/calificaciones/{carga_id}
+     * Guarda las notas de un criterio para todos los alumnos.
+     */
+    public function guardar(string $cargaId): void
+    {
+        $this->validateCsrf();
+        $cargaId = (int) $cargaId;
+
+        $periodo = $this->getPeriodoActivo();
+        if (!$periodo || $this->calModel->periodoEstaBloqueado($periodo['id'])) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'El periodo está cerrado. Comunícate con Registro Académico.',
+            ], 403);
+        }
+
+        $criterioId    = (int) $this->input('criterio_id');
+        $competenciaId = (int) $this->input('competencia_id');
+        $notas         = $this->input('notas', []);
+
+        if (!$criterioId || empty($notas)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Datos incompletos.',
+            ], 400);
+        }
+
+        $ok = $this->calModel->guardarNotasMasivas($criterioId, $notas);
+
+        if ($ok) {
+            $this->calModel->recalcularPromedioSeccion(
+                $cargaId,
+                $competenciaId,
+                $periodo['id'],
+                Session::user()['id']
+            );
+            $this->json([
+                'success' => true,
+                'mensaje' => 'Notas guardadas correctamente.',
+            ]);
+        } else {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Error al guardar. Intenta de nuevo.',
+            ], 500);
+        }
+    }
+
+    /**
+     * POST /docente/criterios/crear
+     * Crea un nuevo criterio de evaluación.
+     */
+    public function crearCriterio(): void
+    {
+        $this->validateCsrf();
+
+        $cargaId       = (int) $this->input('carga_id');
+        $competenciaId = (int) $this->input('competencia_id');
+        $nombre        = trim($this->input('nombre', ''));
+        $periodo       = $this->getPeriodoActivo();
+
+        if (empty($nombre) || !$periodo) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Datos incompletos.',
+            ], 400);
+        }
+
+        if ($this->calModel->periodoEstaBloqueado($periodo['id'])) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Periodo bloqueado.',
+            ], 403);
+        }
+
+        $id = $this->critModel->crear(
+            $cargaId,
+            $competenciaId,
+            $periodo['id'],
+            $nombre
+        );
+
+        $this->json([
+            'success' => true,
+            'id'      => $id,
+            'nombre'  => $nombre,
+            'mensaje' => 'Criterio creado.',
+        ]);
+    }
+
+    /**
+     * POST /docente/criterios/{id}/eliminar
+     * Elimina un criterio si no tiene calificaciones.
+     */
+    public function eliminarCriterio(string $id): void
+    {
+        $this->validateCsrf();
+        $id = (int) $id;
+
+        $ok = $this->critModel->eliminarSiVacio($id);
+
+        if ($ok) {
+            $this->json(['success' => true, 'mensaje' => 'Criterio eliminado.']);
+        } else {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'No se puede eliminar — ya tiene calificaciones.',
+            ], 409);
+        }
+    }
+
+    /**
+     * POST /docente/calificaciones/conclusion
+     * Guarda la conclusión descriptiva de una competencia.
+     */
+    public function guardarConclusion(): void
+    {
+        $this->validateCsrf();
+
+        $matriculaId   = (int) $this->input('matricula_id');
+        $cargaId       = (int) $this->input('carga_id');
+        $competenciaId = (int) $this->input('competencia_id');
+        $conclusion    = trim($this->input('conclusion', ''));
+        $periodo       = $this->getPeriodoActivo();
+
+        if (!$periodo) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Sin periodo activo.',
+            ], 400);
+        }
+
+        $ok = $this->calModel->execute("
+            UPDATE calificaciones
+            SET conclusion_descriptiva = ?,
+                modificado_en          = NOW()
+            WHERE matricula_id   = ?
+              AND carga_id       = ?
+              AND competencia_id = ?
+              AND periodo_id     = ?
+        ", [$conclusion, $matriculaId, $cargaId, $competenciaId, $periodo['id']]);
+
+        $this->json([
+            'success' => $ok,
+            'mensaje' => $ok ? 'Conclusión guardada.' : 'Error al guardar.',
+        ]);
+    }
+
+    // ── Métodos privados ─────────────────────────────────────
+
+    private function getPeriodoActivo(): ?array
+    {
+        return $this->calModel->queryOne("
+            SELECT p.*, a.anio
+            FROM periodos p
+            INNER JOIN anios_academicos a ON a.id = p.anio_id
+            WHERE p.estado = 'activo'
+            LIMIT 1
+        ");
+    }
+
+    private function getCargas(int $docenteId): array
+    {
+        return $this->calModel->query("
+            SELECT
+                ca.id,
+                ca.horas_semanales,
+                ca.seccion_id,
+                s.nombre          AS seccion_nombre,
+                s.es_unidocente,
+                g.nombre_display  AS grado_nombre,
+                n.nombre          AS nivel_nombre,
+                n.codigo          AS nivel_codigo,
+                n.escala_boleta,
+                CASE
+                    WHEN s.es_unidocente = 1 THEN a.nombre
+                    ELSE COALESCE(sa.nombre, a.nombre)
+                END               AS nombre_display,
+                a.nombre          AS area_nombre,
+                a.tipo            AS area_tipo,
+                sa.id             AS subarea_id,
+                a.id              AS area_id
+            FROM cargas_academicas ca
+            INNER JOIN secciones s  ON s.id  = ca.seccion_id
+            INNER JOIN grados g     ON g.id  = s.grado_id
+            INNER JOIN niveles n    ON n.id  = g.nivel_id
+            LEFT  JOIN subareas sa  ON sa.id = ca.subarea_id
+            LEFT  JOIN areas a      ON a.id  = COALESCE(ca.area_id, sa.area_id)
+            WHERE ca.docente_id = ?
+              AND ca.estado     = 'activa'
+            ORDER BY n.id, g.numero, s.nombre, a.orden
+        ", [$docenteId]);
+    }
+
+    private function validarCargaDocente(int $cargaId): ?array
+    {
+        $user = Session::user();
+        return $this->calModel->queryOne("
+            SELECT
+                ca.*,
+                s.nombre          AS seccion_nombre,
+                s.es_unidocente,
+                g.nombre_display  AS grado_nombre,
+                n.nombre          AS nivel_nombre,
+                n.codigo          AS nivel_codigo,
+                n.escala_boleta,
+                COALESCE(sa.nombre, a.nombre) AS nombre_display,
+                a.nombre          AS area_nombre,
+                a.tipo            AS area_tipo
+            FROM cargas_academicas ca
+            INNER JOIN secciones s  ON s.id  = ca.seccion_id
+            INNER JOIN grados g     ON g.id  = s.grado_id
+            INNER JOIN niveles n    ON n.id  = g.nivel_id
+            LEFT  JOIN subareas sa  ON sa.id = ca.subarea_id
+            LEFT  JOIN areas a      ON a.id  = COALESCE(ca.area_id, sa.area_id)
+            WHERE ca.id         = ?
+              AND ca.docente_id = ?
+              AND ca.estado     = 'activa'
+        ", [$cargaId, $user['id']]);
+    }
+
+    private function getAlumnosSeccion(int $seccionId): array
+    {
+        return $this->calModel->query("
+            SELECT
+                m.id AS matricula_id,
+                p.dni,
+                p.apellido_paterno,
+                p.apellido_materno,
+                p.nombres,
+                CONCAT(
+                    p.apellido_paterno, ' ',
+                    p.apellido_materno, ', ',
+                    p.nombres
+                ) AS nombre_completo
+            FROM matriculas m
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas p    ON p.id = e.persona_id
+            WHERE m.seccion_id = ?
+              AND m.estado     = 'aprobada'
+            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
+        ", [$seccionId]);
+    }
+}
