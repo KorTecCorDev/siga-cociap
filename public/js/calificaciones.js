@@ -64,10 +64,9 @@ document.querySelectorAll('.form-notas').forEach(form => {
                 formData.append(`notas[${id}]`, nota);
             });
 
-            const res  = await fetch(
-                `${window.location.pathname}/guardar`,
-                { method: 'POST', body: formData }
-            );
+            const url = `${BASE}/docente/calificaciones/${cargaId}/guardar`;
+            const res = await fetch(url, { method: 'POST', body: formData });
+            
             const data = await res.json();
 
             if (data.success) {
@@ -105,7 +104,7 @@ document.querySelectorAll('.btn-agregar-criterio').forEach(btn => {
             formData.append('competencia_id',competenciaId);
             formData.append('nombre',        nombre);
 
-            const res  = await fetch('/siga-cociap/public/docente/criterios/crear',
+            const res = await fetch(`${BASE}/docente/criterios/crear`,
                 { method: 'POST', body: formData }
             );
             const data = await res.json();
@@ -136,8 +135,8 @@ document.querySelectorAll('.btn-eliminar-criterio').forEach(btn => {
             const formData = new FormData();
             formData.append('_csrf_token', CSRF);
 
-            const res  = await fetch(
-                `/siga-cociap/public/docente/criterios/${criterioId}/eliminar`,
+            const res = await fetch(
+                `${BASE}/docente/criterios/${criterioId}/eliminar`,
                 { method: 'POST', body: formData }
             );
             const data = await res.json();

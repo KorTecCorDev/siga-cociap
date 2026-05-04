@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($titulo ?? 'SIGA-COCIAP') ?> — SIGA-COCIAP</title>
-    <meta name="base-url" content="<?= url('') ?>">
+    <meta name="base-url" content="<?= (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] ?>">
     <link rel="stylesheet" href="<?= url('css/app.css') ?>">
 </head>
 <body class="app-body">
