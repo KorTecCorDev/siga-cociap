@@ -110,6 +110,7 @@
                                                         max="20"
                                                         <?= $bloqueado ? 'disabled' : '' ?>
                                                         placeholder="—"
+                                                        value="<?= $notasExistentes[$criterio['id']][$alumno['matricula_id']] ?? '' ?>"
                                                     >
                                                 </td>
                                             </tr>

@@ -11,6 +11,8 @@ use Core\Session;
  * CalificacionController
  * Panel del docente para gestión de criterios y notas.
  */
+
+
 class CalificacionController extends BaseController
 {
     private CalificacionModel $calModel;
@@ -64,20 +66,22 @@ class CalificacionController extends BaseController
             );
         }
 
-        $bloqueado    = $this->calModel->periodoEstaBloqueado($periodo['id']);
-        $competencias = $this->critModel->getCompetenciasConCriterios(
+        $bloqueado       = $this->calModel->periodoEstaBloqueado($periodo['id']);
+        $competencias    = $this->critModel->getCompetenciasConCriterios(
             $cargaId,
             $periodo['id']
         );
-        $alumnos = $this->getAlumnosSeccion($carga['seccion_id']);
+        $alumnos         = $this->getAlumnosSeccion($carga['seccion_id']);
+        $notasExistentes = $this->getNotasExistentes($cargaId, $periodo['id']);
 
         $this->view('docente/calificaciones', [
-            'titulo'       => 'Calificaciones — ' . ($carga['nombre_display'] ?? ''),
-            'carga'        => $carga,
-            'periodo'      => $periodo,
-            'competencias' => $competencias,
-            'alumnos'      => $alumnos,
-            'bloqueado'    => $bloqueado,
+            'titulo'          => 'Calificaciones — ' . ($carga['nombre_display'] ?? ''),
+            'carga'           => $carga,
+            'periodo'         => $periodo,
+            'competencias'    => $competencias,
+            'alumnos'         => $alumnos,
+            'bloqueado'       => $bloqueado,
+            'notasExistentes' => $notasExistentes,
         ]);
     }
 
@@ -321,8 +325,30 @@ class CalificacionController extends BaseController
             INNER JOIN estudiantes e ON e.id = m.estudiante_id
             INNER JOIN personas p    ON p.id = e.persona_id
             WHERE m.seccion_id = ?
-              AND m.estado     = 'aprobada'
+            AND m.estado     = 'aprobada'
             ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
         ", [$seccionId]);
+    }
+
+    private function getNotasExistentes(int $cargaId, int $periodoId): array
+    {
+        $resultado = $this->calModel->query("
+            SELECT
+                cc.matricula_id,
+                cc.nota,
+                cr.id AS criterio_id,
+                cr.competencia_id
+            FROM calificaciones_criterio cc
+            INNER JOIN criterios cr ON cr.id = cc.criterio_id
+            WHERE cr.carga_id   = ?
+            AND cr.periodo_id = ?
+        ", [$cargaId, $periodoId]);
+
+        // Indexar por criterio_id y matricula_id para acceso rápido
+        $notas = [];
+        foreach ($resultado as $row) {
+            $notas[$row['criterio_id']][$row['matricula_id']] = $row['nota'];
+        }
+        return $notas;
     }
 }
