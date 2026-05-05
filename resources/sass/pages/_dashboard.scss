@@ -397,3 +397,90 @@
         font-size: $font-size-sm;
     }
 }
+
+// ── Orden de mérito ──────────────────────────────────────────
+.periodos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: $spacing-md;
+}
+
+.periodo-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $spacing-xs;
+    padding: $spacing-lg;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius-lg;
+    text-decoration: none;
+    transition: $transition;
+    background: $bg-white;
+
+    &:hover {
+        border-color: $brand-accent;
+        box-shadow: $shadow-md;
+        transform: translateY(-2px);
+    }
+
+    &__nombre {
+        font-size: $font-size-lg;
+        font-weight: 700;
+        color: $text-primary;
+    }
+
+    &__anio {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+}
+
+// ── Tabla de ranking ─────────────────────────────────────────
+.tabla-ranking {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-base;
+
+    th {
+        background: $bg-secondary;
+        padding: 10px $spacing-md;
+        text-align: left;
+        font-weight: 500;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        border-bottom: 1px solid $border-color;
+    }
+
+    td {
+        padding: 10px $spacing-md;
+        border-bottom: 0.5px solid $border-color;
+        color: $text-primary;
+        vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    tr:hover td { background: $bg-secondary; }
+}
+
+.fila-media-beca {
+    background: #fffbeb !important;
+
+    td { border-bottom-color: #fde68a !important; }
+}
+
+.puesto {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: $font-size-sm;
+
+    &--1 { background: #fef9c3; color: #854d0e; }
+    &--2 { background: #f1f5f9; color: #475569; }
+    &--3 { background: #fef3c7; color: #92400e; }
+    &--normal { background: $bg-secondary; color: $text-muted; }
+}
