@@ -484,3 +484,77 @@
     &--3 { background: #fef3c7; color: #92400e; }
     &--normal { background: $bg-secondary; color: $text-muted; }
 }
+
+// ── Promedio de competencia ──────────────────────────────────
+.promedio-badge {
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
+    flex-shrink: 0;
+
+    &__num {
+        font-size: 20px;
+        font-weight: 700;
+        color: $text-primary;
+    }
+
+    &__literal {
+        font-size: 14px;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: $border-radius;
+    }
+
+    &__label {
+        font-size: 11px;
+        color: $text-muted;
+    }
+
+    &--ad { background: #dbeafe; color: #1d4ed8; }
+    &--a  { background: #d1fae5; color: #065f46; }
+    &--b  { background: #fef9c3; color: #854d0e; }
+    &--c  { background: #fee2e2; color: #991b1b; }
+}
+
+// ── Conclusión descriptiva ───────────────────────────────────
+.conclusion-form {
+    margin-top: $spacing-md;
+    padding: $spacing-md;
+    background: $bg-secondary;
+    border-radius: $border-radius;
+    border: 0.5px solid $border-color;
+
+    .form-label {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        margin-bottom: $spacing-sm;
+    }
+
+    &__footer {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+        margin-top: $spacing-sm;
+    }
+}
+
+.textarea-conclusion {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.obligatorio {
+    font-size: $font-size-sm;
+    color: $color-error;
+    font-weight: 500;
+}
+
+.conclusion-status {
+    font-size: $font-size-sm;
+
+    &.status--success { color: $color-success; }
+    &.status--error   { color: $color-error;   }
+    &.status--warning { color: $color-warning; }
+    &.status--loading { color: $text-muted;    }
+}

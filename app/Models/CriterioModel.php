@@ -94,25 +94,57 @@ class CriterioModel extends BaseModel
                 c.nombre_completo,
                 c.nombre_corto,
                 c.codigo_minedu,
-                c.orden
+                c.orden,
+                -- Promedio actual de la competencia
+                ROUND(
+                    (
+                        SELECT AVG(cc.nota)
+                        FROM calificaciones_criterio cc
+                        INNER JOIN criterios cr ON cr.id = cc.criterio_id
+                        WHERE cr.carga_id       = ?
+                        AND cr.competencia_id = c.id
+                        AND cr.periodo_id     = ?
+                    ), 0
+                ) AS promedio_actual,
+                -- Cuántos alumnos tienen nota
+                (
+                    SELECT COUNT(DISTINCT cc.matricula_id)
+                    FROM calificaciones_criterio cc
+                    INNER JOIN criterios cr ON cr.id = cc.criterio_id
+                    WHERE cr.carga_id       = ?
+                    AND cr.competencia_id = c.id
+                    AND cr.periodo_id     = ?
+                ) AS alumnos_calificados,
+                -- Conclusión descriptiva si existe
+                (
+                    SELECT cal.conclusion_descriptiva
+                    FROM calificaciones cal
+                    WHERE cal.carga_id       = ?
+                    AND cal.competencia_id = c.id
+                    AND cal.periodo_id     = ?
+                    LIMIT 1
+                ) AS conclusion_descriptiva
             FROM competencias c
             WHERE c.id IN (
-                SELECT comp.id
-                FROM competencias comp
+                SELECT comp.id FROM competencias comp
                 INNER JOIN cargas_academicas ca
                     ON ca.subarea_id = comp.subarea_id
                 WHERE ca.id = ?
-                  AND comp.subarea_id IS NOT NULL
+                AND comp.subarea_id IS NOT NULL
                 UNION
-                SELECT comp.id
-                FROM competencias comp
+                SELECT comp.id FROM competencias comp
                 INNER JOIN cargas_academicas ca
                     ON ca.area_id = comp.area_id
                 WHERE ca.id = ?
-                  AND comp.area_id IS NOT NULL
+                AND comp.area_id IS NOT NULL
             )
             ORDER BY c.orden
-        ", [$cargaId, $cargaId]);
+        ", [
+            $cargaId, $periodoId,
+            $cargaId, $periodoId,
+            $cargaId, $periodoId,
+            $cargaId, $cargaId
+        ]);
 
         foreach ($competencias as &$competencia) {
             $competencia['criterios'] = $this->getCriterios(
@@ -120,6 +152,19 @@ class CriterioModel extends BaseModel
                 $competencia['id'],
                 $periodoId
             );
+
+            // Calcular literal del promedio
+            if ($competencia['promedio_actual'] !== null) {
+                $nota = (int) $competencia['promedio_actual'];
+                $competencia['literal_actual'] = match(true) {
+                    $nota >= 18 => 'AD',
+                    $nota >= 14 => 'A',
+                    $nota >= 11 => 'B',
+                    default     => 'C',
+                };
+            } else {
+                $competencia['literal_actual'] = null;
+            }
         }
 
         return $competencias;

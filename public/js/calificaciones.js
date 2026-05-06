@@ -162,3 +162,53 @@ function mostrarStatus(el, tipo, mensaje) {
         setTimeout(() => { el.textContent = ''; }, 4000);
     }
 }
+
+// ── Guardar conclusión descriptiva ───────────────────────────
+document.querySelectorAll('.btn-guardar-conclusion').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const cargaId       = btn.dataset.cargaId;
+        const competenciaId = btn.dataset.competenciaId;
+        const contenedor    = btn.closest('.conclusion-form');
+        const textarea      = contenedor.querySelector('.textarea-conclusion');
+        const status        = contenedor.querySelector('.conclusion-status');
+        const conclusion    = textarea.value.trim();
+
+        if (!conclusion) {
+            status.textContent = '⚠ Escribe la conclusión antes de guardar.';
+            status.className   = 'conclusion-status status--warning';
+            return;
+        }
+
+        btn.disabled = true;
+        status.textContent = 'Guardando...';
+        status.className   = 'conclusion-status status--loading';
+
+        try {
+            const formData = new FormData();
+            formData.append('_csrf_token',   CSRF);
+            formData.append('carga_id',      cargaId);
+            formData.append('competencia_id',competenciaId);
+            formData.append('conclusion',    conclusion);
+
+            const res  = await fetch(
+                `${BASE}/docente/calificaciones/conclusion`,
+                { method: 'POST', body: formData }
+            );
+            const data = await res.json();
+
+            if (data.success) {
+                status.textContent = '✓ Conclusión guardada.';
+                status.className   = 'conclusion-status status--success';
+                setTimeout(() => { status.textContent = ''; }, 4000);
+            } else {
+                status.textContent = '⚠ ' + data.mensaje;
+                status.className   = 'conclusion-status status--error';
+            }
+        } catch (err) {
+            status.textContent = 'Error de conexión.';
+            status.className   = 'conclusion-status status--error';
+        } finally {
+            btn.disabled = false;
+        }
+    });
+});

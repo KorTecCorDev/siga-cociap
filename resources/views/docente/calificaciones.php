@@ -51,6 +51,22 @@
                         <?= e($competencia['nombre_completo']) ?>
                     </h3>
                 </div>
+
+                <!-- Promedio actual de la competencia -->
+                <?php if ($competencia['promedio_actual'] !== null): ?>
+                    <div class="promedio-badge">
+                        <?php $literal = $competencia['literal_actual']; ?>
+                        <?php if ($carga['nivel_codigo'] === 'sec'): ?>
+                            <span class="promedio-badge__num">
+                                <?= $competencia['promedio_actual'] ?>
+                            </span>
+                        <?php endif; ?>
+                        <span class="promedio-badge__literal promedio-badge--<?= strtolower($literal) ?>">
+                            <?= $literal ?>
+                        </span>
+                        <span class="promedio-badge__label">promedio</span>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <!-- Criterios existentes -->
@@ -133,7 +149,67 @@
                     <?php endforeach; ?>
 
                 <?php endif; ?>
+                <!-- Conclusión descriptiva -->
+                <?php
+                $literal      = $competencia['literal_actual'] ?? null;
+                $nivelCodigo  = $carga['nivel_codigo'];
+                $esObligatoria = false;
 
+                if ($literal !== null) {
+                    if ($nivelCodigo === 'prim' && in_array($literal, ['B', 'C'])) {
+                        $esObligatoria = true;
+                    }
+                    if ($nivelCodigo === 'sec' && $literal === 'C') {
+                        $esObligatoria = true;
+                    }
+                }
+
+                $tieneNota = $competencia['promedio_actual'] !== null;
+                ?>
+
+                <?php if ($tieneNota && !$bloqueado): ?>
+                    <div class="conclusion-form" id="conclusion-<?= $competencia['id'] ?>">
+                        <label class="form-label">
+                            Conclusión descriptiva
+                            <?php if ($esObligatoria): ?>
+                                <span class="obligatorio">* Obligatoria</span>
+                            <?php else: ?>
+                                <span class="text-muted">(opcional)</span>
+                            <?php endif; ?>
+                        </label>
+                        <textarea
+                            class="form-input textarea-conclusion"
+                            rows="3"
+                            maxlength="500"
+                            data-carga-id="<?= $carga['id'] ?>"
+                            data-competencia-id="<?= $competencia['id'] ?>"
+                            placeholder="<?= $esObligatoria
+                                ? 'Obligatorio para nota ' . $literal . '...'
+                                : 'Puedes agregar una conclusión descriptiva...' ?>"
+                        ><?= e($competencia['conclusion_descriptiva'] ?? '') ?></textarea>
+                        <div class="conclusion-form__footer">
+                            <button
+                                class="btn btn--primary btn--sm btn-guardar-conclusion"
+                                data-carga-id="<?= $carga['id'] ?>"
+                                data-competencia-id="<?= $competencia['id'] ?>">
+                                Guardar conclusión
+                            </button>
+                            <span class="conclusion-status"></span>
+                        </div>
+                    </div>
+                <?php elseif ($tieneNota && $bloqueado): ?>
+                    <?php if (!empty($competencia['conclusion_descriptiva'])): ?>
+                        <div class="conclusion">
+                            <span class="conclusion__label">Conclusión descriptiva:</span>
+                            <?= e($competencia['conclusion_descriptiva']) ?>
+                        </div>
+                    <?php elseif ($esObligatoria): ?>
+                        <div class="flash flash--warning">
+                            ⚠ Esta competencia requiere conclusión descriptiva
+                            pero el periodo está bloqueado.
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
                 <!-- Agregar criterio -->
                 <?php if (!$bloqueado): ?>
                     <div class="agregar-criterio">
