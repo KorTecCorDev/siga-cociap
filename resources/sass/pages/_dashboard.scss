@@ -558,3 +558,75 @@
     &.status--warning { color: $color-warning; }
     &.status--loading { color: $text-muted;    }
 }
+
+// ── Vista resumen competencia ────────────────────────────────
+.tabla-responsive {
+    overflow-x: auto;
+    width: 100%;
+}
+
+.tabla-resumen {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-sm;
+    min-width: 600px;
+
+    th {
+        background: $bg-secondary;
+        padding: 8px $spacing-md;
+        text-align: left;
+        font-weight: 500;
+        color: $text-secondary;
+        border-bottom: 1px solid $border-color;
+        white-space: nowrap;
+    }
+
+    td {
+        padding: 8px $spacing-md;
+        border-bottom: 0.5px solid $border-color;
+        vertical-align: middle;
+    }
+
+    tr:hover td { background: $bg-secondary; }
+}
+
+.criterio-header {
+    display: inline-block;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.fila-pendiente {
+    background: #fff7ed !important;
+    td { border-bottom-color: #fed7aa !important; }
+}
+
+.conclusion-alumno {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
+    textarea {
+        min-width: 200px;
+        font-size: $font-size-sm;
+        resize: vertical;
+    }
+}
+
+.resumen-footer {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    padding: $spacing-md $spacing-lg;
+    background: $bg-secondary;
+    border-top: 0.5px solid $border-color;
+}
+
+.btn--success {
+    background: $color-success;
+    color: $text-white;
+    &:hover { background: darken($color-success, 8%); }
+}

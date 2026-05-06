@@ -351,4 +351,141 @@ class CalificacionController extends BaseController
         }
         return $notas;
     }
+        /**
+ * GET /docente/calificaciones/{carga_id}/resumen/{competencia_id}
+ * Vista de resumen con promedios y conclusiones por alumno.
+ */
+    public function resumen(string $cargaId, string $competenciaId): void
+    {
+        $cargaId       = (int) $cargaId;
+        $competenciaId = (int) $competenciaId;
+        $periodo       = $this->getPeriodoActivo();
+
+        if (!$periodo) {
+            $this->redirectWithError(
+                url('docente/mis-cargas'),
+                'No hay un periodo activo.'
+            );
+        }
+
+        $carga = $this->validarCargaDocente($cargaId);
+        if (!$carga) {
+            $this->redirectWithError(
+                url('docente/mis-cargas'),
+                'Carga no encontrada.'
+            );
+        }
+
+        // Obtener competencia
+        $competencia = $this->calModel->queryOne("
+            SELECT * FROM competencias WHERE id = ?
+        ", [$competenciaId]);
+
+        // Verificar si está bloqueada
+        $bloqueada = $this->calModel->competenciaBloqueada(
+            $cargaId, $competenciaId, $periodo['id']
+        );
+
+        // Obtener resumen completo
+        $resumen = $this->calModel->getResumenCompetencia(
+            $cargaId, $competenciaId, $periodo['id']
+        );
+
+        $this->view('docente/resumen-competencia', [
+            'titulo'       => 'Resumen — ' . ($competencia['nombre_corto'] ?? ''),
+            'carga'        => $carga,
+            'periodo'      => $periodo,
+            'competencia'  => $competencia,
+            'criterios'    => $resumen['criterios'],
+            'alumnos'      => $resumen['alumnos'],
+            'bloqueada'    => $bloqueada,
+        ]);
+    }
+
+    /**
+     * POST /docente/calificaciones/{carga_id}/conclusion/{competencia_id}
+     * Guarda la conclusión de UN alumno específico.
+     */
+    public function guardarConclusionAlumno(
+        string $cargaId,
+        string $competenciaId
+    ): void {
+        $this->validateCsrf();
+
+        $cargaId       = (int) $cargaId;
+        $competenciaId = (int) $competenciaId;
+        $matriculaId   = (int) $this->input('matricula_id');
+        $conclusion    = trim($this->input('conclusion', ''));
+        $periodo       = $this->getPeriodoActivo();
+
+        if (!$periodo) {
+            $this->json(['success' => false, 'mensaje' => 'Sin periodo activo.'], 400);
+        }
+
+        // Verificar que no esté bloqueada
+        if ($this->calModel->competenciaBloqueada($cargaId, $competenciaId, $periodo['id'])) {
+            $this->json(['success' => false, 'mensaje' => 'Competencia bloqueada.'], 403);
+        }
+
+        $ok = $this->calModel->execute("
+            UPDATE calificaciones
+            SET conclusion_descriptiva = ?,
+                modificado_en          = NOW()
+            WHERE matricula_id   = ?
+            AND carga_id       = ?
+            AND competencia_id = ?
+            AND periodo_id     = ?
+        ", [$conclusion, $matriculaId, $cargaId, $competenciaId, $periodo['id']]);
+
+        $this->json([
+            'success' => $ok,
+            'mensaje' => $ok ? 'Conclusión guardada.' : 'Error al guardar.',
+        ]);
+    }
+
+    /**
+     * POST /docente/calificaciones/{carga_id}/bloquear/{competencia_id}
+     * Aprueba y bloquea una competencia.
+     */
+    public function bloquear(string $cargaId, string $competenciaId): void
+    {
+        $this->validateCsrf();
+
+        $cargaId       = (int) $cargaId;
+        $competenciaId = (int) $competenciaId;
+        $periodo       = $this->getPeriodoActivo();
+        $user          = Session::user();
+
+        if (!$periodo) {
+            $this->json(['success' => false, 'mensaje' => 'Sin periodo activo.'], 400);
+        }
+
+        // Verificar que todos los alumnos tienen promedio
+        $resumen = $this->calModel->getResumenCompetencia(
+            $cargaId, $competenciaId, $periodo['id']
+        );
+
+        $sinNota = array_filter(
+            $resumen['alumnos'],
+            fn($a) => $a['promedio'] === null
+        );
+
+        if (!empty($sinNota)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Hay ' . count($sinNota) . ' alumno(s) sin nota registrada.',
+            ], 400);
+        }
+
+        $ok = $this->calModel->bloquearCompetencia(
+            $cargaId, $competenciaId, $periodo['id'], $user['id']
+        );
+
+        $this->json([
+            'success' => $ok,
+            'mensaje' => $ok
+                ? 'Competencia aprobada y bloqueada correctamente.'
+                : 'Error al bloquear.',
+        ]);
+    }
 }

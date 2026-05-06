@@ -81,3 +81,17 @@ $router->get('/padre/alertas', 'Padre\PanelController@alertas');
 // ─── Orden de mérito ─────────────────────────────────────────
 $router->get('/director/orden-merito',              'Director\OrdenMeritoController@index');
 $router->get('/director/orden-merito/{periodo_id}', 'Director\OrdenMeritoController@porPeriodo');
+
+// ─── Resumen y bloqueo de competencia ────────────────────────
+$router->get(
+    '/docente/calificaciones/{carga_id}/resumen/{competencia_id}',
+    'Docente\CalificacionController@resumen'
+);
+$router->post(
+    '/docente/calificaciones/{carga_id}/bloquear/{competencia_id}',
+    'Docente\CalificacionController@bloquear'
+);
+$router->post(
+    '/docente/calificaciones/{carga_id}/conclusion/{competencia_id}',
+    'Docente\CalificacionController@guardarConclusionAlumno'
+);

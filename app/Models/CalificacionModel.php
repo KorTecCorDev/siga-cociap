@@ -258,4 +258,126 @@ class CalificacionModel extends BaseModel
 
         return $notas;
     }
+
+    // ─── Bloqueos de competencia ─────────────────────────────────
+
+/**
+ * Verifica si una competencia está bloqueada por el docente.
+ */
+    public function competenciaBloqueada(
+        int $cargaId,
+        int $competenciaId,
+        int $periodoId
+    ): bool {
+        $resultado = $this->queryOne("
+            SELECT id FROM bloqueos_competencia
+            WHERE carga_id       = ?
+            AND competencia_id = ?
+            AND periodo_id     = ?
+            LIMIT 1
+        ", [$cargaId, $competenciaId, $periodoId]);
+
+        return $resultado !== null;
+    }
+
+    /**
+     * Bloquea una competencia — el docente aprueba sus notas.
+     */
+    public function bloquearCompetencia(
+        int $cargaId,
+        int $competenciaId,
+        int $periodoId,
+        int $usuarioId
+    ): bool {
+        return $this->execute("
+            INSERT IGNORE INTO bloqueos_competencia
+                (carga_id, competencia_id, periodo_id, bloqueado_por)
+            VALUES (?, ?, ?, ?)
+        ", [$cargaId, $competenciaId, $periodoId, $usuarioId]);
+    }
+
+    /**
+     * Obtiene el resumen de notas de todos los alumnos
+     * para una competencia específica.
+     */
+    public function getResumenCompetencia(
+        int $cargaId,
+        int $competenciaId,
+        int $periodoId
+    ): array {
+        // Obtener criterios
+        $criterios = $this->query("
+            SELECT id, nombre, orden
+            FROM criterios
+            WHERE carga_id       = ?
+            AND competencia_id = ?
+            AND periodo_id     = ?
+            ORDER BY orden, id
+        ", [$cargaId, $competenciaId, $periodoId]);
+
+        // Obtener alumnos con sus notas
+        $alumnos = $this->query("
+            SELECT
+                m.id AS matricula_id,
+                p.apellido_paterno,
+                p.apellido_materno,
+                p.nombres,
+                p.dni,
+                CONCAT(
+                    p.apellido_paterno, ' ',
+                    p.apellido_materno, ', ',
+                    p.nombres
+                ) AS nombre_completo,
+                cal.nota_numerica AS promedio,
+                cal.conclusion_descriptiva
+            FROM matriculas m
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas p    ON p.id = e.persona_id
+            INNER JOIN secciones s   ON s.id = m.seccion_id
+            LEFT JOIN calificaciones cal
+                ON  cal.matricula_id   = m.id
+                AND cal.carga_id       = ?
+                AND cal.competencia_id = ?
+                AND cal.periodo_id     = ?
+            WHERE s.id = (
+                SELECT seccion_id FROM cargas_academicas WHERE id = ?
+            )
+            AND m.estado = 'aprobada'
+            ORDER BY p.apellido_paterno, p.apellido_materno
+        ", [$cargaId, $competenciaId, $periodoId, $cargaId]);
+
+        // Agregar notas por criterio a cada alumno
+        foreach ($alumnos as &$alumno) {
+            $alumno['notas_criterios'] = [];
+            foreach ($criterios as $criterio) {
+                $nota = $this->queryOne("
+                    SELECT nota
+                    FROM calificaciones_criterio
+                    WHERE criterio_id  = ?
+                    AND matricula_id = ?
+                ", [$criterio['id'], $alumno['matricula_id']]);
+
+                $alumno['notas_criterios'][$criterio['id']] = $nota['nota'] ?? null;
+            }
+
+            // Calcular literal del promedio
+            if ($alumno['promedio'] !== null) {
+                $p = (int) $alumno['promedio'];
+                $alumno['literal'] = match(true) {
+                    $p >= 18 => 'AD',
+                    $p >= 14 => 'A',
+                    $p >= 11 => 'B',
+                    default  => 'C',
+                };
+            } else {
+                $alumno['literal'] = null;
+            }
+        }
+
+        return [
+            'criterios' => $criterios,
+            'alumnos'   => $alumnos,
+        ];
+    }
 }
+

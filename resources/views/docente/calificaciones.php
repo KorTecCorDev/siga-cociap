@@ -51,21 +51,12 @@
                         <?= e($competencia['nombre_completo']) ?>
                     </h3>
                 </div>
-
-                <!-- Promedio actual de la competencia -->
-                <?php if ($competencia['promedio_actual'] !== null): ?>
-                    <div class="promedio-badge">
-                        <?php $literal = $competencia['literal_actual']; ?>
-                        <?php if ($carga['nivel_codigo'] === 'sec'): ?>
-                            <span class="promedio-badge__num">
-                                <?= $competencia['promedio_actual'] ?>
-                            </span>
-                        <?php endif; ?>
-                        <span class="promedio-badge__literal promedio-badge--<?= strtolower($literal) ?>">
-                            <?= $literal ?>
-                        </span>
-                        <span class="promedio-badge__label">promedio</span>
-                    </div>
+                <!-- Botón Ver resumen -->
+                <?php if (!empty($competencia['criterios'])): ?>
+                    <a href="<?= url('docente/calificaciones/' . $carga['id'] . '/resumen/' . $competencia['id']) ?>"
+                    class="btn btn--secondary btn--sm">
+                        📊 Ver resumen
+                    </a>
                 <?php endif; ?>
             </div>
 
