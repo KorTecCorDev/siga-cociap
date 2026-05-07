@@ -78,6 +78,9 @@ $router->get('/padre/inicio',  'Padre\PanelController@index');
 $router->get('/padre/notas',   'Padre\PanelController@notas');
 $router->get('/padre/alertas', 'Padre\PanelController@alertas');
 
+// ─── Boleta de calificaciones ────────────────────────────────
+$router->get('/boleta/{matricula_id}/{periodo_id}', 'Boleta\BoletaController@ver');
+
 // ─── Orden de mérito ─────────────────────────────────────────
 $router->get('/director/orden-merito',              'Director\OrdenMeritoController@index');
 $router->get('/director/orden-merito/{periodo_id}', 'Director\OrdenMeritoController@porPeriodo');
