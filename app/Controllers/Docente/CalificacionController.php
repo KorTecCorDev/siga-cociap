@@ -448,25 +448,29 @@ class CalificacionController extends BaseController
             $this->json(['success' => false, 'mensaje' => 'Sin periodo activo.'], 400);
         }
 
-        // Verificar que no esté bloqueada
         if ($this->calModel->competenciaBloqueada($cargaId, $competenciaId, $periodo['id'])) {
             $this->json(['success' => false, 'mensaje' => 'Competencia bloqueada.'], 403);
         }
 
-        $ok = $this->calModel->execute("
-            UPDATE calificaciones
-            SET conclusion_descriptiva = ?,
-                modificado_en          = NOW()
-            WHERE matricula_id   = ?
-            AND carga_id       = ?
-            AND competencia_id = ?
-            AND periodo_id     = ?
-        ", [$conclusion, $matriculaId, $cargaId, $competenciaId, $periodo['id']]);
+        try {
+            $this->calModel->execute("
+                UPDATE calificaciones
+                SET conclusion_descriptiva = ?,
+                    modificado_en          = NOW()
+                WHERE matricula_id   = ?
+                  AND carga_id       = ?
+                  AND competencia_id = ?
+                  AND periodo_id     = ?
+            ", [$conclusion, $matriculaId, $cargaId, $competenciaId, $periodo['id']]);
 
-        $this->json([
-            'success' => $ok,
-            'mensaje' => $ok ? 'Conclusión guardada.' : 'Error al guardar.',
-        ]);
+            $this->json(['success' => true, 'mensaje' => 'Conclusión guardada.']);
+
+        } catch (\Exception $e) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
