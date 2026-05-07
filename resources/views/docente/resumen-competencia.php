@@ -16,13 +16,26 @@ $nivelCodigo = $carga['nivel_codigo'];
        class="btn btn--secondary btn--sm">← Volver</a>
     <div>
         <h1 class="page-title">
-            <?= e($competencia['nombre_corto'] ?? $competencia['nombre_completo']) ?>
+            <?php
+            // Subárea → mostrar nombre de la subárea
+            // Área-curso → mostrar nombre completo de la competencia
+            $titulo = $carga['area_tipo'] === 'con_subareas'
+                ? ($carga['nombre_display'] ?? $carga['area_nombre'])
+                : $competencia['nombre_completo'];
+
+            $tituloCorto = mb_strlen($titulo) > 60
+                ? mb_substr($titulo, 0, 60) . '...'
+                : $titulo;
+            ?>
+            <span title="<?= e($titulo) ?>">
+                <?= e($tituloCorto) ?>
+            </span>
         </h1>
-        <p class="page-subtitle">
-            <?= e($carga['grado_nombre']) ?> —
-            Sección <?= e($carga['seccion_nombre']) ?> —
-            <?= e($periodo['nombre_display']) ?>
-        </p>
+            <p class="page-subtitle">
+                <?= e($carga['grado_nombre']) ?> —
+                Sección <?= e($carga['seccion_nombre']) ?> —
+                <?= e($periodo['nombre_display']) ?>
+            </p>
     </div>
     <?php if ($bloqueada): ?>
         <span class="badge badge--error">🔒 Bloqueada</span>
@@ -176,7 +189,10 @@ $nivelCodigo = $carga['nivel_codigo'];
                 </button>
                 <button class="btn btn--success" id="btn-aprobar-bloquear"
                         data-carga-id="<?= $carga['id'] ?>"
-                        data-competencia-id="<?= $competencia['id'] ?>">
+                        data-competencia-id="<?= $competencia['id'] ?>"
+                        disabled
+                        style="opacity:.5;cursor:not-allowed"
+                        title="Primero guarda las conclusiones">
                     ✅ Aprobar y bloquear
                 </button>
                 <span id="resumen-status"></span>

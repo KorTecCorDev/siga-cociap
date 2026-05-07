@@ -11,9 +11,8 @@
 ?>
 
 <div class="page-header">
-    <a href="<?= url('docente/mis-cargas') ?>" class="btn btn--secondary btn--sm">
-        ← Volver
-    </a>
+    <a href="<?= url('docente/mis-cargas') ?>"
+       class="btn btn--secondary btn--sm">← Volver</a>
     <div>
         <h1 class="page-title"><?= e($carga['nombre_display']) ?></h1>
         <p class="page-subtitle">
@@ -30,7 +29,7 @@
 <?php if ($bloqueado): ?>
     <div class="flash flash--warning">
         El plazo para registrar calificaciones ha vencido.
-        Comunícate con el personal de Registro Académico.
+        Comunícate con Registro Académico.
     </div>
 <?php endif; ?>
 
@@ -41,7 +40,6 @@
 <?php else: ?>
 
     <?php foreach ($competencias as $competencia): ?>
-
         <?php $compBloqueada = in_array($competencia['id'], $bloqueos ?? []); ?>
 
         <div class="competencia-card" id="comp-<?= $competencia['id'] ?>">
@@ -58,7 +56,7 @@
                 </div>
                 <div style="display:flex;gap:8px;align-items:center">
                     <?php if ($compBloqueada): ?>
-                        <span class="badge badge--error">🔒 Bloqueada</span>
+                        <span class="badge badge--error">🔒 Aprobada</span>
                     <?php endif; ?>
                     <?php if (!empty($competencia['criterios'])): ?>
                         <a href="<?= url('docente/calificaciones/' . $carga['id'] . '/resumen/' . $competencia['id']) ?>"
@@ -73,18 +71,14 @@
             <div class="competencia-card__body">
 
                 <?php if ($compBloqueada): ?>
-
+                    <!-- Mensaje de bloqueada — sin botón extra -->
                     <div class="flash flash--warning">
-                        Esta competencia fue aprobada y bloqueada.
+                        ✅ Esta competencia fue aprobada y bloqueada.
                         Las notas ya no pueden modificarse.
-                        <a href="<?= url('docente/calificaciones/' . $carga['id'] . '/resumen/' . $competencia['id']) ?>"
-                           class="btn btn--secondary btn--sm" style="margin-left:12px">
-                            📊 Ver resumen
-                        </a>
                     </div>
 
                 <?php else: ?>
-
+                    <!-- Criterios disponibles -->
                     <?php if (empty($competencia['criterios'])): ?>
                         <p class="text-muted mb-md">
                             Sin criterios aún. Agrega uno para comenzar.
@@ -137,7 +131,7 @@
                                                             name="notas[<?= $alumno['matricula_id'] ?>]"
                                                             min="0"
                                                             max="20"
-                                                            disabled
+                                                            <?= $bloqueado ? 'disabled' : '' ?>
                                                             placeholder="—"
                                                             value="<?= $notasExistentes[$criterio['id']][$alumno['matricula_id']] ?? '' ?>"
                                                         >
@@ -147,6 +141,16 @@
                                         </tbody>
                                     </table>
 
+                                    <?php if (!$bloqueado): ?>
+                                        <div class="form-notas__footer">
+                                            <button type="submit"
+                                                    class="btn btn--primary">
+                                                Guardar notas
+                                            </button>
+                                            <span class="form-notas__status"></span>
+                                        </div>
+                                    <?php endif; ?>
+
                                 </form>
 
                             </div>
@@ -154,7 +158,7 @@
 
                     <?php endif; ?>
 
-                    <!-- Agregar criterio -->
+                    <!-- Agregar criterio — solo si no está bloqueado -->
                     <?php if (!$bloqueado): ?>
                         <div class="agregar-criterio">
                             <input
@@ -176,14 +180,12 @@
                 <!-- fin compBloqueada -->
 
             </div>
-            <!-- fin card body -->
 
         </div>
-        <!-- fin competencia-card -->
 
     <?php endforeach; ?>
 
 <?php endif; ?>
 
 <meta name="csrf-token" content="<?= \Core\Session::csrfToken() ?>">
-<script src="<?= url('js/calificaciones.js') ?>
+<script src="<?= url('js/calificaciones.js') ?>"></script>

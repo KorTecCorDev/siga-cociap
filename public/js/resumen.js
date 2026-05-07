@@ -46,7 +46,16 @@ document.getElementById('btn-guardar-conclusiones')
     }
 
     if (errores === 0) {
-        mostrarStatus('success', `✓ ${guardados} conclusión(es) guardada(s).`);
+        mostrarStatus('success', `✓ ${guardados} conclusión(es) guardada(s). Ya puedes aprobar.`);
+
+        // ── Activar botón de aprobar ─────────────────────────
+        const btnAprobar = document.getElementById('btn-aprobar-bloquear');
+        if (btnAprobar) {
+            btnAprobar.disabled = false;
+            btnAprobar.style.opacity = '1';
+            btnAprobar.style.cursor  = 'pointer';
+            btnAprobar.title = 'Aprobar y bloquear esta competencia';
+        }
     } else {
         mostrarStatus('error', `⚠ ${errores} error(es) al guardar.`);
     }
