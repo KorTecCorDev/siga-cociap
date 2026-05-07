@@ -5,6 +5,8 @@
  * @var array  $competencias
  * @var array  $alumnos
  * @var bool   $bloqueado
+ * @var array  $bloqueos
+ * @var array  $notasExistentes
  */
 ?>
 
@@ -39,9 +41,12 @@
 <?php else: ?>
 
     <?php foreach ($competencias as $competencia): ?>
+
+        <?php $compBloqueada = in_array($competencia['id'], $bloqueos ?? []); ?>
+
         <div class="competencia-card" id="comp-<?= $competencia['id'] ?>">
 
-            <!-- Encabezado de la competencia -->
+            <!-- Encabezado -->
             <div class="competencia-card__header">
                 <div>
                     <span class="competencia-card__codigo">
@@ -51,184 +56,134 @@
                         <?= e($competencia['nombre_completo']) ?>
                     </h3>
                 </div>
-                <!-- Botón Ver resumen -->
-                <?php if (!empty($competencia['criterios'])): ?>
-                    <a href="<?= url('docente/calificaciones/' . $carga['id'] . '/resumen/' . $competencia['id']) ?>"
-                    class="btn btn--secondary btn--sm">
-                        📊 Ver resumen
-                    </a>
-                <?php endif; ?>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <?php if ($compBloqueada): ?>
+                        <span class="badge badge--error">🔒 Bloqueada</span>
+                    <?php endif; ?>
+                    <?php if (!empty($competencia['criterios'])): ?>
+                        <a href="<?= url('docente/calificaciones/' . $carga['id'] . '/resumen/' . $competencia['id']) ?>"
+                           class="btn btn--secondary btn--sm">
+                            📊 Ver resumen
+                        </a>
+                    <?php endif; ?>
+                </div>
             </div>
 
-            <!-- Criterios existentes -->
+            <!-- Cuerpo -->
             <div class="competencia-card__body">
 
-                <?php if (empty($competencia['criterios'])): ?>
-                    <p class="text-muted mb-md">
-                        Sin criterios aún. Agrega uno para comenzar.
-                    </p>
+                <?php if ($compBloqueada): ?>
+
+                    <div class="flash flash--warning">
+                        Esta competencia fue aprobada y bloqueada.
+                        Las notas ya no pueden modificarse.
+                        <a href="<?= url('docente/calificaciones/' . $carga['id'] . '/resumen/' . $competencia['id']) ?>"
+                           class="btn btn--secondary btn--sm" style="margin-left:12px">
+                            📊 Ver resumen
+                        </a>
+                    </div>
+
                 <?php else: ?>
 
-                    <?php foreach ($competencia['criterios'] as $criterio): ?>
-                        <div class="criterio-bloque" id="criterio-<?= $criterio['id'] ?>">
+                    <?php if (empty($competencia['criterios'])): ?>
+                        <p class="text-muted mb-md">
+                            Sin criterios aún. Agrega uno para comenzar.
+                        </p>
+                    <?php else: ?>
 
-                            <div class="criterio-bloque__header">
-                                <h4 class="criterio-bloque__nombre">
-                                    <?= e($criterio['nombre']) ?>
-                                </h4>
-                                <?php if (!$bloqueado): ?>
-                                    <button
-                                        class="btn btn--danger btn--sm btn-eliminar-criterio"
-                                        data-criterio-id="<?= $criterio['id'] ?>"
-                                        data-nombre="<?= e($criterio['nombre']) ?>">
-                                        Eliminar
-                                    </button>
-                                <?php endif; ?>
-                            </div>
+                        <?php foreach ($competencia['criterios'] as $criterio): ?>
+                            <div class="criterio-bloque"
+                                 id="criterio-<?= $criterio['id'] ?>">
 
-                            <!-- Tabla de notas -->
-                            <form class="form-notas"
-                                  data-criterio-id="<?= $criterio['id'] ?>"
-                                  data-competencia-id="<?= $competencia['id'] ?>"
-                                  data-carga-id="<?= $carga['id'] ?>">
-                                <?= csrf_field() ?>
-
-                                <table class="tabla-notas">
-                                    <thead>
-                                        <tr>
-                                            <th>N°</th>
-                                            <th>Apellidos y nombres</th>
-                                            <th>DNI</th>
-                                            <th class="text-center">Nota (0-20)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($alumnos as $i => $alumno): ?>
-                                            <tr>
-                                                <td><?= $i + 1 ?></td>
-                                                <td><?= e($alumno['nombre_completo']) ?></td>
-                                                <td><?= e($alumno['dni']) ?></td>
-                                                <td class="text-center">
-                                                    <input
-                                                        type="number"
-                                                        class="input-nota"
-                                                        name="notas[<?= $alumno['matricula_id'] ?>]"
-                                                        min="0"
-                                                        max="20"
-                                                        <?= $bloqueado ? 'disabled' : '' ?>
-                                                        placeholder="—"
-                                                        value="<?= $notasExistentes[$criterio['id']][$alumno['matricula_id']] ?? '' ?>"
-                                                    >
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-
-                                <?php if (!$bloqueado): ?>
-                                    <div class="form-notas__footer">
-                                        <button type="submit" class="btn btn--primary">
-                                            Guardar notas
+                                <div class="criterio-bloque__header">
+                                    <h4 class="criterio-bloque__nombre">
+                                        <?= e($criterio['nombre']) ?>
+                                    </h4>
+                                    <?php if (!$bloqueado): ?>
+                                        <button
+                                            class="btn btn--danger btn--sm btn-eliminar-criterio"
+                                            data-criterio-id="<?= $criterio['id'] ?>"
+                                            data-nombre="<?= e($criterio['nombre']) ?>">
+                                            Eliminar
                                         </button>
-                                        <span class="form-notas__status"></span>
-                                    </div>
-                                <?php endif; ?>
+                                    <?php endif; ?>
+                                </div>
 
-                            </form>
+                                <form class="form-notas"
+                                      data-criterio-id="<?= $criterio['id'] ?>"
+                                      data-competencia-id="<?= $competencia['id'] ?>"
+                                      data-carga-id="<?= $carga['id'] ?>">
+                                    <?= csrf_field() ?>
 
-                        </div>
-                    <?php endforeach; ?>
+                                    <table class="tabla-notas">
+                                        <thead>
+                                            <tr>
+                                                <th>N°</th>
+                                                <th>Apellidos y nombres</th>
+                                                <th>DNI</th>
+                                                <th class="text-center">Nota (0-20)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($alumnos as $i => $alumno): ?>
+                                                <tr>
+                                                    <td><?= $i + 1 ?></td>
+                                                    <td><?= e($alumno['nombre_completo']) ?></td>
+                                                    <td><?= e($alumno['dni']) ?></td>
+                                                    <td class="text-center">
+                                                        <input
+                                                            type="number"
+                                                            class="input-nota"
+                                                            name="notas[<?= $alumno['matricula_id'] ?>]"
+                                                            min="0"
+                                                            max="20"
+                                                            disabled
+                                                            placeholder="—"
+                                                            value="<?= $notasExistentes[$criterio['id']][$alumno['matricula_id']] ?? '' ?>"
+                                                        >
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
 
-                <?php endif; ?>
-                <!-- Conclusión descriptiva -->
-                <?php
-                $literal      = $competencia['literal_actual'] ?? null;
-                $nivelCodigo  = $carga['nivel_codigo'];
-                $esObligatoria = false;
+                                </form>
 
-                if ($literal !== null) {
-                    if ($nivelCodigo === 'prim' && in_array($literal, ['B', 'C'])) {
-                        $esObligatoria = true;
-                    }
-                    if ($nivelCodigo === 'sec' && $literal === 'C') {
-                        $esObligatoria = true;
-                    }
-                }
+                            </div>
+                        <?php endforeach; ?>
 
-                $tieneNota = $competencia['promedio_actual'] !== null;
-                ?>
+                    <?php endif; ?>
 
-                <?php if ($tieneNota && !$bloqueado): ?>
-                    <div class="conclusion-form" id="conclusion-<?= $competencia['id'] ?>">
-                        <label class="form-label">
-                            Conclusión descriptiva
-                            <?php if ($esObligatoria): ?>
-                                <span class="obligatorio">* Obligatoria</span>
-                            <?php else: ?>
-                                <span class="text-muted">(opcional)</span>
-                            <?php endif; ?>
-                        </label>
-                        <textarea
-                            class="form-input textarea-conclusion"
-                            rows="3"
-                            maxlength="500"
-                            data-carga-id="<?= $carga['id'] ?>"
-                            data-competencia-id="<?= $competencia['id'] ?>"
-                            placeholder="<?= $esObligatoria
-                                ? 'Obligatorio para nota ' . $literal . '...'
-                                : 'Puedes agregar una conclusión descriptiva...' ?>"
-                        ><?= e($competencia['conclusion_descriptiva'] ?? '') ?></textarea>
-                        <div class="conclusion-form__footer">
+                    <!-- Agregar criterio -->
+                    <?php if (!$bloqueado): ?>
+                        <div class="agregar-criterio">
+                            <input
+                                type="text"
+                                class="form-input input-nuevo-criterio"
+                                placeholder="Ej: Examen escrito, Trabajo grupal..."
+                                maxlength="120"
+                            >
                             <button
-                                class="btn btn--primary btn--sm btn-guardar-conclusion"
+                                class="btn btn--primary btn-agregar-criterio"
                                 data-carga-id="<?= $carga['id'] ?>"
                                 data-competencia-id="<?= $competencia['id'] ?>">
-                                Guardar conclusión
+                                + Agregar criterio
                             </button>
-                            <span class="conclusion-status"></span>
-                        </div>
-                    </div>
-                <?php elseif ($tieneNota && $bloqueado): ?>
-                    <?php if (!empty($competencia['conclusion_descriptiva'])): ?>
-                        <div class="conclusion">
-                            <span class="conclusion__label">Conclusión descriptiva:</span>
-                            <?= e($competencia['conclusion_descriptiva']) ?>
-                        </div>
-                    <?php elseif ($esObligatoria): ?>
-                        <div class="flash flash--warning">
-                            ⚠ Esta competencia requiere conclusión descriptiva
-                            pero el periodo está bloqueado.
                         </div>
                     <?php endif; ?>
+
                 <?php endif; ?>
-                <!-- Agregar criterio -->
-                <?php if (!$bloqueado): ?>
-                    <div class="agregar-criterio">
-                        <input
-                            type="text"
-                            class="form-input input-nuevo-criterio"
-                            placeholder="Ej: Examen escrito, Trabajo grupal..."
-                            data-carga-id="<?= $carga['id'] ?>"
-                            data-competencia-id="<?= $competencia['id'] ?>"
-                            maxlength="120"
-                        >
-                        <button
-                            class="btn btn--primary btn-agregar-criterio"
-                            data-carga-id="<?= $carga['id'] ?>"
-                            data-competencia-id="<?= $competencia['id'] ?>">
-                            + Agregar criterio
-                        </button>
-                    </div>
-                <?php endif; ?>
+                <!-- fin compBloqueada -->
 
             </div>
+            <!-- fin card body -->
 
         </div>
+        <!-- fin competencia-card -->
+
     <?php endforeach; ?>
 
 <?php endif; ?>
 
-<!-- Token CSRF global para AJAX -->
 <meta name="csrf-token" content="<?= \Core\Session::csrfToken() ?>">
-
-<script src="<?= url('js/calificaciones.js') ?>"></script>
+<script src="<?= url('js/calificaciones.js') ?>

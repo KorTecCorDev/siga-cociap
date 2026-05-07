@@ -24,6 +24,19 @@ class CalificacionController extends BaseController
         $this->calModel  = new CalificacionModel();
         $this->critModel = new CriterioModel();
     }
+    
+    private function getBloqueos(int $cargaId, int $periodoId): array
+    {
+        $resultado = $this->calModel->query("
+            SELECT competencia_id
+            FROM bloqueos_competencia
+            WHERE carga_id  = ?
+            AND periodo_id = ?
+        ", [$cargaId, $periodoId]);
+
+        // Retorna array de IDs bloqueados para chequeo rápido
+        return array_column($resultado, 'competencia_id');
+    }
 
     /**
      * GET /docente/mis-cargas
@@ -73,6 +86,8 @@ class CalificacionController extends BaseController
         );
         $alumnos         = $this->getAlumnosSeccion($carga['seccion_id']);
         $notasExistentes = $this->getNotasExistentes($cargaId, $periodo['id']);
+        // Agregar después de $notasExistentes
+        $bloqueos = $this->getBloqueos($cargaId, $periodo['id']);
 
         $this->view('docente/calificaciones', [
             'titulo'          => 'Calificaciones — ' . ($carga['nombre_display'] ?? ''),
@@ -82,6 +97,7 @@ class CalificacionController extends BaseController
             'alumnos'         => $alumnos,
             'bloqueado'       => $bloqueado,
             'notasExistentes' => $notasExistentes,
+            'bloqueos'        => $bloqueos,   // ← nuevo
         ]);
     }
 
@@ -98,13 +114,23 @@ class CalificacionController extends BaseController
         if (!$periodo || $this->calModel->periodoEstaBloqueado($periodo['id'])) {
             $this->json([
                 'success' => false,
-                'mensaje' => 'El periodo está cerrado. Comunícate con Registro Académico.',
+                'mensaje' => 'El periodo está cerrado.',
             ], 403);
         }
 
         $criterioId    = (int) $this->input('criterio_id');
         $competenciaId = (int) $this->input('competencia_id');
         $notas         = $this->input('notas', []);
+
+        // ── Verificar bloqueo de competencia ────────────────
+        if ($this->calModel->competenciaBloqueada(
+            $cargaId, $competenciaId, $periodo['id']
+        )) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Esta competencia ya fue aprobada y bloqueada. No se pueden modificar las notas.',
+            ], 403);
+        }
 
         if (!$criterioId || empty($notas)) {
             $this->json([
@@ -129,7 +155,7 @@ class CalificacionController extends BaseController
         } else {
             $this->json([
                 'success' => false,
-                'mensaje' => 'Error al guardar. Intenta de nuevo.',
+                'mensaje' => 'Error al guardar.',
             ], 500);
         }
     }
@@ -488,4 +514,6 @@ class CalificacionController extends BaseController
                 : 'Error al bloquear.',
         ]);
     }
+
+    
 }
