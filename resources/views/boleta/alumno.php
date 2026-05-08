@@ -12,11 +12,9 @@
 use App\Models\CalificacionModel;
 
 $esSecundaria = ($alumno['escala_boleta'] === 'ambas');
-$cols         = $esSecundaria ? 3 : 2;  // columnas en la tabla (comp + nota? + literal)
-$hoy          = (new DateTime())->format('d/m/Y');
-
-// Límite de caracteres para conclusiones (evitar desborde de página)
-const CONCLUSION_MAX = 220;
+// columnas: competencia + nota(sec) + literal + conclusión
+$cols = $esSecundaria ? 4 : 3;
+$hoy  = (new DateTime())->format('d/m/Y');
 ?>
 
 <!-- ── Cabecera institucional ───────────────────────────────── -->
@@ -68,6 +66,7 @@ const CONCLUSION_MAX = 220;
                 <th class="th-centro">Nota</th>
             <?php endif; ?>
             <th class="th-centro">Lit.</th>
+            <th class="th-conclusion">Conclusión descriptiva</th>
         </tr>
     </thead>
     <tbody>
@@ -82,35 +81,33 @@ const CONCLUSION_MAX = 220;
 
             <?php foreach ($competencias as $comp): ?>
                 <?php
-                $nota        = isset($comp['nota_numerica']) ? (int) $comp['nota_numerica'] : null;
-                $literal     = $nota !== null ? CalificacionModel::toLiteral($nota) : null;
-                $nombreComp  = trim(
+                $nota    = isset($comp['nota_numerica']) ? (int) $comp['nota_numerica'] : null;
+                $literal = $nota !== null ? CalificacionModel::toLiteral($nota) : null;
+
+                $prefijoSubarea = '';
+                if (($comp['area_tipo'] ?? '') === 'con_subareas' && !empty($comp['subarea_nombre'])) {
+                    $prefijoSubarea = $comp['subarea_nombre'] . ' — ';
+                }
+                $nombreComp = trim(
+                    $prefijoSubarea .
                     ($comp['codigo_minedu'] ? $comp['codigo_minedu'] . '. ' : '') .
                     ($comp['competencia_nombre'] ?? '')
                 );
-                $conclusion  = $comp['conclusion_descriptiva'] ?? null;
-                if ($conclusion !== null && mb_strlen($conclusion) > CONCLUSION_MAX) {
-                    $conclusion = mb_substr($conclusion, 0, CONCLUSION_MAX) . '…';
-                }
+                $conclusion = $comp['conclusion_descriptiva'] ?? '';
                 ?>
 
-                <!-- Fila de competencia -->
                 <tr class="fila-comp">
                     <td><?= e($nombreComp) ?></td>
                     <?php if ($esSecundaria): ?>
                         <td class="td-centro"><?= $nota ?? '—' ?></td>
                     <?php endif; ?>
                     <td class="td-centro"><?= e($literal ?? '—') ?></td>
+                    <td class="td-conclusion">
+                        <?php if ($conclusion !== ''): ?>
+                            <div class="conclusion-clip"><?= e($conclusion) ?></div>
+                        <?php endif; ?>
+                    </td>
                 </tr>
-
-                <!-- Fila de conclusión (solo si existe) -->
-                <?php if ($conclusion): ?>
-                    <tr class="fila-conclusion">
-                        <td colspan="<?= $cols ?>">
-                            <strong>Conclusión:</strong> <?= e($conclusion) ?>
-                        </td>
-                    </tr>
-                <?php endif; ?>
 
             <?php endforeach; ?>
 

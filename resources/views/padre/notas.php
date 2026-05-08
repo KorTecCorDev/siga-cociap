@@ -45,6 +45,9 @@
                     <!-- Nombre de la competencia -->
                     <div class="nota-competencia">
                         <div class="nota-competencia__nombre">
+                            <?php if (($comp['area_tipo'] ?? '') === 'con_subareas' && !empty($comp['subarea_nombre'])): ?>
+                                <small class="text-muted"><?= e($comp['subarea_nombre']) ?> — </small>
+                            <?php endif; ?>
                             <span class="competencia-card__codigo">
                                 <?= e($comp['codigo_minedu'] ?? '') ?>
                             </span>

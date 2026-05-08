@@ -7,7 +7,7 @@
 // ── Configuración de página ──────────────────────────────────
 @page {
     size: A4 portrait;
-    margin: 0.5mm;
+    margin: 0.5cm;
 }
 
 // ── Cuerpo del layout de impresión ──────────────────────────
@@ -21,7 +21,7 @@ body.boleta-body {
     @media screen {
         max-width: 210mm;
         margin: 8mm auto 20mm;
-        padding: 4mm;
+        padding: 0.5cm;
         border: 1px solid #aaa;
         box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
     }
@@ -158,8 +158,9 @@ body.boleta-body {
         border: 0.5pt solid #111;
         text-align: center;
 
-        &.th-comp   { text-align: left; }
-        &.th-centro { width: 9mm; }
+        &.th-comp       { text-align: left; }
+        &.th-centro     { width: 9mm; }
+        &.th-conclusion { width: 60mm; text-align: left; }
     }
 
     // Fila encabezado de área
@@ -177,24 +178,32 @@ body.boleta-body {
     .fila-comp td {
         padding: 0.5mm 1.5mm;
         border: 0.3pt solid #bbb;
-        vertical-align: middle;
+        vertical-align: top;
 
         &.td-centro {
             text-align: center;
             font-weight: bold;
             white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        // Columna de conclusión integrada (estilo SIAGIE)
+        &.td-conclusion {
+            width: 60mm;
+            max-width: 60mm;
         }
     }
 
-    // Fila de conclusión descriptiva (debajo de la competencia)
-    .fila-conclusion td {
-        padding: 0.3mm 2mm 0.6mm 5mm;
-        border: 0.3pt solid #bbb;
-        border-top: none;
-        font-size: 6.2pt;
+    // Texto de conclusión: clamp a 3 líneas, sin indicador de truncado
+    .conclusion-clip {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: 6pt;
         font-style: italic;
         color: #222;
-        line-height: 1.25;
+        line-height: 1.3;
     }
 }
 
