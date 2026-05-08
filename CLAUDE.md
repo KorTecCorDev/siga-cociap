@@ -19,6 +19,7 @@ siga-cociap/
 ├── app/
 │   ├── Controllers/
 │   │   ├── Auth/AuthController.php
+│   │   ├── Boleta/BoletaController.php       ← NUEVO (sesión 2)
 │   │   ├── Docente/CalificacionController.php
 │   │   ├── Director/OrdenMeritoController.php
 │   │   ├── Padre/PanelController.php
@@ -40,10 +41,16 @@ siga-cociap/
 │   ├── app.php
 │   └── database.php  ← NO está en Git (.gitignore)
 ├── database/
-│   └── migrations/
-│       ├── siga_cociap.sql         ← schema completo + seeds
-│       ├── 002_criterios_calificaciones.sql
-│       └── 003_bloqueos_competencia.sql
+│   ├── migrations/
+│   │   ├── 000_crear_base_de_datos.sql       ← NUEVO (sesión 2)
+│   │   ├── siga_cociap.sql                   ← schema completo + seeds base
+│   │   ├── 002_criterios_calificaciones.sql
+│   │   └── 003_bloqueos_competencia.sql      ← corregido (era .sql.sql)
+│   └── seeds/
+│       ├── 001_datos_prueba.sql
+│       ├── 002_completar_sistema.sql          ← NUEVO (sesión 2)
+│       ├── 003_cargas_prueba_adicionales.sql  ← NUEVO (sesión 2, solo testing)
+│       └── 004_boleta_completa_test.sql       ← NUEVO (sesión 2, solo testing)
 ├── public/
 │   ├── index.php    ← front controller único
 │   ├── .htaccess
@@ -61,11 +68,12 @@ siga-cociap/
 │   │   ├── app.scss              ← archivo principal
 │   │   ├── base/(_variables, _reset, _typography)
 │   │   ├── components/(_buttons, _forms, _alerts, _cards, _tables, _navbar)
-│   │   └── pages/(_auth, _dashboard)
+│   │   └── pages/(_auth, _dashboard, _boleta)  ← _boleta.scss NUEVO
 │   └── views/
-│       ├── layouts/(auth.php, app.php)
+│       ├── layouts/(auth.php, app.php, print.php)  ← print.php NUEVO
 │       ├── auth/login.php
 │       ├── dashboard/index.php
+│       ├── boleta/alumno.php                       ← NUEVO (sesión 2)
 │       ├── docente/(mis-cargas, calificaciones, resumen-competencia)
 │       ├── director/(orden-merito, orden-merito-periodo)
 │       ├── padre/(inicio, notas, alertas)
@@ -85,6 +93,17 @@ matriculas, alertas
 criterios, calificaciones_criterio, calificaciones
 bloqueos_competencia
 ```
+
+## Orden de ejecución SQL (setup desde cero)
+```
+1. migrations/000_crear_base_de_datos.sql
+2. migrations/siga_cociap.sql
+3. migrations/002_criterios_calificaciones.sql
+4. migrations/003_bloqueos_competencia.sql
+5. seeds/001_datos_prueba.sql
+6. seeds/002_completar_sistema.sql
+```
+Los seeds 003 y 004 son solo para desarrollo/testing, no van en producción.
 
 ## Roles del sistema
 | Código | Nombre | Acceso |
@@ -125,7 +144,27 @@ bloqueos_competencia
 5. Docente ve resumen → agrega conclusiones descriptivas
 6. Docente aprueba y bloquea la competencia
 7. Padre puede ver notas, criterios y conclusiones
+8. Padre imprime boleta desde /padre/notas → "Ver boleta"  ← NUEVO
 ```
+
+## Módulo de boleta de calificaciones (sesión 2)
+- **Ruta:** `GET /boleta/{matricula_id}/{periodo_id}`
+- **Roles con acceso:** admin, director_general, director_ebr, registro_academico, secretaria, padre
+- **Restricción padre:** solo puede ver la boleta de su propio hijo (403 en otro caso)
+- **Layout:** `resources/views/layouts/print.php` — sin navbar, sin flash, solo `app.css`
+- **Vista:** `resources/views/boleta/alumno.php`
+- **Estilos:** `resources/sass/pages/_boleta.scss`
+- **Impresora objetivo:** RICOH MP4054 PCL6 — margen `@page: 0.5cm` por todos los lados
+
+### Decisiones de diseño de la boleta
+- **Conclusión descriptiva:** columna integrada de 60mm en la misma fila de la
+  competencia (estilo SIAGIE). CSS `line-clamp: 3` con puntos suspensivos nativos.
+  El texto completo se guarda en BD; el truncado es solo presentación CSS.
+- **Subárea:** se antepone al nombre de la competencia para áreas `con_subareas`
+  (ej: `Aritmética — C23. Resuelve problemas...`). Las áreas-curso no llevan prefijo.
+- **Primaria:** muestra solo literal (AD/A/B/C); **Secundaria:** nota numérica + literal.
+- **Pie de página:** tres líneas de firma — Director(a) General, Registro Académico,
+  Padre/Madre/Tutor(a).
 
 ## Reglas especiales SIAGIE (secundaria)
 - **1°-3° sec:** Taller Raz. Matemático → se registra en Ed. Religiosa en SIAGIE
@@ -140,8 +179,26 @@ bloqueos_competencia
 - **JSON:** `$this->json(['success' => true, 'mensaje' => '...'])`
 - **CSRF:** siempre `$this->validateCsrf()` en métodos POST
 - **Commits:** Conventional Commits en español sin tildes
+- **Estilos:** NUNCA CSS inline en PHP — siempre en SASS bajo `resources/sass/`
+- **config():** la función NO soporta notación de puntos. Usar `config('institucion')`,
+  NO `config('app.institucion')`. Las claves son las del array en `config/app.php`.
+
+## Fixes importantes aplicados (sesión 2)
+- `periodos.nombre_display` es la columna correcta (no `nombre`). Si ves
+  `Unknown column 'p.nombre'` en queries de periodos, verificar esto.
+- `guardarConclusionAlumno` en CalificacionController envuelto en try-catch para
+  garantizar siempre respuesta JSON (antes devolvía HTML en excepciones).
+- Seed `002_completar_sistema.sql` agrega el usuario padre (DNI 99999999) que
+  faltaba en `usuarios` — sin él el padre no puede loguear.
+- Competencias completas para primaria y secundaria en seed 002.
 
 ## Pendientes al 7 de mayo 2026
+- [x] Boleta de calificaciones imprimible A4 ← completado sesión 2
+- [ ] Tests T3-T6 de la boleta pendientes de completar
+  - T3: conclusión truncada con boleta completa (en progreso)
+  - T4: control de acceso padre → 403 en boleta ajena
+  - T5: botón "Ver boleta" en panel del padre
+  - T6: previsualización de impresión A4 final
 - [ ] Gestión de usuarios (CRUD admin)
 - [ ] Parámetros del director (año académico, periodos, secciones)
 - [ ] Cargar datos reales del COCIAP
@@ -158,3 +215,5 @@ Los docentes subirán notas del I Bimestre el 16-17 de mayo 2026.
 - URL base dinámica via meta tag: `<meta name="base-url" content="...">`
 - BrowserSync corre en puerto 3000, proxy a `localhost/siga-cociap/public`
 - Alias Git Bash: `local3000` para iniciar el entorno
+- `hash.php` en raíz: archivo temporal para generar hashes bcrypt — eliminar
+  tras usarlo, NO commitear ni dejar en el servidor
