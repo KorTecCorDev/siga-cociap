@@ -128,9 +128,11 @@
                                                         <input
                                                             type="text"
                                                             inputmode="numeric"
+                                                            pattern="(0?[0-9]|1[0-9]|20)"
                                                             class="input-nota"
                                                             name="notas[<?= $alumno['matricula_id'] ?>]"
                                                             maxlength="2"
+                                                            autocomplete="off"
                                                             <?= $bloqueado ? 'disabled' : '' ?>
                                                             placeholder="—"
                                                             value="<?= isset($notasExistentes[$criterio['id']][$alumno['matricula_id']]) ? fmt_nota((int)$notasExistentes[$criterio['id']][$alumno['matricula_id']]) : '' ?>"

@@ -6,14 +6,42 @@
 const CSRF = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 const BASE = document.querySelector('meta[name="base-url"]')?.content ?? '';
 
-// ── Formato con cero inicial en inputs de nota ───────────────
+// ── Validación y formato de inputs de nota (0-20) ────────────
 document.querySelectorAll('.input-nota').forEach(input => {
+
+    // 1. Bloquear teclas no numéricas en tiempo real
+    input.addEventListener('keydown', (e) => {
+        const esControl = e.ctrlKey || e.metaKey;
+        const esNavegacion = [
+            'Backspace', 'Delete', 'Tab',
+            'ArrowLeft', 'ArrowRight', 'Home', 'End',
+        ].includes(e.key);
+        if (esNavegacion || esControl) return;
+        if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+    });
+
+    // 2. Limpiar caracteres no numéricos que entren por pegado
+    input.addEventListener('input', () => {
+        const soloDigitos = input.value.replace(/\D/g, '');
+        if (input.value !== soloDigitos) input.value = soloDigitos;
+    });
+
+    // 3. Al salir del campo: ajustar rango y aplicar cero inicial
     input.addEventListener('blur', () => {
         const val = input.value.trim();
-        if (val === '') return;
+        if (val === '') {
+            input.classList.remove('input--error');
+            return;
+        }
         const nota = parseInt(val, 10);
-        if (!isNaN(nota) && nota >= 0 && nota <= 20) {
-            input.value = String(nota).padStart(2, '0');
+        if (!isNaN(nota)) {
+            // Clamp al rango válido
+            const valida = Math.min(20, Math.max(0, nota));
+            input.value = String(valida).padStart(2, '0');
+            input.classList.remove('input--error');
+        } else {
+            input.value = '';
+            input.classList.remove('input--error');
         }
     });
 });

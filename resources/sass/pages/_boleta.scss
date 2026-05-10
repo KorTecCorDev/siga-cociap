@@ -1,47 +1,62 @@
 // ============================================================
-// _boleta.scss — Boleta de calificaciones imprimible (A4)
-// Layout: resources/views/layouts/print.php
-// Impresora objetivo: RICOH MP4054 PCL6
+// _boleta.scss — Boleta de calificaciones — A4 landscape
+// Layout: print.php | Impresora: RICOH MP4054 PCL6
+//
+// Diseño amigable para padres:
+//  · Conclusión descriptiva integrada por bimestre (2 líneas)
+//  · Filas alternas para seguimiento horizontal fácil
+//  · "Logro Anual" destacado como columna separada
+//  · Todo en una sola hoja A4 horizontal
+//
+// Cálculo de espacio (289mm ancho × 202mm alto, márgenes 0.4cm):
+//   Fijo: th-comp 50mm + 4×(nota7+lit7) + th-final 9mm = 115mm
+//   Conclusión: (289-115) / 4 = 43.5mm c/u
+//   Altura: header12 + alumno5 + leyenda3 + thead6 + áreas(12×3.5)
+//           + comps(27×4.1) + footer9 + espacios3 ≈ 193mm ✓
 // ============================================================
 
-// ── Configuración de página ──────────────────────────────────
+// ── Variables ────────────────────────────────────────────────
+$c-ad:     #1a6b16;
+$c-a:      #0a3d8f;
+$c-b:      #7a5900;
+$c-c:      #b30000;
+$c-borde:  #000;
+$c-area-bg:#efefef;
+$c-alt-bg: #f8f8f8;
+
+// ── Página ───────────────────────────────────────────────────
 @page {
-    size: A4 portrait;
-    margin: 0.5cm;
+    size: A4 landscape;
+    margin: 0.4cm;
 }
 
-// ── Cuerpo del layout de impresión ──────────────────────────
+// ── Cuerpo ───────────────────────────────────────────────────
 body.boleta-body {
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 7.5pt;
-    color: #000;
+    font-size: 6.5pt;
+    color: #111;
     background: #fff;
-    line-height: 1.2;
+    line-height: 1.15;
 
     @media screen {
-        max-width: 210mm;
-        margin: 8mm auto 20mm;
-        padding: 0.5cm;
-        border: 1px solid #aaa;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+        max-width: 297mm;
+        margin: 8mm auto 24mm;
+        padding: 0.4cm;
+        border: 1px solid #ccc;
+        box-shadow: 0 3px 14px rgba(0, 0, 0, .13);
     }
 
-    @media print {
-        margin: 0;
-        padding: 0;
-    }
+    @media print { margin: 0; padding: 0; }
 }
 
-// ── Botones de acción (solo pantalla) ────────────────────────
+// ── Botones (solo pantalla) ───────────────────────────────────
 .boleta-acciones {
-    @media print {
-        display: none !important;
-    }
+    @media print { display: none !important; }
 
     @media screen {
         position: fixed;
-        bottom: 14px;
-        right: 14px;
+        bottom: 16px;
+        right: 16px;
         display: flex;
         gap: 8px;
         z-index: 999;
@@ -50,179 +65,290 @@ body.boleta-body {
 
 .btn-boleta {
     @media screen {
-        padding: 9px 18px;
+        padding: 8px 16px;
         border-radius: $border-radius-sm;
         cursor: pointer;
-        font-size: 12pt;
+        font-size: 11pt;
         font-family: Arial, sans-serif;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, .22);
+        box-shadow: 0 2px 8px rgba(0,0,0,.2);
         text-decoration: none;
         display: inline-block;
         line-height: 1.2;
         border: none;
 
         &:hover { text-decoration: none; }
-
-        &--imprimir {
-            background: $brand-mid;
-            color: #fff;
-        }
-
-        &--volver {
-            background: #fff;
-            color: $text-primary;
-            border: 1.5px solid $border-color;
-        }
+        &--imprimir { background: $brand-mid; color: #fff; }
+        &--volver   { background: #fff; color: $text-primary; border: 1.5px solid $border-color; }
     }
 }
 
-// ── Cabecera institucional ───────────────────────────────────
+// ════════════════════════════════════════════════════════════
+// CABECERA — logo | institución | fecha
+// ════════════════════════════════════════════════════════════
 .boleta-header {
     display: flex;
     align-items: center;
-    border-bottom: 1.2pt solid #000;
-    padding-bottom: 1.5mm;
-    margin-bottom: 1.5mm;
+    gap: 2.5mm;
+    border-bottom: 1.2pt solid $c-borde;
+    padding-bottom: 1mm;
+    margin-bottom: 1.2mm;
+
+    &__logo-wrap { flex-shrink: 0; }
 
     &__logo {
-        width: 16mm;
-        height: 16mm;
+        width: 11mm;
+        height: 11mm;
         object-fit: contain;
-        margin-right: 3mm;
-        flex-shrink: 0;
+        display: block;
     }
 
-    &__texto {
+    &__centro {
         flex: 1;
         text-align: center;
+        line-height: 1.2;
     }
 
-    &__ugel {
-        font-size: 6.5pt;
-        color: #444;
-    }
+    &__ugel    { font-size: 5.5pt; color: #555; text-transform: uppercase; letter-spacing: 0.2pt; }
+    &__colegio { font-size: 8.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.2pt; }
+    &__titulo  { font-size: 7pt;   font-weight: bold; margin-top: 0.3mm; }
+    &__anio    { font-size: 6.5pt; color: #333; margin-top: 0.2mm; }
 
-    &__colegio {
-        font-size: 9pt;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.2pt;
-        line-height: 1.15;
-    }
-
-    &__titulo {
-        font-size: 9.5pt;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.5pt;
-        margin-top: 1mm;
-    }
-
-    &__periodo {
-        font-size: 8pt;
-        margin-top: 0.4mm;
-    }
-
-    &__fecha {
-        font-size: 6pt;
-        color: #666;
-        margin-top: 0.3mm;
-    }
+    &__fecha-wrap { flex-shrink: 0; text-align: right; }
+    &__fecha-label { font-size: 5pt; color: #777; text-transform: uppercase; }
+    &__fecha       { font-size: 7pt; font-weight: bold; }
 }
 
-// ── Bloque de datos del alumno ───────────────────────────────
+// ════════════════════════════════════════════════════════════
+// DATOS DEL ESTUDIANTE — 4 celdas con etiqueta + valor
+// ════════════════════════════════════════════════════════════
 .boleta-alumno {
-    border: 0.5pt solid #000;
-    padding: 1.2mm 2mm;
-    margin-bottom: 1.5mm;
     display: grid;
-    grid-template-columns: 1fr auto;
-    column-gap: 4mm;
-    row-gap: 0.5mm;
-    font-size: 7.5pt;
+    grid-template-columns: 2.2fr 0.65fr 1.3fr 0.65fr;
+    border: 0.6pt solid $c-borde;
+    margin-bottom: 1mm;
+
+    &__item {
+        display: flex;
+        flex-direction: column;
+        padding: 0.6mm 1.5mm;
+        border-right: 0.4pt solid #aaa;
+
+        &:last-child { border-right: none; }
+        &--nombre { border-right: 0.6pt solid $c-borde; }
+    }
+
+    &__label {
+        font-size: 5pt;
+        text-transform: uppercase;
+        color: #666;
+        letter-spacing: 0.15pt;
+        line-height: 1;
+    }
+
+    &__valor {
+        font-size: 7pt;
+        font-weight: bold;
+        line-height: 1.2;
+        margin-top: 0.2mm;
+    }
 }
 
-// ── Tabla de calificaciones ──────────────────────────────────
+// ════════════════════════════════════════════════════════════
+// LEYENDA — línea compacta con colores en texto
+// ════════════════════════════════════════════════════════════
+.boleta-leyenda {
+    display: flex;
+    align-items: center;
+    gap: 1.5mm;
+    font-size: 5.5pt;
+    margin-bottom: 1mm;
+    flex-wrap: nowrap;
+
+    &__titulo { font-weight: bold; color: #333; white-space: nowrap; }
+    &__sep    { color: #bbb; }
+
+    &__item {
+        white-space: nowrap;
+        strong { font-size: 6.5pt; }
+        em     { font-size: 5pt; color: #666; }
+
+        &--ad strong { color: $c-ad; }
+        &--a  strong { color: $c-a;  }
+        &--b  strong { color: $c-b;  }
+        &--c  strong { color: $c-c;  }
+    }
+}
+
+.boleta-sin-notas { font-size: 7pt; color: #555; margin: 3mm 0; }
+
+// ════════════════════════════════════════════════════════════
+// TABLA DE CALIFICACIONES
+//
+// Landscape 289mm × columnas:
+//   th-comp  50mm (fijo, nowrap+ellipsis para nombres largos)
+//   th-mini   7mm × 8 = 56mm  (4 notas + 4 literales)
+//   th-final  9mm
+//   th-concl auto → (289-50-56-9)/4 = 43.5mm c/u
+//
+// Altura por fila comp:
+//   conclusión 5pt × 2 líneas = 4.1mm (determina la altura de fila)
+// ════════════════════════════════════════════════════════════
 .boleta-tabla {
     width: 100%;
     border-collapse: collapse;
-    font-size: 6.8pt;
+    font-size: 6.5pt;
+    table-layout: fixed;
     margin-bottom: 1.5mm;
 
-    thead th {
-        background: #111;
-        color: #fff;
-        padding: 0.8mm 1.5mm;
-        font-size: 7pt;
-        font-weight: bold;
-        border: 0.5pt solid #111;
-        text-align: center;
+    .th-comp  { width: 50mm; }
+    .th-mini  { width: 7mm; }
+    .th-concl { /* auto */ }
+    .th-final { width: 9mm; }
 
-        &.th-comp       { text-align: left; }
-        &.th-centro     { width: 9mm; }
-        &.th-conclusion { width: 60mm; text-align: left; }
+    // ── Thead fila 1: bimestres ───────────────────────────────
+    thead tr:first-child th {
+        background: #fff;
+        font-weight: bold;
+        padding: 0.5mm 0.6mm;
+        border: 0.4pt solid #888;
+        border-bottom: 1.2pt solid $c-borde;
+        text-align: center;
+        vertical-align: middle;
+        line-height: 1.1;
+        font-size: 6.5pt;
+
+        &.th-comp {
+            text-align: left;
+            font-size: 7pt;
+            border-right: 0.8pt solid $c-borde;
+        }
+
+        &.th-final {
+            font-size: 6pt;
+            border-left: 1.5pt solid $c-borde;
+            line-height: 1.1;
+        }
     }
 
-    // Fila encabezado de área
-    .fila-area td {
-        background: #ddd;
+    // ── Thead fila 2: sub-columnas ────────────────────────────
+    thead tr:last-child th {
+        background: #fff;
+        font-size: 5.5pt;
         font-weight: bold;
-        font-size: 7.2pt;
-        padding: 0.8mm 1.5mm;
-        border: 0.4pt solid #555;
-        border-top: 0.5pt solid #000;
+        color: #444;
+        padding: 0.35mm 0.5mm;
+        border: 0.4pt solid #bbb;
+        border-top: none;
+        border-bottom: 1pt solid $c-borde;
+        text-align: center;
+
+        &.th-concl { text-align: left; padding-left: 0.8mm; }
+    }
+
+    // ── Fila de área ─────────────────────────────────────────
+    .fila-area td {
+        background: $c-area-bg;
+        font-weight: bold;
+        font-size: 7pt;
+        padding: 0.55mm 1.2mm;
+        border: 0.3pt solid #bbb;
+        border-top: 1pt solid $c-borde;
+        border-left: 3pt solid #444;
+        letter-spacing: 0.1pt;
         page-break-after: avoid;
     }
 
-    // Fila de competencia
+    // ── Fila de competencia (base) ────────────────────────────
     .fila-comp td {
-        padding: 0.5mm 1.5mm;
-        border: 0.3pt solid #bbb;
+        padding: 0.3mm 0.5mm;
+        border: 0.3pt solid #ddd;
         vertical-align: top;
-
-        &.td-centro {
-            text-align: center;
-            font-weight: bold;
-            white-space: nowrap;
-            vertical-align: middle;
-        }
-
-        // Columna de conclusión integrada (estilo SIAGIE)
-        &.td-conclusion {
-            width: 60mm;
-            max-width: 60mm;
-        }
+        background: #fff;
     }
 
-    // Texto de conclusión: clamp a 3 líneas, sin indicador de truncado
+    // Fila alterna — gris muy claro
+    .fila-comp--alt td { background: $c-alt-bg; }
+
+    // Nombre de competencia — nowrap con ellipsis para control de altura
+    .td-comp {
+        font-size: 6.5pt;
+        line-height: 1.2;
+        vertical-align: middle;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        padding-left: 3mm;
+    }
+
+    // Nota numérica
+    .td-nota {
+        text-align: center;
+        font-size: 6.5pt;
+        font-weight: bold;
+        color: #333;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    // Literal de bimestre
+    .td-lit {
+        text-align: center;
+        font-size: 7pt;
+        font-weight: bold;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    // Conclusión descriptiva — 2 líneas visibles a 5pt
+    // En 43.5mm con 5pt: ~41 chars/línea × 2 = ~82 chars visibles
+    .td-concl { padding: 0.3mm 0.6mm; }
+
     .conclusion-clip {
         display: -webkit-box;
-        -webkit-line-clamp: 3;
+        -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        font-size: 6pt;
+        font-size: 5pt;
         font-style: italic;
-        color: #222;
-        line-height: 1.3;
+        color: #333;
+        line-height: 1.15;
     }
+
+    // Logro Anual — más prominente, separado con borde izquierdo
+    .td-final {
+        text-align: center;
+        font-size: 8pt;
+        font-weight: bold;
+        border-left: 1.5pt solid #555;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    // Colores por literal — solo texto, sin relleno
+    .td-lit--ad, .td-final.td-lit--ad { color: $c-ad; }
+    .td-lit--a,  .td-final.td-lit--a  { color: $c-a;  }
+    .td-lit--b,  .td-final.td-lit--b  { color: $c-b;  }
+    .td-lit--c,  .td-final.td-lit--c  { color: $c-c;  }
+    .td-lit--vacio                     { color: #ccc;  }
 }
 
-// ── Pie de página con firmas ─────────────────────────────────
+// ════════════════════════════════════════════════════════════
+// PIE DE PÁGINA — FIRMAS
+// ════════════════════════════════════════════════════════════
 .boleta-footer {
     display: flex;
     justify-content: space-around;
-    margin-top: 3mm;
-    padding-top: 1.5mm;
-    border-top: 0.5pt solid #000;
+    margin-top: 2mm;
+    padding-top: 1mm;
+    border-top: 0.6pt solid $c-borde;
 
-    &__bloque {
-        text-align: center;
-        font-size: 7pt;
-    }
+    &__bloque { text-align: center; }
 
     &__linea {
-        border-top: 0.5pt solid #000;
+        border-top: 0.5pt solid $c-borde;
         width: 38mm;
         margin: 7mm auto 1mm;
     }
+
+    &__cargo { font-size: 6.5pt; color: #333; }
 }

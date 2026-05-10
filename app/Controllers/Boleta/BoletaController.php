@@ -26,7 +26,7 @@ class BoletaController extends BaseController
 
     /**
      * GET /boleta/{matricula_id}/{periodo_id}
-     * Muestra la boleta de calificaciones lista para imprimir.
+     * Muestra la boleta anual con los 4 bimestres del año académico.
      */
     public function ver($matriculaId, $periodoId): void
     {
@@ -53,22 +53,22 @@ class BoletaController extends BaseController
             );
         }
 
-        $notas = $this->calModel->getBoletaAlumno($matriculaId, $periodoId);
+        // Obtener los 4 bimestres del año académico
+        $periodos = $this->getPeriodosDelAnio($periodo['anio_id']);
 
-        $areas = [];
-        foreach ($notas as $nota) {
-            $nombreArea = $nota['nombre_boleta'] ?? $nota['area_nombre'];
-            if (!empty($nota['alias_boleta'])) {
-                $nombreArea .= ' ' . $nota['alias_boleta'];
-            }
-            $areas[$nombreArea][] = $nota;
+        // Cargar notas para cada bimestre
+        $datosPorPeriodo = [];
+        foreach ($periodos as $p) {
+            $datosPorPeriodo[$p['id']] = $this->calModel->getBoletaAlumno($matriculaId, $p['id']);
         }
+
+        $areas = $this->buildAreasConBimestres($datosPorPeriodo, $periodos);
 
         View::setLayout('print');
         $this->view('boleta/alumno', [
             'titulo'      => 'Boleta — ' . $alumno['nombre_completo'],
             'alumno'      => $alumno,
-            'periodo'     => $periodo,
+            'periodos'    => $periodos,
             'areas'       => $areas,
             'institucion' => config('institucion'),
         ]);
@@ -113,6 +113,7 @@ class BoletaController extends BaseController
         return $this->calModel->queryOne("
             SELECT
                 p.id,
+                p.anio_id,
                 a.anio,
                 CONCAT(p.nombre_display, ' — ', a.anio) AS nombre_display
             FROM periodos p
@@ -120,6 +121,82 @@ class BoletaController extends BaseController
             WHERE p.id = ?
             LIMIT 1
         ", [$periodoId]);
+    }
+
+    private function getPeriodosDelAnio(int $anioId): array
+    {
+        return $this->calModel->query("
+            SELECT id, numero, nombre_display
+            FROM periodos
+            WHERE anio_id = ?
+            ORDER BY numero
+        ", [$anioId]);
+    }
+
+    /**
+     * Reorganiza los datos planos por periodo en una estructura
+     * areas[nombre_area][comp_id] = { nombre, bimestres[periodo_id], literal_final }.
+     */
+    private function buildAreasConBimestres(array $datosPorPeriodo, array $periodos): array
+    {
+        $areas     = [];
+        $periodIds = array_column($periodos, 'id');
+
+        foreach ($datosPorPeriodo as $periodoId => $notas) {
+            foreach ($notas as $nota) {
+                $nombreArea = $nota['nombre_boleta'] ?? $nota['area_nombre'];
+                if (!empty($nota['alias_boleta'])) {
+                    $nombreArea .= ' ' . $nota['alias_boleta'];
+                }
+                $compId = $nota['competencia_id'];
+
+                if (!isset($areas[$nombreArea][$compId])) {
+                    $prefijoSubarea = '';
+                    if (($nota['area_tipo'] ?? '') === 'con_subareas' && !empty($nota['subarea_nombre'])) {
+                        $prefijoSubarea = $nota['subarea_nombre'] . ' — ';
+                    }
+                    $areas[$nombreArea][$compId] = [
+                        'nombre'    => trim(
+                            $prefijoSubarea .
+                            ($nota['codigo_minedu'] ? $nota['codigo_minedu'] . '. ' : '') .
+                            ($nota['competencia_nombre'] ?? '')
+                        ),
+                        'bimestres' => [],
+                    ];
+                }
+
+                $notaNum = isset($nota['nota_numerica']) ? (int) $nota['nota_numerica'] : null;
+                $areas[$nombreArea][$compId]['bimestres'][$periodoId] = [
+                    'nota'      => $notaNum,
+                    'literal'   => $notaNum !== null ? CalificacionModel::toLiteral($notaNum) : null,
+                    'conclusion'=> $nota['conclusion_descriptiva'] ?? null,
+                ];
+            }
+        }
+
+        // Calcular literal_final solo cuando los 4 bimestres tienen nota
+        foreach ($areas as &$comps) {
+            foreach ($comps as &$comp) {
+                $notasAnuales = [];
+                foreach ($periodIds as $pid) {
+                    $b = $comp['bimestres'][$pid] ?? null;
+                    if ($b === null || $b['nota'] === null) {
+                        $notasAnuales = null;
+                        break;
+                    }
+                    $notasAnuales[] = $b['nota'];
+                }
+
+                if ($notasAnuales !== null && count($notasAnuales) === count($periodIds)) {
+                    $prom = (int) round(array_sum($notasAnuales) / count($notasAnuales));
+                    $comp['literal_final'] = CalificacionModel::toLiteral($prom);
+                } else {
+                    $comp['literal_final'] = null;
+                }
+            }
+        }
+
+        return $areas;
     }
 
     private function getHijoPadre(int $usuarioId): ?array
