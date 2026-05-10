@@ -18,8 +18,9 @@ Proyecto de tesis para obtener el título de Ingeniero de Sistemas e Informátic
 siga-cociap/
 ├── app/
 │   ├── Controllers/
+│   │   ├── Admin/UsuarioController.php            ← NUEVO (sesión 3)
 │   │   ├── Auth/AuthController.php
-│   │   ├── Boleta/BoletaController.php       ← NUEVO (sesión 2)
+│   │   ├── Boleta/BoletaController.php
 │   │   ├── Docente/CalificacionController.php
 │   │   ├── Director/OrdenMeritoController.php
 │   │   ├── Padre/PanelController.php
@@ -42,21 +43,22 @@ siga-cociap/
 │   └── database.php  ← NO está en Git (.gitignore)
 ├── database/
 │   ├── migrations/
-│   │   ├── 000_crear_base_de_datos.sql       ← NUEVO (sesión 2)
+│   │   ├── 000_crear_base_de_datos.sql
 │   │   ├── siga_cociap.sql                   ← schema completo + seeds base
 │   │   ├── 002_criterios_calificaciones.sql
-│   │   └── 003_bloqueos_competencia.sql      ← corregido (era .sql.sql)
+│   │   └── 003_bloqueos_competencia.sql
 │   └── seeds/
 │       ├── 001_datos_prueba.sql
-│       ├── 002_completar_sistema.sql          ← NUEVO (sesión 2)
-│       ├── 003_cargas_prueba_adicionales.sql  ← NUEVO (sesión 2, solo testing)
-│       └── 004_boleta_completa_test.sql       ← NUEVO (sesión 2, solo testing)
+│       ├── 002_completar_sistema.sql
+│       ├── 003_cargas_prueba_adicionales.sql  ← solo testing
+│       └── 004_boleta_completa_test.sql       ← solo testing
 ├── public/
 │   ├── index.php    ← front controller único
 │   ├── .htaccess
 │   ├── css/app.css  ← compilado por Gulp
 │   ├── js/
 │   │   ├── auth.js
+│   │   ├── boleta-digital.js                 ← NUEVO (sesión 3)
 │   │   ├── calificaciones.js
 │   │   └── resumen.js
 │   └── assets/
@@ -68,12 +70,15 @@ siga-cociap/
 │   │   ├── app.scss              ← archivo principal
 │   │   ├── base/(_variables, _reset, _typography)
 │   │   ├── components/(_buttons, _forms, _alerts, _cards, _tables, _navbar)
-│   │   └── pages/(_auth, _dashboard, _boleta)  ← _boleta.scss NUEVO
+│   │   └── pages/(_auth, _dashboard, _boleta, _boleta-digital, _admin)
+│   │                                          ← _boleta-digital y _admin NUEVOS (sesión 3)
 │   └── views/
-│       ├── layouts/(auth.php, app.php, print.php)  ← print.php NUEVO
+│       ├── layouts/(auth.php, app.php, print.php, digital.php)
+│       │                                      ← digital.php NUEVO (sesión 3)
 │       ├── auth/login.php
+│       ├── admin/usuarios/(index, crear, editar).php  ← NUEVO (sesión 3)
 │       ├── dashboard/index.php
-│       ├── boleta/alumno.php                       ← NUEVO (sesión 2)
+│       ├── boleta/(alumno.php, digital.php)   ← digital.php NUEVO (sesión 3)
 │       ├── docente/(mis-cargas, calificaciones, resumen-competencia)
 │       ├── director/(orden-merito, orden-merito-periodo)
 │       ├── padre/(inicio, notas, alertas)
@@ -144,10 +149,12 @@ Los seeds 003 y 004 son solo para desarrollo/testing, no van en producción.
 5. Docente ve resumen → agrega conclusiones descriptivas
 6. Docente aprueba y bloquea la competencia
 7. Padre puede ver notas, criterios y conclusiones
-8. Padre imprime boleta desde /padre/notas → "Ver boleta"  ← NUEVO
+8. Padre accede a boleta desde /padre/notas:
+   - "🖨 Imprimir"          → /boleta/{id}/{id}          (A4 landscape)
+   - "Ver boleta digital"   → /boleta/digital/{id}/{id}  (mobile-first)
 ```
 
-## Módulo de boleta de calificaciones (sesión 2)
+## Módulo de boleta imprimible (sesión 2)
 - **Ruta:** `GET /boleta/{matricula_id}/{periodo_id}`
 - **Roles con acceso:** admin, director_general, director_ebr, registro_academico, secretaria, padre
 - **Restricción padre:** solo puede ver la boleta de su propio hijo (403 en otro caso)
@@ -155,16 +162,42 @@ Los seeds 003 y 004 son solo para desarrollo/testing, no van en producción.
 - **Vista:** `resources/views/boleta/alumno.php`
 - **Estilos:** `resources/sass/pages/_boleta.scss`
 - **Impresora objetivo:** RICOH MP4054 PCL6 — margen `@page: 0.5cm` por todos los lados
+- **IMPORTANTE:** La boleta solo muestra competencias cuyo docente haya aprobado/bloqueado.
+  `CalificacionModel::getBoletaAlumno()` hace INNER JOIN con `bloqueos_competencia`.
 
-### Decisiones de diseño de la boleta
+### Decisiones de diseño de la boleta imprimible
 - **Conclusión descriptiva:** columna integrada de 60mm en la misma fila de la
   competencia (estilo SIAGIE). CSS `line-clamp: 3` con puntos suspensivos nativos.
   El texto completo se guarda en BD; el truncado es solo presentación CSS.
 - **Subárea:** se antepone al nombre de la competencia para áreas `con_subareas`
   (ej: `Aritmética — C23. Resuelve problemas...`). Las áreas-curso no llevan prefijo.
 - **Primaria:** muestra solo literal (AD/A/B/C); **Secundaria:** nota numérica + literal.
-- **Pie de página:** tres líneas de firma — Director(a) General, Registro Académico,
+- **Pie de página:** tres líneas de firma — Tutor(a) de Aula, Director(a) Académico(a),
   Padre/Madre/Tutor(a).
+- **buildBoletaData():** lógica de carga de datos extraída a método privado compartido
+  entre `ver()` (imprimible) y `verDigital()` (digital).
+
+## Módulo de boleta digital (sesión 3)
+- **Ruta:** `GET /boleta/digital/{matricula_id}/{periodo_id}`
+- **Mismos roles y restricción de padre** que la boleta imprimible.
+- **Layout:** `resources/views/layouts/digital.php` — sin navbar, carga `boleta-digital.js`
+- **Vista:** `resources/views/boleta/digital.php`
+- **Estilos:** `resources/sass/pages/_boleta-digital.scss`
+- **JS:** `public/js/boleta-digital.js` — acordeones, QR (Google Charts API), toast PDF
+
+### Características de la boleta digital
+- **Mobile-first, responsive** — 3 breakpoints: < 640px, 640-959px, ≥ 960px
+- **Conclusiones descriptivas completas** — sin `line-clamp`, texto íntegro visible
+- **Cards expandibles** por área curricular — colapsadas por defecto en móvil
+- **QR de verificación** — imagen generada via `chart.googleapis.com`; se oculta sin internet
+- **Botón PDF** — abre diálogo de impresión del navegador con instrucción "Guardar como PDF"
+- **Print A4 portrait** — `@media print` expande todos los acordeones automáticamente
+- **BEM prefix `.bd-`** en todos los elementos del componente
+- **Logros con color semántico:** AD=verde, A=azul, B=naranja, C=rojo con borde izquierdo
+- **`beforeprint` event** expande acordeones al usar Ctrl+P nativo
+- **IMPORTANTE — orden de rutas:** la ruta literal `/boleta/digital/...` debe registrarse
+  ANTES del patrón `/boleta/{matricula_id}/...` en `routes/web.php`, o el router la captura
+  primero con parámetros incorrectos.
 
 ## Reglas especiales SIAGIE (secundaria)
 - **1°-3° sec:** Taller Raz. Matemático → se registra en Ed. Religiosa en SIAGIE
@@ -183,6 +216,55 @@ Los seeds 003 y 004 son solo para desarrollo/testing, no van en producción.
 - **config():** la función NO soporta notación de puntos. Usar `config('institucion')`,
   NO `config('app.institucion')`. Las claves son las del array en `config/app.php`.
 
+## Módulo de gestión de usuarios (sesión 3)
+- **Rutas:** `GET/POST /admin/usuarios`, `/admin/usuarios/crear`, `/{id}/editar`, `/{id}/estado`
+- **Rol requerido:** solo `admin`
+- **Controlador:** `app/Controllers/Admin/UsuarioController.php`
+- **Vistas:** `resources/views/admin/usuarios/` (index.php, crear.php, editar.php)
+- **SASS:** `resources/sass/pages/_admin.scss`
+
+### Operaciones del CRUD
+- **index** — tabla con avatar de iniciales coloreado por rol, badges de rol/estado,
+  último acceso, botones Editar y Activar/Desactivar
+- **crear** — formulario en grid responsivo (1→2→3 col); secciones: datos personales + acceso
+- **editar** — igual al crear con valores precargados; contraseña opcional (vacío = no cambia)
+- **toggleEstado** — alterna activo/inactivo con `IF(estado='activo','inactivo','activo')`
+
+### Protecciones del servidor
+- No puedes desactivar tu propia cuenta
+- No puedes cambiar tu rol si eres el único admin activo
+- No puedes desactivar al último admin activo
+- DNI único: `existeDni()` excluye el propio ID al editar
+
+### Nuevos métodos en UsuarioModel
+`findById`, `listarRoles`, `existeDni`, `crearConPersona`, `actualizarConPersona`,
+`toggleEstado`, `contarPorRolCodigo`
+
+### Convenciones del formulario de usuario
+- Apellidos y nombres se almacenan en `mb_strtoupper()` (mayúsculas)
+- Correo y teléfono se almacenan como `NULL` si el campo viene vacío
+- Contraseña: bcrypt cost=12, mínimo 8 caracteres
+
+## Mejoras de UI/UX (sesión 3)
+
+### Sticky columns en tablas docente
+- **`/docente/calificaciones/...`** — columnas N° y Apellidos congeladas al hacer
+  scroll horizontal (`.col-num` sticky left:0, `.col-nombre` sticky left:40px)
+- **`/docente/calificaciones/.../resumen/...`** — mismo patrón; además:
+  - `.col-criterio` min-width:80px, `.col-conclusion` min-width responsivo (200/260/320px)
+  - `.fila-pendiente` conserva su background naranja en celdas sticky
+  - `.conclusion-texto` reemplaza el inline `style="font-size:12px"`
+- Ambas tablas viven dentro de `.tabla-notas-wrapper` (overflow-x:auto)
+
+### Componentes SASS nuevos/extendidos
+- **`_buttons.scss`** — `.btn-group { display:inline-flex; gap:$spacing-sm }` reutilizable
+- **`_tables.scss`** — `.tabla-notas-wrapper`, `.tabla-resumen` con sticky columns y
+  `.conclusion-texto`
+- **`_admin.scss`** — `.usuario-avatar` (círculo con iniciales coloreado por rol),
+  `.td-usuario`, `.td-acciones`, `.form-grid`, `.form-section-title`, `.form-actions`,
+  `.select-rol`, `.text-danger`, `.text-sm`, `.fila-inactiva`
+- **`_boleta-digital.scss`** — todo el sistema de diseño de la boleta digital (BEM `.bd-`)
+
 ## Fixes importantes aplicados (sesión 2)
 - `periodos.nombre_display` es la columna correcta (no `nombre`). Si ves
   `Unknown column 'p.nombre'` en queries de periodos, verificar esto.
@@ -192,14 +274,23 @@ Los seeds 003 y 004 son solo para desarrollo/testing, no van en producción.
   faltaba en `usuarios` — sin él el padre no puede loguear.
 - Competencias completas para primaria y secundaria en seed 002.
 
-## Pendientes al 7 de mayo 2026
+## Fixes importantes aplicados (sesión 3)
+- `CalificacionModel::getBoletaAlumno()` ahora hace INNER JOIN con
+  `bloqueos_competencia` — la boleta solo muestra notas que el docente aprobó.
+  Antes mostraba todas las notas guardadas aunque no estuvieran bloqueadas.
+- Eliminado `003_bloqueos_competencia.sql.sql` (nombre con extensión duplicada).
+- Orden de rutas en `routes/web.php`: `/boleta/digital/{id}/{id}` debe ir ANTES
+  de `/boleta/{id}/{id}` para que el router no capture "digital" como parámetro.
+
+## Pendientes al 10 de mayo 2026
 - [x] Boleta de calificaciones imprimible A4 ← completado sesión 2
-- [ ] Tests T3-T6 de la boleta pendientes de completar
+- [x] Boleta digital mobile-first con QR ← completado sesión 3
+- [x] Botón "Ver boleta digital" en panel del padre (T5) ← completado sesión 3
+- [x] Gestión de usuarios (CRUD admin) ← completado sesión 3
+- [ ] Tests de boleta pendientes
   - T3: conclusión truncada con boleta completa (en progreso)
-  - T4: control de acceso padre → 403 en boleta ajena
-  - T5: botón "Ver boleta" en panel del padre
+  - T4: control de acceso padre → 403 en boleta ajena (lógica implementada, sin test)
   - T6: previsualización de impresión A4 final
-- [ ] Gestión de usuarios (CRUD admin)
 - [ ] Parámetros del director (año académico, periodos, secciones)
 - [ ] Cargar datos reales del COCIAP
 - [ ] Pruebas con datos reales
