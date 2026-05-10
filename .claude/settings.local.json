@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx gulp *)"
+      "Bash(npx gulp *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\xampp\\\\htdocs\\\\siga-cociap\\\\resources\\\\views\\\\admin\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object Name, FullName)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\xampp\\\\htdocs\\\\siga-cociap\\\\app\\\\Controllers\\\\Admin\")",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\xampp\\\\htdocs\\\\siga-cociap\\\\resources\\\\views\\\\admin\\\\usuarios\")",
+      "Bash(Write-Host \"Directorios creados\")",
+      "Bash(git *)"
     ]
   }
 }
