@@ -6,6 +6,18 @@
 const CSRF = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 const BASE = document.querySelector('meta[name="base-url"]')?.content ?? '';
 
+// ── Formato con cero inicial en inputs de nota ───────────────
+document.querySelectorAll('.input-nota').forEach(input => {
+    input.addEventListener('blur', () => {
+        const val = input.value.trim();
+        if (val === '') return;
+        const nota = parseInt(val, 10);
+        if (!isNaN(nota) && nota >= 0 && nota <= 20) {
+            input.value = String(nota).padStart(2, '0');
+        }
+    });
+});
+
 // ── Guardar notas ────────────────────────────────────────────
 document.querySelectorAll('.form-notas').forEach(form => {
     form.addEventListener('submit', async (e) => {

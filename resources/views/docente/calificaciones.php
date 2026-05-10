@@ -126,14 +126,14 @@
                                                     <td><?= e($alumno['dni']) ?></td>
                                                     <td class="text-center">
                                                         <input
-                                                            type="number"
+                                                            type="text"
+                                                            inputmode="numeric"
                                                             class="input-nota"
                                                             name="notas[<?= $alumno['matricula_id'] ?>]"
-                                                            min="0"
-                                                            max="20"
+                                                            maxlength="2"
                                                             <?= $bloqueado ? 'disabled' : '' ?>
                                                             placeholder="—"
-                                                            value="<?= $notasExistentes[$criterio['id']][$alumno['matricula_id']] ?? '' ?>"
+                                                            value="<?= isset($notasExistentes[$criterio['id']][$alumno['matricula_id']]) ? fmt_nota((int)$notasExistentes[$criterio['id']][$alumno['matricula_id']]) : '' ?>"
                                                         >
                                                     </td>
                                                 </tr>

@@ -64,7 +64,7 @@
                             ?>
                             <?php if ($nota !== null): ?>
                                 <?php if ($hijo['escala_boleta'] === 'ambas'): ?>
-                                    <span class="nota-num"><?= $nota ?></span>
+                                    <span class="nota-num"><?= fmt_nota((int)$nota) ?></span>
                                 <?php endif; ?>
                                 <span class="nota-literal nota-literal--<?= strtolower($literal) ?>">
                                     <?= $literal ?>
@@ -92,7 +92,7 @@
                                     <tr>
                                         <td><?= e($criterio['criterio_nombre']) ?></td>
                                         <td class="text-center">
-                                            <?= $criterio['nota'] ?? '—' ?>
+                                            <?= $criterio['nota'] !== null ? fmt_nota((int)$criterio['nota']) : '—' ?>
                                         </td>
                                         <?php if ($hijo['escala_boleta'] === 'ambas'): ?>
                                             <td class="text-center">

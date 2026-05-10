@@ -99,7 +99,7 @@ $hoy  = (new DateTime())->format('d/m/Y');
                 <tr class="fila-comp">
                     <td><?= e($nombreComp) ?></td>
                     <?php if ($esSecundaria): ?>
-                        <td class="td-centro"><?= $nota ?? '—' ?></td>
+                        <td class="td-centro"><?= fmt_nota($nota) ?></td>
                     <?php endif; ?>
                     <td class="td-centro"><?= e($literal ?? '—') ?></td>
                     <td class="td-conclusion">

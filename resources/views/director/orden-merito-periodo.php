@@ -67,7 +67,7 @@
                                     <?= e($est['seccion_nombre']) ?>
                                 </td>
                                 <td class="text-center">
-                                    <strong><?= number_format($est['promedio_general'], 2) ?></strong>
+                                    <strong><?= sprintf('%05.2f', $est['promedio_general']) ?></strong>
                                 </td>
                                 <td class="text-center">
                                     <?php if ($est['media_beca']): ?>

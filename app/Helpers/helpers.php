@@ -48,6 +48,13 @@ function asset(string $path): string
     return url('assets/' . ltrim($path, '/'));
 }
 
+/** Formatea una nota (0-20) con cero a la izquierda: 5 → "05", 15 → "15" */
+function fmt_nota(int|null $nota): string
+{
+    if ($nota === null) return '—';
+    return sprintf('%02d', $nota);
+}
+
 /** Convierte nota numérica (0-20) a literal según nivel */
 function nota_a_literal(int $nota, string $nivel = 'secundaria'): string
 {

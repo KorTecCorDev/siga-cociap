@@ -217,3 +217,111 @@ Los docentes subirán notas del I Bimestre el 16-17 de mayo 2026.
 - Alias Git Bash: `local3000` para iniciar el entorno
 - `hash.php` en raíz: archivo temporal para generar hashes bcrypt — eliminar
   tras usarlo, NO commitear ni dejar en el servidor
+
+## Listado de áreas o áreas-curso con sus respectivas subáreas o competencias.
+### Áreas Curriculares y Competencias - Modelo SIAGIE - NIVEL SECUNDARIA
+-IMPORTANTE. Un curso puede ser equivalente a un area-curso con varias competencias o una subarea vinculada a una sola competencia.
+- Desarrollo Personal, Ciudadanía y Cívica (area-curso)
+  Competencias
+    Construye su identidad
+    Convive y participa democráticamente en la búsqueda del bien común
+- Ciencias Sociales (area)
+  Competencias
+    Construye interpretaciones históricas (subarea -> Historia)
+    Gestiona responsablemente el espacio y el ambiente (subarea -> Geografía)
+    Gestiona responsablemente los recursos económicos (subarea -> Economía)
+- Educación Física (area-curso)
+  Competencias
+    Se desenvuelve de manera autónoma a través de su motricidad
+    Asume una vida saludable
+    Interactúa a través de sus habilidades sociomotrices
+- Arte y Cultura (Razonamiento matemático) (area-curso) ¡RAZONAMIENTO MATEMÁTICO EN CASO DEL CUARTO Y QUINTO GRADO - cualquier sección!
+  Competencias
+    Aprecia de manera crítica manifestaciones artístico-culturales
+    Crea proyectos desde los lenguajes artísticos
+- Comunicación (area)
+  Competencias
+    Se comunica oralmente en su lengua materna (subarea -> Razonamiento Verbal)
+    Lee diversos tipos de textos escritos en su lengua materna (subarea -> Literatura)
+    Escribe diversos tipos de textos en su lengua materna (subarea -> Lenguaje)
+- Inglés (area-curso)
+  Competencias
+    Se comunica oralmente
+    Lee diversos tipos de textos escritos
+    Escribe diversos tipos de textos
+- Matemática (area)
+  Competencias
+    Resuelve problemas de cantidad (subarea -> Aritmética)
+    Resuelve problemas de regularidad, equivalencia y cambio (subarea -> Álgebra)
+    Resuelve problemas de forma, movimiento y localización (subarea -> Geometría)
+    Resuelve problemas de gestión de datos e incertidumbre (subarea -> Trigonometría)
+- Taller de Razonamiento Matemático (area-curso) ¡SOLO DEL PRIMER GRADO AL TERCER GRADO - cualquier sección!
+  Competencias
+  Resuelve problemas de cantidad
+  Resuelve problemas de gestión de datos e incertidumbre
+- Ciencia y Tecnología (area)
+  Competencias
+  Indaga mediante métodos científicos para construir sus conocimientos (subarea -> Química)
+  Explica el mundo físico basándose en conocimientos sobre los seres vivos, materia y energía, biodiversidad, Tierra y Universo (subarea -> Biología)
+  Diseña y construye soluciones tecnológicas para resolver problemas de su entorno (subarea -> Física)
+- Educación Religiosa (area-curso)
+  Competencias
+  Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas
+  Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa
+- Educación para el Trabajo (area-curso)
+  Competencias
+  Gestiona proyectos de emprendimiento económico o social
+- Competencias Transversales (caso especial)
+  Competencias Transversales / No Asociadas a Áreas
+    Competencias
+    Se desenvuelve en entornos virtuales generados por las TIC
+    Gestiona su aprendizaje de manera autónoma
+# Áreas Curriculares y Competencias - Modelo SIAGIE - NIVEL PRIMARIA
+* IMPORTANTE.
+  Solo desde el primer grado al tercer grado todas las areas son manejadas por un solo docente (UNIDOCENTE), todas las areas se convierten en area-curso.
+  Las compentencias transversales son llenadas solo por el TUTOR de la sección.
+* Personal Social (area-curso)
+  Competencias
+  Construye su identidad
+  Convive y participa democráticamente en la búsqueda del bien común
+  Construye interpretaciones históricas
+  Gestiona responsablemente el espacio y el ambiente
+  Gestiona responsablemente los recursos económicos
+* Educación Física (area-curso)
+  Competencias
+  Se desenvuelve de manera autónoma a través de su motricidad
+  Asume una vida saludable
+  Interactúa a través de sus habilidades sociomotrices
+* Arte y Cultura (area-curso)
+  Competencias
+  Aprecia de manera crítica manifestaciones artístico-culturales
+  Crea proyectos desde los lenguajes artísticos
+* Comunicación (area)
+  Competencias
+  Se comunica oralmente en su lengua materna (subarea -> Comunicación)
+  Lee diversos tipos de textos escritos en su lengua materna (subarea -> Plan lector)
+  Escribe diversos tipos de textos en su lengua materna (subarea -> Razonamiento verbal)
+* Inglés (area-curso)
+  Competencias
+  Se comunica oralmente
+  Lee diversos tipos de textos escritos
+  Escribe diversos tipos de textos
+* Matemática (area)
+  Competencias
+  Resuelve problemas de cantidad (subarea -> Aritmética)
+  Resuelve problemas de regularidad, equivalencia y cambio (subarea -> Álgebra)
+  Resuelve problemas de forma, movimiento y localización (subarea -> Geometría)
+  Resuelve problemas de gestión de datos e incertidumbre (subarea -> Razonamiento matemático)
+* Ciencia y Tecnología (area)
+  Competencias
+  Indaga mediante métodos científicos para construir sus conocimientos (subarea -> Química)
+  Explica el mundo físico basándose en conocimientos sobre los seres vivos, materia y energía, biodiversidad, Tierra y Universo (subarea -> Biología)
+  Diseña y construye soluciones tecnológicas para resolver problemas de su entorno (subarea -> Física)
+* Educación Religiosa (area-curso)
+  Competencias
+  Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas
+  Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa
+* Competencias Transversales (caso especial)
+  Competencias
+  Se desenvuelve en entornos virtuales generados por las TIC
+  Gestiona su aprendizaje de manera autónoma

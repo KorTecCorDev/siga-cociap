@@ -116,7 +116,8 @@ $nivelCodigo = $carga['nivel_codigo'];
                             <!-- Notas por criterio -->
                             <?php foreach ($criterios as $criterio): ?>
                                 <td class="text-center">
-                                    <?= $alumno['notas_criterios'][$criterio['id']] ?? '—' ?>
+                                    <?php $nc = $alumno['notas_criterios'][$criterio['id']] ?? null; ?>
+                                    <?= $nc !== null ? fmt_nota((int)$nc) : '—' ?>
                                 </td>
                             <?php endforeach; ?>
 
@@ -124,7 +125,7 @@ $nivelCodigo = $carga['nivel_codigo'];
                             <td class="text-center">
                                 <?php if ($promedio !== null): ?>
                                     <?php if ($nivelCodigo === 'sec'): ?>
-                                        <strong><?= $promedio ?></strong>
+                                        <strong><?= fmt_nota((int)$promedio) ?></strong>
                                     <?php else: ?>
                                         <span class="nota-literal nota-literal--<?= strtolower($literal) ?>">
                                             <?= $literal ?>
