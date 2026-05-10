@@ -70,11 +70,11 @@ $nivelCodigo = $carga['nivel_codigo'];
             <table class="tabla-resumen">
                 <thead>
                     <tr>
-                        <th>N°</th>
-                        <th>Apellidos y nombres</th>
+                        <th class="col-num">N°</th>
+                        <th class="col-nombre">Apellidos y nombres</th>
                         <!-- Criterios con tooltip -->
                         <?php foreach ($criterios as $criterio): ?>
-                            <th class="text-center" title="<?= e($criterio['nombre']) ?>">
+                            <th class="col-criterio text-center" title="<?= e($criterio['nombre']) ?>">
                                 <span class="criterio-header">
                                     <?= e(mb_strlen($criterio['nombre']) > 15
                                         ? mb_substr($criterio['nombre'], 0, 15) . '...'
@@ -82,11 +82,11 @@ $nivelCodigo = $carga['nivel_codigo'];
                                 </span>
                             </th>
                         <?php endforeach; ?>
-                        <th class="text-center">Promedio</th>
+                        <th class="col-promedio text-center">Promedio</th>
                         <?php if ($nivelCodigo === 'sec'): ?>
-                            <th class="text-center">Literal</th>
+                            <th class="col-literal text-center">Literal</th>
                         <?php endif; ?>
-                        <th>Conclusión descriptiva</th>
+                        <th class="col-conclusion">Conclusión descriptiva</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -106,8 +106,8 @@ $nivelCodigo = $carga['nivel_codigo'];
                         }
                         ?>
                         <tr class="<?= $esOblig && empty($alumno['conclusion_descriptiva']) ? 'fila-pendiente' : '' ?>">
-                            <td><?= $i + 1 ?></td>
-                            <td>
+                            <td class="col-num"><?= $i + 1 ?></td>
+                            <td class="col-nombre">
                                 <strong><?= e($alumno['apellido_paterno'] . ' ' . $alumno['apellido_materno']) ?></strong>
                                 <br>
                                 <small class="text-muted"><?= e($alumno['nombres']) ?></small>
@@ -115,14 +115,14 @@ $nivelCodigo = $carga['nivel_codigo'];
 
                             <!-- Notas por criterio -->
                             <?php foreach ($criterios as $criterio): ?>
-                                <td class="text-center">
+                                <td class="col-criterio text-center">
                                     <?php $nc = $alumno['notas_criterios'][$criterio['id']] ?? null; ?>
                                     <?= $nc !== null ? fmt_nota((int)$nc) : '—' ?>
                                 </td>
                             <?php endforeach; ?>
 
                             <!-- Promedio -->
-                            <td class="text-center">
+                            <td class="col-promedio text-center">
                                 <?php if ($promedio !== null): ?>
                                     <?php if ($nivelCodigo === 'sec'): ?>
                                         <strong><?= fmt_nota((int)$promedio) ?></strong>
@@ -138,7 +138,7 @@ $nivelCodigo = $carga['nivel_codigo'];
 
                             <!-- Literal (solo secundaria) -->
                             <?php if ($nivelCodigo === 'sec'): ?>
-                                <td class="text-center">
+                                <td class="col-literal text-center">
                                     <?php if ($literal !== null): ?>
                                         <span class="nota-literal nota-literal--<?= strtolower($literal) ?>">
                                             <?= $literal ?>
@@ -150,7 +150,7 @@ $nivelCodigo = $carga['nivel_codigo'];
                             <?php endif; ?>
 
                             <!-- Conclusión descriptiva -->
-                            <td>
+                            <td class="col-conclusion">
                                 <?php if (!$bloqueada && $promedio !== null): ?>
                                     <div class="conclusion-alumno">
                                         <textarea
@@ -169,7 +169,7 @@ $nivelCodigo = $carga['nivel_codigo'];
                                         <?php endif; ?>
                                     </div>
                                 <?php elseif (!empty($alumno['conclusion_descriptiva'])): ?>
-                                    <p class="text-muted" style="font-size:12px">
+                                    <p class="conclusion-texto">
                                         <?= e($alumno['conclusion_descriptiva']) ?>
                                     </p>
                                 <?php else: ?>

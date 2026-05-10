@@ -30,10 +30,35 @@ class BoletaController extends BaseController
      */
     public function ver($matriculaId, $periodoId): void
     {
+        $data = $this->buildBoletaData((int) $matriculaId, (int) $periodoId);
+
+        View::setLayout('print');
+        $this->view('boleta/alumno', array_merge($data, [
+            'titulo' => 'Boleta — ' . $data['alumno']['nombre_completo'],
+        ]));
+    }
+
+    /**
+     * GET /boleta/digital/{matricula_id}/{periodo_id}
+     * Vista digital mobile-first con conclusiones completas y QR.
+     */
+    public function verDigital($matriculaId, $periodoId): void
+    {
         $matriculaId = (int) $matriculaId;
         $periodoId   = (int) $periodoId;
+        $data        = $this->buildBoletaData($matriculaId, $periodoId);
 
-        // Si es padre, verificar que la matrícula le pertenece
+        View::setLayout('digital');
+        $this->view('boleta/digital', array_merge($data, [
+            'titulo'      => 'Boleta Digital — ' . $data['alumno']['nombre_completo'],
+            'url_boleta'  => url("boleta/digital/{$matriculaId}/{$periodoId}"),
+        ]));
+    }
+
+    // ── Datos compartidos entre ver() y verDigital() ────────────
+
+    private function buildBoletaData(int $matriculaId, int $periodoId): array
+    {
         if (Session::hasRole('padre')) {
             $hijo = $this->getHijoPadre(Session::user()['id']);
             if (!$hijo || (int) $hijo['matricula_id'] !== $matriculaId) {
@@ -53,25 +78,19 @@ class BoletaController extends BaseController
             );
         }
 
-        // Obtener los 4 bimestres del año académico
         $periodos = $this->getPeriodosDelAnio($periodo['anio_id']);
 
-        // Cargar notas para cada bimestre
         $datosPorPeriodo = [];
         foreach ($periodos as $p) {
             $datosPorPeriodo[$p['id']] = $this->calModel->getBoletaAlumno($matriculaId, $p['id']);
         }
 
-        $areas = $this->buildAreasConBimestres($datosPorPeriodo, $periodos);
-
-        View::setLayout('print');
-        $this->view('boleta/alumno', [
-            'titulo'      => 'Boleta — ' . $alumno['nombre_completo'],
+        return [
             'alumno'      => $alumno,
             'periodos'    => $periodos,
-            'areas'       => $areas,
+            'areas'       => $this->buildAreasConBimestres($datosPorPeriodo, $periodos),
             'institucion' => config('institucion'),
-        ]);
+        ];
     }
 
     // ── Queries privadas ────────────────────────────────────────

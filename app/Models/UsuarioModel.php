@@ -121,4 +121,123 @@ class UsuarioModel extends BaseModel
         return strtoupper($usuario['apellido_paterno'] . ' ' . $usuario['apellido_materno'])
             . ', ' . ucwords(strtolower($usuario['nombres']));
     }
+
+    // ── Métodos para gestión CRUD (Admin) ────────────────────────
+
+    public function findById(int $id): ?array
+    {
+        return $this->queryOne("
+            SELECT
+                u.id,
+                u.rol_id,
+                u.estado,
+                u.ultimo_acceso,
+                p.id               AS persona_id,
+                p.dni,
+                p.nombres,
+                p.apellido_paterno,
+                p.apellido_materno,
+                p.correo,
+                p.telefono,
+                p.sexo,
+                r.nombre           AS rol_nombre,
+                r.codigo           AS rol_codigo
+            FROM usuarios u
+            INNER JOIN personas p ON p.id = u.persona_id
+            INNER JOIN roles r    ON r.id = u.rol_id
+            WHERE u.id = ?
+            LIMIT 1
+        ", [$id]);
+    }
+
+    public function listarRoles(): array
+    {
+        return $this->query("SELECT id, nombre, codigo FROM roles ORDER BY id");
+    }
+
+    public function existeDni(string $dni, ?int $excluirUsuarioId = null): bool
+    {
+        if ($excluirUsuarioId !== null) {
+            $r = $this->queryOne("
+                SELECT u.id FROM usuarios u
+                INNER JOIN personas p ON p.id = u.persona_id
+                WHERE p.dni = ? AND u.id != ?
+                LIMIT 1
+            ", [$dni, $excluirUsuarioId]);
+        } else {
+            $r = $this->queryOne("SELECT id FROM personas WHERE dni = ? LIMIT 1", [$dni]);
+        }
+        return $r !== null;
+    }
+
+    public function crearConPersona(array $datosPersona, string $password, int $rolId): int
+    {
+        $this->beginTransaction();
+        try {
+            $cols  = implode(', ', array_keys($datosPersona));
+            $ph    = implode(', ', array_fill(0, count($datosPersona), '?'));
+            $this->execute("INSERT INTO personas ({$cols}) VALUES ({$ph})", array_values($datosPersona));
+            $personaId = (int) $this->db->lastInsertId();
+
+            $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+            $this->execute(
+                "INSERT INTO usuarios (persona_id, rol_id, password_hash, estado) VALUES (?, ?, ?, 'activo')",
+                [$personaId, $rolId, $hash]
+            );
+            $usuarioId = (int) $this->db->lastInsertId();
+
+            $this->commit();
+            return $usuarioId;
+        } catch (\Exception $e) {
+            $this->rollback();
+            throw $e;
+        }
+    }
+
+    public function actualizarConPersona(
+        int $usuarioId,
+        int $personaId,
+        array $datosPersona,
+        int $rolId,
+        ?string $password
+    ): void {
+        $this->beginTransaction();
+        try {
+            $set = implode(', ', array_map(fn($c) => "{$c} = ?", array_keys($datosPersona)));
+            $this->execute(
+                "UPDATE personas SET {$set} WHERE id = ?",
+                [...array_values($datosPersona), $personaId]
+            );
+            $this->execute("UPDATE usuarios SET rol_id = ? WHERE id = ?", [$rolId, $usuarioId]);
+
+            if ($password !== null && $password !== '') {
+                $this->cambiarPassword($usuarioId, $password);
+            }
+
+            $this->commit();
+        } catch (\Exception $e) {
+            $this->rollback();
+            throw $e;
+        }
+    }
+
+    public function toggleEstado(int $id): void
+    {
+        $this->execute("
+            UPDATE usuarios
+            SET estado = IF(estado = 'activo', 'inactivo', 'activo')
+            WHERE id = ?
+        ", [$id]);
+    }
+
+    public function contarPorRolCodigo(string $codigoRol): int
+    {
+        $r = $this->queryOne("
+            SELECT COUNT(*) AS total
+            FROM usuarios u
+            INNER JOIN roles r ON r.id = u.rol_id
+            WHERE r.codigo = ? AND u.estado = 'activo'
+        ", [$codigoRol]);
+        return (int) ($r['total'] ?? 0);
+    }
 }

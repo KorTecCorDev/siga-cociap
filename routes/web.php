@@ -79,7 +79,9 @@ $router->get('/padre/notas',   'Padre\PanelController@notas');
 $router->get('/padre/alertas', 'Padre\PanelController@alertas');
 
 // ─── Boleta de calificaciones ────────────────────────────────
-$router->get('/boleta/{matricula_id}/{periodo_id}', 'Boleta\BoletaController@ver');
+// La ruta literal /boleta/digital/... debe ir antes del patrón con parámetros
+$router->get('/boleta/digital/{matricula_id}/{periodo_id}', 'Boleta\BoletaController@verDigital');
+$router->get('/boleta/{matricula_id}/{periodo_id}',         'Boleta\BoletaController@ver');
 
 // ─── Orden de mérito ─────────────────────────────────────────
 $router->get('/director/orden-merito',              'Director\OrdenMeritoController@index');

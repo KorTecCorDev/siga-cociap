@@ -109,11 +109,12 @@
                                       data-carga-id="<?= $carga['id'] ?>">
                                     <?= csrf_field() ?>
 
+                                    <div class="tabla-notas-wrapper">
                                     <table class="tabla-notas">
                                         <thead>
                                             <tr>
-                                                <th>N°</th>
-                                                <th>Apellidos y nombres</th>
+                                                <th class="col-num">N°</th>
+                                                <th class="col-nombre">Apellidos y nombres</th>
                                                 <th>DNI</th>
                                                 <th class="text-center">Nota (0-20)</th>
                                             </tr>
@@ -121,8 +122,8 @@
                                         <tbody>
                                             <?php foreach ($alumnos as $i => $alumno): ?>
                                                 <tr>
-                                                    <td><?= $i + 1 ?></td>
-                                                    <td><?= e($alumno['nombre_completo']) ?></td>
+                                                    <td class="col-num"><?= $i + 1 ?></td>
+                                                    <td class="col-nombre"><?= e($alumno['nombre_completo']) ?></td>
                                                     <td><?= e($alumno['dni']) ?></td>
                                                     <td class="text-center">
                                                         <input
@@ -142,6 +143,7 @@
                                             <?php endforeach; ?>
                                         </tbody>
                                     </table>
+                                    </div>
 
                                     <?php if (!$bloqueado): ?>
                                         <div class="form-notas__footer">

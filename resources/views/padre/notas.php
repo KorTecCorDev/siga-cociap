@@ -18,13 +18,18 @@
             <?= e($periodo['nombre_display']) ?>
         </p>
     </div>
-    <a
-        href="<?= url('boleta/' . $hijo['matricula_id'] . '/' . $periodo['id']) ?>"
-        class="btn btn--primary btn--sm"
-        target="_blank"
-    >
-        🖨 Ver boleta
-    </a>
+    <div class="btn-group">
+        <a href="<?= url('boleta/digital/' . $hijo['matricula_id'] . '/' . $periodo['id']) ?>"
+           class="btn btn--primary btn--sm"
+           target="_blank">
+            Ver boleta digital
+        </a>
+        <a href="<?= url('boleta/' . $hijo['matricula_id'] . '/' . $periodo['id']) ?>"
+           class="btn btn--secondary btn--sm"
+           target="_blank">
+            🖨 Imprimir
+        </a>
+    </div>
 </div>
 
 <?php if (empty($areas)): ?>

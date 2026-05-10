@@ -37,3 +37,9 @@
     &--sm { padding: 5px $spacing-sm; font-size: $font-size-sm; }
     &--lg { padding: 12px $spacing-lg; font-size: $font-size-lg; }
 }
+
+.btn-group {
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-sm;
+}

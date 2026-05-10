@@ -1,4 +1,12 @@
 // _tables.scss — Tablas del sistema
+
+// ── Wrapper con scroll horizontal para tabla de notas ─────────
+.tabla-notas-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: $border-radius-sm;
+}
+
 .tabla-notas {
     width: 100%;
     border-collapse: collapse;
@@ -25,6 +33,32 @@
     tr:hover td { background: $bg-secondary; }
     tr:last-child td { border-bottom: none; }
 
+    // ── Columnas fijas (sticky) ───────────────────────────────
+    .col-num {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        min-width: 40px;
+        width: 40px;
+    }
+
+    .col-nombre {
+        position: sticky;
+        left: 40px;
+        z-index: 2;
+        min-width: 200px;
+        box-shadow: 2px 0 6px rgba(0, 0, 0, .06);
+    }
+
+    thead .col-num,
+    thead .col-nombre { background: $bg-secondary; z-index: 3; }
+
+    tbody .col-num,
+    tbody .col-nombre { background: $bg-white; }
+
+    tr:hover .col-num,
+    tr:hover .col-nombre { background: $bg-secondary; }
+
     .input-nota {
         width: 70px;
         padding: 5px 8px;
@@ -45,4 +79,117 @@
             border-color: $color-error;
         }
     }
+}
+
+// ── Tabla de resumen de competencia ──────────────────────────
+// Columnas: N°(sticky) | Nombre(sticky) | criterios... | Promedio | Literal | Conclusión
+// .tabla-responsive aplica overflow-x: auto en todos los breakpoints;
+// el scrollbar solo aparece cuando el contenido excede el ancho disponible.
+.tabla-resumen {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-sm;
+
+    th {
+        background: $bg-secondary;
+        padding: 8px $spacing-md;
+        text-align: left;
+        font-weight: 500;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        border-bottom: 1px solid $border-color;
+        white-space: nowrap;
+    }
+
+    td {
+        padding: 8px $spacing-md;
+        border-bottom: 0.5px solid $border-color;
+        color: $text-primary;
+        vertical-align: top;
+    }
+
+    tr:hover td { background: $bg-secondary; }
+    tr:last-child td { border-bottom: none; }
+
+    // Fila con conclusión obligatoria pendiente
+    tr.fila-pendiente td { background: rgba($color-warning, .06); }
+    tr.fila-pendiente:hover td { background: rgba($color-warning, .12); }
+
+    // ── Columnas sticky ──────────────────────────────────────
+    .col-num {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        width: 40px;
+        min-width: 40px;
+    }
+
+    .col-nombre {
+        position: sticky;
+        left: 40px;
+        z-index: 2;
+        min-width: 160px;
+        max-width: 220px;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, .08);
+    }
+
+    thead .col-num,
+    thead .col-nombre {
+        background: $bg-secondary;
+        z-index: 3;
+    }
+
+    tbody .col-num,
+    tbody .col-nombre {
+        background: $bg-white;
+    }
+
+    tr:hover .col-num,
+    tr:hover .col-nombre {
+        background: $bg-secondary;
+    }
+
+    tr.fila-pendiente .col-num,
+    tr.fila-pendiente .col-nombre {
+        background: rgba($color-warning, .06);
+    }
+
+    tr.fila-pendiente:hover .col-num,
+    tr.fila-pendiente:hover .col-nombre {
+        background: rgba($color-warning, .12);
+    }
+
+    // ── Anchos de columna ────────────────────────────────────
+    .col-criterio {
+        min-width: 80px;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .col-promedio {
+        min-width: 80px;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .col-literal {
+        min-width: 70px;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .col-conclusion {
+        min-width: 200px;
+
+        @media (min-width: 640px) { min-width: 260px; }
+        @media (min-width: 960px) { min-width: 320px; }
+    }
+}
+
+// Texto de conclusión cuando la competencia está bloqueada
+.conclusion-texto {
+    font-size: $font-size-sm;
+    color: $text-muted;
+    line-height: 1.45;
+    margin: 0;
 }

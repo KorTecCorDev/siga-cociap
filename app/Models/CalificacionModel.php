@@ -225,10 +225,13 @@ class CalificacionModel extends BaseModel
                 sa.nombre            AS subarea_nombre,
                 ca.id                AS carga_id
             FROM calificaciones cal
-            INNER JOIN cargas_academicas ca ON ca.id  = cal.carga_id
-            INNER JOIN competencias comp    ON comp.id = cal.competencia_id
-            LEFT  JOIN subareas sa          ON sa.id  = ca.subarea_id
-            LEFT  JOIN areas a              ON a.id   = COALESCE(ca.area_id, sa.area_id)
+            INNER JOIN cargas_academicas ca    ON ca.id   = cal.carga_id
+            INNER JOIN competencias comp       ON comp.id = cal.competencia_id
+            INNER JOIN bloqueos_competencia bc ON bc.carga_id       = cal.carga_id
+                                               AND bc.competencia_id = cal.competencia_id
+                                               AND bc.periodo_id     = cal.periodo_id
+            LEFT  JOIN subareas sa             ON sa.id  = ca.subarea_id
+            LEFT  JOIN areas a                 ON a.id   = COALESCE(ca.area_id, sa.area_id)
             WHERE cal.matricula_id = ?
               AND cal.periodo_id   = ?
             ORDER BY a.orden, comp.orden

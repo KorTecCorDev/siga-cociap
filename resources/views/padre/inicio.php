@@ -58,7 +58,7 @@
                 <div class="card__icon">📊</div>
                 <div class="card__title">Ver notas</div>
                 <div class="card__desc">
-                    Calificaciones del <?= e($periodo['nombre_display'] ?? 'periodo actual') ?>
+                    Informe de Progreso de las competencias del estudiante al <?= e($periodo['nombre_display'] ?? 'periodo actual') ?>
                 </div>
             </a>
         </div>

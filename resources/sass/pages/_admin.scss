@@ -1,0 +1,111 @@
+// ============================================================
+// _admin.scss — Módulo de administración SIGA-COCIAP
+// ============================================================
+
+// ── Avatar de usuario (círculo con iniciales) ─────────────────
+.usuario-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    color: #fff;
+    background: $brand-mid;
+    user-select: none;
+
+    &--admin                              { background: $color-error;   }
+    &--director_general,
+    &--director_ebr                       { background: $color-warning;  }
+    &--registro_academico,
+    &--secretaria                         { background: $color-info;     }
+    &--docente                            { background: $brand-mid;      }
+    &--padre                              { background: $color-success;  }
+}
+
+// ── Celda nombre+avatar ───────────────────────────────────────
+.td-usuario {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+
+    &__nombre {
+        font-weight: 600;
+        font-size: $font-size-base;
+        color: $text-primary;
+        line-height: 1.2;
+    }
+
+    &__sub {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin-top: 1px;
+    }
+}
+
+// ── Fila de usuario inactivo ──────────────────────────────────
+tr.fila-inactiva td {
+    opacity: .55;
+}
+
+// ── Acciones de tabla ─────────────────────────────────────────
+.td-acciones {
+    display: flex;
+    gap: $spacing-xs;
+    align-items: center;
+    justify-content: flex-end;
+    white-space: nowrap;
+}
+
+// ── Formulario de usuario (grid responsivo) ───────────────────
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0 $spacing-lg;
+
+    @media (min-width: 640px) { grid-template-columns: 1fr 1fr; }
+    @media (min-width: 960px) { grid-template-columns: 1fr 1fr 1fr; }
+
+    &--2col {
+        @media (min-width: 640px) { grid-template-columns: 1fr 1fr; }
+        @media (min-width: 960px) { grid-template-columns: 1fr 1fr; }
+    }
+}
+
+// Grupo que ocupa todo el ancho del grid
+.form-group--full {
+    @media (min-width: 640px) { grid-column: 1 / -1; }
+}
+
+// ── Título de sección dentro de formulario ────────────────────
+.form-section-title {
+    font-size: $font-size-sm;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: $text-muted;
+    margin: 0 0 $spacing-md;
+    padding-bottom: $spacing-sm;
+    border-bottom: 1px solid $border-color;
+    grid-column: 1 / -1;
+}
+
+// ── Nota de contraseña ────────────────────────────────────────
+.pass-hint {
+    font-size: $font-size-sm;
+    color: $text-muted;
+    margin-top: 3px;
+}
+
+// ── Texto pequeño utilitario ──────────────────────────────────
+.text-sm     { font-size: $font-size-sm; }
+.text-danger { color: $color-error; }
+
+// ── Select de rol (ancho acotado) ─────────────────────────────
+.select-rol { max-width: 360px; }
+
+// ── Fila de botones al pie del formulario ─────────────────────
+.form-actions { margin-top: $spacing-sm; }

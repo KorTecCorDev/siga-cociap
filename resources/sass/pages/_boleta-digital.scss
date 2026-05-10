@@ -1,0 +1,956 @@
+// ============================================================
+// _boleta-digital.scss — Boleta digital mobile-first
+// Layout: digital.php | BEM prefix: .bd-
+// Estilo: Notion/Stripe — minimalista, tarjetas, sombras suaves
+//
+// Breakpoints:
+//   mobile  < 640px  (default)
+//   tablet  ≥ 640px
+//   desktop ≥ 960px
+// ============================================================
+
+// ── Variables locales ─────────────────────────────────────────
+$bd-ad-color:        #16a34a;
+$bd-ad-bg:           #f0fdf4;
+$bd-a-color:         $brand-mid;
+$bd-a-bg:            #eff6ff;
+$bd-b-color:         #d97706;
+$bd-b-bg:            #fffbeb;
+$bd-c-color:         #dc2626;
+$bd-c-bg:            #fef2f2;
+
+$bd-gradient-header: linear-gradient(135deg, $brand-dark 0%, $brand-mid 100%);
+$bd-shadow-card:     0 1px 3px rgba(0, 0, 0, .06), 0 4px 16px rgba(0, 0, 0, .06);
+$bd-radius-card:     16px;
+
+// ── Body ──────────────────────────────────────────────────────
+.bd-body {
+    background: $bg-body;
+    font-family: $font-family;
+    color: $text-primary;
+    min-height: 100vh;
+    padding-bottom: 88px;
+
+    @media print {
+        background: #fff;
+        padding-bottom: 0;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// FAB — controles flotantes (solo pantalla)
+// ══════════════════════════════════════════════════════════════
+.bd-fab {
+    position: fixed;
+    bottom: 20px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+
+    @media (min-width: 640px) {
+        flex-direction: row;
+        bottom: 28px;
+        right: 24px;
+    }
+
+    @media print { display: none !important; }
+
+    &__btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 18px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: $font-family;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
+        transition: $transition;
+        text-decoration: none;
+        white-space: nowrap;
+        line-height: 1;
+
+        svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .22);
+            text-decoration: none;
+        }
+
+        &:active { transform: translateY(0); }
+
+        &--primary  { background: $brand-mid;    color: #fff; }
+        &--secondary { background: $brand-accent; color: #fff; }
+        &--ghost    {
+            background: #fff;
+            color: $text-secondary;
+            border: 1.5px solid $border-color;
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// DOCUMENTO — contenedor raíz
+// ══════════════════════════════════════════════════════════════
+.bd {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 16px 16px 24px;
+
+    @media (min-width: 640px) { padding: 24px; }
+    @media (min-width: 960px) { padding: 32px 24px; }
+    @media print             { max-width: 100%; padding: 0; }
+}
+
+// ══════════════════════════════════════════════════════════════
+// HEADER INSTITUCIONAL
+// ══════════════════════════════════════════════════════════════
+.bd-header {
+    background: $bd-gradient-header;
+    border-radius: $bd-radius-card $bd-radius-card 0 0;
+    padding: 20px 20px;
+    display: grid;
+    grid-template-columns: 52px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    color: #fff;
+
+    @media (min-width: 640px) {
+        padding: 24px 28px;
+        grid-template-columns: 72px 1fr auto;
+        gap: 20px;
+    }
+
+    @media print {
+        border-radius: 0;
+        padding: 0 0 8pt;
+        background: #fff !important;
+        color: #000 !important;
+        border-bottom: 1.5pt solid #000;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    &__logo-wrap { display: flex; justify-content: center; }
+
+    &__logo {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .3));
+
+        @media (min-width: 640px) { width: 68px; height: 68px; }
+        @media print { width: 14mm; height: 14mm; filter: none; }
+    }
+
+    &__info { min-width: 0; }
+
+    &__ugel {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        opacity: .75;
+        margin: 0 0 4px;
+
+        @media print { font-size: 6pt; color: #555; opacity: 1; }
+    }
+
+    &__colegio {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -.2px;
+        margin: 0 0 4px;
+        line-height: 1.2;
+
+        @media (min-width: 640px) { font-size: 18px; }
+        @media print { font-size: 11pt; color: #000; }
+    }
+
+    &__titulo {
+        font-size: 11px;
+        opacity: .9;
+        margin: 0;
+        line-height: 1.3;
+
+        @media (min-width: 640px) { font-size: 13px; }
+        @media print { font-size: 8pt; color: #333; opacity: 1; }
+    }
+
+    &__meta { text-align: right; flex-shrink: 0; }
+
+    &__anio {
+        display: block;
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -.5px;
+        line-height: 1;
+
+        @media (min-width: 640px) { font-size: 30px; }
+        @media print { font-size: 16pt; color: $brand-dark; }
+    }
+
+    &__fecha {
+        display: block;
+        font-size: 11px;
+        opacity: .7;
+        margin-top: 5px;
+
+        @media print { font-size: 7pt; color: #666; opacity: 1; }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// DATOS DEL ESTUDIANTE
+// ══════════════════════════════════════════════════════════════
+.bd-student {
+    background: $bg-white;
+    border: 1px solid $border-color;
+    border-top: none;
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+
+    @media (min-width: 640px) {
+        grid-template-columns: 2fr 1fr 1.5fr 1fr;
+        padding: 16px 28px;
+    }
+
+    @media print {
+        border: .5pt solid #999;
+        border-top: none;
+        padding: 4pt 0;
+        gap: 0 8pt;
+        grid-template-columns: 2fr 1fr 1.5fr 1fr;
+    }
+
+    &__field {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+
+        &--nombre {
+            grid-column: 1 / -1;
+
+            @media (min-width: 640px) { grid-column: auto; }
+        }
+    }
+
+    &__label {
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        color: $text-muted;
+
+        @media print { font-size: 6pt; color: #777; }
+    }
+
+    &__value {
+        font-size: 14px;
+        font-weight: 600;
+        color: $text-primary;
+        line-height: 1.3;
+
+        @media print { font-size: 8pt; }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// LEYENDA DE ESCALA
+// ══════════════════════════════════════════════════════════════
+.bd-legend {
+    background: $bg-secondary;
+    border: 1px solid $border-color;
+    border-top: none;
+    border-radius: 0 0 $bd-radius-card $bd-radius-card;
+    padding: 10px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+
+    @media (min-width: 640px) { padding: 10px 28px; }
+
+    @media print {
+        border-radius: 0;
+        padding: 3pt 0;
+        border: none;
+        border-top: .5pt solid #ccc;
+        margin-bottom: 6pt;
+        background: none;
+    }
+
+    &__title {
+        font-size: 11px;
+        font-weight: 600;
+        color: $text-secondary;
+
+        @media print { font-size: 6.5pt; }
+    }
+
+    &__items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    &__item {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 50px;
+        font-size: 12px;
+
+        strong { font-size: 13px; font-weight: 700; }
+
+        @media print {
+            padding: 0 4pt 0 0;
+            background: none !important;
+            border-radius: 0;
+            font-size: 6pt;
+
+            strong { font-size: 7pt; }
+        }
+
+        &--ad { background: $bd-ad-bg; color: $bd-ad-color; }
+        &--a  { background: $bd-a-bg;  color: $bd-a-color;  }
+        &--b  { background: $bd-b-bg;  color: $bd-b-color;  }
+        &--c  { background: $bd-c-bg;  color: $bd-c-color;  }
+    }
+
+    &__desc {
+        font-size: 11px;
+        opacity: .85;
+
+        @media (max-width: 480px) { display: none; }
+        @media print { font-size: 6pt; display: inline; }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// MAIN — contenedor de áreas
+// ══════════════════════════════════════════════════════════════
+.bd-main {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+// ── Indicador de bimestres ─────────────────────────────────────
+.bd-periods {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+
+    @media print { display: none; }
+
+    &__item {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: $bg-white;
+        border: 1px solid $border-color;
+        border-radius: $border-radius;
+        padding: 8px 18px;
+
+        &--anual {
+            background: $brand-light;
+            border-color: rgba($brand-accent, .35);
+        }
+    }
+
+    &__roman {
+        font-size: 20px;
+        font-weight: 700;
+        color: $brand-dark;
+        line-height: 1;
+    }
+
+    &__name {
+        font-size: 10px;
+        color: $text-muted;
+        margin-top: 3px;
+    }
+}
+
+// ── Estado vacío ───────────────────────────────────────────────
+.bd-empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: $text-muted;
+    background: $bg-white;
+    border-radius: $border-radius-lg;
+    border: 1.5px dashed $border-color;
+
+    svg {
+        width: 40px;
+        height: 40px;
+        margin-bottom: 12px;
+        stroke: $text-muted;
+        display: block;
+        margin-inline: auto;
+    }
+
+    p { font-size: 15px; margin: 0; }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ÁREA CURRICULAR — card expandible
+// ══════════════════════════════════════════════════════════════
+.bd-areas {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bd-area {
+    background: $bg-white;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-lg;
+    overflow: hidden;
+    box-shadow: $bd-shadow-card;
+
+    @media print {
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        border-top: 1pt solid #ccc;
+        page-break-inside: avoid;
+    }
+
+    &--transversal {
+        border-color: rgba($brand-accent, .4);
+
+        .bd-area__header {
+            background: linear-gradient(90deg, $brand-light 0%, $bg-white 100%);
+
+            &:hover { background: linear-gradient(90deg, darken($brand-light, 2%) 0%, darken($bg-secondary, 1%) 100%); }
+        }
+
+        .bd-area__icon {
+            background: rgba($brand-accent, .12);
+
+            svg { stroke: $brand-accent; }
+        }
+    }
+
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        background: $bg-secondary;
+        border: none;
+        width: 100%;
+        cursor: pointer;
+        text-align: left;
+        transition: $transition;
+        border-bottom: 1px solid transparent;
+
+        @media (min-width: 640px) { padding: 16px 20px; }
+
+        &:hover { background: darken($bg-secondary, 2%); }
+
+        &[aria-expanded="true"] {
+            border-bottom-color: $border-color;
+
+            .bd-area__chevron svg { transform: rotate(0deg); }
+        }
+
+        &[aria-expanded="false"] {
+            .bd-area__chevron svg { transform: rotate(180deg); }
+        }
+
+        @media print {
+            background: #efefef !important;
+            padding: 3pt 4pt;
+            border-bottom: .5pt solid #aaa !important;
+            cursor: default;
+            pointer-events: none;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+
+    &__header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    &__header-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        margin-left: 12px;
+    }
+
+    &__icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: rgba($brand-mid, .1);
+        border-radius: 8px;
+        flex-shrink: 0;
+
+        svg { width: 16px; height: 16px; stroke: $brand-mid; }
+
+        @media print { display: none; }
+    }
+
+    &__name {
+        font-size: 13px;
+        font-weight: 700;
+        color: $text-primary;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+        margin: 0;
+        line-height: 1.2;
+
+        @media (min-width: 640px) { font-size: 14px; }
+        @media print { font-size: 7.5pt; }
+    }
+
+    &__count {
+        font-size: 11px;
+        color: $text-muted;
+        white-space: nowrap;
+        background: $bg-body;
+        padding: 2px 8px;
+        border-radius: 50px;
+        border: 1px solid $border-color;
+
+        @media (max-width: 360px) { display: none; }
+        @media print { display: none; }
+    }
+
+    &__chevron {
+        color: $text-muted;
+
+        svg {
+            width: 18px;
+            height: 18px;
+            transition: transform .2s ease;
+        }
+
+        @media print { display: none; }
+    }
+
+    &__body {
+        padding: 0;
+
+        &[hidden] { display: none; }
+
+        @media print { display: block !important; }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// COMPETENCIA
+// ══════════════════════════════════════════════════════════════
+.bd-competencia {
+    padding: 14px 16px;
+    border-bottom: 1px solid $border-color;
+    transition: background .1s;
+
+    &:last-child { border-bottom: none; }
+
+    @media (min-width: 640px) { padding: 16px 20px; }
+
+    @media print {
+        padding: 3pt 4pt;
+        border-bottom: .3pt solid #e0e0e0;
+        page-break-inside: avoid;
+    }
+
+    &[data-logro="c"] {
+        border-left: 3px solid $bd-c-color;
+        padding-left: 13px;
+
+        @media (min-width: 640px) { padding-left: 17px; }
+        @media print { border-left: 2pt solid $bd-c-color; padding-left: 3pt; }
+    }
+
+    &[data-logro="b"] {
+        border-left: 3px solid $bd-b-color;
+        padding-left: 13px;
+
+        @media (min-width: 640px) { padding-left: 17px; }
+        @media print { border-left: 2pt solid $bd-b-color; padding-left: 3pt; }
+    }
+
+    &__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+
+        @media print { margin-bottom: 2pt; }
+    }
+
+    &__nombre {
+        font-size: 13px;
+        font-weight: 500;
+        color: $text-primary;
+        line-height: 1.45;
+        margin: 0;
+        flex: 1;
+
+        @media (min-width: 640px) { font-size: 14px; }
+        @media print { font-size: 7pt; font-weight: 600; }
+    }
+
+    &__bimestres {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+
+        @media print {
+            flex-wrap: nowrap;
+            gap: 3pt;
+            margin-bottom: 2pt;
+        }
+    }
+
+    &__conclusiones {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        @media print { gap: 2pt; }
+    }
+}
+
+// ── Logro anual (badge vertical) ───────────────────────────────
+.bd-logro {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 10px;
+    flex-shrink: 0;
+
+    @media print {
+        flex-direction: row;
+        gap: 2pt;
+        padding: 1pt 4pt;
+        border-radius: 3pt;
+    }
+
+    &__label {
+        font-size: 9px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        opacity: .7;
+        line-height: 1;
+
+        @media print { font-size: 5pt; opacity: 1; }
+    }
+
+    &__value {
+        font-size: 17px;
+        font-weight: 800;
+        line-height: 1.1;
+
+        @media print { font-size: 9pt; }
+    }
+
+    &--ad { background: $bd-ad-bg; color: $bd-ad-color; }
+    &--a  { background: $bd-a-bg;  color: $bd-a-color;  }
+    &--b  { background: $bd-b-bg;  color: $bd-b-color;  }
+    &--c  { background: $bd-c-bg;  color: $bd-c-color;  }
+    &--vacio {
+        background: $bg-secondary;
+        color: $text-muted;
+        border: 1px dashed $border-color;
+    }
+}
+
+// ── Bimestre (chip de nota) ────────────────────────────────────
+.bd-bimestre {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    min-width: 44px;
+    justify-content: center;
+
+    @media print {
+        padding: 1pt 3pt;
+        border-radius: 2pt;
+        min-width: 0;
+        gap: 2pt;
+    }
+
+    &--ad { background: $bd-ad-bg; color: $bd-ad-color; }
+    &--a  { background: $bd-a-bg;  color: $bd-a-color;  }
+    &--b  { background: $bd-b-bg;  color: $bd-b-color;  }
+    &--c  { background: $bd-c-bg;  color: $bd-c-color;  }
+    &--vacio {
+        background: $bg-secondary;
+        color: $text-muted;
+    }
+
+    &__periodo {
+        font-size: 10px;
+        font-weight: 500;
+        opacity: .65;
+
+        @media print { font-size: 6pt; }
+    }
+
+    &__nota {
+        font-size: 13px;
+        font-weight: 700;
+
+        @media print { font-size: 7pt; }
+    }
+
+    &__literal {
+        font-size: 13px;
+        font-weight: 800;
+
+        @media print { font-size: 7pt; }
+
+        &--empty { opacity: .4; font-size: 12px; font-weight: 400; }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// CONCLUSIÓN DESCRIPTIVA — texto completo, sin truncar
+// ══════════════════════════════════════════════════════════════
+.bd-conclusion {
+    background: $bg-secondary;
+    border-left: 3px solid $border-color;
+    border-radius: 0 $border-radius-sm $border-radius-sm 0;
+    padding: 8px 12px;
+
+    @media print {
+        background: none;
+        border-left: 1pt solid #ccc;
+        padding: 1pt 4pt;
+        border-radius: 0;
+    }
+
+    &__bimestre {
+        display: block;
+        font-size: 10px;
+        font-weight: 600;
+        color: $text-muted;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        margin-bottom: 4px;
+
+        @media print { font-size: 5.5pt; margin-bottom: 1pt; }
+    }
+
+    &__texto {
+        font-size: 13px;
+        color: $text-secondary;
+        line-height: 1.55;
+        margin: 0;
+        font-style: italic;
+
+        @media (min-width: 640px) { font-size: 14px; }
+        @media print { font-size: 6.5pt; font-style: normal; color: #333; }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// QR INSTITUCIONAL
+// ══════════════════════════════════════════════════════════════
+.bd-qr {
+    background: $bg-white;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-lg;
+    padding: 20px;
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+
+    @media print {
+        margin-top: 8pt;
+        border-radius: 0;
+        border: .5pt solid #ccc;
+        padding: 6pt;
+    }
+
+    &--offline .bd-qr__code { display: none; }
+
+    &__code {
+        flex-shrink: 0;
+        width: 80px;
+        height: 80px;
+        background: $bg-secondary;
+        border-radius: $border-radius-sm;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        @media (min-width: 640px) { width: 100px; height: 100px; }
+        @media print { width: 22mm; height: 22mm; }
+    }
+
+    &__img {
+        width: 80px !important;
+        height: 80px !important;
+        display: block;
+
+        @media (min-width: 640px) { width: 100px !important; height: 100px !important; }
+        @media print { width: 22mm !important; height: 22mm !important; }
+    }
+
+    &__info { min-width: 0; flex: 1; }
+
+    &__title {
+        font-size: 14px;
+        font-weight: 700;
+        color: $text-primary;
+        margin: 0 0 4px;
+
+        @media print { font-size: 8pt; }
+    }
+
+    &__subtitle {
+        font-size: 12px;
+        color: $text-muted;
+        margin: 0 0 8px;
+
+        @media print { font-size: 6.5pt; }
+    }
+
+    &__url {
+        font-size: 11px;
+        color: $text-secondary;
+        word-break: break-all;
+        display: block;
+        background: $bg-secondary;
+        padding: 5px 8px;
+        border-radius: $border-radius-sm;
+        font-family: 'Courier New', monospace;
+
+        @media print { font-size: 6pt; background: none; padding: 0; }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// FOOTER — FIRMAS
+// ══════════════════════════════════════════════════════════════
+.bd-footer {
+    display: flex;
+    justify-content: space-around;
+    gap: 16px;
+    margin-top: 12px;
+    padding: 20px 16px;
+    background: $bg-white;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-lg;
+
+    @media print {
+        border-radius: 0;
+        border: none;
+        border-top: .5pt solid #000;
+        padding: 6pt 0 0;
+        margin-top: 8pt;
+    }
+
+    &__sig {
+        flex: 1;
+        text-align: center;
+        min-width: 0;
+    }
+
+    &__line {
+        height: 44px;
+        border-bottom: 1.5px solid $text-primary;
+        margin: 0 8px 8px;
+
+        @media print { height: 14mm; border-bottom: .5pt solid #000; }
+    }
+
+    &__cargo {
+        font-size: 11px;
+        color: $text-secondary;
+        margin: 0;
+        line-height: 1.3;
+
+        @media (min-width: 640px) { font-size: 12px; }
+        @media print { font-size: 6.5pt; }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// TOAST — notificación transitoria
+// ══════════════════════════════════════════════════════════════
+.bd-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: $text-primary;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: $font-family;
+    z-index: 9999;
+    box-shadow: $shadow-md;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .25s ease, transform .25s ease;
+    white-space: nowrap;
+
+    @media (max-width: 480px) {
+        font-size: 12px;
+        padding: 8px 14px;
+        max-width: calc(100vw - 32px);
+        white-space: normal;
+        text-align: center;
+    }
+
+    &--visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    @media print { display: none; }
+}
+
+// ══════════════════════════════════════════════════════════════
+// @page — impresión A4 portrait
+// ══════════════════════════════════════════════════════════════
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 1cm;
+    }
+
+    .bd-area      { page-break-inside: avoid; }
+    .bd-competencia { page-break-inside: avoid; }
+}

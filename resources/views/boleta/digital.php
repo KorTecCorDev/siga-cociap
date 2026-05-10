@@ -1,0 +1,325 @@
+<?php
+/**
+ * Vista: boleta digital — mobile-first, responsive, sin truncamiento.
+ *
+ * @var array  $alumno      { nombre_completo, dni, grado_nombre, seccion_nombre,
+ *                            nivel_nombre, escala_boleta, anio_academico }
+ * @var array  $periodos    [{ id, numero, nombre_display }, ...]
+ * @var array  $areas       areas[nombre][comp_id]
+ *                            = { nombre, bimestres[pid]{nota,literal,conclusion},
+ *                                literal_final }
+ * @var string $institucion
+ * @var string $url_boleta  URL completa de esta vista para el QR
+ */
+
+$esSecundaria = ($alumno['escala_boleta'] === 'ambas');
+$hoy          = (new DateTime())->format('d/m/Y');
+$romanos      = ['I', 'II', 'III', 'IV'];
+?>
+
+<!-- ══ CONTROLES FLOTANTES (solo pantalla) ══════════════════════ -->
+<div class="bd-fab" role="toolbar" aria-label="Acciones de boleta">
+    <button class="bd-fab__btn bd-fab__btn--primary"
+            type="button"
+            onclick="window.print()"
+            aria-label="Imprimir boleta">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6,9 6,2 18,2 18,9"/>
+            <path d="M6,18H4a2,2,0,0,1-2-2V11a2,2,0,0,1,2-2H20a2,2,0,0,1,2,2v5a2,2,0,0,1-2,2H18"/>
+            <rect x="6" y="14" width="12" height="8"/>
+        </svg>
+        <span>Imprimir</span>
+    </button>
+    <button class="bd-fab__btn bd-fab__btn--secondary"
+            type="button"
+            id="btn-pdf"
+            aria-label="Descargar como PDF">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M14,2H6A2,2,0,0,0,4,4V20a2,2,0,0,0,2,2H18a2,2,0,0,0,2-2V8Z"/>
+            <polyline points="14,2 14,8 20,8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <polyline points="9,15 12,18 15,15"/>
+        </svg>
+        <span>PDF</span>
+    </button>
+    <a href="javascript:history.back()"
+       class="bd-fab__btn bd-fab__btn--ghost"
+       aria-label="Volver a la página anterior">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="15,18 9,12 15,6"/>
+        </svg>
+        <span>Volver</span>
+    </a>
+</div>
+
+<!-- ══ DOCUMENTO ════════════════════════════════════════════════ -->
+<article class="bd"
+         id="boleta-documento"
+         data-url="<?= e($url_boleta ?? '') ?>"
+         data-nivel="<?= e($alumno['nivel_codigo'] ?? '') ?>">
+
+    <!-- ── HEADER INSTITUCIONAL ─────────────────────────────── -->
+    <header class="bd-header">
+        <div class="bd-header__logo-wrap">
+            <img src="<?= url('assets/img/logo_cociap.png') ?>"
+                 alt="Logo Colegio de Aplicación COCIAP"
+                 class="bd-header__logo">
+        </div>
+        <div class="bd-header__info">
+            <p class="bd-header__ugel">MINEDU · DRE Áncash · UGEL Huaraz</p>
+            <h1 class="bd-header__colegio"><?= e($institucion ?? '') ?></h1>
+            <p class="bd-header__titulo">Informe de Progreso de las Competencias del Estudiante</p>
+        </div>
+        <div class="bd-header__meta">
+            <span class="bd-header__anio"><?= e($alumno['anio_academico'] ?? '') ?></span>
+            <time class="bd-header__fecha" datetime="<?= date('Y-m-d') ?>"><?= $hoy ?></time>
+        </div>
+    </header>
+
+    <!-- ── DATOS DEL ESTUDIANTE ─────────────────────────────── -->
+    <section class="bd-student" aria-label="Datos del estudiante">
+        <div class="bd-student__field bd-student__field--nombre">
+            <span class="bd-student__label">Apellidos y Nombres</span>
+            <strong class="bd-student__value"><?= e($alumno['nombre_completo'] ?? '') ?></strong>
+        </div>
+        <div class="bd-student__field">
+            <span class="bd-student__label">DNI</span>
+            <strong class="bd-student__value"><?= e($alumno['dni'] ?? '') ?></strong>
+        </div>
+        <div class="bd-student__field">
+            <span class="bd-student__label">Grado y Sección</span>
+            <strong class="bd-student__value">
+                <?= e($alumno['grado_nombre'] ?? '') ?> &mdash; <?= e($alumno['seccion_nombre'] ?? '') ?>
+            </strong>
+        </div>
+        <div class="bd-student__field">
+            <span class="bd-student__label">Nivel</span>
+            <strong class="bd-student__value"><?= e($alumno['nivel_nombre'] ?? '') ?></strong>
+        </div>
+    </section>
+
+    <!-- ── LEYENDA DE ESCALA ─────────────────────────────────── -->
+    <div class="bd-legend" aria-label="Escala de calificaciones">
+        <span class="bd-legend__title">Escala:</span>
+        <div class="bd-legend__items">
+            <span class="bd-legend__item bd-legend__item--ad">
+                <strong>AD</strong>
+                <span class="bd-legend__desc">Logro destacado (18–20)</span>
+            </span>
+            <span class="bd-legend__item bd-legend__item--a">
+                <strong>A</strong>
+                <span class="bd-legend__desc">Logro esperado (14–17)</span>
+            </span>
+            <span class="bd-legend__item bd-legend__item--b">
+                <strong>B</strong>
+                <span class="bd-legend__desc">En proceso (11–13)</span>
+            </span>
+            <span class="bd-legend__item bd-legend__item--c">
+                <strong>C</strong>
+                <span class="bd-legend__desc">En inicio (00–10)</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- ── CUERPO PRINCIPAL ─────────────────────────────────── -->
+    <main class="bd-main">
+
+        <!-- Indicador visual de bimestres -->
+        <div class="bd-periods" role="list" aria-label="Bimestres del año académico">
+            <?php foreach ($periodos as $p):
+                $num = (int) $p['numero'];
+                $rom = $romanos[$num - 1] ?? $num;
+            ?>
+            <div class="bd-periods__item" role="listitem">
+                <span class="bd-periods__roman"><?= $rom ?></span>
+                <span class="bd-periods__name">Bimestre</span>
+            </div>
+            <?php endforeach; ?>
+            <div class="bd-periods__item bd-periods__item--anual" role="listitem">
+                <span class="bd-periods__roman">&#931;</span>
+                <span class="bd-periods__name">Anual</span>
+            </div>
+        </div>
+
+        <!-- Estado vacío -->
+        <?php if (empty($areas)): ?>
+        <div class="bd-empty" role="alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <p>No hay calificaciones registradas para este año académico.</p>
+        </div>
+
+        <?php else: ?>
+
+        <!-- Áreas curriculares -->
+        <section class="bd-areas" aria-label="Áreas curriculares y competencias">
+            <?php
+            $areaIndex = 0;
+            foreach ($areas as $areaNombre => $competencias):
+                $areaIndex++;
+                $esTransversal = stripos($areaNombre, 'transversal') !== false;
+                $areaId        = 'bd-area-' . $areaIndex;
+                $areaBodyId    = $areaId . '-body';
+            ?>
+            <article class="bd-area <?= $esTransversal ? 'bd-area--transversal' : '' ?>"
+                     id="<?= $areaId ?>">
+
+                <button class="bd-area__header"
+                        type="button"
+                        aria-expanded="true"
+                        aria-controls="<?= $areaBodyId ?>"
+                        data-area-toggle>
+                    <div class="bd-area__header-left">
+                        <span class="bd-area__icon" aria-hidden="true">
+                            <?php if ($esTransversal): ?>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12,2L2,7l10,5,10-5-10-5z"/>
+                                <path d="M2,17l10,5,10-5"/>
+                                <path d="M2,12l10,5,10-5"/>
+                            </svg>
+                            <?php else: ?>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M2,3h6a4,4,0,0,1,4,4v14a3,3,0,0,0-3-3H2Z"/>
+                                <path d="M22,3H16a4,4,0,0,0-4,4v14a3,3,0,0,1,3-3h7Z"/>
+                            </svg>
+                            <?php endif; ?>
+                        </span>
+                        <h2 class="bd-area__name"><?= e($areaNombre) ?></h2>
+                    </div>
+                    <div class="bd-area__header-right">
+                        <span class="bd-area__count">
+                            <?= count($competencias) ?>
+                            competencia<?= count($competencias) !== 1 ? 's' : '' ?>
+                        </span>
+                        <span class="bd-area__chevron" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <polyline points="18,15 12,9 6,15"/>
+                            </svg>
+                        </span>
+                    </div>
+                </button>
+
+                <div class="bd-area__body"
+                     id="<?= $areaBodyId ?>"
+                     role="region"
+                     aria-label="Competencias de <?= e($areaNombre) ?>">
+
+                    <?php foreach ($competencias as $compId => $comp):
+                        $literalFinal = $comp['literal_final'];
+                        $lf           = $literalFinal ? strtolower($literalFinal) : 'vacio';
+                    ?>
+                    <div class="bd-competencia" data-logro="<?= $lf ?>">
+
+                        <!-- Encabezado: nombre + logro anual -->
+                        <div class="bd-competencia__header">
+                            <h3 class="bd-competencia__nombre"><?= e($comp['nombre']) ?></h3>
+                            <?php if ($literalFinal): ?>
+                            <div class="bd-logro bd-logro--<?= $lf ?>"
+                                 aria-label="Logro anual: <?= e($literalFinal) ?>">
+                                <span class="bd-logro__label">Anual</span>
+                                <span class="bd-logro__value"><?= e($literalFinal) ?></span>
+                            </div>
+                            <?php else: ?>
+                            <div class="bd-logro bd-logro--vacio" aria-label="Logro anual pendiente">
+                                <span class="bd-logro__label">Anual</span>
+                                <span class="bd-logro__value">—</span>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Chips de bimestre -->
+                        <div class="bd-competencia__bimestres" role="list" aria-label="Notas por bimestre">
+                            <?php foreach ($periodos as $p):
+                                $num = (int) $p['numero'];
+                                $rom = $romanos[$num - 1] ?? $num;
+                                $b   = $comp['bimestres'][$p['id']] ?? null;
+                                $lit = $b['literal'] ?? null;
+                                $llc = $lit ? strtolower($lit) : 'vacio';
+                            ?>
+                            <div class="bd-bimestre bd-bimestre--<?= $llc ?>"
+                                 role="listitem"
+                                 aria-label="<?= $rom ?> Bimestre: <?= $lit ?? 'sin nota' ?>">
+                                <span class="bd-bimestre__periodo"><?= $rom ?></span>
+                                <?php if ($esSecundaria && $b && $b['nota'] !== null): ?>
+                                <span class="bd-bimestre__nota">
+                                    <?= str_pad((int) $b['nota'], 2, '0', STR_PAD_LEFT) ?>
+                                </span>
+                                <?php endif; ?>
+                                <span class="bd-bimestre__literal <?= !$lit ? 'bd-bimestre__literal--empty' : '' ?>">
+                                    <?= $lit ? e($lit) : '—' ?>
+                                </span>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <!-- Conclusiones descriptivas completas (sin truncar) -->
+                        <?php
+                        $hayConclusion = false;
+                        foreach ($periodos as $p) {
+                            $b = $comp['bimestres'][$p['id']] ?? null;
+                            if ($b && !empty($b['conclusion'])) {
+                                $hayConclusion = true;
+                                break;
+                            }
+                        }
+                        ?>
+                        <?php if ($hayConclusion): ?>
+                        <div class="bd-competencia__conclusiones"
+                             aria-label="Conclusiones descriptivas">
+                            <?php foreach ($periodos as $p):
+                                $num = (int) $p['numero'];
+                                $rom = $romanos[$num - 1] ?? $num;
+                                $b   = $comp['bimestres'][$p['id']] ?? null;
+                                if (empty($b['conclusion'])) continue;
+                            ?>
+                            <div class="bd-conclusion">
+                                <span class="bd-conclusion__bimestre"><?= $rom ?> Bimestre</span>
+                                <p class="bd-conclusion__texto"><?= e($b['conclusion']) ?></p>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; ?>
+
+                    </div>
+                    <?php endforeach; ?>
+
+                </div><!-- /.bd-area__body -->
+            </article>
+            <?php endforeach; ?>
+        </section>
+
+        <?php endif; ?>
+    </main>
+
+    <!-- ── QR INSTITUCIONAL ─────────────────────────────────── -->
+    <?php if (!empty($url_boleta)): ?>
+    <aside class="bd-qr" aria-label="Verificación digital">
+        <div class="bd-qr__code" id="qr-container"></div>
+        <div class="bd-qr__info">
+            <p class="bd-qr__title">Verificación digital</p>
+            <p class="bd-qr__subtitle">Escanea el código para acceder a esta boleta en línea</p>
+            <code class="bd-qr__url"><?= e($url_boleta) ?></code>
+        </div>
+    </aside>
+    <?php endif; ?>
+
+    <!-- ── FOOTER — FIRMAS ──────────────────────────────────── -->
+    <footer class="bd-footer">
+        <div class="bd-footer__sig">
+            <div class="bd-footer__line" role="presentation"></div>
+            <p class="bd-footer__cargo">Tutor(a) de Aula</p>
+        </div>
+        <div class="bd-footer__sig">
+            <div class="bd-footer__line" role="presentation"></div>
+            <p class="bd-footer__cargo">Director(a) Académico(a)</p>
+        </div>
+        <div class="bd-footer__sig">
+            <div class="bd-footer__line" role="presentation"></div>
+            <p class="bd-footer__cargo">Padre / Madre / Tutor(a)</p>
+        </div>
+    </footer>
+
+</article>
