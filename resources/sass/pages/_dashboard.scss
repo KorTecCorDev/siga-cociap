@@ -42,6 +42,12 @@
     .card__icon {
         font-size: 32px;
         margin-bottom: $spacing-sm;
+
+        img {
+            width: 36px;
+            height: 36px;
+            display: block;
+        }
     }
 
     .card__title {
