@@ -1,0 +1,126 @@
+// _cargas.scss — Cargas Académicas
+
+// ── Tabla de listado ──────────────────────────────────────────
+
+.carga-seccion {
+    display: flex;
+    align-items: baseline;
+    gap: $spacing-xs;
+
+    &__grado { font-weight: 500; color: $text-primary; }
+    &__letra {
+        font-weight: 700;
+        color: $brand-accent;
+        font-size: $font-size-lg;
+    }
+}
+
+.carga-area    { font-weight: 500; color: $text-primary; }
+.carga-subarea { font-size: $font-size-sm; color: $text-secondary; margin-top: 2px; }
+
+.carga-horario {
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    line-height: 1.6;
+}
+
+// ── Formulario — grid superior ────────────────────────────────
+
+.form-hint {
+    font-size: $font-size-sm;
+    color: $text-muted;
+    margin-top: -$spacing-sm;
+    margin-bottom: $spacing-md;
+    grid-column: 1 / -1;
+}
+
+// ── Horario semanal ───────────────────────────────────────────
+
+.horario-grid {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-xl;
+}
+
+.dia-row {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    padding: $spacing-sm $spacing-md;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius;
+    background: $bg-secondary;
+    transition: $transition;
+
+    &--activo {
+        border-color: $brand-accent;
+        background: $brand-light;
+    }
+}
+
+.dia-row__check {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    min-width: 110px;
+
+    input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: $brand-accent;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+}
+
+.dia-label {
+    font-weight: 500;
+    color: $text-primary;
+    cursor: pointer;
+    text-transform: capitalize;
+    user-select: none;
+}
+
+.dia-row__times {
+    display: flex;
+    gap: $spacing-md;
+    flex: 1;
+
+    .form-group {
+        flex: 1;
+        margin-bottom: 0;
+        max-width: 160px;
+    }
+
+    // Deshabilitar visualmente cuando está inactivo
+    input[type="time"]:disabled {
+        background: $bg-body;
+        color: $text-muted;
+        border-color: $border-color;
+        cursor: not-allowed;
+    }
+}
+
+.form-input--time {
+    font-variant-numeric: tabular-nums;
+}
+
+// ── Responsive ────────────────────────────────────────────────
+
+@media (max-width: 640px) {
+    .dia-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .dia-row__times {
+        width: 100%;
+
+        .form-group { max-width: 100%; }
+    }
+
+    .dia-row__check {
+        min-width: unset;
+    }
+}

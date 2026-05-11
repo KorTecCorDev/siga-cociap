@@ -8,7 +8,9 @@
       "Bash(Out-Null)",
       "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\xampp\\\\htdocs\\\\siga-cociap\\\\resources\\\\views\\\\admin\\\\usuarios\")",
       "Bash(Write-Host \"Directorios creados\")",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(php -l app/Models/CargaAcademicaModel.php)",
+      "Bash(php -l app/Controllers/Director/CargaAcademicaController.php)"
     ]
   }
 }

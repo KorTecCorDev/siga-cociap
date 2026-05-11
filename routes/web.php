@@ -47,6 +47,7 @@ $router->get( '/director/cargas/crear',       'Director\CargaAcademicaController
 $router->post('/director/cargas/crear',       'Director\CargaAcademicaController@store');
 $router->get( '/director/cargas/{id}/editar', 'Director\CargaAcademicaController@edit');
 $router->post('/director/cargas/{id}/editar', 'Director\CargaAcademicaController@update');
+$router->post('/director/cargas/{id}/estado', 'Director\CargaAcademicaController@toggleEstado');
 
 // ─── Matrícula ───────────────────────────────────────────────
 $router->get( '/secretaria/matriculas',             'Secretaria\MatriculaController@index');

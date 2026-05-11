@@ -1,6 +1,7 @@
 <?php /** @var array $cargas @var array|null $periodo */ ?>
 
 <div class="page-header">
+    <a href="<?= url('/') ?>" class="btn btn--secondary btn--sm">← Dashboard</a>
     <h1 class="page-title">Mis cargas académicas</h1>
     <?php if ($periodo): ?>
         <span class="badge badge--activo">

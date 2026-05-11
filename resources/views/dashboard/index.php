@@ -45,5 +45,12 @@
                 <div class="card__desc">Ranking bimestral por grado</div>
             </a>
         </div>
+        <div class="card">
+            <a href="<?= url('director/cargas') ?>">
+                <div class="card__icon"><img src="<?= url('assets/icons/book-bookmark.svg') ?>" alt="Cargas académicas"></div>
+                <div class="card__title">Cargas académicas</div>
+                <div class="card__desc">Gestión de cargas docentes</div>
+            </a>
+        </div>
     <?php endif; ?>
 </div>

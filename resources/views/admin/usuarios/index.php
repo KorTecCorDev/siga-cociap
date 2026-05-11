@@ -12,6 +12,7 @@ $badgeRol = fn(string $codigo): string => match($codigo) {
 ?>
 
 <div class="page-header">
+    <a href="<?= url('/') ?>" class="btn btn--secondary btn--sm">← Dashboard</a>
     <div>
         <h1 class="page-title">Gestión de Usuarios</h1>
         <p class="page-subtitle">

@@ -1,6 +1,7 @@
 <?php /** @var array $periodos */ ?>
 
 <div class="page-header">
+    <a href="<?= url('/') ?>" class="btn btn--secondary btn--sm">← Dashboard</a>
     <h1 class="page-title">Orden de mérito</h1>
 </div>
 
