@@ -442,26 +442,26 @@ INSERT INTO niveles (nombre, codigo, escala_boleta) VALUES
 -- ─── GRADOS ─────────────────────────────────────────────────
 -- Primaria: 1° al 6°
 INSERT INTO grados (nivel_id, numero, nombre_display) VALUES
-(1, 1, '1° Primaria'), (1, 2, '2° Primaria'), (1, 3, '3° Primaria'),
-(1, 4, '4° Primaria'), (1, 5, '5° Primaria'), (1, 6, '6° Primaria');
+(1, 1, '1°'), (1, 2, '2°'), (1, 3, '3°'),
+(1, 4, '4°'), (1, 5, '5°'), (1, 6, '6°');
 -- Secundaria: 1° al 5°
 INSERT INTO grados (nivel_id, numero, nombre_display) VALUES
-(2, 1, '1° Secundaria'), (2, 2, '2° Secundaria'), (2, 3, '3° Secundaria'),
-(2, 4, '4° Secundaria'), (2, 5, '5° Secundaria');
+(2, 1, '1°'), (2, 2, '2°'), (2, 3, '3°'),
+(2, 4, '4°'), (2, 5, '5°');
 
 -- ─── ÁREAS PRIMARIA ─────────────────────────────────────────
 -- Nivel 1 = Primaria
 INSERT INTO areas (nivel_id, nombre, nombre_boleta, alias_boleta, nombre_siagie, tipo, orden) VALUES
 -- Áreas-curso
-(1, 'Personal Social',               'Personal Social',               NULL,                  'Personal Social',                   'area_curso',    1),
-(1, 'Educación Física',              'Educación Física',              NULL,                  'Educación Física',                  'area_curso',    2),
-(1, 'Arte y Cultura',                'Arte y Cultura',                NULL,                  'Arte y Cultura',                    'area_curso',    3),
-(1, 'Inglés',                        'Inglés',                        NULL,                  'Inglés como Lengua Extranjera',     'area_curso',    4),
-(1, 'Educación Religiosa',           'Educación Religiosa',           '(Ética y Valores)',   'Educación Religiosa',               'area_curso',    8),
+(1, 'Personal Social',               'Personal Social',               NULL,                  'Personal Social',                   'area_curso',    2),
+(1, 'Educación Física',              'Educación Física',              NULL,                  'Educación Física',                  'area_curso',    4),
+(1, 'Arte y Cultura',                'Arte y Cultura',                NULL,                  'Arte y Cultura',                    'area_curso',    6),
+(1, 'Inglés',                        'Inglés como Lengua Extranjera', NULL,                  'Inglés como Lengua Extranjera',     'area_curso',    1),
+(1, 'Educación Religiosa',           'Educación Religiosa',           NULL,                  'Educación Religiosa',               'area_curso',    3),
 -- Áreas con subáreas
 (1, 'Comunicación',                  'Comunicación',                  NULL,                  'Comunicación',                      'con_subareas',  5),
-(1, 'Matemática',                    'Matemática',                    NULL,                  'Matemática',                        'con_subareas',  6),
-(1, 'Ciencia y Tecnología',          'Ciencia y Tecnología',          NULL,                  'Ciencia y Tecnología',              'con_subareas',  7),
+(1, 'Matemática',                    'Matemática',                    NULL,                  'Matemática',                        'con_subareas',  7),
+(1, 'Ciencia y Tecnología',          'Ciencia y Tecnología',          NULL,                  'Ciencia y Tecnología',              'con_subareas',  8),
 -- Transversales
 (1, 'Competencias Transversales',    'Comp. Transv.',                 NULL,                  NULL,                                'transversal',   9);
 
@@ -473,14 +473,14 @@ INSERT INTO areas (nivel_id, nombre, nombre_boleta, alias_boleta, nombre_siagie,
 (2, 'Educación Física',                         'Educación Física',         NULL,                    'Educación Física',                         'area_curso',   3),
 (2, 'Arte y Cultura',                           'Arte y Cultura',           NULL,                    'Arte y Cultura',                           'area_curso',   4),
 (2, 'Inglés',                                   'Inglés',                   NULL,                    'Inglés como Lengua Extranjera',             'area_curso',   6),
-(2, 'Educación Religiosa',                      'Educación Religiosa',      '(Ética y Valores)',     'Educación Religiosa',                      'area_curso',   9),
-(2, 'Educación para el Trabajo',                'EPT',                      '(Habilidades Pedagógicas)', 'Educación para el Trabajo',            'area_curso',   10),
-(2, 'Taller de Razonamiento Matemático',        'Taller Raz. Matemático',   NULL,                    'Educación Religiosa',                      'area_curso',   11),
+(2, 'Educación Religiosa',                      'Educación Religiosa',      '(Ética y Valores)',     'Educación Religiosa',                      'area_curso',   10),
+(2, 'Educación para el Trabajo',                'EPT',                      '(Habilidades Pedagógicas)', 'Educación para el Trabajo',            'area_curso',   11),
+(2, 'Taller de Razonamiento Matemático',        'Taller Raz. Matemático',   NULL,                    'Educación Religiosa',                      'area_curso',   8),
 -- Áreas con subáreas
 (2, 'Ciencias Sociales',                        'Ciencias Sociales',        NULL,                    'Ciencias Sociales',                        'con_subareas', 2),
 (2, 'Comunicación',                             'Comunicación',             NULL,                    'Comunicación',                             'con_subareas', 5),
 (2, 'Matemática',                               'Matemática',               NULL,                    'Matemática',                               'con_subareas', 7),
-(2, 'Ciencia y Tecnología',                     'Ciencia y Tecnología',     NULL,                    'Ciencia y Tecnología',                     'con_subareas', 8),
+(2, 'Ciencia y Tecnología',                     'Ciencia y Tecnología',     NULL,                    'Ciencia y Tecnología',                     'con_subareas', 9),
 -- Transversales
 (2, 'Competencias Transversales',               'Comp. Transv.',            NULL,                    NULL,                                       'transversal',  12);
 
@@ -501,7 +501,7 @@ SELECT id, 'Álgebra',       2 FROM areas WHERE nivel_id=1 AND nombre='Matemáti
 INSERT INTO subareas (area_id, nombre, orden)
 SELECT id, 'Geometría',     3 FROM areas WHERE nivel_id=1 AND nombre='Matemática';
 INSERT INTO subareas (area_id, nombre, orden)
-SELECT id, 'Raz. Mat.',     4 FROM areas WHERE nivel_id=1 AND nombre='Matemática';
+SELECT id, 'Razonamiento Matemático',     4 FROM areas WHERE nivel_id=1 AND nombre='Matemática';
 
 -- Ciencia y Tecnología Primaria
 INSERT INTO subareas (area_id, nombre, orden)
@@ -566,8 +566,7 @@ INSERT INTO personas (dni, apellido_paterno, apellido_materno, nombres, correo) 
 
 INSERT INTO usuarios (persona_id, rol_id, password_hash, estado)
 SELECT p.id, r.id,
-    '$2y$12$Lq8.NpB9XM1RkJ7sA0uZ8eKv3cQwY4nH6mG2oD5tF1iV9xWjPsE0.',
-    -- hash bcrypt de 'admin1234' — CAMBIAR en primer uso
+    '$2y$10$uYEa/sZHfN6Rj5XRdY861euNiXsccWZk0SynNzcFebqNf9V1j2Pfy',
     'activo'
 FROM personas p, roles r
 WHERE p.dni = '00000000' AND r.codigo = 'admin';
