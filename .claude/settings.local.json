@@ -10,7 +10,9 @@
       "Bash(Write-Host \"Directorios creados\")",
       "Bash(git *)",
       "Bash(php -l app/Models/CargaAcademicaModel.php)",
-      "Bash(php -l app/Controllers/Director/CargaAcademicaController.php)"
+      "Bash(php -l app/Controllers/Director/CargaAcademicaController.php)",
+      "Bash(python -c \"print\\('hello'\\)\")",
+      "Bash(php -r \"echo 'php ok';\")"
     ]
   }
 }
