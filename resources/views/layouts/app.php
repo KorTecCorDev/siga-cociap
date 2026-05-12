@@ -56,6 +56,17 @@
 
     </main>
 
+    <footer class="app-footer">
+        <span class="app-footer__copy">
+            &copy; <?= date('Y') ?> SIGA-COCIAP &mdash; Todos los derechos reservados.
+        </span>
+        <span class="app-footer__meta">
+            <span class="app-footer__version">v1.0.0</span>
+            <span class="app-footer__sep">&bull;</span>
+            <span class="app-footer__author">Desarrollado por <strong>KorTecCorDev</strong></span>
+        </span>
+    </footer>
+
     <script src="<?= url('js/app.js') ?>"></script>
 </body>
 </html>
