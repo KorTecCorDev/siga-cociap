@@ -13,7 +13,9 @@
       "Bash(php -l app/Controllers/Director/CargaAcademicaController.php)",
       "Bash(Get-ChildItem -Path \"C:\\\\xampp\\\\htdocs\\\\siga-cociap\" -Recurse -Directory)",
       "Bash(Select-Object -First 20)",
-      "Bash(xargs ls -la)"
+      "Bash(xargs ls -la)",
+      "Bash(python -c \"print\\('hello'\\)\")",
+      "Bash(php -r \"echo 'php ok';\")"
     ]
   }
 }

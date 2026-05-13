@@ -355,6 +355,17 @@ SELECT 'C53', 'Gestiona proyectos de emprendimiento económico o social.',
 FROM areas a WHERE a.nivel_id=2 AND a.nombre='Educación para el Trabajo'
   AND NOT EXISTS (SELECT 1 FROM competencias c WHERE c.area_id=a.id);
 
+-- ── Competencias Transversales (caso-especial)
+INSERT INTO competencias (codigo_minedu, nombre_completo, nombre_corto, area_id, orden)
+SELECT 'CT3', 'Se desenvuelve en entornos virtuales generados por las TIC.',
+    'Entornos virtuales / TIC', a.id, 26
+FROM areas a WHERE a.nivel_id=2 AND a.nombre='Competencias Transversales';
+
+INSERT INTO competencias (codigo_minedu, nombre_completo, nombre_corto, area_id, orden)
+SELECT 'CT4', 'Gestiona su aprendizaje de manera autónoma.',
+    'Aprendizaje autónomo', a.id, 27
+FROM areas a WHERE a.nivel_id=2 AND a.nombre='Competencias Transversales';
+
 
 -- ─── AÑO ACADÉMICO ───────────────────────────────────────────
 INSERT INTO anios_academicos (anio, fecha_inicio, fecha_fin, estado) VALUES

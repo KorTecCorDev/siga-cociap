@@ -8,7 +8,7 @@ Proyecto de tesis para obtener el título de Ingeniero de Sistemas e Informátic
 ## Stack tecnológico
 - **Backend:** PHP 8.2 — framework MVC propio (sin Laravel aún)
 - **Frontend:** HTML + SASS + JavaScript vanilla
-- **Base de datos:** MySQL (XAMPP local)
+- **Base de datos:** MySQL (XAMPP local) - Versión de MariaDB 10.4.32-MariaDB // Conjunto de caracteres del servidor: UTF-8 Unicode (utf8mb4) // Apache/2.4.58 (Win64) OpenSSL/3.1.3 PHP/8.2.12 // Versión del cliente de base de datos: libmysql - mysqlnd 8.2.12 // Versión de PHP: 8.2.12
 - **Build tool:** Gulp (SASS → CSS, BrowserSync)
 - **Control de versiones:** Git + GitHub
 - **Objetivo futuro:** Migrar a Laravel
