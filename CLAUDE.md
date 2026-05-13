@@ -42,16 +42,7 @@ siga-cociap/
 │   ├── app.php
 │   └── database.php  ← NO está en Git (.gitignore)
 ├── database/
-│   ├── migrations/
-│   │   ├── 000_crear_base_de_datos.sql
-│   │   ├── siga_cociap.sql                   ← schema completo + seeds base
-│   │   ├── 002_criterios_calificaciones.sql
-│   │   └── 003_bloqueos_competencia.sql
-│   └── seeds/
-│       ├── 001_datos_prueba.sql
-│       ├── 002_completar_sistema.sql
-│       ├── 003_cargas_prueba_adicionales.sql  ← solo testing
-│       └── 004_boleta_completa_test.sql       ← solo testing
+│   ├── backup_13_05_2026.sql ← Back up de la base de datos hasta la fecha 13/05/2026 
 ├── public/
 │   ├── index.php    ← front controller único
 │   ├── .htaccess
