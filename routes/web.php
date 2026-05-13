@@ -21,6 +21,10 @@ $router->get( '/logout',         'Auth\AuthController@logout');
 $router->get('/',          'DashboardController@index');
 $router->get('/dashboard', 'DashboardController@index');
 
+// ─── Admin — Secciones y Tutores ────────────────────────────
+$router->get( '/admin/secciones',             'Admin\SeccionController@index');
+$router->post('/admin/secciones/{id}/tutor',  'Admin\SeccionController@asignarTutor');
+
 // ─── Admin — Usuarios ───────────────────────────────────────
 $router->get( '/admin/usuarios',             'Admin\UsuarioController@index');
 $router->get( '/admin/usuarios/crear',       'Admin\UsuarioController@create');
@@ -68,11 +72,6 @@ $router->post('/docente/criterios/crear',           'Docente\CalificacionControl
 $router->post('/docente/criterios/{id}/eliminar',   'Docente\CalificacionController@eliminarCriterio');
 $router->post('/docente/calificaciones/conclusion', 'Docente\CalificacionController@guardarConclusion');
 
-// ─── Tutor ───────────────────────────────────────────────────
-$router->get( '/docente/tutor/seccion',        'Docente\TutorController@verSeccion');
-$router->get( '/docente/tutor/transversales',  'Docente\TutorController@formularioTransversales');
-$router->post('/docente/tutor/transversales',  'Docente\TutorController@guardarTransversales');
-$router->post('/docente/tutor/alerta',         'Docente\TutorController@enviarAlerta');
 
 // ─── Panel padre ─────────────────────────────────────────────
 $router->get('/padre/inicio',  'Padre\PanelController@index');

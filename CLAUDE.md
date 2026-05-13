@@ -110,6 +110,14 @@ bloqueos_competencia
 ```
 Los seeds 003 y 004 son solo para desarrollo/testing, no van en producción.
 
+## Migración de limpieza (solo sobre DB existente, no en setup desde cero)
+```
+migrations/004_limpiar_datos_semilla.sql
+```
+Elimina criterios, calificaciones y bloqueos con FK inválidas generados
+por seeds aplicados con FOREIGN_KEY_CHECKS=0. No afecta datos reales
+(cargas 10/14, competencias 41-43, bloqueos válidos del docente SOTELO).
+
 ## Roles del sistema
 | Código | Nombre | Acceso |
 |--------|--------|--------|
@@ -287,10 +295,6 @@ Los seeds 003 y 004 son solo para desarrollo/testing, no van en producción.
 - [x] Boleta digital mobile-first con QR ← completado sesión 3
 - [x] Botón "Ver boleta digital" en panel del padre (T5) ← completado sesión 3
 - [x] Gestión de usuarios (CRUD admin) ← completado sesión 3
-- [ ] Tests de boleta pendientes
-  - T3: conclusión truncada con boleta completa (en progreso)
-  - T4: control de acceso padre → 403 en boleta ajena (lógica implementada, sin test)
-  - T6: previsualización de impresión A4 final
 - [ ] Parámetros del director (año académico, periodos, secciones)
 - [ ] Cargar datos reales del COCIAP
 - [ ] Pruebas con datos reales
@@ -312,6 +316,7 @@ Los docentes subirán notas del I Bimestre el 16-17 de mayo 2026.
 ## Listado de áreas o áreas-curso con sus respectivas subáreas o competencias.
 ### Áreas Curriculares y Competencias - Modelo SIAGIE - NIVEL SECUNDARIA
 -IMPORTANTE. Un curso puede ser equivalente a un area-curso con varias competencias o una subarea vinculada a una sola competencia.
+
 - Desarrollo Personal, Ciudadanía y Cívica (area-curso)
   Competencias
     Construye su identidad
@@ -362,7 +367,7 @@ Los docentes subirán notas del I Bimestre el 16-17 de mayo 2026.
 - Educación para el Trabajo (area-curso)
   Competencias
   Gestiona proyectos de emprendimiento económico o social
-- Competencias Transversales (caso especial)
+- Competencias Transversales (caso especial) - Calificaciones registradas por el tutor
   Competencias Transversales / No Asociadas a Áreas
     Competencias
     Se desenvuelve en entornos virtuales generados por las TIC
@@ -392,7 +397,7 @@ Los docentes subirán notas del I Bimestre el 16-17 de mayo 2026.
   Se comunica oralmente en su lengua materna (subarea -> Comunicación)
   Lee diversos tipos de textos escritos en su lengua materna (subarea -> Plan lector)
   Escribe diversos tipos de textos en su lengua materna (subarea -> Razonamiento verbal)
-* Inglés (area-curso)
+* Inglés como lengua extranjera (area-curso)
   Competencias
   Se comunica oralmente
   Lee diversos tipos de textos escritos
@@ -412,7 +417,7 @@ Los docentes subirán notas del I Bimestre el 16-17 de mayo 2026.
   Competencias
   Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas
   Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa
-* Competencias Transversales (caso especial)
+* Competencias Transversales (caso especial) - Calificaciones registradas por el tutor
   Competencias
   Se desenvuelve en entornos virtuales generados por las TIC
   Gestiona su aprendizaje de manera autónoma

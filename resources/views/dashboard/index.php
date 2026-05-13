@@ -20,6 +20,16 @@
         </div>
     <?php endif; ?>
 
+    <?php if (has_role('admin')): ?>
+        <div class="card">
+            <a href="<?= url('admin/secciones') ?>">
+                <div class="card__icon"><img src="<?= url('assets/icons/book-bookmark.svg') ?>" alt="Secciones"></div>
+                <div class="card__title">Secciones y Tutores</div>
+                <div class="card__desc">Asignar tutores por sección</div>
+            </a>
+        </div>
+    <?php endif; ?>
+
     <?php if (has_role(['admin', 'registro_academico', 'secretaria'])): ?>
         <div class="card">
             <a href="<?= url('secretaria/matriculas') ?>">

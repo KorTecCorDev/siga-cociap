@@ -15,7 +15,15 @@
       "Bash(Select-Object -First 20)",
       "Bash(xargs ls -la)",
       "Bash(python -c \"print\\('hello'\\)\")",
-      "Bash(php -r \"echo 'php ok';\")"
+      "Bash(php -r \"echo 'php ok';\")",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\xampp\\\\htdocs\\\\siga-cociap\\\\resources\\\\views\\\\admin\\\\secciones\")",
+      "Bash(Write-Host \"OK\")",
+      "Bash(php -l C:/xampp/htdocs/siga-cociap/app/Models/SeccionModel.php)",
+      "Bash(php -l C:/xampp/htdocs/siga-cociap/app/Controllers/Admin/SeccionController.php)",
+      "Bash(php -l C:/xampp/htdocs/siga-cociap/app/Controllers/Docente/CalificacionController.php)",
+      "Bash(php -l C:/xampp/htdocs/siga-cociap/resources/views/admin/secciones/index.php)",
+      "Bash(php -l C:/xampp/htdocs/siga-cociap/resources/views/docente/calificaciones-transversales.php)",
+      "Bash(php -l C:/xampp/htdocs/siga-cociap/routes/web.php)"
     ]
   }
 }

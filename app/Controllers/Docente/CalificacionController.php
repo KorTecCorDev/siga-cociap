@@ -79,6 +79,11 @@ class CalificacionController extends BaseController
             );
         }
 
+        if ($carga['area_tipo'] === 'transversal') {
+            $this->formularioTransversal($carga, $periodo);
+            return;
+        }
+
         $bloqueado       = $this->calModel->periodoEstaBloqueado($periodo['id']);
         $competencias    = $this->critModel->getCompetenciasConCriterios(
             $cargaId,
@@ -86,8 +91,7 @@ class CalificacionController extends BaseController
         );
         $alumnos         = $this->getAlumnosSeccion($carga['seccion_id']);
         $notasExistentes = $this->getNotasExistentes($cargaId, $periodo['id']);
-        // Agregar después de $notasExistentes
-        $bloqueos = $this->getBloqueos($cargaId, $periodo['id']);
+        $bloqueos        = $this->getBloqueos($cargaId, $periodo['id']);
 
         $this->view('docente/calificaciones', [
             'titulo'          => 'Calificaciones — ' . ($carga['nombre_display'] ?? ''),
@@ -97,7 +101,70 @@ class CalificacionController extends BaseController
             'alumnos'         => $alumnos,
             'bloqueado'       => $bloqueado,
             'notasExistentes' => $notasExistentes,
-            'bloqueos'        => $bloqueos,   // ← nuevo
+            'bloqueos'        => $bloqueos,
+        ]);
+    }
+
+    /**
+     * Ramificación interna para cargas de tipo transversal.
+     * Auto-crea el criterio único por competencia si no existe y
+     * renderiza la página de ingreso de notas (un input por alumno).
+     * El resumen completo se ve desde el botón "Ver resumen" que
+     * redirige al método resumen() existente.
+     */
+    private function formularioTransversal(array $carga, array $periodo): void
+    {
+        $cargaId   = (int) $carga['id'];
+        $periodoId = (int) $periodo['id'];
+
+        $competencias = $this->calModel->query("
+            SELECT c.id, c.codigo_minedu, c.nombre_corto, c.nombre_completo, c.orden
+            FROM competencias c
+            WHERE c.area_id = ?
+            ORDER BY c.orden
+        ", [(int) $carga['area_id']]);
+
+        // Garantizar un criterio único por cada competencia+periodo
+        $criteriosPorComp = [];
+        foreach ($competencias as $comp) {
+            $compId = (int) $comp['id'];
+            $crit   = $this->critModel->queryOne("
+                SELECT id FROM criterios
+                WHERE carga_id       = ?
+                  AND competencia_id = ?
+                  AND periodo_id     = ?
+                LIMIT 1
+            ", [$cargaId, $compId, $periodoId]);
+
+            if (!$crit) {
+                $this->calModel->execute("
+                    INSERT INTO criterios
+                        (carga_id, competencia_id, periodo_id, nombre, orden)
+                    VALUES (?, ?, ?, ?, 1)
+                ", [$cargaId, $compId, $periodoId, $periodo['nombre_display']]);
+
+                $crit = $this->critModel->queryOne("
+                    SELECT id FROM criterios
+                    WHERE carga_id       = ?
+                      AND competencia_id = ?
+                      AND periodo_id     = ?
+                    LIMIT 1
+                ", [$cargaId, $compId, $periodoId]);
+            }
+
+            $criteriosPorComp[$compId] = $crit ? (int) $crit['id'] : null;
+        }
+
+        $this->view('docente/calificaciones-transversales', [
+            'titulo'           => 'Competencias Transversales — ' . $carga['seccion_nombre'],
+            'carga'            => $carga,
+            'periodo'          => $periodo,
+            'competencias'     => $competencias,
+            'criteriosPorComp' => $criteriosPorComp,
+            'alumnos'          => $this->getAlumnosSeccion((int) $carga['seccion_id']),
+            'notasExistentes'  => $this->getNotasExistentes($cargaId, $periodoId),
+            'bloqueos'         => $this->getBloqueos($cargaId, $periodoId),
+            'bloqueado'        => $this->calModel->periodoEstaBloqueado($periodoId),
         ]);
     }
 
@@ -141,23 +208,37 @@ class CalificacionController extends BaseController
 
         $ok = $this->calModel->guardarNotasMasivas($criterioId, $notas);
 
-        if ($ok) {
+        if (!$ok) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Error al guardar las notas.',
+            ], 500);
+        }
+
+        try {
             $this->calModel->recalcularPromedioSeccion(
                 $cargaId,
                 $competenciaId,
                 $periodo['id'],
                 Session::user()['id']
             );
-            $this->json([
-                'success' => true,
-                'mensaje' => 'Notas guardadas correctamente.',
+        } catch (\Exception $e) {
+            log_error('Error al recalcular promedio', [
+                'carga_id'       => $cargaId,
+                'competencia_id' => $competenciaId,
+                'periodo_id'     => $periodo['id'],
+                'error'          => $e->getMessage(),
             ]);
-        } else {
             $this->json([
                 'success' => false,
-                'mensaje' => 'Error al guardar.',
+                'mensaje' => 'Notas guardadas, pero falló el cálculo del promedio. Contacte al administrador.',
             ], 500);
         }
+
+        $this->json([
+            'success' => true,
+            'mensaje' => 'Notas guardadas correctamente.',
+        ]);
     }
 
     /**
