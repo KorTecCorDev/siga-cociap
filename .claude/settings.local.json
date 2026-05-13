@@ -23,7 +23,9 @@
       "Bash(php -l C:/xampp/htdocs/siga-cociap/app/Controllers/Docente/CalificacionController.php)",
       "Bash(php -l C:/xampp/htdocs/siga-cociap/resources/views/admin/secciones/index.php)",
       "Bash(php -l C:/xampp/htdocs/siga-cociap/resources/views/docente/calificaciones-transversales.php)",
-      "Bash(php -l C:/xampp/htdocs/siga-cociap/routes/web.php)"
+      "Bash(php -l C:/xampp/htdocs/siga-cociap/routes/web.php)",
+      "Bash(grep -A5 \"Dumping data for table \\\\`usuarios\\\\`\" \"C:/xampp/htdocs/siga-cociap/database/backup_13_05_2026.sql\")",
+      "Bash(grep *)"
     ]
   }
 }
