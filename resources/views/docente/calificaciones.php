@@ -18,6 +18,7 @@
         <p class="page-subtitle">
             <?= e($carga['grado_nombre']) ?> —
             Sección <?= e($carga['seccion_nombre']) ?> —
+            <?= e($carga['nivel']) ?> —
             <?= e($periodo['nombre_display'] ?? '') ?>
         </p>
     </div>
