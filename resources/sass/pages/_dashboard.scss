@@ -264,8 +264,9 @@
 .mb-md { margin-bottom: $spacing-md; }
 .mb-lg { margin-bottom: $spacing-lg; }
 .mb-xl { margin-bottom: $spacing-xl; }
-.text-muted { color: $text-muted; }
+.text-muted  { color: $text-muted; }
 .text-center { text-align: center; }
+.text-right  { text-align: right; }
 
 // ── Responsivo ───────────────────────────────────────────────
 @media (max-width: 640px) {

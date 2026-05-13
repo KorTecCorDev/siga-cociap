@@ -109,3 +109,75 @@ tr.fila-inactiva td {
 
 // ── Fila de botones al pie del formulario ─────────────────────
 .form-actions { margin-top: $spacing-sm; }
+
+// ── Gestión de bloqueos ───────────────────────────────────────
+.bloqueos-filtro {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    flex-wrap: wrap;
+
+    .form-label { margin: 0; white-space: nowrap; }
+
+    &__select {
+        flex: 1;
+        min-width: 260px;
+        max-width: 420px;
+    }
+}
+
+.bloqueos-stats {
+    display: flex;
+    gap: $spacing-md;
+    margin-bottom: $spacing-md;
+    flex-wrap: wrap;
+}
+
+.bloqueos-stat {
+    flex: 1;
+    min-width: 140px;
+    background: $bg-white;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-lg;
+    padding: $spacing-md $spacing-lg;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    &--ok   { background: $color-success-bg; border-color: lighten($color-success, 30%); }
+    &--warn { background: $color-warning-bg; border-color: lighten($color-warning, 25%); }
+
+    &__num {
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $text-primary;
+        line-height: 1;
+    }
+
+    &--ok   &__num  { color: $color-success; }
+    &--warn &__num  { color: $color-warning; }
+
+    &__label {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+}
+
+.bloqueos-nivel-header td {
+    background: $bg-secondary;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    color: $text-secondary;
+    padding: 6px $spacing-md;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.tabla-bloqueos {
+    .bloqueos-competencia {
+        max-width: 260px;
+        white-space: normal;
+        line-height: 1.35;
+        font-size: $font-size-sm;
+    }
+}

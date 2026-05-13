@@ -303,6 +303,58 @@ class CalificacionModel extends BaseModel
      * Obtiene el resumen de notas de todos los alumnos
      * para una competencia específica.
      */
+    /**
+     * Elimina un bloqueo por su ID (desbloquea la competencia).
+     */
+    public function desbloquearCompetencia(int $bloqueoId): bool
+    {
+        return $this->execute("
+            DELETE FROM bloqueos_competencia WHERE id = ?
+        ", [$bloqueoId]);
+    }
+
+    /**
+     * Devuelve todas las (carga, competencia) que tienen criterios
+     * en un periodo, junto con su estado de bloqueo.
+     */
+    public function getCompetenciasPorPeriodo(int $periodoId): array
+    {
+        return $this->query("
+            SELECT DISTINCT
+                cr.carga_id,
+                cr.competencia_id,
+                bc.id                AS bloqueo_id,
+                bc.bloqueado_en,
+                comp.nombre_completo AS competencia_nombre,
+                a.nombre             AS area_nombre,
+                sa.nombre            AS subarea_nombre,
+                n.nombre             AS nivel_nombre,
+                n.codigo             AS nivel_codigo,
+                n.id                 AS nivel_id,
+                g.numero             AS grado_numero,
+                g.nombre_display     AS grado_nombre,
+                s.nombre             AS seccion_nombre,
+                pu.apellido_paterno  AS docente_apellido,
+                pu.nombres           AS docente_nombres
+            FROM criterios cr
+            INNER JOIN cargas_academicas ca ON ca.id   = cr.carga_id
+            INNER JOIN secciones s          ON s.id    = ca.seccion_id
+            INNER JOIN grados g             ON g.id    = s.grado_id
+            INNER JOIN niveles n            ON n.id    = g.nivel_id
+            INNER JOIN usuarios ud          ON ud.id   = ca.docente_id
+            INNER JOIN personas pu          ON pu.id   = ud.persona_id
+            INNER JOIN competencias comp    ON comp.id = cr.competencia_id
+            LEFT  JOIN subareas sa          ON sa.id   = ca.subarea_id
+            LEFT  JOIN areas a              ON a.id    = COALESCE(ca.area_id, sa.area_id)
+            LEFT  JOIN bloqueos_competencia bc
+                ON  bc.carga_id       = cr.carga_id
+                AND bc.competencia_id = cr.competencia_id
+                AND bc.periodo_id     = cr.periodo_id
+            WHERE cr.periodo_id = ?
+            ORDER BY n.id, g.numero, s.nombre, a.orden, comp.orden
+        ", [$periodoId]);
+    }
+
     public function getResumenCompetencia(
         int $cargaId,
         int $competenciaId,

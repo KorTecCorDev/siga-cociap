@@ -68,13 +68,12 @@ function filtrarAreas() {
         ? 'Seleccionar área...'
         : 'Selecciona primero una sección...';
 
-    // En editar, reseleccionar el área guardada si coincide con el nivel
+    // Siempre resetear; en editar restaurar solo si el nivel coincide
+    areaSel.value = '';
     if (areaPresel) {
         const preOpt = areaSel.querySelector(`option[value="${areaPresel}"]`);
         if (preOpt && preOpt.dataset.nivelId === nivelId) {
             areaSel.value = areaPresel;
-        } else if (areaSel.value !== areaPresel) {
-            areaSel.value = '';
         }
     }
 

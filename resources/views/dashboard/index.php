@@ -52,5 +52,12 @@
                 <div class="card__desc">Gestión de cargas docentes</div>
             </a>
         </div>
+        <div class="card">
+            <a href="<?= url('director/bloqueos') ?>">
+                <div class="card__icon"><img src="<?= url('assets/icons/folder-check.svg') ?>" alt="Bloqueos"></div>
+                <div class="card__title">Bloqueos del bimestre</div>
+                <div class="card__desc">Gestionar permisos de edición de notas</div>
+            </a>
+        </div>
     <?php endif; ?>
 </div>
