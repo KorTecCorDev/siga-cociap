@@ -13,7 +13,7 @@ SET time_zone = '-05:00'; -- UTC-5 Lima
 DROP TABLE IF EXISTS calificaciones;
 DROP TABLE IF EXISTS sesiones_horario;
 DROP TABLE IF EXISTS cargas_academicas;
-DROP TABLE IF EXISTS bloque_horario;
+DROP TABLE IF EXISTS bloques_horario;
 DROP TABLE IF EXISTS configuracion_horario;
 DROP TABLE IF EXISTS reglas_especiales;
 DROP TABLE IF EXISTS alertas;

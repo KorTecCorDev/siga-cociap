@@ -17,11 +17,29 @@ SET time_zone = "+00:00";
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
 /*!40101 SET NAMES utf8mb4 */;
 
+-- Crear la base de datos.
+  CREATE DATABASE IF NOT EXISTS `siga_cociap`
+    DEFAULT CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
 --
 -- Base de datos: `siga_cociap`
 --
 
 USE siga_cociap;
+
+
+-- Eliminar tablas
+
+SET FOREIGN_KEY_CHECKS=0;
+  DROP TABLE IF EXISTS `vinculo_familiar`, `usuarios`, `subareas`,
+    `sesiones_horario`, `secciones`, `roles`, `reglas_especiales`,
+    `personas`, `periodos`, `niveles`, `matriculas`, `grados`,
+    `estudiantes`, `criterios`, `configuracion_horario`, `competencias`,
+    `cargas_academicas`, `calificaciones_criterio`, `calificaciones`,
+    `bloques_horario`, `bloqueos_competencia`, `areas`, `apoderados`,
+    `anios_academicos`, `alertas`;
+  SET FOREIGN_KEY_CHECKS=1;
 
 
 -- --------------------------------------------------------
@@ -30,6 +48,16 @@ USE siga_cociap;
 -- Estructura de tabla para la tabla `alertas`
 --
 
+CREATE TABLE `alertas` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `tutor_id` int(10) UNSIGNED NOT NULL,
+  `matricula_id` int(10) UNSIGNED NOT NULL,
+  `tipo` enum('academica','conductual','asistencia','general') NOT NULL DEFAULT 'general',
+  `mensaje` text NOT NULL,
+  `leida` tinyint(1) NOT NULL DEFAULT 0,
+  `enviada_correo` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -37,12 +65,18 @@ USE siga_cociap;
 -- Estructura de tabla para la tabla `anios_academicos`
 --
 
+CREATE TABLE `anios_academicos` (
+  `id` smallint(5) UNSIGNED NOT NULL,
+  `anio` year(4) NOT NULL,
+  `fecha_inicio` date NOT NULL,
+  `fecha_fin` date NOT NULL,
+  `estado` enum('planificado','activo','cerrado') NOT NULL DEFAULT 'planificado',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `anios_academicos`
 --
-
-SET FOREIGN_KEY_CHECKS = 0;
 
 INSERT INTO `anios_academicos` (`id`, `anio`, `fecha_inicio`, `fecha_fin`, `estado`, `created_at`) VALUES
 (1, '2026', '2026-03-09', '2026-12-18', 'activo', '2026-05-11 23:15:50');
@@ -53,6 +87,11 @@ INSERT INTO `anios_academicos` (`id`, `anio`, `fecha_inicio`, `fecha_fin`, `esta
 -- Estructura de tabla para la tabla `apoderados`
 --
 
+CREATE TABLE `apoderados` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `persona_id` int(10) UNSIGNED NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `apoderados`
@@ -67,6 +106,17 @@ INSERT INTO `apoderados` (`id`, `persona_id`, `created_at`) VALUES
 -- Estructura de tabla para la tabla `areas`
 --
 
+CREATE TABLE `areas` (
+  `id` smallint(5) UNSIGNED NOT NULL,
+  `nivel_id` tinyint(3) UNSIGNED NOT NULL,
+  `nombre` varchar(120) NOT NULL,
+  `nombre_boleta` varchar(120) DEFAULT NULL,
+  `alias_boleta` varchar(80) DEFAULT NULL,
+  `nombre_siagie` varchar(120) DEFAULT NULL,
+  `tipo` enum('area_curso','con_subareas','transversal') NOT NULL,
+  `orden` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `activa` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `areas`
@@ -101,6 +151,14 @@ INSERT INTO `areas` (`id`, `nivel_id`, `nombre`, `nombre_boleta`, `alias_boleta`
 -- Estructura de tabla para la tabla `bloqueos_competencia`
 --
 
+CREATE TABLE `bloqueos_competencia` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `carga_id` int(10) UNSIGNED NOT NULL,
+  `competencia_id` smallint(5) UNSIGNED NOT NULL,
+  `periodo_id` smallint(5) UNSIGNED NOT NULL,
+  `bloqueado_por` int(10) UNSIGNED NOT NULL,
+  `bloqueado_en` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `bloqueos_competencia`
@@ -220,6 +278,14 @@ INSERT INTO `bloqueos_competencia` (`id`, `carga_id`, `competencia_id`, `periodo
 -- Estructura de tabla para la tabla `bloques_horario`
 --
 
+CREATE TABLE `bloques_horario` (
+  `id` smallint(5) UNSIGNED NOT NULL,
+  `config_id` smallint(5) UNSIGNED NOT NULL,
+  `dia_semana` enum('lunes','martes','miercoles','jueves','viernes') NOT NULL,
+  `numero_bloque` tinyint(3) UNSIGNED NOT NULL,
+  `hora_inicio` time NOT NULL,
+  `hora_fin` time NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `bloques_horario`
@@ -276,6 +342,18 @@ INSERT INTO `bloques_horario` (`id`, `config_id`, `dia_semana`, `numero_bloque`,
 -- Estructura de tabla para la tabla `calificaciones`
 --
 
+CREATE TABLE `calificaciones` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `matricula_id` int(10) UNSIGNED NOT NULL,
+  `carga_id` int(10) UNSIGNED NOT NULL,
+  `periodo_id` smallint(5) UNSIGNED NOT NULL,
+  `competencia_id` smallint(5) UNSIGNED NOT NULL,
+  `nota_numerica` tinyint(3) UNSIGNED NOT NULL,
+  `conclusion_descriptiva` text DEFAULT NULL,
+  `registrado_en` datetime NOT NULL DEFAULT current_timestamp(),
+  `modificado_en` datetime DEFAULT NULL,
+  `registrado_por` int(10) UNSIGNED NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `calificaciones`
@@ -466,6 +544,14 @@ INSERT INTO `calificaciones` (`id`, `matricula_id`, `carga_id`, `periodo_id`, `c
 -- Estructura de tabla para la tabla `calificaciones_criterio`
 --
 
+CREATE TABLE `calificaciones_criterio` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `criterio_id` int(10) UNSIGNED NOT NULL,
+  `matricula_id` int(10) UNSIGNED NOT NULL,
+  `nota` tinyint(3) UNSIGNED NOT NULL,
+  `registrado_en` datetime NOT NULL DEFAULT current_timestamp(),
+  `modificado_en` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `calificaciones_criterio`
@@ -549,40 +635,51 @@ INSERT INTO `calificaciones_criterio` (`id`, `criterio_id`, `matricula_id`, `not
 -- Estructura de tabla para la tabla `cargas_academicas`
 --
 
+CREATE TABLE `cargas_academicas` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `docente_id` int(10) UNSIGNED NOT NULL,
+  `seccion_id` smallint(5) UNSIGNED NOT NULL,
+  `anio_id` smallint(5) UNSIGNED NOT NULL,
+  `subarea_id` smallint(5) UNSIGNED DEFAULT NULL,
+  `area_id` smallint(5) UNSIGNED DEFAULT NULL,
+  `horas_semanales` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `estado` enum('activa','inactiva') NOT NULL DEFAULT 'activa',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `cargas_academicas`
 --
 
 INSERT INTO `cargas_academicas` (`id`, `docente_id`, `seccion_id`, `anio_id`, `subarea_id`, `area_id`, `horas_semanales`, `estado`, `created_at`) VALUES
-(1, 7, 21, 1, 15, NULL, 2, 'activa', '2026-05-11 23:15:50'),
-(2, 12, 21, 1, 22, NULL, 2, 'activa', '2026-05-11 23:20:44'),
-(3, 9, 21, 1, 16, NULL, 2, 'activa', '2026-05-12 02:55:01'),
-(4, 16, 21, 1, 12, NULL, 1, 'activa', '2026-05-12 02:59:27'),
-(5, 19, 21, 1, NULL, 11, 2, 'activa', '2026-05-12 03:02:00'),
-(6, 11, 21, 1, NULL, 12, 1, 'activa', '2026-05-12 03:02:30'),
-(7, 15, 21, 1, 14, NULL, 2, 'activa', '2026-05-12 03:04:28'),
-(8, 2, 21, 1, 18, NULL, 2, 'activa', '2026-05-12 03:04:59'),
-(9, 8, 21, 1, 20, NULL, 2, 'activa', '2026-05-12 03:05:48'),
-(10, 6, 21, 1, NULL, 13, 2, 'activa', '2026-05-12 03:07:17'),
-(11, 17, 21, 1, 23, NULL, 2, 'activa', '2026-05-12 03:26:16'),
-(12, 18, 21, 1, NULL, 16, 2, 'activa', '2026-05-12 03:27:32'),
-(13, 7, 1, 1, 15, NULL, 2, 'activa', '2026-05-12 04:20:42'),
-(14, 6, 1, 1, NULL, 13, 2, 'activa', '2026-05-12 04:21:25'),
-(15, 8, 1, 1, 20, NULL, 2, 'activa', '2026-05-12 04:21:58'),
-(16, 9, 1, 1, 16, NULL, 2, 'activa', '2026-05-12 04:23:52'),
-(17, 10, 1, 1, NULL, 10, 2, 'activa', '2026-05-12 04:24:21'),
-(18, 11, 1, 1, NULL, 12, 1, 'activa', '2026-05-12 04:26:23'),
-(19, 12, 1, 1, 22, NULL, 2, 'activa', '2026-05-12 04:26:49'),
-(20, 13, 1, 1, 19, NULL, 2, 'activa', '2026-05-12 04:28:33'),
-(21, 14, 1, 1, 11, NULL, 2, 'activa', '2026-05-12 04:30:03'),
-(22, 15, 1, 1, 14, NULL, 2, 'activa', '2026-05-12 04:33:08'),
-(23, 16, 1, 1, 12, NULL, 2, 'activa', '2026-05-12 04:37:12'),
-(24, 17, 1, 1, 23, NULL, 2, 'activa', '2026-05-12 04:38:32'),
-(25, 18, 1, 1, NULL, 16, 2, 'activa', '2026-05-12 04:39:33'),
-(26, 17, 1, 1, 21, NULL, 2, 'activa', '2026-05-12 04:40:52'),
-(27, 19, 1, 1, NULL, 11, 2, 'activa', '2026-05-12 04:41:36'),
-(28, 20, 1, 1, NULL, 15, 1, 'activa', '2026-05-12 04:44:07');
+(1, 7, 13, 1, 15, NULL, 2, 'activa', '2026-05-11 23:15:50'),
+(2, 12, 13, 1, 22, NULL, 2, 'activa', '2026-05-11 23:20:44'),
+(3, 9, 13, 1, 16, NULL, 2, 'activa', '2026-05-12 02:55:01'),
+(4, 16, 13, 1, 12, NULL, 1, 'activa', '2026-05-12 02:59:27'),
+(5, 19, 13, 1, NULL, 11, 2, 'activa', '2026-05-12 03:02:00'),
+(6, 11, 13, 1, NULL, 12, 1, 'activa', '2026-05-12 03:02:30'),
+(7, 15, 13, 1, 14, NULL, 2, 'activa', '2026-05-12 03:04:28'),
+(8, 2, 13, 1, 18, NULL, 2, 'activa', '2026-05-12 03:04:59'),
+(9, 8, 13, 1, 20, NULL, 2, 'activa', '2026-05-12 03:05:48'),
+(10, 6, 13, 1, NULL, 13, 2, 'activa', '2026-05-12 03:07:17'),
+(11, 17, 13, 1, 23, NULL, 2, 'activa', '2026-05-12 03:26:16'),
+(12, 18, 13, 1, NULL, 16, 2, 'activa', '2026-05-12 03:27:32'),
+(13, 7, 19, 1, 15, NULL, 2, 'activa', '2026-05-12 04:20:42'),
+(14, 6, 19, 1, NULL, 13, 2, 'activa', '2026-05-12 04:21:25'),
+(15, 8, 19, 1, 20, NULL, 2, 'activa', '2026-05-12 04:21:58'),
+(16, 9, 19, 1, 16, NULL, 2, 'activa', '2026-05-12 04:23:52'),
+(17, 10, 19, 1, NULL, 10, 2, 'activa', '2026-05-12 04:24:21'),
+(18, 11, 19, 1, NULL, 12, 1, 'activa', '2026-05-12 04:26:23'),
+(19, 12, 19, 1, 22, NULL, 2, 'activa', '2026-05-12 04:26:49'),
+(20, 13, 19, 1, 19, NULL, 2, 'activa', '2026-05-12 04:28:33'),
+(21, 14, 19, 1, 11, NULL, 2, 'activa', '2026-05-12 04:30:03'),
+(22, 15, 19, 1, 14, NULL, 2, 'activa', '2026-05-12 04:33:08'),
+(23, 16, 19, 1, 12, NULL, 2, 'activa', '2026-05-12 04:37:12'),
+(24, 17, 19, 1, 23, NULL, 2, 'activa', '2026-05-12 04:38:32'),
+(25, 18, 19, 1, NULL, 16, 2, 'activa', '2026-05-12 04:39:33'),
+(26, 17, 19, 1, 21, NULL, 2, 'activa', '2026-05-12 04:40:52'),
+(27, 19, 19, 1, NULL, 11, 2, 'activa', '2026-05-12 04:41:36'),
+(28, 20, 19, 1, NULL, 15, 1, 'activa', '2026-05-12 04:44:07');
 
 -- --------------------------------------------------------
 
@@ -590,137 +687,16 @@ INSERT INTO `cargas_academicas` (`id`, `docente_id`, `seccion_id`, `anio_id`, `s
 -- Estructura de tabla para la tabla `competencias`
 --
 
+CREATE TABLE `competencias` (
+  `id` smallint(5) UNSIGNED NOT NULL,
+  `codigo_minedu` varchar(5) DEFAULT NULL,
+  `nombre_completo` text NOT NULL,
+  `nombre_corto` varchar(120) DEFAULT NULL,
+  `subarea_id` smallint(5) UNSIGNED DEFAULT NULL,
+  `area_id` smallint(5) UNSIGNED DEFAULT NULL,
+  `orden` tinyint(3) UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `competencias`
---
-
-INSERT INTO `competencias` (`id`, `codigo_minedu`, `nombre_completo`, `nombre_corto`, `subarea_id`, `area_id`, `orden`) VALUES
-(1, 'C1', 'Se comunica en inglés como lengua extranjera.', 'Comunicación en inglés', NULL, 4, 1),
-(2, 'C4', 'Construye su identidad.', 'Construye su identidad', NULL, 1, 4),
-(3, 'C5', 'Convive y participa democráticamente en la búsqueda del bien común.', 'Convive y participa por el bien común', NULL, 1, 5),
-(4, 'C6', 'Construye interpretaciones históricas.', 'Construye interpretaciones históricas', NULL, 1, 6),
-(5, 'C7', 'Gestiona responsablemente el espacio y el ambiente.', 'Gestiona el espacio y el ambiente', NULL, 1, 7),
-(6, 'C8', 'Gestiona responsablemente los recursos económicos.', 'Gestiona los recursos económicos', NULL, 1, 8),
-(7, 'C9', 'Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas.', 'Identidad como persona amada por Dios', NULL, 5, 9),
-(8, 'C10', 'Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa', 'Asume la experiencia de Dios en su proyecto de vida', NULL, 5, 10),
-(9, 'C13', 'Se desenvuelve de manera autónoma a través de su motricidad.', 'Motricidad autónoma', NULL, 2, 11),
-(10, 'C14', 'Asume una vida saludable.', 'Vida saludable', NULL, 2, 12),
-(11, 'C15', 'Interactúa a través de sus habilidades sociomotrices.', 'Habilidades sociomotrices', NULL, 2, 13),
-(12, 'C16', 'Se comunica oralmente en su lengua materna.', 'Se comunica oralmente en sulengua materna.', NULL, 6, 14),
-(13, 'C17', 'Lee diversos tipos de textos escritos en su lengua materna.', 'Lee diversos tipos de textos escritos en su lengua materna', NULL, 6, 15),
-(14, 'C18', 'Escribe diversos tipos de textos en su lengua materna.', 'Escribe diversos tipos de textos en su lengua materna', NULL, 6, 16),
-(15, 'C19', 'Aprecia de manera crítica manifestaciones artístico-culturales.', 'Aprecia manifestaciones artísticas', NULL, 3, 17),
-(16, 'C20', 'Crea proyectos desde los lenguajes artísticos.', 'Crea proyectos artísticos', NULL, 3, 18),
-(17, 'C21', 'Resuelve problemas de cantidad.', 'Resuelve problemas de cantidad', 4, NULL, 19),
-(18, 'C22', 'Resuelve problemas de regularidad, equivalencia y cambio.', 'Resuelve problemas de regularidad, equivalencia y cambio', 5, NULL, 20),
-(19, 'C23', 'Resuelve problemas de forma, movimiento y localización.', 'Resuelve problemas de forma, movimiento y localización', 6, NULL, 21),
-(20, 'C24', 'Resuelve problemas de gestión de datos e incertidumbre.', 'Gestión de datos', 7, NULL, 22),
-(21, 'C25', 'Indaga mediante métodos científicos para construir sus conocimientos.', 'Indaga mediante el método científico', 8, NULL, 23),
-(22, 'C26', 'Explica el mundo físico basándose en conocimientos sobre los seres vivos; materia y energía; biodiversidad, Tierra y Universo.', 'Explica el mundo físico basándose en los seres vivos', 9, NULL, 24),
-(23, 'CT1', 'Se desenvuelve en entornos virtuales generados por las TIC.', 'Entornos virtuales / TIC', NULL, 9, 26),
-(24, 'CT2', 'Gestiona su aprendizaje de manera autónoma.', 'Aprendizaje autónomo', NULL, 9, 27),
-(25, 'C28', 'Construye su identidad.', 'Construye su identidad', NULL, 10, 1),
-(26, 'C30', 'Construye interpretaciones históricas.', 'Construye interpretaciones históricas', NULL, 17, 3),
-(27, 'C33', 'Asume una vida saludable.', 'Asume una vida saludable.', NULL, 11, 6),
-(28, 'C36', 'Aprecia de manera crítica manifestaciones artístico-culturales.', 'Aprecia de manera crítica manifestaciones artístico-culturales', NULL, 12, 9),
-(29, 'C38', 'Se comunica oralmente en su lengua materna.', 'Se comunica oralmente', NULL, 18, 11),
-(30, 'C41', 'Se comunica oralmente.', 'Se comunica oralmente', NULL, 13, 14),
-(31, 'C44', 'Resuelve problemas de cantidad.', 'Resuelve problemas de cantidad', NULL, 19, 17),
-(32, 'C48', 'Indaga mediante métodos científicos para construir sus conocimientos.', 'Indaga mediante métodos científicos', NULL, 20, 21),
-(33, 'C4', 'Construye su identidad.', 'Construye su identidad', NULL, 1, 4),
-(34, 'C5', 'Convive y participa democráticamente en la búsqueda del bien común.', 'Convive y participa por el bien común', NULL, 1, 5),
-(35, 'C6', 'Construye interpretaciones históricas.', 'Construye interpretaciones históricas', NULL, 1, 6),
-(36, 'C7', 'Gestiona responsablemente el espacio y el ambiente.', 'Gestiona el espacio y el ambiente', NULL, 1, 7),
-(37, 'C8', 'Gestiona responsablemente los recursos económicos.', 'Gestiona los recursos económicos', NULL, 1, 8),
-(38, 'C9', 'Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas.', 'Identidad como persona amada por Dios', NULL, 5, 9),
-(39, 'C10', 'Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa', 'Asume la experiencia de Dios en su proyecto de vida', NULL, 5, 10),
-(40, 'C13', 'Se desenvuelve de manera autónoma a través de su motricidad.', 'Motricidad autónoma', NULL, 2, 11),
-(41, 'C14', 'Asume una vida saludable.', 'Vida saludable', NULL, 2, 12),
-(42, 'C15', 'Interactúa a través de sus habilidades sociomotrices.', 'Habilidades sociomotrices', NULL, 2, 13),
-(43, 'C16', 'Se comunica oralmente en su lengua materna.', 'Se comunica oralmente en sulengua materna.', NULL, 6, 14),
-(44, 'C17', 'Lee diversos tipos de textos escritos en su lengua materna.', 'Lee diversos tipos de textos escritos en su lengua materna', NULL, 6, 15),
-(45, 'C18', 'Escribe diversos tipos de textos en su lengua materna.', 'Escribe diversos tipos de textos en su lengua materna', NULL, 6, 16),
-(46, 'C19', 'Aprecia de manera crítica manifestaciones artístico-culturales.', 'Aprecia manifestaciones artísticas', NULL, 3, 17),
-(47, 'C20', 'Crea proyectos desde los lenguajes artísticos.', 'Crea proyectos artísticos', NULL, 3, 18),
-(48, 'C21', 'Resuelve problemas de cantidad.', 'Resuelve problemas de cantidad', 4, NULL, 19),
-(49, 'C22', 'Resuelve problemas de regularidad, equivalencia y cambio.', 'Resuelve problemas de regularidad, equivalencia y cambio', 5, NULL, 20),
-(50, 'C23', 'Resuelve problemas de forma, movimiento y localización.', 'Resuelve problemas de forma, movimiento y localización', 6, NULL, 21),
-(51, 'C24', 'Resuelve problemas de gestión de datos e incertidumbre.', 'Gestión de datos', 7, NULL, 22),
-(52, 'C27', 'Diseña y construye soluciones tecnológicas para resolver problemas de su entorno.', 'Diseña y construye soluciones tecnológicas', 10, NULL, 25),
-(53, 'CT1', 'Se desenvuelve en entornos virtuales generados por las TIC.', 'Entornos virtuales / TIC', NULL, 9, 26),
-(54, 'CT2', 'Gestiona su aprendizaje de manera autónoma.', 'Aprendizaje autónomo', NULL, 9, 27),
-(55, 'C51', 'Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas.', 'Construye su identidad como persona amada por Dios', NULL, 14, 24),
-(56, 'C53', 'Gestiona proyectos de emprendimiento económico o social.', 'Gestiona proyectos de emprendimiento', NULL, 15, 26),
-(57, 'C1', 'Construye su identidad.', 'Construye su identidad', NULL, 1, 1),
-(58, 'C16', 'Convive y participa democráticamente en la búsqueda del bien común.', 'Convive y participa democráticamente', NULL, 1, 2),
-(59, 'C17', 'Construye interpretaciones históricas.', 'Construye interpretaciones históricas', NULL, 1, 3),
-(60, 'C18', 'Gestiona responsablemente el espacio y el ambiente.', 'Gestiona el espacio y el ambiente', NULL, 1, 4),
-(61, 'C19', 'Gestiona responsablemente los recursos económicos.', 'Gestiona los recursos económicos', NULL, 1, 5),
-(62, 'C21', 'Aprecia de manera crítica manifestaciones artístico-culturales.', 'Aprecia manifestaciones artístico-culturales', NULL, 3, 1),
-(63, 'C22', 'Crea proyectos desde los lenguajes artístico-culturales.', 'Crea proyectos artístico-culturales', NULL, 3, 2),
-(64, 'C4', 'Se comunica en inglés como lengua extranjera.', 'Comunicación en inglés', NULL, 4, 1),
-(65, 'C27', 'Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente.', 'Identidad como persona amada por Dios', NULL, 5, 1),
-(66, 'C28', 'Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa.', 'Encuentro personal y comunitario con Dios', NULL, 5, 2),
-(67, 'C7', 'Se comunica oralmente en su lengua materna.', 'Comunicación oral', 1, NULL, 1),
-(68, 'C8', 'Lee diversos tipos de textos escritos en su lengua materna.', 'Lectura de textos escritos', 2, NULL, 1),
-(69, 'C9', 'Escribe diversos tipos de textos en su lengua materna.', 'Escritura de textos', 3, NULL, 1),
-(70, 'C23', 'Resuelve problemas de cantidad.', 'Resuelve problemas de cantidad', 4, NULL, 1),
-(71, 'C24', 'Resuelve problemas de regularidad, equivalencia y cambio.', 'Regularidad, equivalencia y cambio', 5, NULL, 1),
-(72, 'C26', 'Resuelve problemas de forma, movimiento y localización.', 'Forma, movimiento y localización', 6, NULL, 1),
-(73, 'C20', 'Indaga mediante métodos científicos para construir sus conocimientos.', 'Indaga mediante métodos científicos', 9, NULL, 1),
-(74, 'C21', 'Explica el mundo físico basándose en conocimientos sobre los seres vivos, materia y energía, biodiversidad, Tierra y universo.', 'Explica el mundo físico', 8, NULL, 1),
-(75, 'C22', 'Diseña y construye soluciones tecnológicas para resolver problemas de su entorno.', 'Diseña y construye soluciones tecnológicas', 10, NULL, 1),
-(76, 'C2', 'Se desenvuelve en entornos virtuales generados por las TIC.', 'Entornos virtuales / TIC', NULL, 9, 1),
-(77, 'C3', 'Gestiona su aprendizaje de manera autónoma.', 'Aprendizaje autónomo', NULL, 9, 2),
-(78, 'C1', 'Construye su identidad.', 'Construye su identidad', NULL, 10, 1),
-(79, 'C16', 'Convive y participa democráticamente en la búsqueda del bien común.', 'Convive y participa democráticamente', NULL, 10, 2),
-(80, 'C13', 'Se desenvuelve de manera autónoma a través de su motricidad.', 'Motricidad autónoma', NULL, 11, 1),
-(81, 'C14', 'Asume una vida saludable.', 'Vida saludable', NULL, 11, 2),
-(82, 'C15', 'Interactúa a través de sus habilidades sociomotrices.', 'Habilidades sociomotrices', NULL, 11, 3),
-(83, 'C21', 'Aprecia de manera crítica manifestaciones artístico-culturales.', 'Aprecia manifestaciones artístico-culturales', NULL, 12, 1),
-(84, 'C22', 'Crea proyectos desde los lenguajes artístico-culturales.', 'Crea proyectos artístico-culturales', NULL, 12, 2),
-(85, 'C4', 'Se comunica en inglés como lengua extranjera.', 'Comunicación en inglés', NULL, 13, 1),
-(86, 'C27', 'Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente.', 'Identidad como persona amada por Dios', NULL, 14, 1),
-(87, 'C28', 'Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa.', 'Encuentro personal y comunitario con Dios', NULL, 14, 2),
-(88, 'C29', 'Gestiona proyectos de emprendimiento económico o social.', 'Emprendimiento económico y social', NULL, 15, 1),
-(89, 'C25', 'Resuelve problemas de gestión de datos e incertidumbre.', 'Razonamiento matemático aplicado', NULL, 16, 1),
-(90, 'C17', 'Construye interpretaciones históricas.', 'Interpretaciones históricas', 11, NULL, 1),
-(91, 'C18', 'Gestiona responsablemente el espacio y el ambiente.', 'Gestiona el espacio y el ambiente', 12, NULL, 1),
-(92, 'C19', 'Gestiona responsablemente los recursos económicos.', 'Gestiona los recursos económicos', 13, NULL, 1),
-(93, 'C7', 'Se comunica oralmente en su lengua materna.', 'Comunicación oral', 14, NULL, 1),
-(94, 'C8', 'Lee diversos tipos de textos escritos en su lengua materna.', 'Lectura de textos escritos', 15, NULL, 1),
-(95, 'C9', 'Escribe diversos tipos de textos en su lengua materna.', 'Escritura de textos', 16, NULL, 1),
-(96, 'C23', 'Resuelve problemas de cantidad.', 'Resuelve problemas de cantidad', 17, NULL, 1),
-(97, 'C24', 'Resuelve problemas de regularidad, equivalencia y cambio.', 'Regularidad, equivalencia y cambio', 18, NULL, 1),
-(98, 'C26', 'Resuelve problemas de forma, movimiento y localización.', 'Forma, movimiento y localización', 19, NULL, 1),
-(99, 'C25', 'Resuelve problemas de gestión de datos e incertidumbre.', 'Gestión de datos e incertidumbre', 20, NULL, 1),
-(100, 'C20', 'Indaga mediante métodos científicos para construir sus conocimientos.', 'Indaga mediante métodos científicos', 22, NULL, 1),
-(101, 'C21', 'Explica el mundo físico basándose en conocimientos sobre los seres vivos, materia y energía, biodiversidad, Tierra y universo.', 'Explica el mundo físico', 21, NULL, 1),
-(102, 'C22', 'Diseña y construye soluciones tecnológicas para resolver problemas de su entorno.', 'Diseña y construye soluciones tecnológicas', 23, NULL, 1),
-(103, 'C2', 'Se desenvuelve en entornos virtuales generados por las TIC.', 'Entornos virtuales / TIC', NULL, 21, 1),
-(104, 'C3', 'Gestiona su aprendizaje de manera autónoma.', 'Aprendizaje autónomo', NULL, 21, 2),
-(105, 'C4', 'Construye su identidad.', 'Construye su identidad', NULL, 1, 4),
-(106, 'C5', 'Convive y participa democráticamente en la búsqueda del bien común.', 'Convive y participa por el bien común', NULL, 1, 5),
-(107, 'C6', 'Construye interpretaciones históricas.', 'Construye interpretaciones históricas', NULL, 1, 6),
-(108, 'C7', 'Gestiona responsablemente el espacio y el ambiente.', 'Gestiona el espacio y el ambiente', NULL, 1, 7),
-(109, 'C8', 'Gestiona responsablemente los recursos económicos.', 'Gestiona los recursos económicos', NULL, 1, 8),
-(110, 'C9', 'Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas.', 'Identidad como persona amada por Dios', NULL, 5, 9),
-(111, 'C10', 'Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa', 'Asume la experiencia de Dios en su proyecto de vida', NULL, 5, 10),
-(112, 'C13', 'Se desenvuelve de manera autónoma a través de su motricidad.', 'Motricidad autónoma', NULL, 2, 11),
-(113, 'C14', 'Asume una vida saludable.', 'Vida saludable', NULL, 2, 12),
-(114, 'C15', 'Interactúa a través de sus habilidades sociomotrices.', 'Habilidades sociomotrices', NULL, 2, 13),
-(115, 'C16', 'Se comunica oralmente en su lengua materna.', 'Se comunica oralmente en sulengua materna.', NULL, 6, 14),
-(116, 'C17', 'Lee diversos tipos de textos escritos en su lengua materna.', 'Lee diversos tipos de textos escritos en su lengua materna', NULL, 6, 15),
-(117, 'C18', 'Escribe diversos tipos de textos en su lengua materna.', 'Escribe diversos tipos de textos en su lengua materna', NULL, 6, 16),
-(118, 'C19', 'Aprecia de manera crítica manifestaciones artístico-culturales.', 'Aprecia manifestaciones artísticas', NULL, 3, 17),
-(119, 'C20', 'Crea proyectos desde los lenguajes artísticos.', 'Crea proyectos artísticos', NULL, 3, 18),
-(120, 'C21', 'Resuelve problemas de cantidad.', 'Resuelve problemas de cantidad', 4, NULL, 19),
-(121, 'C22', 'Resuelve problemas de regularidad, equivalencia y cambio.', 'Resuelve problemas de regularidad, equivalencia y cambio', 5, NULL, 20),
-(122, 'C23', 'Resuelve problemas de forma, movimiento y localización.', 'Resuelve problemas de forma, movimiento y localización', 6, NULL, 21),
-(123, 'C24', 'Resuelve problemas de gestión de datos e incertidumbre.', 'Gestión de datos', 7, NULL, 22),
-(124, 'CT1', 'Se desenvuelve en entornos virtuales generados por las TIC.', 'Entornos virtuales / TIC', NULL, 9, 26),
-(125, 'CT2', 'Gestiona su aprendizaje de manera autónoma.', 'Aprendizaje autónomo', NULL, 9, 27);
 
 -- --------------------------------------------------------
 
@@ -728,13 +704,21 @@ INSERT INTO `competencias` (`id`, `codigo_minedu`, `nombre_completo`, `nombre_co
 -- Estructura de tabla para la tabla `configuracion_horario`
 --
 
+CREATE TABLE `configuracion_horario` (
+  `id` smallint(5) UNSIGNED NOT NULL,
+  `anio_id` smallint(5) UNSIGNED NOT NULL,
+  `duracion_hora_min` tinyint(3) UNSIGNED NOT NULL DEFAULT 50,
+  `hora_inicio_clases` time NOT NULL DEFAULT '07:45:00',
+  `recreo_bloques` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`recreo_bloques`)),
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `configuracion_horario`
 --
 
 INSERT INTO `configuracion_horario` (`id`, `anio_id`, `duracion_hora_min`, `hora_inicio_clases`, `recreo_bloques`, `created_at`) VALUES
-(1, 1, 50, '07:45:00', NULL, '2026-05-11 23:17:04');
+(1, 1, 45, '13:10:00', NULL, '2026-05-11 23:17:04');
 
 -- --------------------------------------------------------
 
@@ -742,6 +726,16 @@ INSERT INTO `configuracion_horario` (`id`, `anio_id`, `duracion_hora_min`, `hora
 -- Estructura de tabla para la tabla `criterios`
 --
 
+CREATE TABLE `criterios` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `carga_id` int(10) UNSIGNED NOT NULL,
+  `competencia_id` smallint(5) UNSIGNED NOT NULL,
+  `periodo_id` smallint(5) UNSIGNED NOT NULL,
+  `nombre` varchar(120) NOT NULL,
+  `orden` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `criterios`
@@ -769,6 +763,12 @@ INSERT INTO `criterios` (`id`, `carga_id`, `competencia_id`, `periodo_id`, `nomb
 -- Estructura de tabla para la tabla `estudiantes`
 --
 
+CREATE TABLE `estudiantes` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `persona_id` int(10) UNSIGNED NOT NULL,
+  `codigo_estudiante` varchar(20) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `estudiantes`
@@ -897,6 +897,12 @@ INSERT INTO `estudiantes` (`id`, `persona_id`, `codigo_estudiante`, `created_at`
 -- Estructura de tabla para la tabla `grados`
 --
 
+CREATE TABLE `grados` (
+  `id` tinyint(3) UNSIGNED NOT NULL,
+  `nivel_id` tinyint(3) UNSIGNED NOT NULL,
+  `numero` tinyint(3) UNSIGNED NOT NULL,
+  `nombre_display` varchar(30) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `grados`
@@ -921,6 +927,23 @@ INSERT INTO `grados` (`id`, `nivel_id`, `numero`, `nombre_display`) VALUES
 -- Estructura de tabla para la tabla `matriculas`
 --
 
+CREATE TABLE `matriculas` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `estudiante_id` int(10) UNSIGNED NOT NULL,
+  `seccion_id` smallint(5) UNSIGNED DEFAULT NULL,
+  `anio_id` smallint(5) UNSIGNED NOT NULL,
+  `tipo_matricula` enum('regular','traslado_entrada') NOT NULL DEFAULT 'regular',
+  `estado` enum('registrada','pendiente_documentos','observada','aprobada','retirada') NOT NULL DEFAULT 'registrada',
+  `seccion_solicitada` varchar(5) DEFAULT NULL,
+  `fecha_registro` date NOT NULL,
+  `limite_documentos` date DEFAULT NULL,
+  `fecha_aprobacion` date DEFAULT NULL,
+  `registrado_por` int(10) UNSIGNED NOT NULL,
+  `aprobado_por` int(10) UNSIGNED DEFAULT NULL,
+  `observaciones` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `matriculas`
@@ -1049,6 +1072,13 @@ INSERT INTO `matriculas` (`id`, `estudiante_id`, `seccion_id`, `anio_id`, `tipo_
 -- Estructura de tabla para la tabla `niveles`
 --
 
+CREATE TABLE `niveles` (
+  `id` tinyint(3) UNSIGNED NOT NULL,
+  `nombre` varchar(30) NOT NULL,
+  `codigo` varchar(10) NOT NULL,
+  `escala_boleta` enum('solo_literal','ambas') NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `niveles`
@@ -1064,6 +1094,17 @@ INSERT INTO `niveles` (`id`, `nombre`, `codigo`, `escala_boleta`, `created_at`) 
 -- Estructura de tabla para la tabla `periodos`
 --
 
+CREATE TABLE `periodos` (
+  `id` smallint(5) UNSIGNED NOT NULL,
+  `anio_id` smallint(5) UNSIGNED NOT NULL,
+  `numero` tinyint(3) UNSIGNED NOT NULL,
+  `tipo` enum('bimestre','trimestre') NOT NULL DEFAULT 'bimestre',
+  `nombre_display` varchar(30) DEFAULT NULL,
+  `fecha_inicio` date NOT NULL,
+  `fecha_fin` date NOT NULL,
+  `limite_notas` datetime DEFAULT NULL,
+  `estado` enum('pendiente','activo','cerrado') NOT NULL DEFAULT 'pendiente'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `periodos`
@@ -1081,6 +1122,20 @@ INSERT INTO `periodos` (`id`, `anio_id`, `numero`, `tipo`, `nombre_display`, `fe
 -- Estructura de tabla para la tabla `personas`
 --
 
+CREATE TABLE `personas` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `dni` varchar(8) NOT NULL,
+  `apellido_paterno` varchar(60) NOT NULL,
+  `apellido_materno` varchar(60) NOT NULL,
+  `nombres` varchar(100) NOT NULL,
+  `fecha_nacimiento` date DEFAULT NULL,
+  `sexo` enum('M','F') DEFAULT NULL,
+  `telefono` varchar(15) DEFAULT NULL,
+  `correo` varchar(120) DEFAULT NULL,
+  `direccion` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `personas`
@@ -1229,6 +1284,17 @@ INSERT INTO `personas` (`id`, `dni`, `apellido_paterno`, `apellido_materno`, `no
 -- Estructura de tabla para la tabla `reglas_especiales`
 --
 
+CREATE TABLE `reglas_especiales` (
+  `id` smallint(5) UNSIGNED NOT NULL,
+  `area_id` smallint(5) UNSIGNED NOT NULL,
+  `nivel_id` tinyint(3) UNSIGNED NOT NULL,
+  `grado_desde` tinyint(3) UNSIGNED NOT NULL,
+  `grado_hasta` tinyint(3) UNSIGNED NOT NULL,
+  `nombre_override` varchar(120) DEFAULT NULL,
+  `alias_override` varchar(80) DEFAULT NULL,
+  `area_siagie_id` smallint(5) UNSIGNED DEFAULT NULL,
+  `descripcion` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `reglas_especiales`
@@ -1244,6 +1310,13 @@ INSERT INTO `reglas_especiales` (`id`, `area_id`, `nivel_id`, `grado_desde`, `gr
 -- Estructura de tabla para la tabla `roles`
 --
 
+CREATE TABLE `roles` (
+  `id` tinyint(3) UNSIGNED NOT NULL,
+  `nombre` varchar(60) NOT NULL,
+  `codigo` varchar(30) NOT NULL,
+  `descripcion` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `roles`
@@ -1264,35 +1337,45 @@ INSERT INTO `roles` (`id`, `nombre`, `codigo`, `descripcion`, `created_at`) VALU
 -- Estructura de tabla para la tabla `secciones`
 --
 
+CREATE TABLE `secciones` (
+  `id` smallint(5) UNSIGNED NOT NULL,
+  `grado_id` tinyint(3) UNSIGNED NOT NULL,
+  `anio_id` smallint(5) UNSIGNED NOT NULL,
+  `nombre` varchar(5) NOT NULL,
+  `tutor_id` int(10) UNSIGNED DEFAULT NULL,
+  `es_unidocente` tinyint(1) NOT NULL DEFAULT 0,
+  `estado_nomina` enum('borrador','aprobada') NOT NULL DEFAULT 'borrador',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `secciones`
 --
 
 INSERT INTO `secciones` (`id`, `grado_id`, `anio_id`, `nombre`, `tutor_id`, `es_unidocente`, `estado_nomina`, `created_at`) VALUES
-(1, 7, 1, 'A', 2, 0, 'aprobada', '2026-05-11 23:15:50'),
+(1, 1, 1, 'A', NULL, 1, 'aprobada', '2026-05-11 23:15:50'),
 (2, 1, 1, 'B', NULL, 1, 'aprobada', '2026-05-11 23:16:08'),
-(3, 1, 1, 'A', NULL, 1, 'aprobada', '2026-05-11 23:16:08'),
+(3, 2, 1, 'A', NULL, 1, 'aprobada', '2026-05-11 23:16:08'),
 (4, 2, 1, 'B', NULL, 1, 'aprobada', '2026-05-11 23:16:08'),
-(5, 2, 1, 'A', NULL, 1, 'aprobada', '2026-05-11 23:16:08'),
+(5, 3, 1, 'A', NULL, 1, 'aprobada', '2026-05-11 23:16:08'),
 (6, 3, 1, 'B', NULL, 1, 'aprobada', '2026-05-11 23:16:08'),
-(7, 3, 1, 'A', NULL, 1, 'aprobada', '2026-05-11 23:16:08'),
+(7, 4, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
 (8, 4, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(9, 4, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(9, 5, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
 (10, 5, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(11, 5, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(11, 6, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
 (12, 6, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(13, 6, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(17, 7, 1, 'C', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(18, 7, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(19, 8, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(20, 8, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(21, 9, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(22, 9, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(23, 10, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(24, 10, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(25, 11, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
-(26, 11, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08');
+(13, 7, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(14, 7, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(15, 7, 1, 'C', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(16, 8, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(17, 8, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(18, 9, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(19, 9, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(20, 10, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(21, 10, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(22, 11, 1, 'A', NULL, 0, 'aprobada', '2026-05-11 23:16:08'),
+(23, 11, 1, 'B', NULL, 0, 'aprobada', '2026-05-11 23:16:08');
 
 -- --------------------------------------------------------
 
@@ -1300,44 +1383,51 @@ INSERT INTO `secciones` (`id`, `grado_id`, `anio_id`, `nombre`, `tutor_id`, `es_
 -- Estructura de tabla para la tabla `sesiones_horario`
 --
 
+CREATE TABLE `sesiones_horario` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `carga_id` int(10) UNSIGNED NOT NULL,
+  `bloque_id` smallint(5) UNSIGNED NOT NULL,
+  `seccion_id` smallint(5) UNSIGNED NOT NULL,
+  `docente_id` int(10) UNSIGNED NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `sesiones_horario`
 --
 
 INSERT INTO `sesiones_horario` (`id`, `carga_id`, `bloque_id`, `seccion_id`, `docente_id`) VALUES
-(19, 14, 18, 1, 6),
-(20, 13, 19, 1, 7),
-(22, 16, 22, 1, 9),
-(24, 18, 24, 1, 11),
-(26, 20, 26, 1, 13),
-(27, 21, 27, 1, 14),
-(28, 22, 28, 1, 15),
-(29, 19, 25, 1, 12),
-(30, 19, 29, 1, 12),
-(31, 23, 30, 1, 16),
-(32, 24, 31, 1, 17),
-(34, 17, 23, 1, 10),
-(35, 17, 33, 1, 10),
-(36, 15, 20, 1, 8),
-(37, 15, 34, 1, 8),
-(38, 26, 35, 1, 17),
-(39, 27, 36, 1, 19),
-(40, 28, 37, 1, 20),
-(41, 25, 32, 1, 18),
-(42, 25, 38, 1, 18),
-(43, 2, 19, 21, 12),
-(44, 1, 39, 21, 7),
-(45, 4, 40, 21, 16),
-(46, 5, 22, 21, 19),
-(47, 6, 25, 21, 11),
-(48, 7, 26, 21, 15),
-(49, 8, 27, 21, 2),
-(50, 9, 28, 21, 8),
-(51, 11, 41, 21, 17),
-(52, 10, 42, 21, 6),
-(53, 12, 31, 21, 18),
-(54, 3, 43, 21, 9);
+(19, 14, 18, 13, 6),
+(20, 13, 19, 13, 7),
+(22, 16, 22, 13, 9),
+(24, 18, 24, 13, 11),
+(26, 20, 26, 13, 13),
+(27, 21, 27, 13, 14),
+(28, 22, 28, 13, 15),
+(29, 19, 25, 13, 12),
+(30, 19, 29, 13, 12),
+(31, 23, 30, 13, 16),
+(32, 24, 31, 13, 17),
+(34, 17, 23, 13, 10),
+(35, 17, 33, 13, 10),
+(36, 15, 20, 13, 8),
+(37, 15, 34, 13, 8),
+(38, 26, 35, 13, 17),
+(39, 27, 36, 13, 19),
+(40, 28, 37, 13, 20),
+(41, 25, 32, 13, 18),
+(42, 25, 38, 13, 18),
+(43, 2, 19, 19, 12),
+(44, 1, 39, 19, 7),
+(45, 4, 40, 19, 16),
+(46, 5, 22, 19, 19),
+(47, 6, 25, 19, 11),
+(48, 7, 26, 19, 15),
+(49, 8, 27, 19, 2),
+(50, 9, 28, 19, 8),
+(51, 11, 41, 19, 17),
+(52, 10, 42, 19, 6),
+(53, 12, 31, 19, 18),
+(54, 3, 43, 19, 9);
 
 -- --------------------------------------------------------
 
@@ -1345,6 +1435,12 @@ INSERT INTO `sesiones_horario` (`id`, `carga_id`, `bloque_id`, `seccion_id`, `do
 -- Estructura de tabla para la tabla `subareas`
 --
 
+CREATE TABLE `subareas` (
+  `id` smallint(5) UNSIGNED NOT NULL,
+  `area_id` smallint(5) UNSIGNED NOT NULL,
+  `nombre` varchar(80) NOT NULL,
+  `orden` tinyint(3) UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `subareas`
@@ -1381,6 +1477,17 @@ INSERT INTO `subareas` (`id`, `area_id`, `nombre`, `orden`) VALUES
 -- Estructura de tabla para la tabla `usuarios`
 --
 
+CREATE TABLE `usuarios` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `persona_id` int(10) UNSIGNED NOT NULL,
+  `rol_id` tinyint(3) UNSIGNED NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `ultimo_acceso` datetime DEFAULT NULL,
+  `sesion_token` varchar(64) DEFAULT NULL,
+  `estado` enum('activo','inactivo') NOT NULL DEFAULT 'activo',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `usuarios`
@@ -1414,6 +1521,13 @@ INSERT INTO `usuarios` (`id`, `persona_id`, `rol_id`, `password_hash`, `ultimo_a
 -- Estructura de tabla para la tabla `vinculo_familiar`
 --
 
+CREATE TABLE `vinculo_familiar` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `estudiante_id` int(10) UNSIGNED NOT NULL,
+  `apoderado_id` int(10) UNSIGNED NOT NULL,
+  `tipo_vinculo` enum('padre','madre','apoderado') NOT NULL,
+  `es_responsable` tinyint(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `vinculo_familiar`
@@ -1426,105 +1540,523 @@ INSERT INTO `vinculo_familiar` (`id`, `estudiante_id`, `apoderado_id`, `tipo_vin
 -- Índices para tablas volcadas
 --
 
+
+INSERT INTO competencias 
+(id, codigo_minedu, nombre_completo, nombre_corto, area_id, subarea_id, orden)
+VALUES
+-- PRIMARIA
+(1,'C1','Se comunica en inglés como lengua extranjera.','Comunicación en inglés',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Inglés'),NULL,1),
+
+(2,'C2','Lee diversos tipos de textos escritos en inglés como lengua extranjera',
+ 'Lee y comprende en inglés',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Inglés'),NULL,2),
+
+(3,'C3','Escribe diversos tipos de textos en inglés como lengua extranjera',
+ 'Redacción en inglés',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Inglés'),NULL,3),
+
+(4,'C4','Construye su identidad.','Construye su identidad',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Personal Social'),NULL,4),
+
+(5,'C5','Convive y participa democráticamente en la búsqueda del bien común.',
+ 'Convive y participa por el bien común',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Personal Social'),NULL,5),
+
+(6,'C6','Construye interpretaciones históricas.',
+ 'Construye interpretaciones históricas',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Personal Social'),NULL,6),
+
+(7,'C7','Gestiona responsablemente el espacio y el ambiente.',
+ 'Gestiona el espacio y el ambiente',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Personal Social'),NULL,7),
+
+(8,'C8','Gestiona responsablemente los recursos económicos.',
+ 'Gestiona los recursos económicos',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Personal Social'),NULL,8),
+
+(9,'C9','Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas.',
+ 'Identidad como persona amada por Dios',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Educación Religiosa'),NULL,9),
+
+(10,'C10','Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa',
+ 'Asume la experiencia de Dios en su proyecto de vida',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Educación Religiosa'),NULL,10),
+
+(11,'C13','Se desenvuelve de manera autónoma a través de su motricidad.',
+ 'Motricidad autónoma',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Educación Física'),NULL,11),
+
+(12,'C14','Asume una vida saludable.',
+ 'Vida saludable',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Educación Física'),NULL,12),
+
+(13,'C15','Interactúa a través de sus habilidades sociomotrices.',
+ 'Habilidades sociomotrices',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Educación Física'),NULL,13),
+
+(14,'C16','Se comunica oralmente en su lengua materna.',
+ 'Se comunica oralmente en sulengua materna.',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Comunicación'),NULL,14),
+
+(15,'C17','Lee diversos tipos de textos escritos en su lengua materna.',
+ 'Lee diversos tipos de textos escritos en su lengua materna',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Comunicación'),NULL,15),
+
+(16,'C18','Escribe diversos tipos de textos en su lengua materna.',
+ 'Escribe diversos tipos de textos en su lengua materna',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Comunicación'),NULL,16),
+
+(17,'C19','Aprecia de manera crítica manifestaciones artístico-culturales.',
+ 'Aprecia manifestaciones artísticas',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Arte y Cultura'),NULL,17),
+
+(18,'C20','Crea proyectos desde los lenguajes artísticos.',
+ 'Crea proyectos artísticos',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Arte y Cultura'),NULL,18),
+
+(19,'C21','Resuelve problemas de cantidad.',
+ 'Resuelve problemas de cantidad',
+ NULL,
+ (SELECT s.id
+  FROM subareas s
+  INNER JOIN areas a ON a.id=s.area_id
+  WHERE s.nombre='Aritmética'
+    AND a.nivel_id=1
+    AND a.nombre='Matemática'),
+ 19),
+
+(20,'C22','Resuelve problemas de regularidad, equivalencia y cambio.',
+ 'Resuelve problemas de regularidad, equivalencia y cambio',
+ NULL,
+ (SELECT s.id
+  FROM subareas s
+  INNER JOIN areas a ON a.id=s.area_id
+  WHERE s.nombre='Álgebra'
+    AND a.nivel_id=1
+    AND a.nombre='Matemática'),
+ 20),
+
+(21,'C23','Resuelve problemas de forma, movimiento y localización.',
+ 'Resuelve problemas de forma, movimiento y localización',
+ NULL,
+ (SELECT s.id
+  FROM subareas s
+  INNER JOIN areas a ON a.id=s.area_id
+  WHERE s.nombre='Geometría'
+    AND a.nivel_id=1
+    AND a.nombre='Matemática'),
+ 21),
+
+(22,'C24','Resuelve problemas de gestión de datos e incertidumbre.',
+ 'Gestión de datos',
+ NULL,
+ (SELECT s.id
+  FROM subareas s
+  INNER JOIN areas a ON a.id=s.area_id
+  WHERE s.nombre='Razonamiento Matemático'
+    AND a.nivel_id=1
+    AND a.nombre='Matemática'),
+ 22),
+
+(23,'C25','Indaga mediante métodos científicos para construir sus conocimientos.',
+ 'Indaga mediante el método científico',
+ NULL,
+ (SELECT s.id
+  FROM subareas s
+  INNER JOIN areas a ON a.id=s.area_id
+  WHERE s.nombre='Química'
+    AND a.nivel_id=1
+    AND a.nombre='Ciencia y Tecnología'),
+ 23),
+
+(24,'C26','Explica el mundo físico basándose en conocimientos sobre los seres vivos; materia y energía; biodiversidad, Tierra y Universo.',
+ 'Explica el mundo físico basándose en los seres vivos',
+ NULL,
+ (SELECT s.id
+  FROM subareas s
+  INNER JOIN areas a ON a.id=s.area_id
+  WHERE s.nombre='Biología'
+    AND a.nivel_id=1
+    AND a.nombre='Ciencia y Tecnología'),
+ 24),
+
+(25,'C27','Diseña y construye soluciones tecnológicas para resolver problemas de su entorno.',
+ 'Diseña y construye soluciones tecnológicas',
+ NULL,
+ (SELECT s.id
+  FROM subareas s
+  INNER JOIN areas a ON a.id=s.area_id
+  WHERE s.nombre='Física'
+    AND a.nivel_id=1
+    AND a.nombre='Ciencia y Tecnología'),
+ 25),
+
+(26,'CT1','Se desenvuelve en entornos virtuales generados por las TIC.',
+ 'Entornos virtuales / TIC',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Competencias Transversales'),
+ NULL,26),
+
+(27,'CT2','Gestiona su aprendizaje de manera autónoma.',
+ 'Aprendizaje autónomo',
+ (SELECT id FROM areas WHERE nivel_id=1 AND nombre='Competencias Transversales'),
+ NULL,27),
+
+-- SECUNDARIA
+(28,'C28','Construye su identidad.',
+ 'Construye su identidad',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Desarrollo Personal, Ciudadanía y Cívica'),
+ NULL,1),
+
+(29,'C29','Convive y participa democráticamente en la búsqueda del bien común.',
+ 'Convive democráticamente en la búsqueda del bien común',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Desarrollo Personal, Ciudadanía y Cívica'),
+ NULL,2),
+
+(30,'C30','Construye interpretaciones históricas.',
+ 'Construye interpretaciones históricas',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Ciencias sociales'),
+ NULL,3),
+
+(31,'C31','Gestiona responsablemente el espacio y el ambiente.',
+ 'Gestiona responsablemente el espacio y el ambiente',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Ciencias sociales'),
+ NULL,4),
+
+(32,'C32','Gestiona responsablemente los recursos económicos.',
+ 'Gestiona responsablemente los recursos económicos',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Ciencias sociales'),
+ NULL,5),
+
+(33,'C33','Asume una vida saludable.',
+ 'Asume una vida saludable.',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Educación Física'),
+ NULL,6),
+
+(34,'C34','Interactúa a través de sus habilidades sociomotrices.',
+ 'Interactúa a través de sus habilidades sociomotrices.',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Educación Física'),
+ NULL,7),
+
+(35,'C35','Asume una vida saludable.',
+ 'Asume una vida saludable.',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Educación Física'),
+ NULL,8),
+
+(36,'C36','Aprecia de manera crítica manifestaciones artístico-culturales.',
+ 'Aprecia de manera crítica manifestaciones artístico-culturales',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Arte y Cultura'),
+ NULL,9),
+
+(37,'C37','Crea proyectos desde los lenguajes artísticos.',
+ 'Crea proyectos desde los lenguajes artísticos',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Arte y Cultura'),
+ NULL,10),
+
+(38,'C38','Se comunica oralmente en su lengua materna.',
+ 'Se comunica oralmente',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Comunicación'),
+ NULL,11),
+
+(39,'C39','Lee diversos tipos de textos escritos en su lengua materna.',
+ 'Lee diversos tipos de textos',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Comunicación'),
+ NULL,12),
+
+(40,'C40','Escribe diversos tipos de textos en su lengua materna.',
+ 'Escribe diversos tipos de textos',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Comunicación'),
+ NULL,13),
+
+(41,'C41','Se comunica oralmente.',
+ 'Se comunica oralmente',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Inglés'),
+ NULL,14),
+
+(42,'C42','Lee diversos tipos de textos escritos.',
+ 'Lee diversos tipos de textos',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Inglés'),
+ NULL,15),
+
+(43,'C43','Escribe diversos tipos de texto.',
+ 'Escribe diversos tipos de textos',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Inglés'),
+ NULL,16),
+
+(44,'C44','Resuelve problemas de cantidad.',
+ 'Resuelve problemas de cantidad',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Matemática'),
+ NULL,17),
+
+(45,'C45','Resuelve problemas de regularidad, equivalencia y cambio.',
+ 'Resuelve problemas de regularidad, equivalencia y cambio',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Matemática'),
+ NULL,18),
+
+(46,'C46','Resuelve problemas de forma, movimiento y localización.',
+ 'Resuelve problemas de forma, movimiento y localización',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Matemática'),
+ NULL,19),
+
+(47,'C47','Resuelve problemas de gestión de datos e incertidumbre.',
+ 'Resuelve problemas de gestión de datos e incertidumbre',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Matemática'),
+ NULL,20),
+
+(48,'C48','Indaga mediante métodos científicos para construir sus conocimientos.',
+ 'Indaga mediante métodos científicos',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Ciencia y Tecnología'),
+ NULL,21),
+
+(49,'C49','Explica el mundo físico basándose en conocimientos sobre los seres vivos; materia y energía; biodiversidad, Tierra y Universo.',
+ 'Explica el mundo físico basándose en conocimientos sobre la Tierra y el Universo.',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Ciencia y Tecnología'),
+ NULL,22),
+
+(50,'C50','Diseña y construye soluciones tecnológicas para resolver problemas de su entorno.',
+ 'Diseña y construye soluciones tecnológicas',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Ciencia y Tecnología'),
+ NULL,23),
+
+(51,'C51','Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas.',
+ 'Construye su identidad como persona amada por Dios',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Educación Religiosa'),
+ NULL,24),
+
+(52,'C52','Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa.',
+ 'Asume la experiencia del encuentro con Dios en su vida',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Educación Religiosa'),
+ NULL,25),
+
+(53,'C53','Gestiona proyectos de emprendimiento económico o social.',
+ 'Gestiona proyectos de emprendimiento',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Educación para el Trabajo'),
+ NULL,26),
+
+(54,'CT3','Se desenvuelve en entornos virtuales generados por las TIC.',
+ 'Entornos virtuales / TIC',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Competencias Transversales'),
+ NULL,26),
+
+(55,'CT4','Gestiona su aprendizaje de manera autónoma.',
+ 'Aprendizaje autónomo',
+ (SELECT id FROM areas WHERE nivel_id=2 AND nombre='Competencias Transversales'),
+ NULL,27);
+
+
+
+
+
 --
 -- Indices de la tabla `alertas`
 --
+ALTER TABLE `alertas`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `tutor_id` (`tutor_id`),
+  ADD KEY `idx_matricula` (`matricula_id`),
+  ADD KEY `idx_leida` (`leida`);
 
 --
 -- Indices de la tabla `anios_academicos`
 --
+ALTER TABLE `anios_academicos`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `anio` (`anio`);
 
 --
 -- Indices de la tabla `apoderados`
 --
+ALTER TABLE `apoderados`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `persona_id` (`persona_id`);
 
 --
 -- Indices de la tabla `areas`
 --
+ALTER TABLE `areas`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_nivel_tipo` (`nivel_id`,`tipo`);
 
 --
 -- Indices de la tabla `bloqueos_competencia`
 --
+ALTER TABLE `bloqueos_competencia`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_bloqueo` (`carga_id`,`competencia_id`,`periodo_id`),
+  ADD KEY `competencia_id` (`competencia_id`),
+  ADD KEY `periodo_id` (`periodo_id`),
+  ADD KEY `bloqueado_por` (`bloqueado_por`);
 
 --
 -- Indices de la tabla `bloques_horario`
 --
+ALTER TABLE `bloques_horario`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_config_dia_bloque` (`config_id`,`dia_semana`,`numero_bloque`);
 
 --
 -- Indices de la tabla `calificaciones`
 --
+ALTER TABLE `calificaciones`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_nota` (`matricula_id`,`carga_id`,`periodo_id`,`competencia_id`),
+  ADD KEY `carga_id` (`carga_id`),
+  ADD KEY `periodo_id` (`periodo_id`),
+  ADD KEY `competencia_id` (`competencia_id`),
+  ADD KEY `registrado_por` (`registrado_por`),
+  ADD KEY `idx_matricula_periodo` (`matricula_id`,`periodo_id`);
 
 --
 -- Indices de la tabla `calificaciones_criterio`
 --
+ALTER TABLE `calificaciones_criterio`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_criterio_matricula` (`criterio_id`,`matricula_id`),
+  ADD KEY `idx_criterio` (`criterio_id`),
+  ADD KEY `idx_matricula` (`matricula_id`);
 
 --
 -- Indices de la tabla `cargas_academicas`
 --
+ALTER TABLE `cargas_academicas`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `anio_id` (`anio_id`),
+  ADD KEY `subarea_id` (`subarea_id`),
+  ADD KEY `area_id` (`area_id`),
+  ADD KEY `idx_docente_anio` (`docente_id`,`anio_id`),
+  ADD KEY `idx_seccion_anio` (`seccion_id`,`anio_id`);
 
 --
 -- Indices de la tabla `competencias`
 --
+ALTER TABLE `competencias`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_subarea` (`subarea_id`),
+  ADD KEY `idx_area` (`area_id`);
 
 --
 -- Indices de la tabla `configuracion_horario`
 --
+ALTER TABLE `configuracion_horario`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `anio_id` (`anio_id`);
 
 --
 -- Indices de la tabla `criterios`
 --
+ALTER TABLE `criterios`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `competencia_id` (`competencia_id`),
+  ADD KEY `periodo_id` (`periodo_id`),
+  ADD KEY `idx_carga_competencia_periodo` (`carga_id`,`competencia_id`,`periodo_id`);
 
 --
 -- Indices de la tabla `estudiantes`
 --
+ALTER TABLE `estudiantes`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `persona_id` (`persona_id`);
 
 --
 -- Indices de la tabla `grados`
 --
+ALTER TABLE `grados`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_nivel_numero` (`nivel_id`,`numero`);
 
 --
 -- Indices de la tabla `matriculas`
 --
+ALTER TABLE `matriculas`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_estudiante_anio` (`estudiante_id`,`anio_id`),
+  ADD KEY `seccion_id` (`seccion_id`),
+  ADD KEY `registrado_por` (`registrado_por`),
+  ADD KEY `aprobado_por` (`aprobado_por`),
+  ADD KEY `idx_estado` (`estado`),
+  ADD KEY `idx_anio` (`anio_id`);
 
 --
 -- Indices de la tabla `niveles`
 --
+ALTER TABLE `niveles`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `codigo` (`codigo`);
 
 --
 -- Indices de la tabla `periodos`
 --
+ALTER TABLE `periodos`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_anio_numero` (`anio_id`,`numero`);
 
 --
 -- Indices de la tabla `personas`
 --
+ALTER TABLE `personas`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `dni` (`dni`),
+  ADD KEY `idx_dni` (`dni`),
+  ADD KEY `idx_apellidos` (`apellido_paterno`,`apellido_materno`);
 
 --
 -- Indices de la tabla `reglas_especiales`
 --
+ALTER TABLE `reglas_especiales`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `area_id` (`area_id`),
+  ADD KEY `nivel_id` (`nivel_id`),
+  ADD KEY `area_siagie_id` (`area_siagie_id`);
 
 --
 -- Indices de la tabla `roles`
 --
+ALTER TABLE `roles`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `codigo` (`codigo`);
 
 --
 -- Indices de la tabla `secciones`
 --
+ALTER TABLE `secciones`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_grado_anio_seccion` (`grado_id`,`anio_id`,`nombre`),
+  ADD KEY `anio_id` (`anio_id`),
+  ADD KEY `tutor_id` (`tutor_id`);
 
 --
 -- Indices de la tabla `sesiones_horario`
 --
+ALTER TABLE `sesiones_horario`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_seccion_bloque` (`seccion_id`,`bloque_id`),
+  ADD UNIQUE KEY `uq_docente_bloque` (`docente_id`,`bloque_id`),
+  ADD KEY `carga_id` (`carga_id`),
+  ADD KEY `bloque_id` (`bloque_id`);
 
 --
 -- Indices de la tabla `subareas`
 --
+ALTER TABLE `subareas`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_area` (`area_id`);
 
 --
 -- Indices de la tabla `usuarios`
 --
+ALTER TABLE `usuarios`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `persona_id` (`persona_id`),
+  ADD KEY `rol_id` (`rol_id`),
+  ADD KEY `idx_estado` (`estado`);
 
 --
 -- Indices de la tabla `vinculo_familiar`
 --
+ALTER TABLE `vinculo_familiar`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_estudiante_tipo` (`estudiante_id`,`tipo_vinculo`),
+  ADD KEY `apoderado_id` (`apoderado_id`);
 
 --
 -- AUTO_INCREMENT de las tablas volcadas
@@ -1533,102 +2065,154 @@ INSERT INTO `vinculo_familiar` (`id`, `estudiante_id`, `apoderado_id`, `tipo_vin
 --
 -- AUTO_INCREMENT de la tabla `alertas`
 --
+ALTER TABLE `alertas`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `anios_academicos`
 --
+ALTER TABLE `anios_academicos`
+  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT de la tabla `apoderados`
 --
+ALTER TABLE `apoderados`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT de la tabla `areas`
 --
+ALTER TABLE `areas`
+  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT de la tabla `bloqueos_competencia`
 --
+ALTER TABLE `bloqueos_competencia`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=131;
 
 --
 -- AUTO_INCREMENT de la tabla `bloques_horario`
 --
+ALTER TABLE `bloques_horario`
+  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
 
 --
 -- AUTO_INCREMENT de la tabla `calificaciones`
 --
+ALTER TABLE `calificaciones`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=294;
 
 --
 -- AUTO_INCREMENT de la tabla `calificaciones_criterio`
 --
+ALTER TABLE `calificaciones_criterio`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=86;
 
 --
 -- AUTO_INCREMENT de la tabla `cargas_academicas`
 --
+ALTER TABLE `cargas_academicas`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT de la tabla `competencias`
 --
+ALTER TABLE `competencias`
+  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=126;
 
 --
 -- AUTO_INCREMENT de la tabla `configuracion_horario`
 --
+ALTER TABLE `configuracion_horario`
+  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT de la tabla `criterios`
 --
+ALTER TABLE `criterios`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT de la tabla `estudiantes`
 --
+ALTER TABLE `estudiantes`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=136;
 
 --
 -- AUTO_INCREMENT de la tabla `grados`
 --
+ALTER TABLE `grados`
+  MODIFY `id` tinyint(3) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT de la tabla `matriculas`
 --
+ALTER TABLE `matriculas`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=162;
 
 --
 -- AUTO_INCREMENT de la tabla `niveles`
 --
+ALTER TABLE `niveles`
+  MODIFY `id` tinyint(3) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT de la tabla `periodos`
 --
+ALTER TABLE `periodos`
+  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT de la tabla `personas`
 --
+ALTER TABLE `personas`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=246;
 
 --
 -- AUTO_INCREMENT de la tabla `reglas_especiales`
 --
+ALTER TABLE `reglas_especiales`
+  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT de la tabla `roles`
 --
+ALTER TABLE `roles`
+  MODIFY `id` tinyint(3) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT de la tabla `secciones`
 --
+ALTER TABLE `secciones`
+  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT de la tabla `sesiones_horario`
 --
+ALTER TABLE `sesiones_horario`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
 
 --
 -- AUTO_INCREMENT de la tabla `subareas`
 --
+ALTER TABLE `subareas`
+  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
+ALTER TABLE `usuarios`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT de la tabla `vinculo_familiar`
 --
+ALTER TABLE `vinculo_familiar`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+SET FOREIGN_KEY_CHECKS=0;
 
 --
 -- Restricciones para tablas volcadas
@@ -1637,88 +2221,159 @@ INSERT INTO `vinculo_familiar` (`id`, `estudiante_id`, `apoderado_id`, `tipo_vin
 --
 -- Filtros para la tabla `alertas`
 --
+ALTER TABLE `alertas`
+  ADD CONSTRAINT `alertas_ibfk_1` FOREIGN KEY (`tutor_id`) REFERENCES `usuarios` (`id`),
+  ADD CONSTRAINT `alertas_ibfk_2` FOREIGN KEY (`matricula_id`) REFERENCES `matriculas` (`id`);
 
 --
 -- Filtros para la tabla `apoderados`
 --
+ALTER TABLE `apoderados`
+  ADD CONSTRAINT `apoderados_ibfk_1` FOREIGN KEY (`persona_id`) REFERENCES `personas` (`id`);
 
 --
 -- Filtros para la tabla `areas`
 --
+ALTER TABLE `areas`
+  ADD CONSTRAINT `areas_ibfk_1` FOREIGN KEY (`nivel_id`) REFERENCES `niveles` (`id`);
 
 --
 -- Filtros para la tabla `bloqueos_competencia`
 --
+ALTER TABLE `bloqueos_competencia`
+  ADD CONSTRAINT `bloqueos_competencia_ibfk_1` FOREIGN KEY (`carga_id`) REFERENCES `cargas_academicas` (`id`),
+  ADD CONSTRAINT `bloqueos_competencia_ibfk_2` FOREIGN KEY (`competencia_id`) REFERENCES `competencias` (`id`),
+  ADD CONSTRAINT `bloqueos_competencia_ibfk_3` FOREIGN KEY (`periodo_id`) REFERENCES `periodos` (`id`),
+  ADD CONSTRAINT `bloqueos_competencia_ibfk_4` FOREIGN KEY (`bloqueado_por`) REFERENCES `usuarios` (`id`);
 
 --
 -- Filtros para la tabla `bloques_horario`
 --
+ALTER TABLE `bloques_horario`
+  ADD CONSTRAINT `bloques_horario_ibfk_1` FOREIGN KEY (`config_id`) REFERENCES `configuracion_horario` (`id`);
 
 --
 -- Filtros para la tabla `calificaciones`
 --
+ALTER TABLE `calificaciones`
+  ADD CONSTRAINT `calificaciones_ibfk_1` FOREIGN KEY (`matricula_id`) REFERENCES `matriculas` (`id`),
+  ADD CONSTRAINT `calificaciones_ibfk_2` FOREIGN KEY (`carga_id`) REFERENCES `cargas_academicas` (`id`),
+  ADD CONSTRAINT `calificaciones_ibfk_3` FOREIGN KEY (`periodo_id`) REFERENCES `periodos` (`id`),
+  ADD CONSTRAINT `calificaciones_ibfk_4` FOREIGN KEY (`competencia_id`) REFERENCES `competencias` (`id`),
+  ADD CONSTRAINT `calificaciones_ibfk_5` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`);
 
 --
 -- Filtros para la tabla `calificaciones_criterio`
 --
+ALTER TABLE `calificaciones_criterio`
+  ADD CONSTRAINT `calificaciones_criterio_ibfk_1` FOREIGN KEY (`criterio_id`) REFERENCES `criterios` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `calificaciones_criterio_ibfk_2` FOREIGN KEY (`matricula_id`) REFERENCES `matriculas` (`id`);
 
 --
 -- Filtros para la tabla `cargas_academicas`
 --
+ALTER TABLE `cargas_academicas`
+  ADD CONSTRAINT `cargas_academicas_ibfk_1` FOREIGN KEY (`docente_id`) REFERENCES `usuarios` (`id`),
+  ADD CONSTRAINT `cargas_academicas_ibfk_2` FOREIGN KEY (`seccion_id`) REFERENCES `secciones` (`id`),
+  ADD CONSTRAINT `cargas_academicas_ibfk_3` FOREIGN KEY (`anio_id`) REFERENCES `anios_academicos` (`id`),
+  ADD CONSTRAINT `cargas_academicas_ibfk_4` FOREIGN KEY (`subarea_id`) REFERENCES `subareas` (`id`),
+  ADD CONSTRAINT `cargas_academicas_ibfk_5` FOREIGN KEY (`area_id`) REFERENCES `areas` (`id`);
 
 --
 -- Filtros para la tabla `competencias`
 --
+ALTER TABLE `competencias`
+  ADD CONSTRAINT `competencias_ibfk_1` FOREIGN KEY (`subarea_id`) REFERENCES `subareas` (`id`),
+  ADD CONSTRAINT `competencias_ibfk_2` FOREIGN KEY (`area_id`) REFERENCES `areas` (`id`);
 
 --
 -- Filtros para la tabla `configuracion_horario`
 --
+ALTER TABLE `configuracion_horario`
+  ADD CONSTRAINT `configuracion_horario_ibfk_1` FOREIGN KEY (`anio_id`) REFERENCES `anios_academicos` (`id`);
 
 --
 -- Filtros para la tabla `criterios`
 --
+ALTER TABLE `criterios`
+  ADD CONSTRAINT `criterios_ibfk_1` FOREIGN KEY (`carga_id`) REFERENCES `cargas_academicas` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `criterios_ibfk_2` FOREIGN KEY (`competencia_id`) REFERENCES `competencias` (`id`),
+  ADD CONSTRAINT `criterios_ibfk_3` FOREIGN KEY (`periodo_id`) REFERENCES `periodos` (`id`);
 
 --
 -- Filtros para la tabla `estudiantes`
 --
+ALTER TABLE `estudiantes`
+  ADD CONSTRAINT `estudiantes_ibfk_1` FOREIGN KEY (`persona_id`) REFERENCES `personas` (`id`);
 
 --
 -- Filtros para la tabla `grados`
 --
+ALTER TABLE `grados`
+  ADD CONSTRAINT `grados_ibfk_1` FOREIGN KEY (`nivel_id`) REFERENCES `niveles` (`id`);
 
 --
 -- Filtros para la tabla `matriculas`
 --
+ALTER TABLE `matriculas`
+  ADD CONSTRAINT `matriculas_ibfk_1` FOREIGN KEY (`estudiante_id`) REFERENCES `estudiantes` (`id`),
+  ADD CONSTRAINT `matriculas_ibfk_2` FOREIGN KEY (`seccion_id`) REFERENCES `secciones` (`id`),
+  ADD CONSTRAINT `matriculas_ibfk_3` FOREIGN KEY (`anio_id`) REFERENCES `anios_academicos` (`id`),
+  ADD CONSTRAINT `matriculas_ibfk_4` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`),
+  ADD CONSTRAINT `matriculas_ibfk_5` FOREIGN KEY (`aprobado_por`) REFERENCES `usuarios` (`id`);
 
 --
 -- Filtros para la tabla `periodos`
 --
+ALTER TABLE `periodos`
+  ADD CONSTRAINT `periodos_ibfk_1` FOREIGN KEY (`anio_id`) REFERENCES `anios_academicos` (`id`);
 
 --
 -- Filtros para la tabla `reglas_especiales`
 --
+ALTER TABLE `reglas_especiales`
+  ADD CONSTRAINT `reglas_especiales_ibfk_1` FOREIGN KEY (`area_id`) REFERENCES `areas` (`id`),
+  ADD CONSTRAINT `reglas_especiales_ibfk_2` FOREIGN KEY (`nivel_id`) REFERENCES `niveles` (`id`),
+  ADD CONSTRAINT `reglas_especiales_ibfk_3` FOREIGN KEY (`area_siagie_id`) REFERENCES `areas` (`id`);
 
 --
 -- Filtros para la tabla `secciones`
 --
+ALTER TABLE `secciones`
+  ADD CONSTRAINT `secciones_ibfk_1` FOREIGN KEY (`grado_id`) REFERENCES `grados` (`id`),
+  ADD CONSTRAINT `secciones_ibfk_2` FOREIGN KEY (`anio_id`) REFERENCES `anios_academicos` (`id`),
+  ADD CONSTRAINT `secciones_ibfk_3` FOREIGN KEY (`tutor_id`) REFERENCES `usuarios` (`id`);
 
 --
 -- Filtros para la tabla `sesiones_horario`
 --
+ALTER TABLE `sesiones_horario`
+  ADD CONSTRAINT `sesiones_horario_ibfk_1` FOREIGN KEY (`carga_id`) REFERENCES `cargas_academicas` (`id`),
+  ADD CONSTRAINT `sesiones_horario_ibfk_2` FOREIGN KEY (`bloque_id`) REFERENCES `bloques_horario` (`id`),
+  ADD CONSTRAINT `sesiones_horario_ibfk_3` FOREIGN KEY (`seccion_id`) REFERENCES `secciones` (`id`),
+  ADD CONSTRAINT `sesiones_horario_ibfk_4` FOREIGN KEY (`docente_id`) REFERENCES `usuarios` (`id`);
 
 --
 -- Filtros para la tabla `subareas`
 --
+ALTER TABLE `subareas`
+  ADD CONSTRAINT `subareas_ibfk_1` FOREIGN KEY (`area_id`) REFERENCES `areas` (`id`);
 
 --
 -- Filtros para la tabla `usuarios`
 --
+ALTER TABLE `usuarios`
+  ADD CONSTRAINT `usuarios_ibfk_1` FOREIGN KEY (`persona_id`) REFERENCES `personas` (`id`),
+  ADD CONSTRAINT `usuarios_ibfk_2` FOREIGN KEY (`rol_id`) REFERENCES `roles` (`id`);
 
 --
 -- Filtros para la tabla `vinculo_familiar`
 --
-SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE `vinculo_familiar`
+  ADD CONSTRAINT `vinculo_familiar_ibfk_1` FOREIGN KEY (`estudiante_id`) REFERENCES `estudiantes` (`id`),
+  ADD CONSTRAINT `vinculo_familiar_ibfk_2` FOREIGN KEY (`apoderado_id`) REFERENCES `apoderados` (`id`);
 
+SET FOREIGN_KEY_CHECKS=1;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
