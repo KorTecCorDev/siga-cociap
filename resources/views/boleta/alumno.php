@@ -22,6 +22,19 @@ $totalCols = 1 + count($periodos) * $subCols + 1;
 
 // Etiquetas de bimestre abreviadas para el encabezado de columna
 $romanos = ['I', 'II', 'III', 'IV'];
+
+// Separa las competencias transversales para ubicarlas al final
+$areasRegulares     = [];
+$areasTransversales = [];
+foreach ($areas as $_n => $_c) {
+    if (stripos($_n, 'transversal') !== false) {
+        $areasTransversales[$_n] = $_c;
+    } else {
+        $areasRegulares[$_n] = $_c;
+    }
+}
+$areasOrdenadas = array_merge($areasRegulares, $areasTransversales);
+unset($_n, $_c);
 ?>
 
 <!-- ── Cabecera institucional ───────────────────────────────── -->
@@ -104,9 +117,11 @@ $romanos = ['I', 'II', 'III', 'IV'];
         </tr>
     </thead>
     <tbody>
-        <?php foreach ($areas as $areaNombre => $competencias): ?>
+        <?php foreach ($areasOrdenadas as $areaNombre => $competencias):
+            $esTransversal = stripos($areaNombre, 'transversal') !== false;
+        ?>
 
-            <tr class="fila-area">
+            <tr class="fila-area <?= $esTransversal ? 'fila-area--transversal' : '' ?>">
                 <td colspan="<?= $totalCols ?>"><?= e(mb_strtoupper($areaNombre)) ?></td>
             </tr>
 

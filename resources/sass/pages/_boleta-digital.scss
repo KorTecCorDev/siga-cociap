@@ -420,6 +420,38 @@ $bd-radius-card:     16px;
     gap: 10px;
 }
 
+// ── Divisor de sección transversal ────────────────────────────
+.bd-transversal-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+
+    @media print {
+        padding: 3pt 0;
+        page-break-after: avoid;
+    }
+
+    &__line {
+        flex: 1;
+        height: 1px;
+        background: $border-color;
+
+        @media print { background: #ccc; }
+    }
+
+    &__label {
+        font-size: 10px;
+        font-weight: 600;
+        color: $text-muted;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+
+        @media print { font-size: 6pt; color: #888; }
+    }
+}
+
 .bd-area {
     background: $bg-white;
     border: 1px solid $border-color;

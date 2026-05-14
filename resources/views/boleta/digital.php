@@ -15,6 +15,19 @@
 $esSecundaria = ($alumno['escala_boleta'] === 'ambas');
 $hoy          = (new DateTime())->format('d/m/Y');
 $romanos      = ['I', 'II', 'III', 'IV'];
+
+// Separa las competencias transversales para ubicarlas al final
+$areasRegulares     = [];
+$areasTransversales = [];
+foreach ($areas as $_n => $_c) {
+    if (stripos($_n, 'transversal') !== false) {
+        $areasTransversales[$_n] = $_c;
+    } else {
+        $areasRegulares[$_n] = $_c;
+    }
+}
+$areasOrdenadas = array_merge($areasRegulares, $areasTransversales);
+unset($_n, $_c);
 ?>
 
 <!-- ══ CONTROLES FLOTANTES (solo pantalla) ══════════════════════ -->
@@ -157,13 +170,21 @@ $romanos      = ['I', 'II', 'III', 'IV'];
         <!-- Áreas curriculares -->
         <section class="bd-areas" aria-label="Áreas curriculares y competencias">
             <?php
-            $areaIndex = 0;
-            foreach ($areas as $areaNombre => $competencias):
+            $areaIndex       = 0;
+            $dividerMostrado = false;
+            foreach ($areasOrdenadas as $areaNombre => $competencias):
                 $areaIndex++;
                 $esTransversal = stripos($areaNombre, 'transversal') !== false;
                 $areaId        = 'bd-area-' . $areaIndex;
                 $areaBodyId    = $areaId . '-body';
             ?>
+            <?php if ($esTransversal && !$dividerMostrado): $dividerMostrado = true; ?>
+            <div class="bd-transversal-divider" aria-hidden="true">
+                <span class="bd-transversal-divider__line"></span>
+                <span class="bd-transversal-divider__label">Competencias Transversales</span>
+                <span class="bd-transversal-divider__line"></span>
+            </div>
+            <?php endif; ?>
             <article class="bd-area <?= $esTransversal ? 'bd-area--transversal' : '' ?>"
                      id="<?= $areaId ?>">
 

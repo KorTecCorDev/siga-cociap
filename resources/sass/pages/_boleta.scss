@@ -258,6 +258,13 @@ body.boleta-body {
         page-break-after: avoid;
     }
 
+    // ── Área transversal — separador visual con acento índigo
+    .fila-area--transversal td {
+        background: #ededf5;
+        border-top: 1.5pt dashed #999;
+        border-left-color: #5050a0;
+    }
+
     // ── Fila de competencia (base) ────────────────────────────
     .fila-comp td {
         padding: 0.3mm 0.5mm;
