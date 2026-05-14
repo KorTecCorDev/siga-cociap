@@ -164,7 +164,7 @@ class CalificacionModel extends BaseModel
     public static function toLiteral(int $nota): string
     {
         return match(true) {
-            $nota >= 18 => 'AD',
+            $nota >= 17 => 'AD',
             $nota >= 14 => 'A',
             $nota >= 11 => 'B',
             default     => 'C',
@@ -419,7 +419,7 @@ class CalificacionModel extends BaseModel
             if ($alumno['promedio'] !== null) {
                 $p = (int) $alumno['promedio'];
                 $alumno['literal'] = match(true) {
-                    $p >= 18 => 'AD',
+                    $p >= 17 => 'AD',
                     $p >= 14 => 'A',
                     $p >= 11 => 'B',
                     default  => 'C',

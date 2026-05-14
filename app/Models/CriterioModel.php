@@ -157,7 +157,7 @@ class CriterioModel extends BaseModel
             if ($competencia['promedio_actual'] !== null) {
                 $nota = (int) $competencia['promedio_actual'];
                 $competencia['literal_actual'] = match(true) {
-                    $nota >= 18 => 'AD',
+                    $nota >= 17 => 'AD',
                     $nota >= 14 => 'A',
                     $nota >= 11 => 'B',
                     default     => 'C',
