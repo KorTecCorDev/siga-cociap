@@ -219,13 +219,28 @@ tr.fila-inactiva td {
 // ── Modal genérico ────────────────────────────────────────────
 
 .modal-overlay {
+    display: none;
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,.45);
-    display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
+
+    &.modal--activo {
+        display: flex;
+        animation: modal-fondo-entrar .2s ease both;
+
+        .modal-box { animation: modal-box-entrar .22s ease both; }
+    }
+
+    &.modal--saliendo {
+        display: flex;
+        pointer-events: none;
+        animation: modal-fondo-salir .18s ease both;
+
+        .modal-box { animation: modal-box-salir .18s ease both; }
+    }
 }
 
 .modal-box {
@@ -236,6 +251,26 @@ tr.fila-inactiva td {
     max-width: 480px;
     margin: $spacing-lg;
     overflow: hidden;
+}
+
+@keyframes modal-fondo-entrar {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes modal-fondo-salir {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+@keyframes modal-box-entrar {
+    from { opacity: 0; transform: translateY(-12px) scale(.96); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes modal-box-salir {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: translateY(-10px) scale(.97); }
 }
 
 .modal-header {
@@ -271,10 +306,38 @@ tr.fila-inactiva td {
     .form-control { width: 100%; }
 }
 
+.modal-seccion-info {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    flex-wrap: wrap;
+    margin-bottom: $spacing-md;
+}
+
 .modal-seccion-label {
     font-weight: 600;
-    margin-bottom: $spacing-md;
     color: $brand-mid;
+}
+
+.modal-nivel-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 50px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+
+    &--primaria   {
+        background: $color-info-bg;
+        color: $color-info;
+        border: 1px solid rgba($color-info, .25);
+    }
+    &--secundaria {
+        background: $color-success-bg;
+        color: $color-success;
+        border: 1px solid rgba($color-success, .25);
+    }
 }
 
 .modal-footer {

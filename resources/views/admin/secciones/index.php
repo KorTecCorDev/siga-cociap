@@ -96,7 +96,7 @@ $nombreTutor = function (?array $s): string {
                     <td class="text-right">
                         <button type="button"
                                 class="btn btn--sm btn--secondary"
-                                onclick="abrirModalTutor(<?= (int)$s['id'] ?>, <?= (int)($s['tutor_id'] ?? 0) ?>, '<?= e(addslashes($s['grado_nombre'] . ' "' . $s['seccion_nombre'] . '"')) ?>')">
+                                onclick=”abrirModalTutor(<?= (int)$s['id'] ?>, <?= (int)($s['tutor_id'] ?? 0) ?>, <?= e(json_encode($s['grado_nombre'] . ' “' . $s['seccion_nombre'] . '”')) ?>, <?= e(json_encode($s['nivel_nombre'])) ?>)”>
                             <?= $s['tutor_id'] ? 'Cambiar' : 'Asignar' ?>
                         </button>
                     </td>
@@ -114,15 +114,18 @@ $nombreTutor = function (?array $s): string {
     <div class="modal-box">
         <div class="modal-header">
             <h2 class="modal-title">Asignar Tutor</h2>
-            <button type="button" class="modal-cerrar" onclick="cerrarModalTutor()">✕</button>
+            <button type="button" class="modal-cerrar" data-modal-cerrar="modalTutor" aria-label="Cerrar">✕</button>
         </div>
         <form method="POST" id="formTutor" novalidate>
             <?= csrf_field() ?>
             <div class="modal-body">
-                <p class="modal-seccion-label" id="modalSeccionLabel"></p>
+                <div class="modal-seccion-info">
+                    <span class="modal-seccion-label" id="modalSeccionLabel"></span>
+                    <span class="modal-nivel-badge" id="modalNivelBadge"></span>
+                </div>
 
                 <label class="form-label" for="tutor_id">Docente tutora/tutor</label>
-                <select name="tutor_id" id="tutor_id" class="form-control select-rol">
+                <select name="tutor_id" id="tutor_id" class="form-select">
                     <option value="">— Quitar tutor —</option>
                     <?php foreach ($docentes as $d): ?>
                     <option value="<?= (int) $d['id'] ?>">
@@ -138,7 +141,7 @@ $nombreTutor = function (?array $s): string {
                 </p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn--secondary" onclick="cerrarModalTutor()">
+                <button type="button" class="btn btn--secondary" data-modal-cerrar="modalTutor">
                     Cancelar
                 </button>
                 <button type="submit" class="btn btn--primary">
@@ -150,24 +153,38 @@ $nombreTutor = function (?array $s): string {
 </div>
 
 <script>
-function abrirModalTutor(seccionId, tutorActualId, label) {
+function abrirModalTutor(seccionId, tutorActualId, label, nivel) {
     document.getElementById('modalSeccionLabel').textContent = label;
+
+    const badge = document.getElementById('modalNivelBadge');
+    badge.textContent = nivel;
+    badge.className = 'modal-nivel-badge modal-nivel-badge--' +
+        (nivel.toLowerCase().includes('prim') ? 'primaria' : 'secundaria');
+
     document.getElementById('formTutor').action =
         '<?= url('admin/secciones') ?>/' + seccionId + '/tutor';
 
     const sel = document.getElementById('tutor_id');
+
+    // Limpiar etiqueta "(actual)" de ejecuciones previas y marcar el tutor actual
+    Array.from(sel.options).forEach(o => {
+        o.textContent = o.textContent.replace(/\s*\(actual\)$/, '');
+    });
     sel.value = tutorActualId || '';
+    if (tutorActualId) {
+        const opActual = sel.querySelector(`option[value="${tutorActualId}"]`);
+        if (opActual) opActual.textContent += ' (actual)';
+    }
 
-    document.getElementById('modalTutor').hidden = false;
-    document.body.classList.add('modal-abierto');
+    Modal.abrir('modalTutor');
 }
 
-function cerrarModalTutor() {
-    document.getElementById('modalTutor').hidden = true;
-    document.body.classList.remove('modal-abierto');
-}
-
-document.getElementById('modalTutor').addEventListener('click', function(e) {
-    if (e.target === this) cerrarModalTutor();
+// Confirmación antes de quitar el tutor de la sección
+document.getElementById('formTutor').addEventListener('submit', function(e) {
+    if (document.getElementById('tutor_id').value === '') {
+        if (!confirm('¿Confirma que desea quitar el tutor de esta sección?')) {
+            e.preventDefault();
+        }
+    }
 });
 </script>
