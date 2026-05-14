@@ -16,9 +16,11 @@
     <div>
         <h1 class="page-title"><?= e($carga['nombre_display']) ?></h1>
         <p class="page-subtitle">
-            <?= e($carga['grado_nombre']) ?> —
+            <?= 
+            e($carga['nivel_nombre']) ?> —
+            <?= 
+            e($carga['grado_nombre']) ?> —
             Sección <?= e($carga['seccion_nombre']) ?> —
-            <?= e($carga['nivel']) ?> —
             <?= e($periodo['nombre_display'] ?? '') ?>
         </p>
     </div>

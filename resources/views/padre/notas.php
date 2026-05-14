@@ -13,6 +13,7 @@
     <div>
         <h1 class="page-title">Notas de <?= e($hijo['nombres']) ?></h1>
         <p class="page-subtitle">
+            <?= e($hijo['nivel_nombre']) ?> —
             <?= e($hijo['grado_nombre']) ?> —
             Sección <?= e($hijo['seccion_nombre']) ?> —
             <?= e($periodo['nombre_display']) ?>

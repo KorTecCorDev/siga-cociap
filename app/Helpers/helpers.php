@@ -60,7 +60,7 @@ function nota_a_literal(int $nota, string $nivel = 'secundaria'): string
 {
     if ($nivel === 'primaria') {
         return match(true) {
-            $nota >= 18 => 'AD',
+            $nota >= 17 => 'AD',
             $nota >= 14 => 'A',
             $nota >= 11 => 'B',
             default     => 'C',
@@ -68,7 +68,7 @@ function nota_a_literal(int $nota, string $nivel = 'secundaria'): string
     }
     // Secundaria: misma escala pero se muestra junto al numeral
     return match(true) {
-        $nota >= 18 => 'AD',
+        $nota >= 17 => 'AD',
         $nota >= 14 => 'A',
         $nota >= 11 => 'B',
         default     => 'C',

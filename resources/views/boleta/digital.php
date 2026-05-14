@@ -104,11 +104,11 @@ $romanos      = ['I', 'II', 'III', 'IV'];
         <div class="bd-legend__items">
             <span class="bd-legend__item bd-legend__item--ad">
                 <strong>AD</strong>
-                <span class="bd-legend__desc">Logro destacado (18–20)</span>
+                <span class="bd-legend__desc">Logro destacado (17–20)</span>
             </span>
             <span class="bd-legend__item bd-legend__item--a">
                 <strong>A</strong>
-                <span class="bd-legend__desc">Logro esperado (14–17)</span>
+                <span class="bd-legend__desc">Logro esperado (14–16)</span>
             </span>
             <span class="bd-legend__item bd-legend__item--b">
                 <strong>B</strong>

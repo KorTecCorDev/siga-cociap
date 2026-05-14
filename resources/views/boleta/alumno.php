@@ -65,9 +65,9 @@ $romanos = ['I', 'II', 'III', 'IV'];
 <!-- ── Leyenda de escala ─────────────────────────────────────── -->
 <div class="boleta-leyenda">
     <span class="boleta-leyenda__titulo">Escala:</span>
-    <span class="boleta-leyenda__item boleta-leyenda__item--ad"><strong>AD</strong> Logro destacado (18&ndash;20)</span>
+    <span class="boleta-leyenda__item boleta-leyenda__item--ad"><strong>AD</strong> Logro destacado (17&ndash;20)</span>
     <span class="boleta-leyenda__sep">&middot;</span>
-    <span class="boleta-leyenda__item boleta-leyenda__item--a"><strong>A</strong> Logro esperado (14&ndash;17)</span>
+    <span class="boleta-leyenda__item boleta-leyenda__item--a"><strong>A</strong> Logro esperado (14&ndash;16)</span>
     <span class="boleta-leyenda__sep">&middot;</span>
     <span class="boleta-leyenda__item boleta-leyenda__item--b"><strong>B</strong> En proceso (11&ndash;13)</span>
     <span class="boleta-leyenda__sep">&middot;</span>
