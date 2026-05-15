@@ -38,7 +38,7 @@ function csrf_field(): string
 /** Genera la URL base del proyecto */
 function url(string $path = ''): string
 {
-    $base = config('app.url', '');
+    $base = config('url', '');
     return rtrim($base, '/') . '/' . ltrim($path, '/');
 }
 
