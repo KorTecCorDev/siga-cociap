@@ -18,10 +18,31 @@ class SeccionController extends BaseController
     // GET /admin/secciones
     public function index(): void
     {
+        $secciones = $this->model->listarConTutor();
+        $docentes  = $this->model->listarDocentes();
+
+        // Si una sección tiene tutor asignado pero ese docente ya no está
+        // activo (cambió de rol o fue desactivado), lo agrega al select
+        // marcado como inactivo para que el admin lo vea y pueda reasignar.
+        $docenteIds = array_column($docentes, 'id');
+        foreach ($secciones as $s) {
+            if ($s['tutor_id'] && !in_array((int) $s['tutor_id'], $docenteIds)) {
+                $docentes[] = [
+                    'id'               => $s['tutor_id'],
+                    'apellido_paterno' => $s['tutor_apellido_paterno'] ?? '',
+                    'apellido_materno' => $s['tutor_apellido_materno'] ?? '',
+                    'nombres'          => $s['tutor_nombres'] ?? '',
+                    'dni'              => $s['tutor_dni'] ?? '',
+                    'inactivo'         => true,
+                ];
+            }
+        }
+
         $this->view('admin/secciones/index', [
-            'titulo'    => 'Secciones y Tutores',
-            'secciones' => $this->model->listarConTutor(),
-            'docentes'  => $this->model->listarDocentes(),
+            'titulo'       => 'Secciones y Tutores',
+            'secciones'    => $secciones,
+            'docentes'     => $docentes,
+            'page_scripts' => ['secciones'],
         ]);
     }
 
@@ -35,15 +56,17 @@ class SeccionController extends BaseController
 
         try {
             $this->model->asignarTutor($seccionId, $tutorId);
-            $this->redirectWithSuccess(
-                url('admin/secciones'),
-                $tutorId ? 'Tutor asignado correctamente.' : 'Tutor removido de la sección.'
-            );
+            $this->json([
+                'success' => true,
+                'mensaje' => $tutorId
+                    ? 'Tutor asignado correctamente.'
+                    : 'Tutor removido de la sección.',
+            ]);
         } catch (\Exception $e) {
-            $this->redirectWithError(
-                url('admin/secciones'),
-                'Error: ' . $e->getMessage()
-            );
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Error: ' . $e->getMessage(),
+            ], 500);
         }
     }
 }

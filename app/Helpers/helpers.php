@@ -38,7 +38,25 @@ function csrf_field(): string
 /** Genera la URL base del proyecto */
 function url(string $path = ''): string
 {
-    $base = config('url', '');
+    static $base = null;
+
+    if ($base === null) {
+        if (!empty($_SERVER['HTTP_HOST'])) {
+            // Detecta el host real del request (incluye puerto si no es 80/443).
+            // Cuando BrowserSync proxea, Apache recibe Host: localhost:3000
+            // y PHP lo refleja aquí, manteniendo todas las URLs en el mismo origen.
+            $scheme   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                ? 'https' : 'http';
+            $host     = $_SERVER['HTTP_HOST'];
+            $script   = $_SERVER['SCRIPT_NAME'] ?? '/index.php';
+            $basePath = rtrim(dirname($script), '/\\');
+            $base     = $scheme . '://' . $host . $basePath;
+        } else {
+            // Fallback para contextos CLI o cuando $_SERVER no está disponible.
+            $base = rtrim(config('url', 'http://localhost'), '/');
+        }
+    }
+
     return rtrim($base, '/') . '/' . ltrim($path, '/');
 }
 

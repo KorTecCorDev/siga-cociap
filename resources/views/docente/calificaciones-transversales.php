@@ -137,6 +137,3 @@
 
 <?php endforeach; ?>
 <?php endif; ?>
-
-<meta name="csrf-token" content="<?= \Core\Session::csrfToken() ?>">
-<script src="<?= url('js/calificaciones.js') ?>"></script>

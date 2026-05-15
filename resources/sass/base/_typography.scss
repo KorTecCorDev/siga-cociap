@@ -46,3 +46,7 @@ small { font-size: $font-size-sm; }
 .text-success  { color: $color-success; }
 .text-error    { color: $color-error; }
 .text-center   { text-align: center; }
+
+.mt-1 { margin-top: $spacing-xs; }
+.mt-2 { margin-top: $spacing-sm; }
+.mt-3 { margin-top: $spacing-md; }

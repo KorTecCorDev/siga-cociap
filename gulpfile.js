@@ -11,7 +11,6 @@ const sass        = require('gulp-sass')(require('sass'));
 const plumber     = require('gulp-plumber');
 const autoprefixer= require('gulp-autoprefixer');
 const cleanCSS    = require('gulp-clean-css');
-const concat      = require('gulp-concat');
 const uglify      = require('gulp-uglify');
 const browserSync = require('browser-sync').create();
 
@@ -31,7 +30,10 @@ const paths = {
 };
 
 // ── Configuración de BrowserSync ────────────────────────────
-const proxyURL = 'localhost/siga-cociap/public';
+// Proxy apunta a la raíz de Apache (sin prefijo de ruta).
+// BrowserSync reenvía el Host original del navegador (localhost:3000)
+// a Apache, permitiendo que PHP detecte el puerto dinámicamente.
+const proxyURL = 'localhost';
 
 // ── Tarea: compilar SASS ─────────────────────────────────────
 function compilarSass() {
@@ -53,12 +55,8 @@ function compilarSass() {
 // ── Tarea: compilar JS ───────────────────────────────────────
 function compilarJs() {
     return gulp
-        .src([
-            'resources/js/app.js',        // primero el archivo principal
-            'resources/js/**/*.js'        // luego el resto
-        ])
+        .src('resources/js/**/*.js')
         .pipe(plumber())
-        .pipe(concat('app.js'))
         .pipe(uglify())
         .pipe(gulp.dest(paths.js.dest))
         .pipe(browserSync.stream());
@@ -67,10 +65,11 @@ function compilarJs() {
 // ── Tarea: iniciar BrowserSync ───────────────────────────────
 function servidor(done) {
     browserSync.init({
-        proxy: proxyURL,
-        notify: false,      // sin el banner de BS en la pantalla
-        open: true,         // abre el navegador automáticamente
-        port: 3000
+        proxy:     proxyURL,
+        startPath: '/siga-cociap/public',   // abre directo en la app
+        notify:    false,
+        open:      true,
+        port:      3000
     });
     done();
 }

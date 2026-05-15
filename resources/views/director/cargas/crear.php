@@ -136,5 +136,3 @@
         </form>
     </div>
 </div>
-
-<script src="<?= url('js/cargas.js') ?>"></script>

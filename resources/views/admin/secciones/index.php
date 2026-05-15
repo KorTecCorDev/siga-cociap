@@ -95,7 +95,7 @@ $nombreTutor = function (?array $s): string {
                     </td>
                     <td class=”text-right”>
                         <button type=”button”
-                                class=”btn btn--sm btn--secondary”
+                                class=”btn btn--sm <?= $s['tutor_id'] ? 'btn--secondary' : 'btn--primary' ?>”
                                 onclick=”abrirModalTutor(this)”
                                 data-seccion-id=”<?= (int)$s['id'] ?>”
                                 data-tutor-id=”<?= (int)($s['tutor_id'] ?? 0) ?>”
@@ -132,9 +132,9 @@ $nombreTutor = function (?array $s): string {
                 <select name="tutor_id" id="tutor_id" class="form-select">
                     <option value="">— Quitar tutor —</option>
                     <?php foreach ($docentes as $d): ?>
-                    <option value="<?= (int) $d['id'] ?>">
+                    <option value="<?= (int) $d['id'] ?>"<?= !empty($d['inactivo']) ? ' data-inactivo="1"' : '' ?>>
                         <?= e(mb_strtoupper($d['apellido_paterno']) . ' ' . mb_strtoupper($d['apellido_materno']) . ', ' . $d['nombres']) ?>
-                        &nbsp;(<?= e($d['dni']) ?>)
+                        &nbsp;(<?= e($d['dni']) ?>)<?= !empty($d['inactivo']) ? ' — inactivo' : '' ?>
                     </option>
                     <?php endforeach; ?>
                 </select>
@@ -145,6 +145,7 @@ $nombreTutor = function (?array $s): string {
                 </p>
             </div>
             <div class="modal-footer">
+                <span id="modalFeedback" class="modal-feedback"></span>
                 <button type="button" class="btn btn--secondary" data-modal-cerrar="modalTutor">
                     Cancelar
                 </button>
@@ -156,62 +157,3 @@ $nombreTutor = function (?array $s): string {
     </div>
 </div>
 
-<script>
-var _urlSecciones = <?= json_encode(url('admin/secciones')) ?>;
-
-// ── 1. Confirmación al quitar tutor ──────────────────────────
-// Se registra en fase de captura antes de que app.js cargue,
-// para poder cancelar antes de que el botón quede deshabilitado.
-document.addEventListener('submit', function(e) {
-    if (e.target.id !== 'formTutor') return;
-    if (document.getElementById('tutor_id').value !== '') return;
-    if (!confirm('¿Confirma que desea quitar el tutor de esta sección?')) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-    }
-}, true);
-
-// ── 2. Función que abre el modal ──────────────────────────────
-function abrirModalTutor(btn) {
-    // Leer datos del botón
-    var seccionId     = btn.getAttribute('data-seccion-id');
-    var tutorActualId = btn.getAttribute('data-tutor-id') || '';
-    var label         = btn.getAttribute('data-label')    || '';
-    var nivel         = btn.getAttribute('data-nivel')    || '';
-
-    // Actualizar textos del modal
-    document.getElementById('modalSeccionLabel').textContent = label;
-
-    var badge = document.getElementById('modalNivelBadge');
-    badge.textContent = nivel;
-    badge.className = 'modal-nivel-badge modal-nivel-badge--' +
-        (nivel.toLowerCase().indexOf('prim') !== -1 ? 'primaria' : 'secundaria');
-
-    // Fijar la acción del formulario
-    document.getElementById('formTutor').action =
-        _urlSecciones + '/' + seccionId + '/tutor';
-
-    // Marcar el tutor actual en el <select>
-    var sel = document.getElementById('tutor_id');
-    for (var i = 0; i < sel.options.length; i++) {
-        sel.options[i].text = sel.options[i].text.replace(/\s*\(actual\)$/, '');
-    }
-    sel.value = tutorActualId;
-    if (tutorActualId) {
-        for (var i = 0; i < sel.options.length; i++) {
-            if (sel.options[i].value === tutorActualId) {
-                sel.options[i].text += ' (actual)';
-                break;
-            }
-        }
-    }
-
-    // Abrir el overlay
-    var overlay = document.getElementById('modalTutor');
-    overlay.removeAttribute('hidden');
-    overlay.classList.remove('modal--saliendo');
-    overlay.classList.add('modal--activo');
-    document.body.classList.add('modal-abierto');
-    setTimeout(function() { sel.focus(); }, 40);
-}
-</script>

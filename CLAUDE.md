@@ -299,7 +299,7 @@ Los docentes subirán notas del I Bimestre el 16-17 de mayo 2026.
 - `config/database.php` NO está en Git — crear manualmente en cada equipo
 - Logo del colegio: `public/assets/img/logo_cociap.png` (con guión bajo)
 - URL base dinámica via meta tag: `<meta name="base-url" content="...">`
-- BrowserSync corre en puerto 3000, proxy a `localhost/siga-cociap/public`
+- BrowserSync corre en puerto 3000, proxy a `:3000/`
 - Alias Git Bash: `local3000` para iniciar el entorno
 - `hash.php` en raíz: archivo temporal para generar hashes bcrypt — eliminar
   tras usarlo, NO commitear ni dejar en el servidor

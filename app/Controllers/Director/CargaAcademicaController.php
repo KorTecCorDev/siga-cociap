@@ -30,7 +30,10 @@ class CargaAcademicaController extends BaseController
     // GET /director/cargas/crear
     public function create(): void
     {
-        $this->view('director/cargas/crear', $this->datosFormulario() + ['titulo' => 'Nueva Carga Académica']);
+        $this->view('director/cargas/crear', $this->datosFormulario() + [
+            'titulo'       => 'Nueva Carga Académica',
+            'page_scripts' => ['cargas'],
+        ]);
     }
 
     // POST /director/cargas/crear
@@ -95,9 +98,10 @@ class CargaAcademicaController extends BaseController
         }
 
         $this->view('director/cargas/editar', $this->datosFormulario() + [
-            'titulo'      => 'Editar Carga Académica',
-            'carga'       => $carga,
-            'sesionesMap' => $sesionesMap,
+            'titulo'       => 'Editar Carga Académica',
+            'carga'        => $carga,
+            'sesionesMap'  => $sesionesMap,
+            'page_scripts' => ['cargas'],
         ]);
     }
 

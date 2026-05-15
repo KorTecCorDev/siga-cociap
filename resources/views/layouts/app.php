@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($titulo ?? 'SIGA-COCIAP') ?> — SIGA-COCIAP</title>
-    <meta name="base-url" content="<?= (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] ?>">
+    <meta name="base-url"   content="<?= rtrim(url(''), '/') ?>">
+    <meta name="csrf-token" content="<?= \Core\Session::csrfToken() ?>">
     <link rel="stylesheet" href="<?= url('css/app.css') ?>">
 </head>
 <body class="app-body">
@@ -67,6 +68,9 @@
         </span>
     </footer>
 
+    <?php foreach ($page_scripts ?? [] as $script): ?>
+    <script src="<?= url('js/' . $script . '.js') ?>"></script>
+    <?php endforeach; ?>
     <script src="<?= url('js/app.js') ?>"></script>
 </body>
 </html>

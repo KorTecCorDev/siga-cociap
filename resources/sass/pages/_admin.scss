@@ -194,6 +194,14 @@ tr.fila-inactiva td {
     letter-spacing: .04em;
 }
 
+.seccion-nivel-label {
+    font-size: $font-size-sm;
+    font-weight: 700;
+    color: $text-secondary;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+
 .seccion-nombre {
     font-weight: 500;
 }
@@ -342,11 +350,21 @@ tr.fila-inactiva td {
 
 .modal-footer {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     gap: $spacing-sm;
     padding: $spacing-md $spacing-lg;
     border-top: 1px solid $border-color;
     background: $bg-secondary;
+}
+
+.modal-feedback {
+    flex: 1;
+    font-size: $font-size-sm;
+
+    &--loading { color: $text-muted; }
+    &--error   { color: $color-error; }
+    &--success { color: $color-success; }
 }
 
 body.modal-abierto { overflow: hidden; }

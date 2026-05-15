@@ -27,7 +27,9 @@
       "Bash(grep -A5 \"Dumping data for table \\\\`usuarios\\\\`\" \"C:/xampp/htdocs/siga-cociap/database/backup_13_05_2026.sql\")",
       "Bash(grep *)",
       "Bash(npx sass *)",
-      "Bash(php -r ' *)"
+      "Bash(php -r ' *)",
+      "Bash(Select-String -Path \"C:\\\\xampp\\\\htdocs\\\\siga-cociap\\\\public\\\\css\\\\app.css\" -Pattern \"\\\\.btn\")",
+      "Bash(Select-Object -First 5)"
     ]
   }
 }

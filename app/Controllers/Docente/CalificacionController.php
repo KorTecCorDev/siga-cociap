@@ -102,6 +102,7 @@ class CalificacionController extends BaseController
             'bloqueado'       => $bloqueado,
             'notasExistentes' => $notasExistentes,
             'bloqueos'        => $bloqueos,
+            'page_scripts'    => ['calificaciones'],
         ]);
     }
 
@@ -165,6 +166,7 @@ class CalificacionController extends BaseController
             'notasExistentes'  => $this->getNotasExistentes($cargaId, $periodoId),
             'bloqueos'         => $this->getBloqueos($cargaId, $periodoId),
             'bloqueado'        => $this->calModel->periodoEstaBloqueado($periodoId),
+            'page_scripts'     => ['calificaciones'],
         ]);
     }
 
@@ -506,6 +508,7 @@ class CalificacionController extends BaseController
             'criterios'    => $resumen['criterios'],
             'alumnos'      => $resumen['alumnos'],
             'bloqueada'    => $bloqueada,
+            'page_scripts' => ['resumen'],
         ]);
     }
 

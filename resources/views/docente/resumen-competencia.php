@@ -202,6 +202,3 @@ $nivelCodigo = $carga['nivel_codigo'];
 
     <?php endif; ?>
 </div>
-
-<meta name="csrf-token" content="<?= \Core\Session::csrfToken() ?>">
-<script src="<?= url('js/resumen.js') ?>"></script>

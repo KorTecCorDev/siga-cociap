@@ -14,5 +14,5 @@ return [
     'session_timeout' => 600,            // 10 minutos en segundos
     'timezone'        => 'America/Lima',
     'locale'          => 'es_PE',
-    'url'             => 'http://localhost/siga-cociap/public',
+    'url'             => 'http://localhost/siga-cociap/public', // fallback CLI únicamente
 ];
