@@ -110,6 +110,20 @@ body.boleta-body {
 
     &__ugel    { font-size: 5.5pt; color: #555; text-transform: uppercase; letter-spacing: 0.2pt; }
     &__colegio { font-size: 8.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.2pt; }
+
+    &__modular {
+        display: inline-block;
+        font-size: 5.5pt;
+        font-weight: bold;
+        color: #1a3c6e;
+        background: #dce8f7;
+        border: 0.4pt solid #a3bfe0;
+        border-radius: 1mm;
+        padding: 0.15mm 1.5mm;
+        margin-top: 0.3mm;
+        letter-spacing: 0.3pt;
+    }
+
     &__titulo  { font-size: 7pt;   font-weight: bold; margin-top: 0.3mm; }
     &__anio    { font-size: 6.5pt; color: #333; margin-top: 0.2mm; }
 
@@ -185,13 +199,14 @@ body.boleta-body {
 // TABLA DE CALIFICACIONES
 //
 // Landscape 289mm × columnas:
-//   th-comp  50mm (fijo, nowrap+ellipsis para nombres largos)
-//   th-mini   7mm × 8 = 56mm  (4 notas + 4 literales)
+//   th-comp  50mm  — texto envuelve (max 2 líneas con nombre_corto)
+//   th-mini   7mm × 8 = 56mm  (4 notas sec + 4 literales)
 //   th-final  9mm
-//   th-concl auto → (289-50-56-9)/4 = 43.5mm c/u
+//   th-concl auto → (289-50-56-9)/4 ≈ 43.5mm c/u
 //
-// Altura por fila comp:
-//   conclusión 5pt × 2 líneas = 4.1mm (determina la altura de fila)
+// Altura por fila: max(comp-wrap, conclusión 2 líneas)
+//   comp 2 líneas @ 5.5pt × 1.2 ≈ 4.7mm
+//   conclusión 2 líneas @ 5pt × 1.15 ≈ 4.1mm
 // ════════════════════════════════════════════════════════════
 .boleta-tabla {
     width: 100%;
@@ -249,8 +264,8 @@ body.boleta-body {
     .fila-area td {
         background: $c-area-bg;
         font-weight: bold;
-        font-size: 7pt;
-        padding: 0.55mm 1.2mm;
+        font-size: 6.5pt;
+        padding: 0.4mm 1mm;
         border: 0.3pt solid #bbb;
         border-top: 1pt solid $c-borde;
         border-left: 3pt solid #444;
@@ -265,9 +280,17 @@ body.boleta-body {
         border-left-color: #5050a0;
     }
 
+    // ── Área de conducta — separador doble con acento teal
+    .fila-area--conducta td {
+        background: #e8f4f2;
+        border-top: 1.5pt solid #2a7a6e;
+        border-left-color: #2a7a6e;
+        color: #1a5248;
+    }
+
     // ── Fila de competencia (base) ────────────────────────────
     .fila-comp td {
-        padding: 0.3mm 0.5mm;
+        padding: 0.2mm 0.4mm;
         border: 0.3pt solid #ddd;
         vertical-align: top;
         background: #fff;
@@ -276,15 +299,15 @@ body.boleta-body {
     // Fila alterna — gris muy claro
     .fila-comp--alt td { background: $c-alt-bg; }
 
-    // Nombre de competencia — nowrap con ellipsis para control de altura
+    // Nombre de competencia — wrapping completo, sin truncado
+    // Con nombre_corto el máximo es ~2 líneas a 50mm/5.5pt
     .td-comp {
-        font-size: 6.5pt;
-        line-height: 1.2;
-        vertical-align: middle;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        padding-left: 3mm;
+        font-size: 5.5pt;
+        line-height: 1.25;
+        vertical-align: top;
+        word-break: break-word;
+        hyphens: auto;
+        padding: 0.3mm 0.5mm 0.3mm 2.5mm;
     }
 
     // Nota numérica
@@ -307,8 +330,7 @@ body.boleta-body {
     }
 
     // Conclusión descriptiva — 2 líneas visibles a 5pt
-    // En 43.5mm con 5pt: ~41 chars/línea × 2 = ~82 chars visibles
-    .td-concl { padding: 0.3mm 0.6mm; }
+    .td-concl { padding: 0.2mm 0.5mm; }
 
     .conclusion-clip {
         display: -webkit-box;

@@ -4,6 +4,7 @@ namespace App\Controllers\Padre;
 
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
+use App\Models\ConductaModel;
 use Core\Session;
 
 /**
@@ -13,11 +14,13 @@ use Core\Session;
 class PanelController extends BaseController
 {
     private CalificacionModel $calModel;
+    private ConductaModel     $conductaModel;
 
     public function __construct()
     {
         $this->requireRole(['padre', 'admin', 'registro_academico']);
-        $this->calModel = new CalificacionModel();
+        $this->calModel      = new CalificacionModel();
+        $this->conductaModel = new ConductaModel();
     }
 
     /**
@@ -71,11 +74,17 @@ class PanelController extends BaseController
             $areas[$areaNombre][] = $nota;
         }
 
+        $conducta = $this->conductaModel->getParaPeriodo(
+            $hijo['matricula_id'],
+            $periodo['id']
+        );
+
         $this->view('padre/notas', [
-            'titulo'  => 'Notas de ' . $hijo['nombres'],
-            'hijo'    => $hijo,
-            'periodo' => $periodo,
-            'areas'   => $areas,
+            'titulo'   => 'Notas de ' . $hijo['nombres'],
+            'hijo'     => $hijo,
+            'periodo'  => $periodo,
+            'areas'    => $areas,
+            'conducta' => $conducta,
         ]);
     }
 

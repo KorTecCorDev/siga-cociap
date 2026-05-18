@@ -384,3 +384,165 @@ body.modal-abierto { overflow: hidden; }
     border-radius: $border-radius-sm;
     padding: 4px 10px;
 }
+
+// ════════════════════════════════════════════════════════════
+// MÓDULO CONDUCTA — vistas de admin
+// ════════════════════════════════════════════════════════════
+
+$cond-teal: #2a7a6e;
+
+.conducta-nivel-titulo {
+    font-size: $font-size-lg;
+    font-weight: 700;
+    color: $text-primary;
+    margin: $spacing-lg 0 $spacing-sm;
+    padding-bottom: $spacing-xs;
+    border-bottom: 2px solid $border-color;
+}
+
+.conducta-secciones-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+}
+
+.conducta-seccion-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: $spacing-md;
+    background: #fff;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius;
+    text-decoration: none;
+    color: $text-primary;
+    transition: border-color .15s, box-shadow .15s;
+    text-align: center;
+
+    &:hover {
+        border-color: $cond-teal;
+        box-shadow: 0 2px 8px rgba(42, 122, 110, .15);
+        text-decoration: none;
+    }
+
+    &__grado {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin-bottom: 2px;
+    }
+
+    &__nombre {
+        font-size: $font-size-base;
+        font-weight: 700;
+    }
+}
+
+// Leyenda de escala
+.conducta-leyenda {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    font-size: $font-size-sm;
+    background: $bg-secondary;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-sm;
+    padding: $spacing-sm $spacing-md;
+    margin-bottom: $spacing-md;
+    flex-wrap: wrap;
+}
+
+// Literal con color (reutilizable en admin y padre)
+.conducta-lit {
+    display: inline-block;
+    font-weight: 800;
+    font-size: $font-size-base;
+    min-width: 28px;
+    text-align: center;
+    border-radius: $border-radius-sm;
+    padding: 1px 6px;
+    border: 1.5px solid currentColor;
+
+    &--ad { color: #16a34a; background: #f0fdf4; }
+    &--a  { color: $brand-mid; background: #eff6ff; }
+    &--b  { color: #d97706;  background: #fffbeb; }
+    &--c  { color: #dc2626;  background: #fef2f2; }
+}
+
+// Tabla de estudiantes
+.conducta-tabla {
+    font-size: $font-size-sm;
+
+    .conducta-th-num    { width: 48px; text-align: center; }
+    .conducta-th-nombre { min-width: 220px; }
+    .conducta-th-dni    { width: 100px; }
+    .conducta-th-periodo {
+        text-align: center;
+        min-width: 120px;
+        font-size: 11px;
+
+        &--activo { color: $cond-teal; }
+    }
+
+    .conducta-badge-editable {
+        display: block;
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: $cond-teal;
+        letter-spacing: .4px;
+        margin-top: 2px;
+    }
+
+    .conducta-fila--alt td { background: $bg-secondary; }
+    .conducta-td-num  { text-align: center; color: $text-muted; }
+    .conducta-td-dni  { color: $text-muted; font-size: 11px; }
+    .conducta-td-periodo { text-align: center; }
+}
+
+.conducta-select {
+    width: 80px;
+    padding: 3px 4px;
+    font-size: $font-size-sm;
+    font-weight: 700;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius-sm;
+    background: #fff;
+    cursor: pointer;
+    text-align: center;
+
+    &:focus { border-color: $cond-teal; outline: none; box-shadow: 0 0 0 2px rgba(42,122,110,.2); }
+}
+
+// Feedback de guardado
+.conducta-feedback {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: $spacing-sm $spacing-md;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    z-index: 9999;
+    box-shadow: 0 2px 10px rgba(0,0,0,.15);
+
+    &--ok    { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    &--error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+}
+
+// Card de conducta en panel padre
+.competencia-card--conducta {
+    border-left: 4px solid $cond-teal;
+
+    .competencia-card__header { background: #e8f4f2; }
+    .competencia-card__nombre { color: $cond-teal; }
+}
+
+// Literal grande en panel padre
+.nota-literal--lg {
+    font-size: 1.5rem;
+    padding: 4px 12px;
+    border-radius: $border-radius-sm;
+    font-weight: 800;
+}

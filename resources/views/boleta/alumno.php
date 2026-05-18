@@ -8,6 +8,7 @@
  * @var array  $areas       areas[nombre][comp_id]
  *                            = { nombre, bimestres[pid]{nota,literal,conclusion},
  *                                literal_final }
+ * @var array  $conducta    [periodo_id => literal]  (vacío si no hay notas de conducta)
  * @var string $institucion
  */
 
@@ -46,6 +47,9 @@ unset($_n, $_c);
     <div class="boleta-header__centro">
         <div class="boleta-header__ugel">MINEDU &middot; DRE Áncash &middot; UGEL Huaraz</div>
         <div class="boleta-header__colegio"><?= e($institucion ?? '') ?></div>
+        <div class="boleta-header__modular">
+            Cód. Modular: <?= $esSecundaria ? '1310044 - 0' : '1719525 - 0' ?>
+        </div>
         <div class="boleta-header__titulo">Informe de Progreso de las Competencias del Estudiante</div>
         <div class="boleta-header__anio">Año Académico <?= e($alumno['anio_academico'] ?? '') ?></div>
     </div>
@@ -127,7 +131,7 @@ unset($_n, $_c);
 
             <?php foreach ($competencias as $idx => $comp): ?>
                 <tr class="fila-comp <?= $idx % 2 !== 0 ? 'fila-comp--alt' : '' ?>">
-                    <td class="td-comp" title="<?= e($comp['nombre']) ?>">
+                    <td class="td-comp">
                         <?= e($comp['nombre']) ?>
                     </td>
 
@@ -161,6 +165,25 @@ unset($_n, $_c);
             <?php endforeach; ?>
 
         <?php endforeach; ?>
+        <?php if (!empty($conducta)): ?>
+            <tr class="fila-area fila-area--conducta">
+                <td colspan="<?= $totalCols ?>">CONDUCTA</td>
+            </tr>
+            <tr class="fila-comp">
+                <td class="td-comp">Comportamiento</td>
+                <?php foreach ($periodos as $p):
+                    $clit = $conducta[$p['id']] ?? null;
+                    $clc  = $clit ? strtolower($clit) : 'vacio';
+                ?>
+                    <?php if ($esSecundaria): ?><td class="td-mini td-nota"></td><?php endif; ?>
+                    <td class="td-mini td-lit td-lit--<?= $clc ?>">
+                        <?= $clit ? e($clit) : '' ?>
+                    </td>
+                    <td class="td-concl"></td>
+                <?php endforeach; ?>
+                <td class="td-final td-lit--vacio"></td>
+            </tr>
+        <?php endif; ?>
     </tbody>
 </table>
 

@@ -25,6 +25,11 @@ $router->get('/dashboard', 'DashboardController@index');
 $router->get( '/admin/secciones',             'Admin\SeccionController@index');
 $router->post('/admin/secciones/{id}/tutor',  'Admin\SeccionController@asignarTutor');
 
+// ─── Admin — Conducta ───────────────────────────────────────
+$router->get( '/admin/conducta',              'Admin\ConductaController@index');
+$router->get( '/admin/conducta/{id}',         'Admin\ConductaController@seccion');
+$router->post('/admin/conducta/guardar',      'Admin\ConductaController@guardar');
+
 // ─── Admin — Usuarios ───────────────────────────────────────
 $router->get( '/admin/usuarios',             'Admin\UsuarioController@index');
 $router->get( '/admin/usuarios/crear',       'Admin\UsuarioController@create');

@@ -175,6 +175,32 @@ $bd-radius-card:     16px;
         @media print { font-size: 11pt; color: #000; }
     }
 
+    &__modular {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: .4px;
+        color: #fff;
+        background: rgba(255, 255, 255, .18);
+        border: 1px solid rgba(255, 255, 255, .35);
+        border-radius: 4px;
+        padding: 2px 8px;
+        margin: 3px 0 6px;
+
+        @media (min-width: 640px) { font-size: 11px; }
+
+        @media print {
+            font-size: 6pt;
+            font-weight: bold;
+            color: #1a3c6e;
+            background: #dce8f7;
+            border: 0.4pt solid #a3bfe0;
+            border-radius: 1mm;
+            padding: 0.15mm 1.5mm;
+            margin: 0.3mm 0 0.5mm;
+        }
+    }
+
     &__titulo {
         font-size: 11px;
         opacity: .9;
@@ -972,6 +998,113 @@ $bd-radius-card:     16px;
     }
 
     @media print { display: none; }
+}
+
+// ══════════════════════════════════════════════════════════════
+// CONDUCTA — sección al final de la boleta digital
+// ══════════════════════════════════════════════════════════════
+$bd-cond-color:  #2a7a6e;
+$bd-cond-bg:     #e8f4f2;
+$bd-cond-border: #a7d4ce;
+
+.bd-conducta {
+    background: $bd-cond-bg;
+    border: 1.5px solid $bd-cond-border;
+    border-radius: $bd-radius-card;
+    padding: 16px 20px;
+    margin: 12px 0 0;
+
+    @media (min-width: 640px) { padding: 20px 24px; }
+
+    &__titulo {
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .6px;
+        color: $bd-cond-color;
+        margin: 0 0 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid $bd-cond-border;
+    }
+
+    &__fila {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+
+        @media (min-width: 480px) { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    &__celda {
+        background: #fff;
+        border: 1.5px solid #ccc;
+        border-radius: 8px;
+        padding: 10px 8px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        &--ad { border-color: $bd-ad-color; background: $bd-ad-bg; }
+        &--a  { border-color: $bd-a-color;  background: $bd-a-bg;  }
+        &--b  { border-color: $bd-b-color;  background: $bd-b-bg;  }
+        &--c  { border-color: $bd-c-color;  background: $bd-c-bg;  }
+        &--vacia { opacity: .5; }
+    }
+
+    &__bimestre {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        color: #666;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    &__literal {
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 1;
+
+        .bd-conducta__celda--ad & { color: $bd-ad-color; }
+        .bd-conducta__celda--a  & { color: $bd-a-color;  }
+        .bd-conducta__celda--b  & { color: $bd-b-color;  }
+        .bd-conducta__celda--c  & { color: $bd-c-color;  }
+        .bd-conducta__celda--vacia & { color: #bbb; font-size: 18px; }
+    }
+
+    @media print {
+        background: #fff;
+        border: 1.5pt solid #2a7a6e;
+        border-radius: 0;
+        padding: 4mm 5mm;
+        margin: 3mm 0 0;
+        page-break-inside: avoid;
+
+        .bd-conducta__titulo {
+            font-size: 7pt;
+            color: #1a5248;
+        }
+
+        .bd-conducta__fila {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 3mm;
+        }
+
+        .bd-conducta__celda {
+            border: 0.5pt solid #ccc;
+            padding: 2mm;
+            border-radius: 1mm;
+
+            &--ad { border-color: $bd-ad-color; background: #f0fdf4; }
+            &--a  { border-color: $bd-a-color;  background: #eff6ff; }
+            &--b  { border-color: $bd-b-color;  background: #fffbeb; }
+            &--c  { border-color: $bd-c-color;  background: #fef2f2; }
+        }
+
+        .bd-conducta__bimestre { font-size: 5.5pt; }
+        .bd-conducta__literal  { font-size: 12pt; }
+    }
 }
 
 // ══════════════════════════════════════════════════════════════

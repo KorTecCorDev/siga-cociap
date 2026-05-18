@@ -1,8 +1,9 @@
 <?php
 /**
- * @var array      $hijo
- * @var array      $periodo
- * @var array      $areas
+ * @var array       $hijo
+ * @var array       $periodo
+ * @var array       $areas
+ * @var string|null $conducta   Literal de conducta del periodo activo (null = sin nota)
  */
 ?>
 
@@ -133,4 +134,24 @@
         </div>
     <?php endforeach; ?>
 
+<?php endif; ?>
+
+<?php if ($conducta !== null): ?>
+<div class="competencia-card mb-md competencia-card--conducta">
+    <div class="competencia-card__header">
+        <h3 class="competencia-card__nombre">Conducta</h3>
+    </div>
+    <div class="competencia-card__body">
+        <div class="nota-competencia">
+            <div class="nota-competencia__nombre">
+                Comportamiento — <?= e($periodo['nombre_display']) ?>
+            </div>
+            <div class="nota-competencia__resultado">
+                <span class="nota-literal nota-literal--<?= strtolower($conducta) ?> nota-literal--lg">
+                    <?= e($conducta) ?>
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
 <?php endif; ?>

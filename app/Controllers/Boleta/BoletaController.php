@@ -4,12 +4,14 @@ namespace App\Controllers\Boleta;
 
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
+use App\Models\ConductaModel;
 use Core\Session;
 use Core\View;
 
 class BoletaController extends BaseController
 {
     private CalificacionModel $calModel;
+    private ConductaModel     $conductaModel;
 
     public function __construct()
     {
@@ -21,7 +23,8 @@ class BoletaController extends BaseController
             'secretaria',
             'padre',
         ]);
-        $this->calModel = new CalificacionModel();
+        $this->calModel      = new CalificacionModel();
+        $this->conductaModel = new ConductaModel();
     }
 
     /**
@@ -89,6 +92,7 @@ class BoletaController extends BaseController
             'alumno'      => $alumno,
             'periodos'    => $periodos,
             'areas'       => $this->buildAreasConBimestres($datosPorPeriodo, $periodos),
+            'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, $periodo['anio_id']),
             'institucion' => config('institucion'),
         ];
     }
@@ -178,7 +182,7 @@ class BoletaController extends BaseController
                         'nombre'    => trim(
                             $prefijoSubarea .
                             ($nota['codigo_minedu'] ? $nota['codigo_minedu'] . '. ' : '') .
-                            ($nota['competencia_nombre'] ?? '')
+                            ($nota['nombre_corto'] ?? $nota['competencia_nombre'] ?? '')
                         ),
                         'bimestres' => [],
                     ];

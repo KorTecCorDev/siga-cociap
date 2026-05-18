@@ -8,6 +8,7 @@
  * @var array  $areas       areas[nombre][comp_id]
  *                            = { nombre, bimestres[pid]{nota,literal,conclusion},
  *                                literal_final }
+ * @var array  $conducta    [periodo_id => literal]  (vacío si no hay notas de conducta)
  * @var string $institucion
  * @var string $url_boleta  URL completa de esta vista para el QR
  */
@@ -81,6 +82,9 @@ unset($_n, $_c);
         <div class="bd-header__info">
             <p class="bd-header__ugel">MINEDU · DRE Áncash · UGEL Huaraz</p>
             <h1 class="bd-header__colegio"><?= e($institucion ?? '') ?></h1>
+            <p class="bd-header__modular">
+                Cód. Modular: <?= $esSecundaria ? '1310044 - 0' : '1719525 - 0' ?>
+            </p>
             <p class="bd-header__titulo">Informe de Progreso de las Competencias del Estudiante</p>
         </div>
         <div class="bd-header__meta">
@@ -312,6 +316,24 @@ unset($_n, $_c);
             <?php endforeach; ?>
         </section>
 
+        <?php endif; ?>
+
+        <?php if (!empty($conducta)): ?>
+        <section class="bd-conducta" aria-label="Conducta">
+            <h2 class="bd-conducta__titulo">Conducta</h2>
+            <div class="bd-conducta__fila">
+                <?php foreach ($periodos as $p):
+                    $clit = $conducta[$p['id']] ?? null;
+                ?>
+                    <div class="bd-conducta__celda <?= $clit ? 'bd-conducta__celda--' . strtolower($clit) : 'bd-conducta__celda--vacia' ?>">
+                        <span class="bd-conducta__bimestre"><?= e($p['nombre_display']) ?></span>
+                        <span class="bd-conducta__literal">
+                            <?= $clit ? e($clit) : '—' ?>
+                        </span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </section>
         <?php endif; ?>
     </main>
 
