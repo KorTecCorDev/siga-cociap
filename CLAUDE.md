@@ -42,7 +42,9 @@ siga-cociap/
 │   ├── app.php
 │   └── database.php  ← NO está en Git (.gitignore)
 ├── database/
-│   ├── backup_13_05_2026.sql ← Back up de la base de datos hasta la fecha 13/05/2026 
+│   ├── backup_13_05_2026.sql ← Back up de la base de datos hasta la fecha 13/05/2026
+│   └── seeds/
+│       └── 003_demo_boletas.sql ← NUEVO (sesión 4) escenarios completos para presentación
 ├── public/
 │   ├── index.php    ← front controller único
 │   ├── .htaccess
@@ -51,7 +53,9 @@ siga-cociap/
 │   │   ├── auth.js
 │   │   ├── boleta-digital.js                 ← NUEVO (sesión 3)
 │   │   ├── calificaciones.js
-│   │   └── resumen.js
+│   │   ├── cargas.js
+│   │   ├── resumen.js
+│   │   └── secciones.js                      ← NUEVO (sesión 4)
 │   └── assets/
 │       ├── img/logo_cociap.png   ← logo del colegio
 │       ├── fonts/inter/          ← fuente Inter local
@@ -68,6 +72,7 @@ siga-cociap/
 │       │                                      ← digital.php NUEVO (sesión 3)
 │       ├── auth/login.php
 │       ├── admin/usuarios/(index, crear, editar).php  ← NUEVO (sesión 3)
+│       ├── admin/secciones/index.php                 ← NUEVO (sesión 4)
 │       ├── dashboard/index.php
 │       ├── boleta/(alumno.php, digital.php)   ← digital.php NUEVO (sesión 3)
 │       ├── docente/(mis-cargas, calificaciones, resumen-competencia)
@@ -100,6 +105,18 @@ bloqueos_competencia
 6. seeds/002_completar_sistema.sql
 ```
 Los seeds 003 y 004 son solo para desarrollo/testing, no van en producción.
+
+## Seed de demostración para presentación (sesión 4)
+```
+database/seeds/003_demo_boletas.sql
+```
+Ejecutar sobre la BD con el backup_13_05_2026.sql ya cargado.
+Cubre tres escenarios completos (boleta imprimible + digital):
+- **E1** Sec 1 (1°P A, unidocente) → matriculas 1-5, periodo 1
+- **E2** Sec 13 (1°S A, con Taller Raz. Mat.) → matriculas 78-82, periodo 1
+- **E3** Sec 20 (4°S A, Arte=Raz.Mat.) → matriculas 106-110, periodo 1
+URLs de boleta: `/boleta/{mat_id}/1` y `/boleta/digital/{mat_id}/1`
+También corrige bloqueos erróneos de carga 38 (comp 54/55 → 56/57).
 
 ## Migración de limpieza (solo sobre DB existente, no en setup desde cero)
 ```
@@ -281,19 +298,64 @@ por seeds aplicados con FOREIGN_KEY_CHECKS=0. No afecta datos reales
 - Orden de rutas en `routes/web.php`: `/boleta/digital/{id}/{id}` debe ir ANTES
   de `/boleta/{id}/{id}` para que el router no capture "digital" como parámetro.
 
-## Pendientes al 10 de mayo 2026
+## Módulo de secciones y tutores (sesión 4)
+- **Rutas:** `GET /admin/secciones`, `POST /admin/secciones/{id}/tutor`
+- **Rol requerido:** solo `admin`
+- **Controlador:** `app/Controllers/Admin/SeccionController.php`
+- **Modelo:** `app/Models/SeccionModel.php`
+- **Vista:** `resources/views/admin/secciones/index.php`
+- **JS fuente:** `resources/js/secciones.js` → compilado a `public/js/secciones.js`
+
+### Características del módulo
+- Tabla de secciones agrupada por nivel (separador de fila por nivel)
+- Botón "Asignar" / "Cambiar" abre modal con select dinámico
+- El select filtra docentes: solo muestra disponibles (sin tutoría en otra sección del año activo)
+- La carga transversal se crea/actualiza/desactiva automáticamente al asignar/quitar tutor
+- `SeccionModel::listarDocentes()` incluye subquery `tutor_seccion_id` para filtrar disponibles
+- `SeccionController` serializa docentes como JSON (`$docentesJson`) para el select dinámico
+- Los datos JSON se embeben en un `<div id="modalTutorData" data-docentes="...">` en la vista
+- El JS lee el JSON y reconstruye el `<select>` cada vez que se abre el modal
+
+### Fuentes Inter (@font-face)
+- Las rutas en `_typography.scss` usan path relativo `../assets/fonts/inter/`
+  (relativo al CSS compilado en `public/css/`). NO usar rutas absolutas con
+  `/siga-cociap/public/...` — no funcionan en todos los entornos.
+
+## Fixes importantes aplicados (sesión 4)
+- **Comillas tipográficas en PHP** — `resources/views/admin/secciones/index.php`
+  tenía comillas U+201D (`"`) en atributos HTML del botón de asignación en lugar de
+  comillas ASCII U+0022 (`"`). El parser HTML las trata como texto, no como delimitadores
+  de atributo → todos los `data-*` quedaban rotos → `SyntaxError` en el browser.
+  **Diagnóstico:** `node -e "const src=require('fs').readFileSync('file.php','utf8');
+  for(let i=0;i<src.length;i++){const c=src.charCodeAt(i);if(c===0x201C||c===0x201D)
+  console.log('linea',src.substring(0,i).split('\\n').length,src[i]);}"` 
+  **Fix:** `src.replace(/[""]/g, '"')` y reescribir el archivo.
+- **`data-label` con guillemets** — el atributo usaba `«»` literales que `e()` no escapa.
+  Corregido a `data-label="<?= e($s['grado_numero'] . $s['seccion_nombre']) ?>"` 
+  (formato `1A`, `2B`, etc. — simple y sin caracteres especiales).
+- **Fuentes Inter 404** — `@font-face` usaba rutas absolutas con `/siga-cociap/public/`.
+  Corregido a rutas relativas `../assets/fonts/inter/` en `_typography.scss`.
+
+## Pendientes al 18 de mayo 2026
 - [x] Boleta de calificaciones imprimible A4 ← completado sesión 2
 - [x] Boleta digital mobile-first con QR ← completado sesión 3
-- [x] Botón "Ver boleta digital" en panel del padre (T5) ← completado sesión 3
+- [x] Botón "Ver boleta digital" en panel del padre ← completado sesión 3
 - [x] Gestión de usuarios (CRUD admin) ← completado sesión 3
-- [ ] Parámetros del director (año académico, periodos, secciones)
+- [x] Módulo secciones y tutores (modal asignación) ← completado sesión 4
+- [x] Seed de escenarios de boleta para demo ← completado sesión 4
+- [ ] Asignar tutores a secciones de primaria 1°B-6°B (actualmente sin tutor)
+- [ ] Cargas académicas para primaria desde interfaz director (actualmente solo por BD)
+- [ ] Verificar boleta impresa en RICOH MP4054 PCL6 (márgenes, paginación)
+- [ ] Verificar acceso desde red local del colegio
+- [ ] Módulo director: activar/cerrar periodos visualmente
+- [ ] Vista de control: secciones con competencias aún sin bloquear
 - [ ] Cargar datos reales del COCIAP
-- [ ] Pruebas con datos reales
 - [ ] Video tutorial para docentes
 - [ ] Deploy en servidor del colegio
 
-## Meta: sistema listo para el 15 de mayo 2026
-Los docentes subirán notas del I Bimestre el 16-17 de mayo 2026.
+## Meta actualizada: presentación al comité directivo
+Docentes subieron notas del I Bimestre el 16-17 de mayo 2026.
+Presentación pendiente al comité directivo — seed de demo listo en `database/seeds/003_demo_boletas.sql`.
 
 ## Notas importantes
 - `config/database.php` NO está en Git — crear manualmente en cada equipo
