@@ -93,14 +93,14 @@ $nombreTutor = function (?array $s): string {
                             <span class="tutor-sin-asignar">Sin tutor asignado</span>
                         <?php endif; ?>
                     </td>
-                    <td class=”text-right”>
-                        <button type=”button”
-                                class=”btn btn--sm <?= $s['tutor_id'] ? 'btn--secondary' : 'btn--primary' ?>”
-                                onclick=”abrirModalTutor(this)”
-                                data-seccion-id=”<?= (int)$s['id'] ?>”
-                                data-tutor-id=”<?= (int)($s['tutor_id'] ?? 0) ?>”
-                                data-label=”<?= e($s['grado_nombre'] . ' «' . $s['seccion_nombre'] . '»') ?>”
-                                data-nivel=”<?= e($s['nivel_nombre']) ?>”>
+                    <td class="text-right">
+                        <button type="button"
+                                class="btn btn--sm <?= $s['tutor_id'] ? 'btn--secondary' : 'btn--primary' ?>"
+                                onclick="abrirModalTutor(this)"
+                                data-seccion-id="<?= (int)$s['id'] ?>"
+                                data-tutor-id="<?= (int)($s['tutor_id'] ?? 0) ?>"
+                                data-label="<?= e($s['grado_numero'] . $s['seccion_nombre']) ?>"
+                                data-nivel="<?= e($s['nivel_nombre']) ?>">
                             <?= $s['tutor_id'] ? 'Cambiar' : 'Asignar' ?>
                         </button>
                     </td>

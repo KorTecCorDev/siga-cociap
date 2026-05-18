@@ -29,7 +29,9 @@
       "Bash(npx sass *)",
       "Bash(php -r ' *)",
       "Bash(Select-String -Path \"C:\\\\xampp\\\\htdocs\\\\siga-cociap\\\\public\\\\css\\\\app.css\" -Pattern \"\\\\.btn\")",
-      "Bash(Select-Object -First 5)"
+      "Bash(Select-Object -First 5)",
+      "Bash(powershell *)",
+      "Bash(node *)"
     ]
   }
 }
