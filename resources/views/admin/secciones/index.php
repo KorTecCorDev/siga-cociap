@@ -1,9 +1,9 @@
 <?php
 /**
- * @var array $secciones  [{ id, seccion_nombre, grado_nombre, nivel_nombre, nivel_id,
- *                           tutor_id, tutor_apellido_paterno, tutor_apellido_materno,
- *                           tutor_nombres, tutor_dni, total_matriculados, es_unidocente }]
- * @var array $docentes   [{ id, apellido_paterno, apellido_materno, nombres, dni }]
+ * @var array $secciones    [{ id, seccion_nombre, grado_nombre, nivel_nombre, nivel_id,
+ *                             tutor_id, tutor_apellido_paterno, tutor_apellido_materno,
+ *                             tutor_nombres, tutor_dni, total_matriculados, es_unidocente }]
+ * @var array $docentesJson [{ id, nombre, dni, seccionId, inactivo }]
  */
 
 $nivelActual = null;
@@ -131,13 +131,10 @@ $nombreTutor = function (?array $s): string {
                 <label class="form-label" for="tutor_id">Docente tutora/tutor</label>
                 <select name="tutor_id" id="tutor_id" class="form-select">
                     <option value="">— Quitar tutor —</option>
-                    <?php foreach ($docentes as $d): ?>
-                    <option value="<?= (int) $d['id'] ?>"<?= !empty($d['inactivo']) ? ' data-inactivo="1"' : '' ?>>
-                        <?= e(mb_strtoupper($d['apellido_paterno']) . ' ' . mb_strtoupper($d['apellido_materno']) . ', ' . $d['nombres']) ?>
-                        &nbsp;(<?= e($d['dni']) ?>)<?= !empty($d['inactivo']) ? ' — inactivo' : '' ?>
-                    </option>
-                    <?php endforeach; ?>
                 </select>
+                <div id="modalTutorData"
+                     data-docentes="<?= e(json_encode($docentesJson, JSON_UNESCAPED_UNICODE)) ?>"
+                     hidden></div>
 
                 <p class="text-sm text-muted mt-2">
                     Al asignar un tutor se crea automáticamente su carga de

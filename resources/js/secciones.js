@@ -14,10 +14,9 @@ function abrirModalTutor(btn) {
     var label         = btn.getAttribute('data-label')    || '';
     var nivel         = btn.getAttribute('data-nivel')    || '';
 
-    // PHP escribe "0" cuando no hay tutor; en JS "0" es truthy
     if (tutorActualId === '0') tutorActualId = '';
 
-    // Título dinámico según si hay tutor o no
+    // Título dinámico
     document.querySelector('#modalTutor .modal-title').textContent =
         tutorActualId ? 'Cambiar tutor' : 'Asignar tutor';
 
@@ -28,29 +27,39 @@ function abrirModalTutor(btn) {
     badge.className   = 'modal-nivel-badge modal-nivel-badge--' +
         (nivel.toLowerCase().indexOf('prim') !== -1 ? 'primaria' : 'secundaria');
 
-    // Acción dinámica del formulario
+    // Acción del formulario
     document.getElementById('formTutor').action =
         BASE + '/admin/secciones/' + seccionId + '/tutor';
 
-    // Pre-seleccionar tutor actual y marcar "(actual)"
-    var sel = document.getElementById('tutor_id');
-    for (var i = 0; i < sel.options.length; i++) {
-        sel.options[i].text = sel.options[i].text.replace(/\s*\(actual\)$/, '');
-    }
-    sel.value = tutorActualId;
-    if (tutorActualId) {
-        for (var j = 0; j < sel.options.length; j++) {
-            if (sel.options[j].value === tutorActualId) {
-                sel.options[j].text += ' (actual)';
-                break;
-            }
-        }
-    }
+    // Reconstruir select con solo los docentes disponibles
+    var sel      = document.getElementById('tutor_id');
+    var docentes = JSON.parse(
+        document.getElementById('modalTutorData').dataset.docentes
+    );
 
-    // Limpiar feedback de la apertura anterior
+    sel.innerHTML = '<option value="">— Quitar tutor —</option>';
+
+    docentes.forEach(function (d) {
+        var esTutorActual  = String(d.id) === tutorActualId;
+        var estaDisponible = d.seccionId === 0;
+
+        // Mostrar solo disponibles y el tutor actual de esta sección
+        if (!estaDisponible && !esTutorActual) return;
+        // Inactivos: solo si son el tutor actual
+        if (d.inactivo && !esTutorActual) return;
+
+        var opt  = document.createElement('option');
+        opt.value = d.id;
+        var texto = d.nombre + ' (' + d.dni + ')';
+        if (d.inactivo)    texto += ' — inactivo';
+        if (esTutorActual) texto += ' (actual)';
+        opt.textContent = texto;
+        sel.appendChild(opt);
+    });
+
+    if (tutorActualId) sel.value = tutorActualId;
+
     _setFeedback('', '');
-
-    // Restaurar botón por si quedó deshabilitado
     var btnEnv = document.querySelector('#formTutor [type="submit"]');
     if (btnEnv) {
         btnEnv.disabled    = false;

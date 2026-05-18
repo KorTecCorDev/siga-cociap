@@ -33,15 +33,27 @@ class SeccionController extends BaseController
                     'apellido_materno' => $s['tutor_apellido_materno'] ?? '',
                     'nombres'          => $s['tutor_nombres'] ?? '',
                     'dni'              => $s['tutor_dni'] ?? '',
+                    'tutor_seccion_id' => $s['id'],
                     'inactivo'         => true,
                 ];
             }
         }
 
+        // JSON con los docentes para el select dinámico del modal
+        $docentesJson = array_map(fn($d) => [
+            'id'        => (int) $d['id'],
+            'nombre'    => mb_strtoupper($d['apellido_paterno'] ?? '') . ' '
+                         . mb_strtoupper($d['apellido_materno'] ?? '') . ', '
+                         . ($d['nombres'] ?? ''),
+            'dni'       => $d['dni'] ?? '',
+            'seccionId' => (int) ($d['tutor_seccion_id'] ?? 0),
+            'inactivo'  => !empty($d['inactivo']),
+        ], $docentes);
+
         $this->view('admin/secciones/index', [
             'titulo'       => 'Secciones y Tutores',
             'secciones'    => $secciones,
-            'docentes'     => $docentes,
+            'docentesJson' => $docentesJson,
             'page_scripts' => ['secciones'],
         ]);
     }

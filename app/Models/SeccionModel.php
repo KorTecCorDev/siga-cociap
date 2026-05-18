@@ -49,7 +49,14 @@ class SeccionModel extends BaseModel
                 p.apellido_paterno,
                 p.apellido_materno,
                 p.nombres,
-                p.dni
+                p.dni,
+                (
+                    SELECT s.id FROM secciones s
+                    INNER JOIN anios_academicos a ON a.id = s.anio_id
+                    WHERE s.tutor_id = u.id
+                      AND a.estado IN ('planificado', 'activo')
+                    LIMIT 1
+                ) AS tutor_seccion_id
             FROM usuarios u
             INNER JOIN personas p ON p.id = u.persona_id
             INNER JOIN roles r    ON r.id = u.rol_id
