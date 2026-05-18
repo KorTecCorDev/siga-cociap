@@ -110,13 +110,20 @@ Los seeds 003 y 004 son solo para desarrollo/testing, no van en producción.
 ```
 database/seeds/003_demo_boletas.sql
 ```
-Ejecutar sobre la BD con el backup_13_05_2026.sql ya cargado.
+Ejecutar UNA SOLA VEZ sobre la BD restaurada desde **backup_18_05_2026.sql**.
 Cubre tres escenarios completos (boleta imprimible + digital):
-- **E1** Sec 1 (1°P A, unidocente) → matriculas 1-5, periodo 1
-- **E2** Sec 13 (1°S A, con Taller Raz. Mat.) → matriculas 78-82, periodo 1
-- **E3** Sec 20 (4°S A, Arte=Raz.Mat.) → matriculas 106-110, periodo 1
+- **E1** Sec 1 (1°P A, unidocente user 21) → matriculas 1-5, periodo 1. Notas curadas AD/A/B/C.
+- **E2** Sec 13 (1°S A, Taller Raz. Mat.) → matriculas 78-82, periodo 1. Notas REALES de docentes. Solo agrega Economía, Ed. Religiosa y bloqueo EPT.
+- **E3** Sec 20 (4°S A, Arte=Raz.Mat.) → matriculas 106-110, periodo 1. Notas curadas AD/A/B/C.
 URLs de boleta: `/boleta/{mat_id}/1` y `/boleta/digital/{mat_id}/1`
 También corrige bloqueos erróneos de carga 38 (comp 54/55 → 56/57).
+
+### Correcciones estructurales del seed (sesión 5 — backup 18/05)
+- **cargas_academicas sin UNIQUE KEY** → usa `INSERT INTO ... WHERE NOT EXISTS` para todas las cargas
+- **E1 docente correcto**: user 21 (no 4); carga 44 ya existe como transversal de sec 1
+- **E2 cargas hardcodeadas**: usa IDs reales del backup (1-12, 17, 20, 21, 26, 28, 29, 42, 43). Solo inserta Economía (subarea 13) y Ed. Religiosa (area 14) como cargas nuevas
+- **Bug carga 8 corregido**: carga 8 pertenece a sec 23 (5°S B), no a sec 13. Se eliminó toda referencia cruzada errónea
+- **E2 calificaciones preservadas**: las notas reales ingresadas el 16-17/05 se mantienen via INSERT IGNORE
 
 ## Migración de limpieza (solo sobre DB existente, no en setup desde cero)
 ```
