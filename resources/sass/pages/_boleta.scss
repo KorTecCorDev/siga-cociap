@@ -362,6 +362,74 @@ body.boleta-body {
 }
 
 // ════════════════════════════════════════════════════════════
+// QR DE BOLETA DIGITAL
+// ════════════════════════════════════════════════════════════
+.boleta-qr-wrap {
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+    margin-top: 2mm;
+    padding: 2mm 3mm;
+    border: 0.5pt solid $c-borde;
+    border-radius: 2mm;
+    width: fit-content;
+}
+
+.boleta-qr {
+    flex-shrink: 0;
+    width: 72px;
+    height: 72px;
+
+    canvas, img, table {
+        display: block;
+        max-width: 72px;
+        max-height: 72px;
+    }
+
+    @media print {
+        width: 18mm;
+        height: 18mm;
+
+        canvas, img, table {
+            max-width: 18mm;
+            max-height: 18mm;
+        }
+    }
+}
+
+.boleta-qr-info {
+    &__titulo {
+        font-size: 7pt;
+        font-weight: bold;
+        color: #1a3a5c;
+        margin: 0 0 0.5mm;
+    }
+
+    &__sub {
+        font-size: 6pt;
+        color: #666;
+        margin: 0 0 1mm;
+    }
+
+    &__url {
+        font-size: 5.5pt;
+        color: #555;
+        word-break: break-all;
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// SALTO DE PÁGINA (para impresión masiva)
+// ════════════════════════════════════════════════════════════
+.boleta-salto-pagina {
+    page-break-after: always;
+    break-after: page;
+    height: 0;
+    margin: 0;
+    padding: 0;
+}
+
+// ════════════════════════════════════════════════════════════
 // PIE DE PÁGINA — FIRMAS
 // ════════════════════════════════════════════════════════════
 .boleta-footer {

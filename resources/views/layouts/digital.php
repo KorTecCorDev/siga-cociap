@@ -12,6 +12,7 @@
 
     <?= $content ?>
 
+    <script src="<?= url('js/qrcode.min.js') ?>"></script>
     <script src="<?= url('js/boleta-digital.js') ?>"></script>
 </body>
 </html>

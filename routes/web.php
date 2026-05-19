@@ -83,6 +83,18 @@ $router->get('/padre/inicio',  'Padre\PanelController@index');
 $router->get('/padre/notas',   'Padre\PanelController@notas');
 $router->get('/padre/alertas', 'Padre\PanelController@alertas');
 
+// ─── Boletas públicas SIN login ──────────────────────────────
+// Registrar ANTES de /boleta/{id} para que el router no capture "publica" como parámetro
+$router->get( '/boleta-publica',            'BoletaPublicaController@formulario');
+$router->post('/boleta-publica/consultar',  'BoletaPublicaController@consultar');
+
+// ─── Admin — Boletas públicas ────────────────────────────────
+$router->get( '/admin/boletas-publicas',                        'Admin\BoletaPublicaController@index');
+$router->get( '/admin/boletas-publicas/{periodo_id}',           'Admin\BoletaPublicaController@porPeriodo');
+$router->post('/admin/boletas-publicas/{periodo_id}/generar',   'Admin\BoletaPublicaController@generar');
+$router->get( '/admin/boletas-publicas/{periodo_id}/imprimir',       'Admin\BoletaPublicaController@imprimir');
+$router->get( '/admin/boletas-publicas/{periodo_id}/boletas-alumno', 'Admin\BoletaPublicaController@boletasAlumno');
+
 // ─── Boleta de calificaciones ────────────────────────────────
 // La ruta literal /boleta/digital/... debe ir antes del patrón con parámetros
 $router->get('/boleta/digital/{matricula_id}/{periodo_id}', 'Boleta\BoletaController@verDigital');

@@ -1,88 +1,93 @@
 <?php
 
-namespace App\Controllers\Boleta;
+namespace App\Controllers;
 
-use App\Controllers\BaseController;
+use App\Models\BoletaPublicaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
-use Core\Session;
 use Core\View;
 
-class BoletaController extends BaseController
+class BoletaPublicaController extends BaseController
 {
-    private CalificacionModel $calModel;
-    private ConductaModel     $conductaModel;
+    private BoletaPublicaModel $bpModel;
+    private CalificacionModel  $calModel;
+    private ConductaModel      $conductaModel;
 
     public function __construct()
     {
-        $this->requireRole([
-            'admin',
-            'director_general',
-            'director_ebr',
-            'registro_academico',
-            'secretaria',
-            'padre',
-        ]);
+        // Sin requireAuth() ni requireRole() — acceso público sin login
+        $this->bpModel       = new BoletaPublicaModel();
         $this->calModel      = new CalificacionModel();
         $this->conductaModel = new ConductaModel();
     }
 
-    /**
-     * GET /boleta/{matricula_id}/{periodo_id}
-     * Muestra la boleta anual con los 4 bimestres del año académico.
-     */
-    public function ver($matriculaId, $periodoId): void
+    /** GET /boleta-publica — formulario para ingresar código */
+    public function formulario(): void
     {
-        $data = $this->buildBoletaData((int) $matriculaId, (int) $periodoId);
-
-        View::setLayout('print');
-        $this->view('boleta/alumno', array_merge($data, [
-            'titulo'     => 'Boleta — ' . $data['alumno']['nombre_completo'],
-            'url_boleta' => url("boleta/digital/{$matriculaId}/{$periodoId}"),
-        ]));
-    }
-
-    /**
-     * GET /boleta/digital/{matricula_id}/{periodo_id}
-     * Vista digital mobile-first con conclusiones completas y QR.
-     */
-    public function verDigital($matriculaId, $periodoId): void
-    {
-        $matriculaId = (int) $matriculaId;
-        $periodoId   = (int) $periodoId;
-        $data        = $this->buildBoletaData($matriculaId, $periodoId);
-
         View::setLayout('digital');
-        $this->view('boleta/digital', array_merge($data, [
-            'titulo'      => 'Boleta Digital — ' . $data['alumno']['nombre_completo'],
-            'url_boleta'  => url("boleta/digital/{$matriculaId}/{$periodoId}"),
-        ]));
+        $this->view('boleta-publica/formulario', [
+            'titulo'      => 'Consulta de Boleta',
+            'institucion' => config('institucion'),
+        ]);
     }
 
-    // ── Datos compartidos entre ver() y verDigital() ────────────
-
-    private function buildBoletaData(int $matriculaId, int $periodoId): array
+    /** POST /boleta-publica/consultar — valida código y renderiza boleta */
+    public function consultar(): void
     {
-        if (Session::hasRole('padre')) {
-            $hijo = $this->getHijoPadre(Session::user()['id']);
-            if (!$hijo || (int) $hijo['matricula_id'] !== $matriculaId) {
-                http_response_code(403);
-                $this->view('shared/403');
-                exit;
-            }
+        $this->validateCsrf();
+
+        $codigo = trim(strtoupper($_POST['codigo_acceso'] ?? ''));
+
+        if (empty($codigo)) {
+            $this->mostrarFormularioConError('Ingresa un código de acceso.', $codigo);
+            return;
         }
 
+        $registro = $this->bpModel->getPorCodigo($codigo);
+
+        if (!$registro) {
+            $this->mostrarFormularioConError('Código no válido. Verifica e intenta de nuevo.', $codigo);
+            return;
+        }
+
+        $matriculaId = (int) $registro['matricula_id'];
+        $periodoId   = (int) $registro['periodo_id'];
+        $data        = $this->buildBoletaPublicaData($matriculaId, $periodoId);
+
+        if (!$data) {
+            $this->mostrarFormularioConError('No se pudo cargar la boleta. Contacta al colegio.', $codigo);
+            return;
+        }
+
+        View::setLayout('digital');
+        $this->view('boleta-publica/boleta', array_merge($data, [
+            'titulo'     => 'Boleta — ' . $data['alumno']['nombre_completo'],
+            'url_boleta' => url('boleta-publica') . '?codigo=' . urlencode($codigo),
+            'codigo'     => $codigo,
+        ]));
+    }
+
+    // ── Helpers privados ────────────────────────────────────────
+
+    private function mostrarFormularioConError(string $error, string $codigo): void
+    {
+        View::setLayout('digital');
+        $this->view('boleta-publica/formulario', [
+            'titulo'      => 'Consulta de Boleta',
+            'institucion' => config('institucion'),
+            'error'       => $error,
+            'codigo'      => $codigo,
+        ]);
+    }
+
+    private function buildBoletaPublicaData(int $matriculaId, int $periodoId): ?array
+    {
         $alumno  = $this->getAlumno($matriculaId);
         $periodo = $this->getPeriodo($periodoId);
 
-        if (!$alumno || !$periodo) {
-            $this->redirectWithError(
-                url('dashboard'),
-                'No se encontró la boleta solicitada.'
-            );
-        }
+        if (!$alumno || !$periodo) return null;
 
-        $periodos = $this->getPeriodosDelAnio($periodo['anio_id']);
+        $periodos = $this->getPeriodosDelAnio((int) $periodo['anio_id']);
 
         $datosPorPeriodo = [];
         foreach ($periodos as $p) {
@@ -93,12 +98,10 @@ class BoletaController extends BaseController
             'alumno'      => $alumno,
             'periodos'    => $periodos,
             'areas'       => $this->buildAreasConBimestres($datosPorPeriodo, $periodos),
-            'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, $periodo['anio_id']),
+            'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, (int) $periodo['anio_id']),
             'institucion' => config('institucion'),
         ];
     }
-
-    // ── Queries privadas ────────────────────────────────────────
 
     private function getAlumno(int $matriculaId): ?array
     {
@@ -121,12 +124,12 @@ class BoletaController extends BaseController
                 n.escala_boleta,
                 a.anio              AS anio_academico
             FROM matriculas m
-            INNER JOIN estudiantes e        ON e.id = m.estudiante_id
-            INNER JOIN personas p           ON p.id = e.persona_id
-            INNER JOIN secciones s          ON s.id = m.seccion_id
-            INNER JOIN grados g             ON g.id = s.grado_id
-            INNER JOIN niveles n            ON n.id = g.nivel_id
-            INNER JOIN anios_academicos a   ON a.id = m.anio_id
+            INNER JOIN estudiantes e       ON e.id = m.estudiante_id
+            INNER JOIN personas p          ON p.id = e.persona_id
+            INNER JOIN secciones s         ON s.id = m.seccion_id
+            INNER JOIN grados g            ON g.id = s.grado_id
+            INNER JOIN niveles n           ON n.id = g.nivel_id
+            INNER JOIN anios_academicos a  ON a.id = m.anio_id
             WHERE m.id = ?
             LIMIT 1
         ", [$matriculaId]);
@@ -135,11 +138,8 @@ class BoletaController extends BaseController
     private function getPeriodo(int $periodoId): ?array
     {
         return $this->calModel->queryOne("
-            SELECT
-                p.id,
-                p.anio_id,
-                a.anio,
-                CONCAT(p.nombre_display, ' — ', a.anio) AS nombre_display
+            SELECT p.id, p.anio_id, a.anio,
+                   CONCAT(p.nombre_display, ' — ', a.anio) AS nombre_display
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id
             WHERE p.id = ?
@@ -157,10 +157,6 @@ class BoletaController extends BaseController
         ", [$anioId]);
     }
 
-    /**
-     * Reorganiza los datos planos por periodo en una estructura
-     * areas[nombre_area][comp_id] = { nombre, bimestres[periodo_id], literal_final }.
-     */
     private function buildAreasConBimestres(array $datosPorPeriodo, array $periodos): array
     {
         $areas     = [];
@@ -191,14 +187,13 @@ class BoletaController extends BaseController
 
                 $notaNum = isset($nota['nota_numerica']) ? (int) $nota['nota_numerica'] : null;
                 $areas[$nombreArea][$compId]['bimestres'][$periodoId] = [
-                    'nota'      => $notaNum,
-                    'literal'   => $notaNum !== null ? CalificacionModel::toLiteral($notaNum) : null,
-                    'conclusion'=> $nota['conclusion_descriptiva'] ?? null,
+                    'nota'       => $notaNum,
+                    'literal'    => $notaNum !== null ? CalificacionModel::toLiteral($notaNum) : null,
+                    'conclusion' => $nota['conclusion_descriptiva'] ?? null,
                 ];
             }
         }
 
-        // Calcular literal_final solo cuando los 4 bimestres tienen nota
         foreach ($areas as &$comps) {
             foreach ($comps as &$comp) {
                 $notasAnuales = [];
@@ -221,23 +216,5 @@ class BoletaController extends BaseController
         }
 
         return $areas;
-    }
-
-    private function getHijoPadre(int $usuarioId): ?array
-    {
-        return $this->calModel->queryOne("
-            SELECT m.id AS matricula_id
-            FROM usuarios u
-            INNER JOIN personas pa          ON pa.id = u.persona_id
-            INNER JOIN apoderados ap        ON ap.persona_id = pa.id
-            INNER JOIN vinculo_familiar vf  ON vf.apoderado_id = ap.id
-            INNER JOIN estudiantes e        ON e.id = vf.estudiante_id
-            INNER JOIN matriculas m         ON m.estudiante_id = e.id
-            INNER JOIN anios_academicos a   ON a.id = m.anio_id
-            WHERE u.id      = ?
-              AND a.estado  = 'activo'
-              AND m.estado  = 'aprobada'
-            LIMIT 1
-        ", [$usuarioId]);
     }
 }

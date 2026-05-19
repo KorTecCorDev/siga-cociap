@@ -12,8 +12,6 @@
  * @var string $institucion
  */
 
-use App\Models\CalificacionModel;
-
 $esSecundaria = ($alumno['escala_boleta'] === 'ambas');
 $hoy          = (new DateTime())->format('d/m/Y');
 
@@ -187,6 +185,40 @@ unset($_n, $_c);
     </tbody>
 </table>
 
+<?php endif; ?>
+
+<!-- ── QR de boleta digital ──────────────────────────────────── -->
+<?php if (!empty($url_boleta)): ?>
+<div class="boleta-qr-wrap">
+    <div class="boleta-qr" data-qr-url="<?= e($url_boleta) ?>"></div>
+    <div class="boleta-qr-info">
+        <p class="boleta-qr-info__titulo">Boleta digital</p>
+        <p class="boleta-qr-info__sub">Escanea para ver la versión digital</p>
+        <code class="boleta-qr-info__url"><?= e($url_boleta) ?></code>
+    </div>
+</div>
+<?php if (!defined('BOLETA_QR_SCRIPT_LOADED')): define('BOLETA_QR_SCRIPT_LOADED', true); ?>
+<script src="<?= url('js/qrcode.min.js') ?>"></script>
+<script>
+(function () {
+    function generarQRs() {
+        document.querySelectorAll('[data-qr-url]').forEach(function (el) {
+            if (el.dataset.qrInit) return;
+            el.dataset.qrInit = '1';
+            var u = el.getAttribute('data-qr-url');
+            if (u && typeof QRCode !== 'undefined') {
+                new QRCode(el, { text: u, width: 72, height: 72, correctLevel: QRCode.CorrectLevel.M });
+            }
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', generarQRs);
+    } else {
+        generarQRs();
+    }
+})();
+</script>
+<?php endif; ?>
 <?php endif; ?>
 
 <!-- ── Pie de página — firmas ────────────────────────────────── -->

@@ -19,8 +19,11 @@ siga-cociap/
 ├── app/
 │   ├── Controllers/
 │   │   ├── Admin/UsuarioController.php            ← NUEVO (sesión 3)
+│   │   ├── Admin/SeccionController.php             ← NUEVO (sesión 4)
+│   │   ├── Admin/BoletaPublicaController.php       ← NUEVO (sesión 6)
 │   │   ├── Auth/AuthController.php
 │   │   ├── Boleta/BoletaController.php
+│   │   ├── BoletaPublicaController.php             ← NUEVO (sesión 6) público sin login
 │   │   ├── Docente/CalificacionController.php
 │   │   ├── Director/OrdenMeritoController.php
 │   │   ├── Padre/PanelController.php
@@ -29,6 +32,8 @@ siga-cociap/
 │   ├── Models/
 │   │   ├── BaseModel.php
 │   │   ├── UsuarioModel.php
+│   │   ├── SeccionModel.php                        ← NUEVO (sesión 4)
+│   │   ├── BoletaPublicaModel.php                  ← NUEVO (sesión 6)
 │   │   ├── CalificacionModel.php
 │   │   └── CriterioModel.php
 │   ├── Middleware/AuthMiddleware.php
@@ -93,6 +98,7 @@ estudiantes, apoderados, vinculo_familiar
 matriculas, alertas
 criterios, calificaciones_criterio, calificaciones
 bloqueos_competencia
+boletas_publicas  ← NUEVO (sesión 6)
 ```
 
 ## Orden de ejecución SQL (setup desde cero)
@@ -222,11 +228,143 @@ por seeds aplicados con FOREIGN_KEY_CHECKS=0. No afecta datos reales
   ANTES del patrón `/boleta/{matricula_id}/...` en `routes/web.php`, o el router la captura
   primero con parámetros incorrectos.
 
-## Reglas especiales SIAGIE (secundaria)
+## Módulo de boletas públicas con código de acceso (sesión 6)
+
+### Propósito
+Durante el I Bimestre NO se dará acceso con login a los ~1000 padres.
+En su lugar: el admin genera boletas por bimestre, cada una con un
+**código de acceso único**, se imprimen con el código + QR y se entregan
+físicamente. El padre consulta la **boleta digital pública** (sin login)
+ingresando ese código o escaneando el QR.
+
+### Compatibilidad con lo existente
+Este módulo NO reemplaza nada. Reutiliza la infraestructura ya construida:
+- **Reutiliza** `CalificacionModel::getBoletaAlumno()` (ya filtra por
+  `bloqueos_competencia` — solo muestra competencias aprobadas).
+- **Reutiliza** `buildBoletaData()` y la vista `resources/views/boleta/digital.php`
+  ya existente de la sesión 3 — la boleta pública renderiza el mismo
+  componente `.bd-` pero a través de una ruta sin autenticación.
+- **No toca** las rutas `/boleta/{id}/{id}` ni `/boleta/digital/{id}/{id}`
+  existentes (esas siguen siendo para usuarios autenticados / padres).
+- El acceso público es una **capa nueva y paralela**, no una modificación.
+
+### Base de datos — nueva tabla
+`database/migrations/005_boletas_publicas.sql`
+```sql
+CREATE TABLE IF NOT EXISTS boletas_publicas (
+    id               INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    matricula_id     INT UNSIGNED NOT NULL,
+    periodo_id       SMALLINT UNSIGNED NOT NULL,
+    codigo_acceso    VARCHAR(30) NOT NULL UNIQUE,
+    veces_consultada INT UNSIGNED NOT NULL DEFAULT 0,
+    ultima_consulta  DATETIME NULL,
+    generada_en      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    generada_por     INT UNSIGNED NOT NULL,
+    UNIQUE KEY uq_matricula_periodo (matricula_id, periodo_id),
+    FOREIGN KEY (matricula_id) REFERENCES matriculas(id),
+    FOREIGN KEY (periodo_id)   REFERENCES periodos(id),
+    FOREIGN KEY (generada_por) REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+Formato del código: `COCIAP-2026-B1-XXXXXX` (XXXXXX = 6 alfanuméricos
+mayúsculos aleatorios, sin caracteres ambiguos: sin O/0/I/1/L).
+Insertar en orden de ejecución SQL después de `004_limpiar_datos_semilla.sql`.
+
+### Modelo nuevo
+`app/Models/BoletaPublicaModel.php` extiende `BaseModel`:
+- `generarCodigo(int $anio, int $numBimestre): string` — código único verificado
+- `generarMasivo(int $periodoId, int $usuarioId): int` — INSERT IGNORE para
+  todas las matrículas `aprobada` con ≥1 calificación bloqueada en el periodo
+- `getPorPeriodo(int $periodoId): array` — lista con estudiante, grado, sección
+- `getPorCodigo(string $codigo): ?array` — busca por código; si existe
+  incrementa `veces_consultada` y setea `ultima_consulta`; retorna
+  `matricula_id` + `periodo_id` para reutilizar `getBoletaAlumno()`
+
+### Controlador admin
+`app/Controllers/Admin/BoletaPublicaController.php`
+hereda `BaseController`, `requireRole(['admin','registro_academico'])`:
+- `index()` — `GET /admin/boletas-publicas` — selector de periodos
+- `porPeriodo($periodoId)` — `GET /admin/boletas-publicas/{periodo_id}`
+- `generar($periodoId)` — `POST /admin/boletas-publicas/{periodo_id}/generar`
+- `imprimir($periodoId)` — `GET /admin/boletas-publicas/{periodo_id}/imprimir`
+  usa `layouts/print.php`, una boleta por página con código + QR visibles
+
+### Controlador público (SIN login)
+`app/Controllers/BoletaPublicaController.php` hereda `BaseController`
+pero **NO** llama `requireAuth()` ni `requireRole()`:
+- `formulario()` — `GET /boleta-publica` — campo para ingresar código
+- `consultar()` — `POST /boleta-publica/consultar` — valida código,
+  reutiliza `CalificacionModel::getBoletaAlumno()`, renderiza la boleta
+  digital pública; código inválido → mensaje de error
+
+### Rutas (routes/web.php)
+```php
+// Boletas públicas SIN login — registrar ANTES de las rutas /boleta/{id}
+$router->get('/boleta-publica',           'BoletaPublicaController@formulario');
+$router->post('/boleta-publica/consultar','BoletaPublicaController@consultar');
+// Admin
+$router->get('/admin/boletas-publicas',                       'Admin\BoletaPublicaController@index');
+$router->get('/admin/boletas-publicas/{periodo_id}',          'Admin\BoletaPublicaController@porPeriodo');
+$router->post('/admin/boletas-publicas/{periodo_id}/generar', 'Admin\BoletaPublicaController@generar');
+$router->get('/admin/boletas-publicas/{periodo_id}/imprimir', 'Admin\BoletaPublicaController@imprimir');
+```
+**IMPORTANTE — orden de rutas:** igual que la lección de sesión 3 con
+`/boleta/digital`, las rutas literales `/boleta-publica` deben ir ANTES
+que cualquier patrón `/boleta/{matricula_id}/...` para que el router no
+capture "publica" como parámetro.
+
+### AuthMiddleware
+Agregar `/boleta-publica` y `/boleta-publica/consultar` al array de rutas
+públicas en `app/Middleware/AuthMiddleware.php` (junto a `/login`, etc.).
+
+### Vistas
+- `resources/views/admin/boletas-publicas/index.php` — selector periodos (layout app)
+- `resources/views/admin/boletas-publicas/periodo.php` — tabla + botón generar (layout app)
+- `resources/views/admin/boletas-publicas/imprimir.php` — `layouts/print.php`,
+  una boleta por página, código + QR visibles, page-break-after
+- `resources/views/boleta-publica/formulario.php` — `layouts/digital.php`,
+  diseño institucional simple, logo COCIAP, campo código + botón
+- `resources/views/boleta-publica/boleta.php` — `layouts/digital.php`,
+  reutiliza el componente `.bd-` de `boleta/digital.php` (boleta completa)
+
+### Estilos
+Reutilizar `_boleta-digital.scss` (componente `.bd-`). Solo agregar lo mínimo
+para el formulario de código en `_boleta-digital.scss` o un parcial nuevo
+`resources/sass/pages/_boleta-publica.scss` importado en `app.scss`.
+NUNCA CSS inline en PHP (convención del proyecto).
+
+### Reglas de negocio
+- Primaria: solo literal (AD/A/B/C). Secundaria: numeral + literal.
+- Solo competencias con docente que aprobó/bloqueó (ya lo garantiza
+  `getBoletaAlumno()` con su INNER JOIN a `bloqueos_competencia`).
+- Código permanente (no se regenera). Toda la boleta visible (no resumen).
+- QR vía `chart.googleapis.com` (mismo patrón que boleta digital sesión 3);
+  se oculta sin internet. El QR apunta a `/boleta-publica` con el código.
+- Vista pública sin sesión, sin navbar, sin datos de otros alumnos.
+- CSRF con `$this->validateCsrf()` en `POST /boleta-publica/consultar`.
+
+### Reglas especiales SIAGIE (secundaria)
 - **1°-3° sec:** Taller Raz. Matemático → se registra en Ed. Religiosa en SIAGIE
 - **4°-5° sec:** Raz. Matemático → se registra en Arte y Cultura en SIAGIE
 - **Todos los grados:** Ed. Religiosa tiene alias "(Ética y Valores)"
 - **Toda la secundaria:** EPT tiene alias "(Habilidades Pedagógicas)"
+
+## Decisiones de implementación — sesión 6 (boletas públicas)
+- **Sin herencia cruzada**: `BoletaPublicaController` (público) duplica `buildAreasConBimestres()`
+  y las queries privadas de `BoletaController` en lugar de extenderlo, para mantener los
+  contextos de auth completamente separados.
+- **Vista `boleta-publica/boleta.php`** usa `require VIEW_PATH . '/boleta/digital.php'`
+  directamente: reutiliza el componente `.bd-` sin duplicar HTML.
+- **`getPorCodigo` actualiza estadísticas** antes de retornar el registro; el contador
+  se incrementa en cada consulta real (POST), no en escaneos de QR previos.
+- **`generarMasivo` es idempotente**: verifica si ya existe `(matricula_id, periodo_id)`
+  antes de insertar → se puede llamar varias veces sin duplicar.
+- **Código formato** `COCIAP-{anio}-B{num}-XXXXXX` con 32 caracteres alfanuméricos
+  sin ambigüedad (sin O/0/I/1/L). `random_int()` garantiza entropía criptográfica.
+- **Rutas públicas** registradas antes de `/boleta/{id}/{id}` en `routes/web.php`
+  y en `AuthMiddleware::$publicRoutes` para que no requieran sesión.
+- **QR en imprimir**: apunta a `/boleta-publica?codigo=...` vía Google Charts API,
+  igual que la boleta digital de sesión 3.
 
 ## Convenciones de código
 - **Namespace:** `App\Controllers\`, `App\Models\`, `Core\`
@@ -350,6 +488,7 @@ por seeds aplicados con FOREIGN_KEY_CHECKS=0. No afecta datos reales
 - [x] Gestión de usuarios (CRUD admin) ← completado sesión 3
 - [x] Módulo secciones y tutores (modal asignación) ← completado sesión 4
 - [x] Seed de escenarios de boleta para demo ← completado sesión 4
+- [x] Módulo de boletas públicas con código de acceso ← completado sesión 6
 - [ ] Asignar tutores a secciones de primaria 1°B-6°B (actualmente sin tutor)
 - [ ] Cargas académicas para primaria desde interfaz director (actualmente solo por BD)
 - [ ] Verificar boleta impresa en RICOH MP4054 PCL6 (márgenes, paginación)

@@ -1,0 +1,393 @@
+// ============================================================
+// _boleta-publica.scss
+// Estilos para el formulario de consulta pública por código.
+// BEM prefix bpf- (formulario) y bpi- (imprimir admin).
+// ============================================================
+
+// ── Formulario público ──────────────────────────────────────
+
+.bpf-wrap {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: $spacing-lg $spacing-md;
+    background: $bg-secondary;
+}
+
+.bpf-header {
+    text-align: center;
+    margin-bottom: $spacing-xl;
+
+    &__logo {
+        width: 72px;
+        height: auto;
+        margin-bottom: $spacing-sm;
+    }
+
+    &__colegio {
+        font-size: $font-size-lg;
+        font-weight: 700;
+        color: $brand-dark;
+        margin: 0 0 $spacing-xs;
+    }
+
+    &__ugel {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin: 0 0 $spacing-xs;
+    }
+
+    &__titulo {
+        font-size: $font-size-base;
+        color: $text-secondary;
+        font-weight: 500;
+        margin: 0;
+    }
+}
+
+.bpf-main {
+    width: 100%;
+    max-width: 440px;
+}
+
+.bpf-card {
+    background: $bg-white;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-md;
+    padding: $spacing-xl;
+
+    &__desc {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        margin: 0 0 $spacing-lg;
+        line-height: 1.6;
+    }
+}
+
+.bpf-error {
+    background: $color-error-bg;
+    color: $color-error;
+    border: 1px solid lighten($color-error, 30%);
+    border-radius: $border-radius-sm;
+    padding: $spacing-sm $spacing-md;
+    font-size: $font-size-sm;
+    margin-bottom: $spacing-md;
+}
+
+.bpf-form {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+
+    &__label {
+        font-size: $font-size-sm;
+        font-weight: 500;
+        color: $text-primary;
+    }
+
+    &__input {
+        font-family: 'Courier New', monospace;
+        font-size: $font-size-base;
+        letter-spacing: 0.04em;
+        padding: $spacing-sm $spacing-md;
+        border: 2px solid $border-color;
+        border-radius: $border-radius-sm;
+        outline: none;
+        text-transform: uppercase;
+        transition: border-color 0.2s;
+
+        &:focus {
+            border-color: $brand-mid;
+        }
+
+        &--error {
+            border-color: $color-error;
+        }
+    }
+
+    &__btn {
+        margin-top: $spacing-sm;
+        padding: $spacing-sm $spacing-md;
+        background: $brand-mid;
+        color: $text-white;
+        border: none;
+        border-radius: $border-radius-sm;
+        font-size: $font-size-base;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+
+        &:hover {
+            background: darken($brand-mid, 8%);
+        }
+
+        &:active {
+            background: darken($brand-mid, 14%);
+        }
+    }
+}
+
+.bpf-ayuda {
+    text-align: center;
+    font-size: $font-size-sm;
+    color: $text-muted;
+    margin-top: $spacing-lg;
+}
+
+.bpf-footer {
+    margin-top: $spacing-xl;
+    font-size: $font-size-sm;
+    color: $text-muted;
+    text-align: center;
+}
+
+// ── Admin — vista periodo: estadísticas ─────────────────────
+
+.bp-periodos-grid {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+    padding: $spacing-md;
+}
+
+.bp-periodo-card {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    padding: $spacing-md;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-sm;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:hover {
+        background: $bg-secondary;
+        border-color: $brand-mid;
+    }
+
+    &__num {
+        font-size: $font-size-xl;
+        font-weight: 700;
+        color: $brand-mid;
+        min-width: 2.5rem;
+        text-align: center;
+    }
+
+    &__info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__nombre {
+        font-size: $font-size-base;
+        color: $text-primary;
+    }
+
+    &__anio {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &__badge {
+        margin-left: auto;
+    }
+
+    &__arrow {
+        color: $text-muted;
+        font-size: $font-size-base;
+    }
+}
+
+.bp-stats-bar {
+    display: flex;
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+}
+
+.bp-stat {
+    flex: 1;
+    background: $bg-white;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-sm;
+    padding: $spacing-md;
+    text-align: center;
+
+    &__num {
+        display: block;
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $brand-mid;
+    }
+
+    &__label {
+        display: block;
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin-top: $spacing-xs;
+    }
+}
+
+.bp-codigo {
+    font-family: 'Courier New', monospace;
+    font-size: $font-size-sm;
+    background: $bg-secondary;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: $brand-dark;
+    letter-spacing: 0.03em;
+}
+
+// ── Admin — impresión de tarjetas de código ─────────────────
+// Solo se activa en @media print / layout print
+
+.bpi-encabezado {
+    text-align: center;
+    margin-bottom: 12mm;
+    padding-bottom: 4mm;
+    border-bottom: 1px solid #ccc;
+
+    &__titulo {
+        font-size: 14pt;
+        font-weight: bold;
+        margin: 0 0 2mm;
+    }
+
+    &__sub {
+        font-size: 10pt;
+        color: #555;
+        margin: 0 0 2mm;
+    }
+
+    &__instruccion {
+        font-size: 8pt;
+        color: #777;
+        margin: 0;
+    }
+}
+
+.bpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6mm;
+}
+
+.bpi-tarjeta {
+    border: 1px solid #999;
+    border-radius: 3mm;
+    padding: 4mm;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    font-family: Arial, sans-serif;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        gap: 3mm;
+        padding-bottom: 3mm;
+        border-bottom: 1px solid #ddd;
+        margin-bottom: 3mm;
+    }
+
+    &__logo {
+        width: 28px;
+        height: auto;
+        flex-shrink: 0;
+    }
+
+    &__inst {
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__colegio {
+        font-size: 7pt;
+        font-weight: bold;
+        color: #1a3a5c;
+        line-height: 1.2;
+    }
+
+    &__periodo {
+        font-size: 6.5pt;
+        color: #555;
+    }
+
+    &__body {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 3mm;
+    }
+
+    &__datos {
+        flex: 1;
+        min-width: 0;
+    }
+
+    &__nombre {
+        font-size: 8pt;
+        font-weight: bold;
+        color: #111;
+        margin: 0 0 1mm;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__seccion {
+        font-size: 7pt;
+        color: #555;
+        margin: 0 0 2mm;
+    }
+
+    &__etiqueta {
+        font-size: 6.5pt;
+        color: #777;
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    &__codigo {
+        font-family: 'Courier New', monospace;
+        font-size: 9pt;
+        font-weight: bold;
+        color: #1a3a5c;
+        background: #f0f4f8;
+        padding: 1mm 2mm;
+        border-radius: 1mm;
+        margin: 0 0 1mm;
+        letter-spacing: 0.05em;
+    }
+
+    &__url {
+        font-size: 6pt;
+        color: #555;
+        margin: 0;
+        word-break: break-all;
+    }
+
+    &__qr {
+        flex-shrink: 0;
+        width: 60px;
+        height: 60px;
+
+        canvas, img, table {
+            display: block;
+            max-width: 60px;
+            max-height: 60px;
+        }
+    }
+
+    &__footer {
+        margin-top: 3mm;
+        padding-top: 2mm;
+        border-top: 1px solid #eee;
+        font-size: 6.5pt;
+        color: #555;
+        text-align: center;
+    }
+}

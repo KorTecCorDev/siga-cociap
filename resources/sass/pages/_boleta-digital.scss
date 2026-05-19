@@ -865,6 +865,15 @@ $bd-radius-card:     16px;
         flex-shrink: 0;
         width: 80px;
         height: 80px;
+
+        canvas, img {
+            width: 80px !important;
+            height: 80px !important;
+            display: block;
+
+            @media (min-width: 640px) { width: 100px !important; height: 100px !important; }
+            @media print { width: 22mm !important; height: 22mm !important; }
+        }
         background: $bg-secondary;
         border-radius: $border-radius-sm;
         display: flex;

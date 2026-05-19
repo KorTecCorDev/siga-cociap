@@ -15,6 +15,8 @@ class AuthMiddleware
         '/login',
         '/login/procesar',
         '/logout',
+        '/boleta-publica',
+        '/boleta-publica/consultar',
     ];
 
     public static function handle(string $uri, string $method): void
