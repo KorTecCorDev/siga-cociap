@@ -15,7 +15,6 @@ $nombreTutor = function (?array $s): string {
          . $s['tutor_nombres'];
 };
 ?>
-dffdf
 
 <div class="page-header">
     <a href="<?= url('/') ?>" class="btn btn--secondary btn--sm">← Dashboard</a>
