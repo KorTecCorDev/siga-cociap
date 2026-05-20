@@ -45,7 +45,12 @@ function url(string $path = ''): string
     static $base = null;
 
     if ($base === null) {
-        if (!empty($_SERVER['HTTP_HOST'])) {
+        $appUrl = config('app_url');
+        if (!empty($appUrl)) {
+            // URL fija configurada (ej. IP LAN para pruebas en red local).
+            // Tiene prioridad sobre la detección automática.
+            $base = rtrim($appUrl, '/');
+        } elseif (!empty($_SERVER['HTTP_HOST'])) {
             // Detecta el host real del request (incluye puerto si no es 80/443).
             // Cuando BrowserSync proxea, Apache recibe Host: localhost:3000
             // y PHP lo refleja aquí, manteniendo todas las URLs en el mismo origen.

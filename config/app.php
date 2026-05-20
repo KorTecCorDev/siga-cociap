@@ -15,4 +15,5 @@ return [
     'timezone'        => 'America/Lima',
     'locale'          => 'es_PE',
     'url'             => 'http://localhost/siga-cociap/public', // fallback CLI únicamente
+    'app_url'         => 'http://192.168.1.31/siga-cociap/public', // URL LAN — vacío = detección automática
 ];

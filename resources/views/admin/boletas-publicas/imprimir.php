@@ -26,9 +26,6 @@ $urlBase = rtrim(url(''), '/');
 <div class="bpi-grid">
 <?php foreach ($boletas as $b):
     $urlConsulta = $urlBase . '/boleta-publica';
-    $qrUrl = 'https://chart.googleapis.com/chart?cht=qr&chs=120x120&chl='
-           . urlencode($urlConsulta . '?codigo=' . urlencode($b['codigo_acceso']))
-           . '&choe=UTF-8';
 ?>
 <div class="bpi-tarjeta">
     <div class="bpi-tarjeta__header">
