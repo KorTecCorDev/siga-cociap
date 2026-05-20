@@ -1,111 +1,61 @@
 <?php
 /**
- * @var array  $cargas
+ * @var array  $porNivel   ['Primaria' => [...secciones...], 'Secundaria' => [...]]
  * @var array  $auth_user
  */
-
-$badgeEstado = fn(string $e): string => $e === 'activa' ? 'badge--activo' : 'badge--error';
 ?>
 
 <div class="page-header">
     <a href="<?= url('/') ?>" class="btn btn--secondary btn--sm">← Dashboard</a>
     <div>
         <h1 class="page-title">Cargas Académicas</h1>
-        <p class="page-subtitle"><?= count($cargas) ?> carga<?= count($cargas) !== 1 ? 's' : '' ?> registrada<?= count($cargas) !== 1 ? 's' : '' ?></p>
+        <p class="page-subtitle">Selecciona una sección para ver o gestionar sus cargas</p>
     </div>
     <a href="<?= url('director/cargas/crear') ?>" class="btn btn--primary">+ Nueva carga</a>
 </div>
 
-<?php if (empty($cargas)): ?>
+<?php if (empty($porNivel)): ?>
     <div class="card">
         <div class="card__body">
             <div class="empty-state">
-                <p>No hay cargas académicas registradas.</p>
+                <p>No hay secciones activas registradas.</p>
             </div>
         </div>
     </div>
 <?php else: ?>
 
-<div class="card">
-    <div class="tabla-notas-wrapper">
-        <table class="tabla-notas">
-            <thead>
-                <tr>
-                    <th>Sección</th>
-                    <th>Docente</th>
-                    <th>Área / Subárea</th>
-                    <th>Horario semanal</th>
-                    <th class="text-center">Hrs.</th>
-                    <th class="text-center">Estado</th>
-                    <th class="text-right">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($cargas as $c):
-                    $nombre = mb_strtoupper($c['apellido_paterno'] . ' ' . $c['apellido_materno'])
-                            . ', ' . ucwords(mb_strtolower($c['docente_nombres']));
-                    $activa = $c['estado'] === 'activa';
-                ?>
-                <tr class="<?= !$activa ? 'fila-inactiva' : '' ?>">
+    <?php foreach ($porNivel as $nivel => $secciones): ?>
 
-                    <td>
-                        <div class="carga-seccion">
-                            <span class="carga-seccion__grado"><?= e($c['grado_nombre']) ?></span>
-                            <span class="carga-seccion__letra"><?= e($c['seccion_nombre']) ?></span>
-                        </div>
-                        <div class="text-sm text-muted"><?= e($c['nivel_nombre']) ?> · <?= e($c['anio']) ?></div>
-                    </td>
+        <h2 class="cargas-nivel-titulo"><?= e($nivel) ?></h2>
 
-                    <td>
-                        <div class="td-usuario__nombre"><?= e($nombre) ?></div>
-                    </td>
+        <div class="cargas-secciones-grid">
+            <?php foreach ($secciones as $s):
+                $total   = (int) $s['total_cargas'];
+                $activas = (int) $s['cargas_activas'];
 
-                    <td>
-                        <div class="carga-area"><?= e($c['area_nombre']) ?></div>
-                        <?php if ($c['subarea_nombre']): ?>
-                            <div class="carga-subarea"><?= e($c['subarea_nombre']) ?></div>
-                        <?php endif; ?>
-                    </td>
+                if ($total === 0) {
+                    $statsClass = 'empty';
+                } elseif ($activas === $total) {
+                    $statsClass = 'ok';
+                } else {
+                    $statsClass = 'warn';
+                }
+            ?>
+            <a href="<?= url('director/cargas/seccion/' . $s['id']) ?>"
+               class="cargas-seccion-tile">
+                <span class="cargas-seccion-tile__grado"><?= e($s['grado_nombre']) ?></span>
+                <span class="cargas-seccion-tile__letra"><?= e($s['seccion_nombre']) ?></span>
+                <span class="cargas-seccion-tile__stats cargas-seccion-tile__stats--<?= $statsClass ?>">
+                    <?php if ($total === 0): ?>
+                        Sin cargas
+                    <?php else: ?>
+                        <?= $activas ?> / <?= $total ?> activas
+                    <?php endif; ?>
+                </span>
+            </a>
+            <?php endforeach; ?>
+        </div>
 
-                    <td>
-                        <?php if ($c['horario_resumen']): ?>
-                            <div class="carga-horario"><?= e($c['horario_resumen']) ?></div>
-                        <?php else: ?>
-                            <span class="text-muted">—</span>
-                        <?php endif; ?>
-                    </td>
-
-                    <td class="text-center text-sm">
-                        <?= $c['horas_semanales'] ?>h
-                    </td>
-
-                    <td class="text-center">
-                        <span class="badge <?= $badgeEstado($c['estado']) ?>">
-                            <?= $activa ? 'Activa' : 'Inactiva' ?>
-                        </span>
-                    </td>
-
-                    <td>
-                        <div class="td-acciones">
-                            <a href="<?= url('director/cargas/' . $c['id'] . '/editar') ?>"
-                               class="btn btn--secondary btn--sm">Editar</a>
-                            <form method="POST"
-                                  action="<?= url('director/cargas/' . $c['id'] . '/estado') ?>"
-                                  onsubmit="return confirm('¿<?= $activa ? 'Desactivar' : 'Activar' ?> esta carga?')">
-                                <?= csrf_field() ?>
-                                <button type="submit"
-                                        class="btn btn--sm <?= $activa ? 'btn--danger' : 'btn--secondary' ?>">
-                                    <?= $activa ? 'Desactivar' : 'Activar' ?>
-                                </button>
-                            </form>
-                        </div>
-                    </td>
-
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
+    <?php endforeach; ?>
 
 <?php endif; ?>

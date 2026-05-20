@@ -18,6 +18,10 @@ function config(string $key, mixed $default = null): mixed
 /** Redirige a una URL y detiene la ejecución */
 function redirect(string $url): never
 {
+    // Ruta relativa de app (/login, /dashboard…) → URL absoluta con base dinámica
+    if (str_starts_with($url, '/') && !str_starts_with($url, '//')) {
+        $url = url(ltrim($url, '/'));
+    }
     header("Location: {$url}");
     exit;
 }

@@ -33,7 +33,9 @@
       "Bash(powershell *)",
       "Bash(node *)",
       "Bash(not exist *)",
-      "Bash(curl -sL \"https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js\" -o \"C:/xampp/htdocs/siga-cociap/public/js/qrcode.min.js\")"
+      "Bash(curl -sL \"https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js\" -o \"C:/xampp/htdocs/siga-cociap/public/js/qrcode.min.js\")",
+      "Bash(findstr \":80 \")",
+      "Bash(findstr LISTENING)"
     ]
   }
 }

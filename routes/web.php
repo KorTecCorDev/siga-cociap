@@ -51,10 +51,11 @@ $router->post('/director/periodos/{id}/limite', 'Director\PeriodoController@setL
 $router->get( '/director/secciones',          'Director\SeccionController@index');
 $router->get( '/director/secciones/crear',    'Director\SeccionController@create');
 $router->post('/director/secciones/crear',    'Director\SeccionController@store');
-$router->get( '/director/cargas',             'Director\CargaAcademicaController@index');
-$router->get( '/director/cargas/crear',       'Director\CargaAcademicaController@create');
-$router->post('/director/cargas/crear',       'Director\CargaAcademicaController@store');
-$router->get( '/director/cargas/{id}/editar', 'Director\CargaAcademicaController@edit');
+$router->get( '/director/cargas',                          'Director\CargaAcademicaController@index');
+$router->get( '/director/cargas/crear',                    'Director\CargaAcademicaController@create');
+$router->post('/director/cargas/crear',                    'Director\CargaAcademicaController@store');
+$router->get( '/director/cargas/seccion/{seccion_id}',     'Director\CargaAcademicaController@porSeccion');
+$router->get( '/director/cargas/{id}/editar',              'Director\CargaAcademicaController@edit');
 $router->post('/director/cargas/{id}/editar', 'Director\CargaAcademicaController@update');
 $router->post('/director/cargas/{id}/estado', 'Director\CargaAcademicaController@toggleEstado');
 

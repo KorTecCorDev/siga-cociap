@@ -21,9 +21,34 @@ class CargaAcademicaController extends BaseController
     // GET /director/cargas
     public function index(): void
     {
+        $secciones = $this->model->listarSeccionesConCargas();
+        $porNivel  = [];
+        foreach ($secciones as $s) {
+            $porNivel[$s['nivel_nombre']][] = $s;
+        }
+
         $this->view('director/cargas/index', [
-            'titulo' => 'Cargas Académicas',
-            'cargas' => $this->model->listarTodas(),
+            'titulo'   => 'Cargas Académicas',
+            'porNivel' => $porNivel,
+        ]);
+    }
+
+    // GET /director/cargas/seccion/{seccion_id}
+    public function porSeccion(string $seccionId): void
+    {
+        $seccionId = (int) $seccionId;
+        $seccion   = $this->model->findSeccion($seccionId);
+
+        if (!$seccion) {
+            $this->redirectWithError(url('director/cargas'), 'Sección no encontrada.');
+        }
+
+        $cargas = $this->model->listarPorSeccion($seccionId);
+
+        $this->view('director/cargas/seccion', [
+            'titulo'  => 'Cargas — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
+            'seccion' => $seccion,
+            'cargas'  => $cargas,
         ]);
     }
 

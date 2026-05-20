@@ -126,6 +126,103 @@ class CargaAcademicaModel extends BaseModel
         ");
     }
 
+    public function listarSeccionesConCargas(): array
+    {
+        return $this->query("
+            SELECT
+                s.id,
+                s.nombre            AS seccion_nombre,
+                g.nombre_display    AS grado_nombre,
+                g.numero            AS grado_numero,
+                n.id                AS nivel_id,
+                n.nombre            AS nivel_nombre,
+                an.anio,
+                COUNT(ca.id)                    AS total_cargas,
+                COALESCE(SUM(ca.estado = 'activa'), 0) AS cargas_activas
+            FROM secciones s
+            INNER JOIN grados g             ON g.id  = s.grado_id
+            INNER JOIN niveles n            ON n.id  = g.nivel_id
+            INNER JOIN anios_academicos an  ON an.id = s.anio_id
+            LEFT  JOIN cargas_academicas ca ON ca.seccion_id = s.id
+            WHERE an.estado IN ('planificado','activo')
+            GROUP BY s.id, s.nombre, g.nombre_display, g.numero,
+                     n.id, n.nombre, an.anio
+            ORDER BY an.anio DESC, n.id, g.numero, s.nombre
+        ");
+    }
+
+    public function findSeccion(int $id): ?array
+    {
+        return $this->queryOne("
+            SELECT
+                s.id,
+                s.nombre            AS seccion_nombre,
+                g.nombre_display    AS grado_nombre,
+                g.numero            AS grado_numero,
+                n.nombre            AS nivel_nombre,
+                an.anio
+            FROM secciones s
+            INNER JOIN grados g            ON g.id  = s.grado_id
+            INNER JOIN niveles n           ON n.id  = g.nivel_id
+            INNER JOIN anios_academicos an ON an.id = s.anio_id
+            WHERE s.id = ?
+            LIMIT 1
+        ", [$id]);
+    }
+
+    public function listarPorSeccion(int $seccionId): array
+    {
+        return $this->query("
+            SELECT
+                ca.id,
+                ca.horas_semanales,
+                ca.estado,
+                p.apellido_paterno,
+                p.apellido_materno,
+                p.nombres           AS docente_nombres,
+                s.nombre            AS seccion_nombre,
+                g.nombre_display    AS grado_nombre,
+                n.nombre            AS nivel_nombre,
+                an.anio,
+                CASE
+                    WHEN ca.area_id IS NOT NULL THEN a_dir.nombre
+                    ELSE a_via.nombre
+                END                 AS area_nombre,
+                sa.nombre           AS subarea_nombre,
+                GROUP_CONCAT(
+                    CONCAT(
+                        UPPER(LEFT(bh.dia_semana,1)),
+                        SUBSTRING(bh.dia_semana,2),
+                        ' ',
+                        TIME_FORMAT(bh.hora_inicio,'%H:%i'),
+                        '-',
+                        TIME_FORMAT(bh.hora_fin,'%H:%i')
+                    )
+                    ORDER BY " . self::ORDEN_DIAS . ", bh.hora_inicio
+                    SEPARATOR ' | '
+                )                   AS horario_resumen
+            FROM cargas_academicas ca
+            INNER JOIN usuarios u          ON u.id   = ca.docente_id
+            INNER JOIN personas p          ON p.id   = u.persona_id
+            INNER JOIN secciones s         ON s.id   = ca.seccion_id
+            INNER JOIN grados g            ON g.id   = s.grado_id
+            INNER JOIN niveles n           ON n.id   = g.nivel_id
+            INNER JOIN anios_academicos an ON an.id  = ca.anio_id
+            LEFT  JOIN areas a_dir         ON a_dir.id = ca.area_id
+            LEFT  JOIN subareas sa         ON sa.id    = ca.subarea_id
+            LEFT  JOIN areas a_via         ON a_via.id = sa.area_id
+            LEFT  JOIN sesiones_horario sh ON sh.carga_id = ca.id
+            LEFT  JOIN bloques_horario bh  ON bh.id       = sh.bloque_id
+            WHERE ca.seccion_id = ?
+            GROUP BY
+                ca.id, ca.horas_semanales, ca.estado,
+                p.apellido_paterno, p.apellido_materno, p.nombres,
+                s.nombre, g.nombre_display, n.nombre, an.anio,
+                a_dir.nombre, a_via.nombre, sa.nombre
+            ORDER BY a_dir.nombre, a_via.nombre, sa.nombre
+        ", [$seccionId]);
+    }
+
     public function findById(int $id): ?array
     {
         return $this->queryOne("

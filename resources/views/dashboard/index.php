@@ -28,6 +28,23 @@
                 <div class="card__desc">Asignar tutores por sección</div>
             </a>
         </div>
+        <div class="card">
+            <a href="<?= url('admin/conducta') ?>">
+                <div class="card__icon"><img src="<?= url('assets/icons/slider-vertical.svg') ?>" alt="Conducta"></div>
+                <div class="card__title">Conducta</div>
+                <div class="card__desc">Calificaciones de comportamiento por sección</div>
+            </a>
+        </div>
+    <?php endif; ?>
+
+    <?php if (has_role(['admin', 'registro_academico'])): ?>
+        <div class="card">
+            <a href="<?= url('admin/boletas-publicas') ?>">
+                <div class="card__icon"><img src="<?= url('assets/icons/file-send.svg') ?>" alt="Boletas públicas"></div>
+                <div class="card__title">Boletas públicas</div>
+                <div class="card__desc">Generar y distribuir boletas con código QR</div>
+            </a>
+        </div>
     <?php endif; ?>
 
     <?php if (has_role(['admin', 'registro_academico', 'secretaria'])): ?>
