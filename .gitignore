@@ -25,6 +25,10 @@ nul
 # PHP
 *.cache
 
+# Scripts temporales de uso único (no commitear)
+hash.php
+import_matriculas.php
+
 # Mantener carpetas vacías con .gitkeep
 !storage/logs/.gitkeep
 !storage/uploads/.gitkeep
