@@ -38,6 +38,9 @@ spl_autoload_register(function (string $class): void {
 require_once CONFIG_PATH . '/app.php';
 require_once APP_PATH   . '/Helpers/helpers.php';
 
+// Aplicar timezone desde config (evita que strtotime interprete fechas como UTC)
+date_default_timezone_set(config('timezone'));
+
 // Iniciar sesión de forma segura
 require_once CORE_PATH . '/Session.php';
 Core\Session::start();

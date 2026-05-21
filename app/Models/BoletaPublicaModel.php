@@ -79,6 +79,7 @@ class BoletaPublicaModel extends BaseModel
 
     /**
      * Lista boletas de un periodo con datos del estudiante, grado y sección.
+     * Incluye novedades_count: competencias bloqueadas DESPUÉS de que se generó la boleta.
      */
     public function getPorPeriodo(int $periodoId): array
     {
@@ -96,16 +97,76 @@ class BoletaPublicaModel extends BaseModel
                     per.nombres
                 )                AS nombre_completo,
                 g.nombre_display AS grado_nombre,
-                s.nombre         AS seccion_nombre
+                s.nombre         AS seccion_nombre,
+                (
+                    SELECT COUNT(*)
+                    FROM calificaciones cal
+                    INNER JOIN bloqueos_competencia bc
+                        ON  bc.carga_id       = cal.carga_id
+                        AND bc.competencia_id = cal.competencia_id
+                        AND bc.periodo_id     = cal.periodo_id
+                    WHERE cal.matricula_id = bp.matricula_id
+                      AND cal.periodo_id   = bp.periodo_id
+                      AND bc.bloqueado_en  > bp.generada_en
+                )                AS novedades_count
             FROM boletas_publicas bp
-            INNER JOIN matriculas m  ON m.id  = bp.matricula_id
-            INNER JOIN estudiantes e ON e.id  = m.estudiante_id
+            INNER JOIN matriculas m  ON m.id   = bp.matricula_id
+            INNER JOIN estudiantes e ON e.id   = m.estudiante_id
             INNER JOIN personas per  ON per.id = e.persona_id
-            INNER JOIN secciones s   ON s.id  = m.seccion_id
-            INNER JOIN grados g      ON g.id  = s.grado_id
+            INNER JOIN secciones s   ON s.id   = m.seccion_id
+            INNER JOIN grados g      ON g.id   = s.grado_id
             WHERE bp.periodo_id = ?
             ORDER BY g.id, s.nombre, per.apellido_paterno, per.apellido_materno, per.nombres
         ", [$periodoId]);
+    }
+
+    /**
+     * Actualiza generada_en a NOW() para las boletas que tienen competencias
+     * bloqueadas DESPUÉS de su fecha de generación.
+     * Retorna el número de boletas actualizadas.
+     */
+    public function actualizarTimestamps(int $periodoId, int $usuarioId): int
+    {
+        // Contar cuántas serán actualizadas
+        $row = $this->queryOne("
+            SELECT COUNT(*) AS total
+            FROM boletas_publicas bp
+            WHERE bp.periodo_id = ?
+              AND EXISTS (
+                  SELECT 1
+                  FROM calificaciones cal
+                  INNER JOIN bloqueos_competencia bc
+                      ON  bc.carga_id       = cal.carga_id
+                      AND bc.competencia_id = cal.competencia_id
+                      AND bc.periodo_id     = cal.periodo_id
+                  WHERE cal.matricula_id = bp.matricula_id
+                    AND cal.periodo_id   = bp.periodo_id
+                    AND bc.bloqueado_en  > bp.generada_en
+              )
+        ", [$periodoId]);
+
+        $total = (int) ($row['total'] ?? 0);
+        if ($total === 0) return 0;
+
+        $this->execute("
+            UPDATE boletas_publicas bp
+            SET bp.generada_en  = NOW(),
+                bp.generada_por = ?
+            WHERE bp.periodo_id = ?
+              AND EXISTS (
+                  SELECT 1
+                  FROM calificaciones cal2
+                  INNER JOIN bloqueos_competencia bc2
+                      ON  bc2.carga_id       = cal2.carga_id
+                      AND bc2.competencia_id = cal2.competencia_id
+                      AND bc2.periodo_id     = cal2.periodo_id
+                  WHERE cal2.matricula_id = bp.matricula_id
+                    AND cal2.periodo_id   = bp.periodo_id
+                    AND bc2.bloqueado_en  > bp.generada_en
+              )
+        ", [$usuarioId, $periodoId]);
+
+        return $total;
     }
 
     /**

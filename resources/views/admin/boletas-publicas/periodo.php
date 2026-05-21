@@ -1,13 +1,17 @@
 <?php
 /**
- * @var array  $periodo         { id, numero, nombre_display, anio }
- * @var array  $boletas         [{ id, matricula_id, codigo_acceso, nombre_completo,
- *                                 grado_nombre, seccion_nombre, veces_consultada,
- *                                 ultima_consulta, generada_en }]
- * @var int    $totalAprobadas  matrículas con ≥1 competencia bloqueada
+ * @var array  $periodo           { id, numero, nombre_display, anio }
+ * @var array  $boletas           [{ id, matricula_id, codigo_acceso, nombre_completo,
+ *                                   grado_nombre, seccion_nombre, veces_consultada,
+ *                                   ultima_consulta, generada_en, novedades_count }]
+ * @var int    $totalAprobadas    matrículas con ≥1 competencia bloqueada
+ * @var int    $totalConNovedades boletas con competencias nuevas desde la generación
  * @var string $titulo
  */
-$totalGeneradas = count($boletas);
+$totalGeneradas  = count($boletas);
+$_pendientes     = $totalAprobadas - $totalGeneradas;
+$hayNovedades    = $totalConNovedades > 0;
+$hayPendientes   = $_pendientes > 0;
 ?>
 
 <div class="page-header">
@@ -29,24 +33,33 @@ $totalGeneradas = count($boletas);
             🔑 Imprimir códigos
         </a>
         <?php endif; ?>
+
+        <?php if ($hayNovedades): ?>
+        <form method="POST"
+              action="<?= url("admin/boletas-publicas/{$periodo['id']}/actualizar") ?>"
+              style="display:inline">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn--warning btn--sm"
+                    onclick="return confirm('Actualizar <?= $totalConNovedades ?> boleta(s) con nuevas competencias bloqueadas?\n\nSolo se actualiza la fecha de generacion. El contenido de la boleta digital ya refleja los cambios.')">
+                🔄 Actualizar (<?= $totalConNovedades ?>)
+            </button>
+        </form>
+        <?php endif; ?>
+
         <form method="POST"
               action="<?= url("admin/boletas-publicas/{$periodo['id']}/generar") ?>"
               style="display:inline">
             <?= csrf_field() ?>
-            <button type="submit" class="btn btn--primary btn--sm"
-                    onclick="return confirm('¿Generar códigos para todas las boletas listas?')">
-                ⚡ Generar boletas
+            <button type="submit"
+                    class="btn btn--sm <?= $hayPendientes ? 'btn--primary' : 'btn--secondary' ?>"
+                    onclick="return confirm('<?= $hayPendientes
+                        ? "Generar codigos para {$_pendientes} boletas pendientes?"
+                        : "No hay boletas pendientes. Ejecutar de todas formas?" ?>')">
+                ⚡ <?= $hayPendientes ? "Generar pendientes ({$_pendientes})" : 'Generar boletas' ?>
             </button>
         </form>
     </div>
 </div>
-
-<?php if ($flash_success): ?>
-<div class="alert alert--success"><?= e($flash_success) ?></div>
-<?php endif; ?>
-<?php if ($flash_error): ?>
-<div class="alert alert--error"><?= e($flash_error) ?></div>
-<?php endif; ?>
 
 <div class="bp-stats-bar">
     <div class="bp-stat">
@@ -57,11 +70,24 @@ $totalGeneradas = count($boletas);
         <span class="bp-stat__num"><?= $totalGeneradas ?></span>
         <span class="bp-stat__label">boletas generadas</span>
     </div>
-    <div class="bp-stat">
-        <span class="bp-stat__num"><?= $totalAprobadas - $totalGeneradas ?></span>
-        <span class="bp-stat__label">pendientes</span>
+    <div class="bp-stat <?= $_pendientes > 0 ? 'bp-stat--warn' : '' ?>">
+        <span class="bp-stat__num"><?= $_pendientes ?></span>
+        <span class="bp-stat__label">pendientes de código</span>
+    </div>
+    <div class="bp-stat <?= $hayNovedades ? 'bp-stat--update' : '' ?>">
+        <span class="bp-stat__num"><?= $totalConNovedades ?></span>
+        <span class="bp-stat__label">con novedades</span>
     </div>
 </div>
+
+<?php if ($hayNovedades): ?>
+<div class="flash flash--warning">
+    <strong><?= $totalConNovedades ?> boleta(s)</strong> tienen competencias aprobadas
+    después de la última generación. La boleta digital ya las muestra correctamente,
+    pero si entregaste copias impresas debes reimprimir esas boletas.
+    Usa <strong>Actualizar</strong> para registrar la fecha de actualización.
+</div>
+<?php endif; ?>
 
 <?php if (empty($boletas)): ?>
 <div class="card">
@@ -86,11 +112,14 @@ $totalGeneradas = count($boletas);
                     <th class="text-center">Consultas</th>
                     <th>Última consulta</th>
                     <th>Generada</th>
+                    <th class="text-center">Estado</th>
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($boletas as $i => $b): ?>
-                <tr>
+            <?php foreach ($boletas as $i => $b):
+                $novedades = (int) $b['novedades_count'];
+            ?>
+                <tr class="<?= $novedades > 0 ? 'fila-novedad' : '' ?>">
                     <td class="text-sm text-muted"><?= $i + 1 ?></td>
                     <td>
                         <strong><?= e($b['nombre_completo']) ?></strong>
@@ -103,7 +132,7 @@ $totalGeneradas = count($boletas);
                     </td>
                     <td class="text-center">
                         <?php if ($b['veces_consultada'] > 0): ?>
-                        <span class="badge badge--success"><?= (int) $b['veces_consultada'] ?></span>
+                        <span class="badge badge--activo"><?= (int) $b['veces_consultada'] ?></span>
                         <?php else: ?>
                         <span class="text-muted">—</span>
                         <?php endif; ?>
@@ -114,7 +143,17 @@ $totalGeneradas = count($boletas);
                             : '—' ?>
                     </td>
                     <td class="text-sm text-muted">
-                        <?= date('d/m/Y', strtotime($b['generada_en'])) ?>
+                        <?= date('d/m/Y H:i', strtotime($b['generada_en'])) ?>
+                    </td>
+                    <td class="text-center">
+                        <?php if ($novedades > 0): ?>
+                            <span class="badge badge--warning"
+                                  title="<?= $novedades ?> competencia(s) aprobada(s) desde la generacion">
+                                🔄 +<?= $novedades ?>
+                            </span>
+                        <?php else: ?>
+                            <span class="badge badge--activo">Al día</span>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>

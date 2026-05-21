@@ -54,7 +54,8 @@ class BoletaPublicaController extends BaseController
         }
 
         $boletas = $this->model->getPorPeriodo($periodoId);
-        $row     = $this->model->queryOne("
+
+        $row = $this->model->queryOne("
             SELECT COUNT(DISTINCT m.id) AS total
             FROM matriculas m
             INNER JOIN calificaciones cal
@@ -65,14 +66,39 @@ class BoletaPublicaController extends BaseController
                AND bc.periodo_id     = cal.periodo_id
             WHERE m.estado = 'aprobada'
         ", [$periodoId]);
-        $totalAprobadas = (int) ($row['total'] ?? 0);
+        $totalAprobadas  = (int) ($row['total'] ?? 0);
+        $totalConNovedades = count(array_filter($boletas, fn($b) => (int)$b['novedades_count'] > 0));
 
         $this->view('admin/boletas-publicas/periodo', [
-            'titulo'         => 'Boletas Públicas — ' . $periodo['nombre_display'],
-            'periodo'        => $periodo,
-            'boletas'        => $boletas,
-            'totalAprobadas' => $totalAprobadas,
+            'titulo'            => 'Boletas Públicas — ' . $periodo['nombre_display'],
+            'periodo'           => $periodo,
+            'boletas'           => $boletas,
+            'totalAprobadas'    => $totalAprobadas,
+            'totalConNovedades' => $totalConNovedades,
         ]);
+    }
+
+    /** POST /admin/boletas-publicas/{periodo_id}/actualizar — resetea fechas de boletas con novedades */
+    public function actualizar($periodoId): void
+    {
+        $this->validateCsrf();
+        $periodoId = (int) $periodoId;
+        $periodo   = $this->getPeriodo($periodoId);
+
+        if (!$periodo) {
+            $this->redirectWithError(url('admin/boletas-publicas'), 'Período no encontrado.');
+        }
+
+        $usuarioId  = Session::user()['id'] ?? 0;
+        $actualizadas = $this->model->actualizarTimestamps($periodoId, $usuarioId);
+
+        $msg = $actualizadas > 0
+            ? "{$actualizadas} boleta(s) actualizadas con las nuevas competencias bloqueadas."
+            : 'No hay boletas con nuevas competencias desde la última generación.';
+
+        $actualizadas > 0
+            ? $this->redirectWithSuccess(url("admin/boletas-publicas/{$periodoId}"), $msg)
+            : $this->redirectWithError(url("admin/boletas-publicas/{$periodoId}"), $msg);
     }
 
     /** POST /admin/boletas-publicas/{periodo_id}/generar */

@@ -146,6 +146,7 @@ tr.fila-inactiva td {
 
     &--ok   { background: $color-success-bg; border-color: lighten($color-success, 30%); }
     &--warn { background: $color-warning-bg; border-color: lighten($color-warning, 25%); }
+    &--err  { background: $color-error-bg;   border-color: lighten($color-error,   30%); }
 
     &__num {
         font-size: $font-size-2xl;
@@ -156,6 +157,7 @@ tr.fila-inactiva td {
 
     &--ok   &__num  { color: $color-success; }
     &--warn &__num  { color: $color-warning; }
+    &--err  &__num  { color: $color-error;   }
 
     &__label {
         font-size: $font-size-sm;
@@ -179,6 +181,16 @@ tr.fila-inactiva td {
         white-space: normal;
         line-height: 1.35;
         font-size: $font-size-sm;
+    }
+
+    // Fila sin criterios ni bloqueo: distinta del naranja de fila-pendiente
+    tr.fila-sin-criterios td {
+        background: #fef2f2;
+        border-bottom-color: #fecaca;
+    }
+
+    tr.fila-sin-criterios:hover td {
+        background: #fee2e2;
     }
 }
 

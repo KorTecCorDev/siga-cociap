@@ -34,6 +34,12 @@
         &:hover { background: darken($color-error, 8%); }
     }
 
+    &--warning {
+        background: $color-warning;
+        color: $text-white;
+        &:hover { background: darken($color-warning, 8%); }
+    }
+
     &--sm { padding: 5px $spacing-sm; font-size: $font-size-sm; }
     &--lg { padding: 12px $spacing-lg; font-size: $font-size-lg; }
 }

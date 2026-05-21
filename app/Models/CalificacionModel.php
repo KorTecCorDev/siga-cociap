@@ -314,15 +314,17 @@ class CalificacionModel extends BaseModel
     }
 
     /**
-     * Devuelve todas las (carga, competencia) que tienen criterios
-     * en un periodo, junto con su estado de bloqueo.
+     * Devuelve TODAS las (carga, competencia) del año del periodo,
+     * con o sin criterios, junto con su estado de bloqueo.
+     * Incluye num_criterios para distinguir los cuatro estados posibles:
+     *   bloqueada con notas | bloqueada sin notas | pendiente | sin criterios
      */
     public function getCompetenciasPorPeriodo(int $periodoId): array
     {
         return $this->query("
-            SELECT DISTINCT
-                cr.carga_id,
-                cr.competencia_id,
+            SELECT
+                ca.id                AS carga_id,
+                comp.id              AS competencia_id,
                 bc.id                AS bloqueo_id,
                 bc.bloqueado_en,
                 comp.nombre_completo AS competencia_nombre,
@@ -335,24 +337,36 @@ class CalificacionModel extends BaseModel
                 g.nombre_display     AS grado_nombre,
                 s.nombre             AS seccion_nombre,
                 pu.apellido_paterno  AS docente_apellido,
-                pu.nombres           AS docente_nombres
-            FROM criterios cr
-            INNER JOIN cargas_academicas ca ON ca.id   = cr.carga_id
-            INNER JOIN secciones s          ON s.id    = ca.seccion_id
-            INNER JOIN grados g             ON g.id    = s.grado_id
-            INNER JOIN niveles n            ON n.id    = g.nivel_id
-            INNER JOIN usuarios ud          ON ud.id   = ca.docente_id
-            INNER JOIN personas pu          ON pu.id   = ud.persona_id
-            INNER JOIN competencias comp    ON comp.id = cr.competencia_id
-            LEFT  JOIN subareas sa          ON sa.id   = ca.subarea_id
-            LEFT  JOIN areas a              ON a.id    = COALESCE(ca.area_id, sa.area_id)
-            LEFT  JOIN bloqueos_competencia bc
-                ON  bc.carga_id       = cr.carga_id
-                AND bc.competencia_id = cr.competencia_id
-                AND bc.periodo_id     = cr.periodo_id
-            WHERE cr.periodo_id = ?
+                pu.nombres           AS docente_nombres,
+                (
+                    SELECT COUNT(*)
+                    FROM criterios cr
+                    WHERE cr.carga_id       = ca.id
+                      AND cr.competencia_id = comp.id
+                      AND cr.periodo_id     = ?
+                )                    AS num_criterios
+            FROM cargas_academicas ca
+            INNER JOIN secciones s   ON s.id   = ca.seccion_id
+            INNER JOIN grados g      ON g.id   = s.grado_id
+            INNER JOIN niveles n     ON n.id   = g.nivel_id
+            INNER JOIN usuarios ud   ON ud.id  = ca.docente_id
+            INNER JOIN personas pu   ON pu.id  = ud.persona_id
+            LEFT  JOIN subareas sa   ON sa.id  = ca.subarea_id
+            LEFT  JOIN areas a       ON a.id   = COALESCE(ca.area_id, sa.area_id)
+            INNER JOIN competencias comp ON (
+                (ca.subarea_id IS NOT NULL AND comp.subarea_id = ca.subarea_id)
+                OR
+                (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL AND comp.area_id = ca.area_id)
+            )
+            LEFT JOIN bloqueos_competencia bc
+                ON  bc.carga_id       = ca.id
+                AND bc.competencia_id = comp.id
+                AND bc.periodo_id     = ?
+            WHERE ca.estado  = 'activa'
+              AND ca.anio_id = (SELECT anio_id FROM periodos WHERE id = ?)
+              AND (a.tipo IS NULL OR a.tipo != 'transversal')
             ORDER BY n.id, g.numero, s.nombre, a.orden, comp.orden
-        ", [$periodoId]);
+        ", [$periodoId, $periodoId, $periodoId]);
     }
 
     public function getResumenCompetencia(

@@ -4,7 +4,7 @@
  * @var int        $periodoId
  * @var array|null $periodo
  * @var array      $competencias
- * @var array      $stats  ['total'=>int, 'bloqueadas'=>int, 'pendientes'=>int]
+ * @var array      $stats  ['total','bloqueadas','pendientes','sin_criterios']
  */
 
 $porNivel = [];
@@ -56,6 +56,10 @@ foreach ($competencias as $c) {
         <span class="bloqueos-stat__num"><?= $stats['pendientes'] ?></span>
         <span class="bloqueos-stat__label">Pendientes</span>
     </div>
+    <div class="bloqueos-stat bloqueos-stat--err">
+        <span class="bloqueos-stat__num"><?= $stats['sin_criterios'] ?></span>
+        <span class="bloqueos-stat__label">Sin criterios</span>
+    </div>
 </div>
 
 <div class="card">
@@ -84,8 +88,26 @@ foreach ($competencias as $c) {
                 <tr class="bloqueos-nivel-header">
                     <td colspan="8"><?= e($nivelNombre) ?></td>
                 </tr>
-                <?php foreach ($filas as $fila): ?>
-                <tr class="<?= $fila['bloqueo_id'] ? '' : 'fila-pendiente' ?>">
+                <?php foreach ($filas as $fila):
+                    $tieneCriterios = (int)$fila['num_criterios'] > 0;
+                    $bloqueada      = $fila['bloqueo_id'] !== null;
+
+                    // Cuatro estados posibles
+                    if ($bloqueada && $tieneCriterios) {
+                        $estado      = 'bloqueada';
+                        $filaCss     = '';
+                    } elseif ($bloqueada && !$tieneCriterios) {
+                        $estado      = 'bloqueada-sin-notas';
+                        $filaCss     = '';
+                    } elseif (!$bloqueada && $tieneCriterios) {
+                        $estado      = 'pendiente';
+                        $filaCss     = 'fila-pendiente';
+                    } else {
+                        $estado      = 'sin-criterios';
+                        $filaCss     = 'fila-sin-criterios';
+                    }
+                ?>
+                <tr class="<?= $filaCss ?>">
                     <td class="text-muted text-sm"><?= e($fila['nivel_nombre']) ?></td>
                     <td>
                         <?= e($fila['grado_nombre']) ?>
@@ -105,10 +127,14 @@ foreach ($competencias as $c) {
                         <span class="text-muted"><?= e($fila['docente_nombres']) ?></span>
                     </td>
                     <td>
-                        <?php if ($fila['bloqueo_id']): ?>
-                            <span class="badge badge--activo">Bloqueada</span>
-                        <?php else: ?>
+                        <?php if ($estado === 'bloqueada'): ?>
+                            <span class="badge badge--activo">&#10003; Bloqueada</span>
+                        <?php elseif ($estado === 'bloqueada-sin-notas'): ?>
+                            <span class="badge badge--activo badge--sin-notas">&#10003; Sin notas</span>
+                        <?php elseif ($estado === 'pendiente'): ?>
                             <span class="badge badge--warning">Pendiente</span>
+                        <?php else: ?>
+                            <span class="badge badge--error">Sin criterios</span>
                         <?php endif; ?>
                     </td>
                     <td class="text-muted text-sm">
@@ -118,10 +144,10 @@ foreach ($competencias as $c) {
                         ?>
                     </td>
                     <td>
-                        <?php if ($fila['bloqueo_id']): ?>
+                        <?php if ($bloqueada): ?>
                             <form method="POST"
                                   action="<?= url('director/bloqueos/' . $fila['bloqueo_id'] . '/desbloquear') ?>"
-                                  onsubmit="return confirm('¿Desbloquear esta competencia?\nEl docente podrá modificar las notas nuevamente.')">
+                                  onsubmit="return confirm('Desbloquear esta competencia?\nEl docente podra modificar las notas nuevamente.')">
                                 <?= csrf_field() ?>
                                 <button type="submit" class="btn btn--danger btn--sm">
                                     Desbloquear
@@ -130,7 +156,7 @@ foreach ($competencias as $c) {
                         <?php else: ?>
                             <form method="POST"
                                   action="<?= url('director/bloqueos/bloquear') ?>"
-                                  onsubmit="return confirm('¿Bloquear esta competencia?\nEl docente no podrá editar las notas.')">
+                                  onsubmit="return confirm('Bloquear esta competencia?\nEl docente no podra editar las notas.')">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="carga_id"       value="<?= $fila['carga_id'] ?>">
                                 <input type="hidden" name="competencia_id" value="<?= $fila['competencia_id'] ?>">
@@ -151,8 +177,7 @@ foreach ($competencias as $c) {
 
 <?php elseif ($periodo && empty($competencias)): ?>
     <div class="empty-state">
-        <p>No hay competencias con criterios registrados en este periodo.</p>
-        <p>Los docentes deben crear criterios de evaluación para que aparezcan aquí.</p>
+        <p>No hay cargas académicas activas para este periodo.</p>
     </div>
 <?php else: ?>
     <div class="empty-state">

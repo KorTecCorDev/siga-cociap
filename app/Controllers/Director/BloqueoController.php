@@ -33,7 +33,7 @@ class BloqueoController extends BaseController
         $periodoId    = (int) ($this->query('periodo_id') ?? 0);
         $competencias = [];
         $periodo      = null;
-        $stats        = ['total' => 0, 'bloqueadas' => 0, 'pendientes' => 0];
+        $stats        = ['total' => 0, 'bloqueadas' => 0, 'pendientes' => 0, 'sin_criterios' => 0];
 
         if ($periodoId) {
             $periodo = $this->calModel->queryOne("
@@ -44,10 +44,11 @@ class BloqueoController extends BaseController
             ", [$periodoId]);
 
             if ($periodo) {
-                $competencias          = $this->calModel->getCompetenciasPorPeriodo($periodoId);
-                $stats['total']        = count($competencias);
-                $stats['bloqueadas']   = count(array_filter($competencias, fn($c) => $c['bloqueo_id'] !== null));
-                $stats['pendientes']   = $stats['total'] - $stats['bloqueadas'];
+                $competencias             = $this->calModel->getCompetenciasPorPeriodo($periodoId);
+                $stats['total']           = count($competencias);
+                $stats['bloqueadas']      = count(array_filter($competencias, fn($c) => $c['bloqueo_id'] !== null));
+                $stats['sin_criterios']   = count(array_filter($competencias, fn($c) => $c['bloqueo_id'] === null && (int)$c['num_criterios'] === 0));
+                $stats['pendientes']      = $stats['total'] - $stats['bloqueadas'] - $stats['sin_criterios'];
             }
         }
 

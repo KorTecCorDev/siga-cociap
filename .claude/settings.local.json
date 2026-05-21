@@ -37,7 +37,14 @@
       "Bash(findstr \":80 \")",
       "Bash(findstr LISTENING)",
       "Bash(mysql *)",
-      "Bash(C:/xampp/mysql/bin/mysql.exe *)"
+      "Bash(C:/xampp/mysql/bin/mysql.exe *)",
+      "Read(//c/xampp/**)",
+      "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e \"SELECT id, nombre_display, estado, limite_notas, anio_id FROM periodos ORDER BY id;\")",
+      "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e ' *)",
+      "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e \"SELECT NOW\\(\\), UTC_TIMESTAMP\\(\\), @@global.time_zone, @@session.time_zone;\")",
+      "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e \"UPDATE periodos SET limite_notas = '2026-05-31 23:59:00' WHERE id = 1;\")",
+      "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e \"SELECT id, nombre_display, estado, limite_notas FROM periodos WHERE id = 1;\")",
+      "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e \"DESCRIBE cargas_academicas;\")"
     ]
   }
 }

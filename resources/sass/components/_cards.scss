@@ -37,10 +37,12 @@
     font-size: 11px;
     font-weight: 600;
 
-    &--activo  { background: $color-success-bg; color: $color-success; }
-    &--warning { background: $color-warning-bg; color: $color-warning; }
-    &--error   { background: $color-error-bg;   color: $color-error;   }
-    &--info    { background: $color-info-bg;     color: $color-info;    }
+    &--activo    { background: $color-success-bg; color: $color-success; }
+    &--warning   { background: $color-warning-bg; color: $color-warning; }
+    &--error     { background: $color-error-bg;   color: $color-error;   }
+    &--info      { background: $color-info-bg;     color: $color-info;    }
+    // Bloqueada sin calificaciones: tono apagado para diferenciar del verde normal
+    &--sin-notas { background: #f1f5f9; color: #64748b; }
 }
 
 // ── Flash messages ───────────────────────────────────────────
