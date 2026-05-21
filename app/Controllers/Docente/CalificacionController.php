@@ -537,15 +537,17 @@ class CalificacionController extends BaseController
         }
 
         try {
-            $this->calModel->execute("
-                UPDATE calificaciones
-                SET conclusion_descriptiva = ?,
-                    modificado_en          = NOW()
-                WHERE matricula_id   = ?
-                  AND carga_id       = ?
-                  AND competencia_id = ?
-                  AND periodo_id     = ?
-            ", [$conclusion, $matriculaId, $cargaId, $competenciaId, $periodo['id']]);
+            $guardado = $this->calModel->actualizarConclusion(
+                $matriculaId, $cargaId, $competenciaId, $periodo['id'], $conclusion
+            );
+
+            if (!$guardado) {
+                $this->json([
+                    'success' => false,
+                    'mensaje' => 'No se encontró la calificación. Guarda las notas del alumno primero.',
+                ], 400);
+                return;
+            }
 
             $this->json(['success' => true, 'mensaje' => 'Conclusión guardada.']);
 

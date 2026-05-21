@@ -107,9 +107,8 @@ class CalificacionModel extends BaseModel
                  registrado_por, registrado_en)
             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
             ON DUPLICATE KEY UPDATE
-                nota_numerica          = VALUES(nota_numerica),
-                conclusion_descriptiva = VALUES(conclusion_descriptiva),
-                modificado_en          = NOW()
+                nota_numerica = VALUES(nota_numerica),
+                modificado_en = NOW()
         ", [
             $matriculaId, $cargaId, $periodoId, $competenciaId,
             $notaNumerica, $conclusion, $registradoPor
@@ -154,6 +153,30 @@ class CalificacionModel extends BaseModel
                 );
             }
         }
+    }
+
+    /**
+     * Actualiza la conclusión descriptiva de un alumno en una competencia.
+     * Retorna false si no existe la fila en calificaciones (notas no guardadas aún).
+     */
+    public function actualizarConclusion(
+        int $matriculaId,
+        int $cargaId,
+        int $competenciaId,
+        int $periodoId,
+        string $conclusion
+    ): bool {
+        $stmt = $this->db->prepare("
+            UPDATE calificaciones
+            SET conclusion_descriptiva = ?,
+                modificado_en          = NOW()
+            WHERE matricula_id   = ?
+              AND carga_id       = ?
+              AND competencia_id = ?
+              AND periodo_id     = ?
+        ");
+        $stmt->execute([$conclusion, $matriculaId, $cargaId, $competenciaId, $periodoId]);
+        return $stmt->rowCount() > 0;
     }
 
     // ── Validaciones ─────────────────────────────────────────

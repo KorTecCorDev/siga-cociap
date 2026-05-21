@@ -19,6 +19,54 @@ document.querySelectorAll('.criterio-bloque').forEach(bloque => {
     });
 });
 
+// ── Pegado masivo desde Excel / portapapeles ─────────────────
+// Al copiar una columna en Excel y pegarla sobre cualquier input-nota,
+// distribuye cada línea en el input correspondiente hacia abajo.
+document.querySelectorAll('.form-notas').forEach(form => {
+    form.addEventListener('paste', (e) => {
+        if (!e.target.classList.contains('input-nota')) return;
+
+        const raw    = (e.clipboardData || window.clipboardData).getData('text');
+        const lineas = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+
+        // Si es un solo valor, dejar el comportamiento nativo del input
+        if (lineas.length <= 1) return;
+
+        e.preventDefault();
+
+        const inputs = Array.from(form.querySelectorAll('.input-nota'));
+        const inicio = inputs.indexOf(e.target);
+        let pegados  = 0;
+
+        lineas.forEach((linea, i) => {
+            const idx = inicio + i;
+            if (idx >= inputs.length) return;
+
+            // Si Excel copió varias columnas, solo usar la primera
+            const celda = linea.split('\t')[0].trim();
+            const num   = parseInt(celda, 10);
+
+            if (!isNaN(num)) {
+                const valida = Math.min(20, Math.max(0, num));
+                inputs[idx].value = String(valida).padStart(2, '0');
+                inputs[idx].classList.remove('input--error');
+                inputs[idx].classList.add('input--pasted');
+                setTimeout(() => inputs[idx].classList.remove('input--pasted'), 1200);
+                pegados++;
+            } else if (celda === '' || celda === '-' || celda === '—') {
+                inputs[idx].value = '';
+                inputs[idx].classList.remove('input--error');
+            }
+        });
+
+        if (pegados > 0) {
+            const status = form.querySelector('.form-notas__status');
+            mostrarStatus(status, 'success',
+                `✓ ${pegados} nota(s) pegada(s) — revisa y guarda`);
+        }
+    });
+});
+
 // ── Validación y formato de inputs de nota (0-20) ────────────
 document.querySelectorAll('.input-nota').forEach(input => {
 
@@ -33,7 +81,7 @@ document.querySelectorAll('.input-nota').forEach(input => {
         if (!/^[0-9]$/.test(e.key)) e.preventDefault();
     });
 
-    // 2. Limpiar caracteres no numéricos que entren por pegado
+    // 2. Limpiar caracteres no numéricos que entren por pegado individual
     input.addEventListener('input', () => {
         const soloDigitos = input.value.replace(/\D/g, '');
         if (input.value !== soloDigitos) input.value = soloDigitos;

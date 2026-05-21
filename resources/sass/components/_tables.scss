@@ -78,6 +78,11 @@
         &.input--error {
             border-color: $color-error;
         }
+
+        &.input--pasted {
+            background: #fef9c3;
+            border-color: #ca8a04;
+        }
     }
 }
 
