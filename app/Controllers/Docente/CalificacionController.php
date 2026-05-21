@@ -574,21 +574,28 @@ class CalificacionController extends BaseController
             $this->json(['success' => false, 'mensaje' => 'Sin periodo activo.'], 400);
         }
 
-        // Verificar que todos los alumnos tienen promedio
         $resumen = $this->calModel->getResumenCompetencia(
             $cargaId, $competenciaId, $periodo['id']
         );
 
-        $sinNota = array_filter(
-            $resumen['alumnos'],
-            fn($a) => $a['promedio'] === null
-        );
+        // Bypass: docente confirma que la competencia no fue trabajada en el bimestre.
+        // Solo válido cuando efectivamente no existen criterios ni calificaciones.
+        $sinCriterios     = empty($resumen['criterios']);
+        $confirmaSinNotas = !empty($this->input('sin_calificaciones'));
 
-        if (!empty($sinNota)) {
-            $this->json([
-                'success' => false,
-                'mensaje' => 'Hay ' . count($sinNota) . ' alumno(s) sin nota registrada.',
-            ], 400);
+        if (!($sinCriterios && $confirmaSinNotas)) {
+            // Validación normal: todos los alumnos deben tener promedio
+            $sinNota = array_filter(
+                $resumen['alumnos'],
+                fn($a) => $a['promedio'] === null
+            );
+
+            if (!empty($sinNota)) {
+                $this->json([
+                    'success' => false,
+                    'mensaje' => 'Hay ' . count($sinNota) . ' alumno(s) sin nota registrada.',
+                ], 400);
+            }
         }
 
         $ok = $this->calModel->bloquearCompetencia(

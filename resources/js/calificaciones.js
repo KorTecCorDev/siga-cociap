@@ -6,6 +6,19 @@
 const CSRF = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 const BASE = document.querySelector('meta[name="base-url"]')?.content ?? '';
 
+// ── Acordeones de criterios ──────────────────────────────────
+document.querySelectorAll('.criterio-bloque').forEach(bloque => {
+    const header = bloque.querySelector('.criterio-bloque__header');
+    header.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        const abriendo = !bloque.classList.contains('criterio-bloque--open');
+        bloque.classList.toggle('criterio-bloque--open');
+        if (abriendo) {
+            setTimeout(() => bloque.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 260);
+        }
+    });
+});
+
 // ── Validación y formato de inputs de nota (0-20) ────────────
 document.querySelectorAll('.input-nota').forEach(input => {
 

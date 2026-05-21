@@ -82,7 +82,7 @@
 }
 
 // ── Tabla de resumen de competencia ──────────────────────────
-// Columnas: N°(sticky) | Nombre(sticky) | criterios... | Promedio | Literal | Conclusión
+// Columnas: N°(sticky) | Nombre(sticky) | criterios... | Numeral | Literal | Conclusión
 // .tabla-responsive aplica overflow-x: auto en todos los breakpoints;
 // el scrollbar solo aparece cuando el contenido excede el ancho disponible.
 .tabla-resumen {
@@ -111,9 +111,18 @@
     tr:hover td { background: $bg-secondary; }
     tr:last-child td { border-bottom: none; }
 
-    // Fila con conclusión obligatoria pendiente
-    tr.fila-pendiente td { background: rgba($color-warning, .06); }
-    tr.fila-pendiente:hover td { background: rgba($color-warning, .12); }
+    // ── Fila con conclusión obligatoria pendiente ────────────
+    // Se aplica a todas las celdas incluidas las sticky para coherencia visual
+    tr.fila-pendiente td,
+    tr.fila-pendiente .col-num,
+    tr.fila-pendiente .col-nombre       { background: #fff7ed !important; }
+
+    tr.fila-pendiente:hover td,
+    tr.fila-pendiente:hover .col-num,
+    tr.fila-pendiente:hover .col-nombre { background: #ffedd5 !important; }
+
+    // Indicador lateral en la columna N° (no necesita border-left en tr)
+    tr.fila-pendiente .col-num          { box-shadow: inset 3px 0 0 #f59e0b; }
 
     // ── Columnas sticky ──────────────────────────────────────
     .col-num {
@@ -149,16 +158,6 @@
         background: $bg-secondary;
     }
 
-    tr.fila-pendiente .col-num,
-    tr.fila-pendiente .col-nombre {
-        background: rgba($color-warning, .06);
-    }
-
-    tr.fila-pendiente:hover .col-num,
-    tr.fila-pendiente:hover .col-nombre {
-        background: rgba($color-warning, .12);
-    }
-
     // ── Anchos de columna ────────────────────────────────────
     .col-criterio {
         min-width: 80px;
@@ -166,7 +165,7 @@
         white-space: nowrap;
     }
 
-    .col-promedio {
+    .col-numeral {
         min-width: 80px;
         text-align: center;
         white-space: nowrap;

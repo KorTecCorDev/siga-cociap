@@ -64,6 +64,30 @@ $nivelCodigo = $carga['nivel_codigo'];
         <div class="card__body">
             <p class="text-muted">No hay alumnos matriculados.</p>
         </div>
+    <?php elseif (empty($criterios)): ?>
+        <!-- Competencia sin criterios ni calificaciones -->
+        <div class="card__body">
+            <?php if ($bloqueada): ?>
+                <p class="text-muted">
+                    Esta competencia fue bloqueada sin calificaciones registradas
+                    (no se trabajó en el <?= e($periodo['nombre_display']) ?>).
+                </p>
+            <?php else: ?>
+                <div class="flash flash--warning">
+                    No se registraron criterios ni calificaciones para esta competencia
+                    en el <?= e($periodo['nombre_display']) ?>.
+                    Si no fue trabajada en el bimestre, confírmalo para cerrarla.
+                </div>
+                <div class="resumen-footer">
+                    <button class="btn btn--success" id="btn-confirmar-sin-notas"
+                            data-carga-id="<?= $carga['id'] ?>"
+                            data-competencia-id="<?= $competencia['id'] ?>">
+                        ✅ Confirmar: no se trabajó este bimestre
+                    </button>
+                    <span id="resumen-status"></span>
+                </div>
+            <?php endif; ?>
+        </div>
     <?php else: ?>
 
         <div class="tabla-responsive">
@@ -82,10 +106,8 @@ $nivelCodigo = $carga['nivel_codigo'];
                                 </span>
                             </th>
                         <?php endforeach; ?>
-                        <th class="col-promedio text-center">Promedio</th>
-                        <?php if ($nivelCodigo === 'sec'): ?>
-                            <th class="col-literal text-center">Literal</th>
-                        <?php endif; ?>
+                        <th class="col-numeral text-center">Numeral</th>
+                        <th class="col-literal text-center">Literal</th>
                         <th class="col-conclusion">Conclusión descriptiva</th>
                     </tr>
                 </thead>
@@ -121,33 +143,27 @@ $nivelCodigo = $carga['nivel_codigo'];
                                 </td>
                             <?php endforeach; ?>
 
-                            <!-- Promedio -->
-                            <td class="col-promedio text-center">
+                            <!-- Numeral -->
+                            <td class="col-numeral text-center">
                                 <?php if ($promedio !== null): ?>
-                                    <?php if ($nivelCodigo === 'sec'): ?>
-                                        <strong><?= fmt_nota((int)$promedio) ?></strong>
-                                    <?php else: ?>
-                                        <span class="nota-literal nota-literal--<?= strtolower($literal) ?>">
-                                            <?= $literal ?>
-                                        </span>
-                                    <?php endif; ?>
+                                    <span class="nota-numeral nota-numeral--<?= strtolower($literal) ?>">
+                                        <?= fmt_nota((int)$promedio) ?>
+                                    </span>
                                 <?php else: ?>
-                                    <span class="text-muted">Sin nota</span>
+                                    <span class="text-muted">—</span>
                                 <?php endif; ?>
                             </td>
 
-                            <!-- Literal (solo secundaria) -->
-                            <?php if ($nivelCodigo === 'sec'): ?>
-                                <td class="col-literal text-center">
-                                    <?php if ($literal !== null): ?>
-                                        <span class="nota-literal nota-literal--<?= strtolower($literal) ?>">
-                                            <?= $literal ?>
-                                        </span>
-                                    <?php else: ?>
-                                        —
-                                    <?php endif; ?>
-                                </td>
-                            <?php endif; ?>
+                            <!-- Literal -->
+                            <td class="col-literal text-center">
+                                <?php if ($literal !== null): ?>
+                                    <span class="nota-literal nota-literal--<?= strtolower($literal) ?>">
+                                        <?= $literal ?>
+                                    </span>
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
 
                             <!-- Conclusión descriptiva -->
                             <td class="col-conclusion">
@@ -160,6 +176,7 @@ $nivelCodigo = $carga['nivel_codigo'];
                                             data-matricula-id="<?= $alumno['matricula_id'] ?>"
                                             data-carga-id="<?= $carga['id'] ?>"
                                             data-competencia-id="<?= $competencia['id'] ?>"
+                                            data-obligatorio="<?= $esOblig ? '1' : '0' ?>"
                                             placeholder="<?= $esOblig ? '* Obligatoria' : 'Opcional...' ?>"
                                         ><?= e($alumno['conclusion_descriptiva'] ?? '') ?></textarea>
                                         <?php if ($esOblig): ?>
@@ -188,12 +205,11 @@ $nivelCodigo = $carga['nivel_codigo'];
                 <button class="btn btn--primary" id="btn-guardar-conclusiones">
                     💾 Guardar conclusiones
                 </button>
-                <button class="btn btn--success" id="btn-aprobar-bloquear"
+                <button class="btn btn--success btn--aprobar"
+                        id="btn-aprobar-bloquear"
                         data-carga-id="<?= $carga['id'] ?>"
                         data-competencia-id="<?= $competencia['id'] ?>"
-                        disabled
-                        style="opacity:.5;cursor:not-allowed"
-                        title="Primero guarda las conclusiones">
+                        disabled>
                     ✅ Aprobar y bloquear
                 </button>
                 <span id="resumen-status"></span>
