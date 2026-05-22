@@ -87,6 +87,7 @@
                     <?php else: ?>
 
                         <?php foreach ($competencia['criterios'] as $ci => $criterio): ?>
+                            <?php $tieneCals = !empty($notasExistentes[$criterio['id']]); ?>
                             <div class="criterio-bloque<?= $ci === 0 ? ' criterio-bloque--open' : '' ?>"
                                  id="criterio-<?= $criterio['id'] ?>">
 
@@ -98,12 +99,20 @@
                                         </h4>
                                     </div>
                                     <?php if (!$bloqueado): ?>
-                                        <button
-                                            class="btn btn--danger btn--sm btn-eliminar-criterio"
-                                            data-criterio-id="<?= $criterio['id'] ?>"
-                                            data-nombre="<?= e($criterio['nombre']) ?>">
-                                            Eliminar
-                                        </button>
+                                        <div class="criterio-bloque__acciones">
+                                            <button
+                                                class="btn btn--secondary btn--sm btn-renombrar-criterio"
+                                                data-criterio-id="<?= $criterio['id'] ?>">
+                                                Editar
+                                            </button>
+                                            <button
+                                                class="btn btn--danger btn--sm btn-eliminar-criterio"
+                                                data-criterio-id="<?= $criterio['id'] ?>"
+                                                data-nombre="<?= e($criterio['nombre']) ?>"
+                                                data-tiene-calificaciones="<?= $tieneCals ? '1' : '0' ?>">
+                                                Eliminar
+                                            </button>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
 

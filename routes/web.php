@@ -74,8 +74,9 @@ $router->get( '/docente/calificaciones/{carga_id}',         'Docente\Calificacio
 $router->post('/docente/calificaciones/{carga_id}/guardar', 'Docente\CalificacionController@guardar');
 
 // ─── Criterios ───────────────────────────────────────────────
-$router->post('/docente/criterios/crear',           'Docente\CalificacionController@crearCriterio');
-$router->post('/docente/criterios/{id}/eliminar',   'Docente\CalificacionController@eliminarCriterio');
+$router->post('/docente/criterios/crear',             'Docente\CalificacionController@crearCriterio');
+$router->post('/docente/criterios/{id}/renombrar',   'Docente\CalificacionController@renombrarCriterio');
+$router->post('/docente/criterios/{id}/eliminar',    'Docente\CalificacionController@eliminarCriterio');
 $router->post('/docente/calificaciones/conclusion', 'Docente\CalificacionController@guardarConclusion');
 
 

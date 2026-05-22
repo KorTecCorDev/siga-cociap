@@ -11,7 +11,7 @@ class CriterioModel extends BaseModel
     protected string $table = 'criterios';
 
     /**
-     * Obtiene los criterios de una carga + competencia + periodo.
+     * Obtiene los criterios activos (no eliminados) de una carga + competencia + periodo.
      */
     public function getCriterios(
         int $cargaId,
@@ -24,6 +24,7 @@ class CriterioModel extends BaseModel
             WHERE carga_id       = ?
               AND competencia_id = ?
               AND periodo_id     = ?
+              AND eliminado_en   IS NULL
             ORDER BY orden, id
         ", [$cargaId, $competenciaId, $periodoId]);
     }
@@ -43,6 +44,7 @@ class CriterioModel extends BaseModel
             WHERE carga_id       = ?
               AND competencia_id = ?
               AND periodo_id     = ?
+              AND eliminado_en   IS NULL
         ", [$cargaId, $competenciaId, $periodoId]);
 
         $orden = ($ultimo['ultimo'] ?? 0) + 1;
@@ -71,14 +73,31 @@ class CriterioModel extends BaseModel
     }
 
     /**
-     * Elimina un criterio solo si no tiene calificaciones.
+     * Cambia el nombre de un criterio. Siempre permitido, incluso con calificaciones.
      */
-    public function eliminarSiVacio(int $id): bool
+    public function renombrar(int $id, string $nombre): bool
     {
-        if ($this->tieneCalificaciones($id)) {
-            return false;
-        }
-        return $this->delete($id);
+        return $this->execute(
+            "UPDATE criterios SET nombre = ? WHERE id = ?",
+            [trim($nombre), $id]
+        );
+    }
+
+    /**
+     * Soft-delete con auditoría: marca el criterio como eliminado.
+     * Funciona aunque el criterio ya tenga calificaciones registradas.
+     * Los registros de criterios y calificaciones_criterio se conservan en BD.
+     */
+    public function eliminarConAuditoria(int $id, int $eliminadoPor): bool
+    {
+        return $this->execute(
+            "UPDATE criterios
+             SET eliminado_en  = NOW(),
+                 eliminado_por = ?
+             WHERE id          = ?
+               AND eliminado_en IS NULL",
+            [$eliminadoPor, $id]
+        );
     }
 
     /**
@@ -95,7 +114,7 @@ class CriterioModel extends BaseModel
                 c.nombre_corto,
                 c.codigo_minedu,
                 c.orden,
-                -- Promedio actual de la competencia
+                -- Promedio actual de la competencia (excluye criterios eliminados)
                 ROUND(
                     (
                         SELECT AVG(cc.nota)
@@ -104,9 +123,10 @@ class CriterioModel extends BaseModel
                         WHERE cr.carga_id       = ?
                         AND cr.competencia_id = c.id
                         AND cr.periodo_id     = ?
+                        AND cr.eliminado_en   IS NULL
                     ), 0
                 ) AS promedio_actual,
-                -- Cuántos alumnos tienen nota
+                -- Cuántos alumnos tienen nota (excluye criterios eliminados)
                 (
                     SELECT COUNT(DISTINCT cc.matricula_id)
                     FROM calificaciones_criterio cc
@@ -114,6 +134,7 @@ class CriterioModel extends BaseModel
                     WHERE cr.carga_id       = ?
                     AND cr.competencia_id = c.id
                     AND cr.periodo_id     = ?
+                    AND cr.eliminado_en   IS NULL
                 ) AS alumnos_calificados,
                 -- Conclusión descriptiva si existe
                 (

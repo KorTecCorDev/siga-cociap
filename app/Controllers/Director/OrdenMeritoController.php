@@ -163,7 +163,7 @@ class OrdenMeritoController extends BaseController
 
     /**
      * Calcula el ranking de estudiantes de un grado en un periodo.
-     * Promedia TODAS las áreas con igual peso.
+     * Excluye competencias transversales del promedio.
      */
     private function calcularRanking(int $gradoId, int $periodoId): array
     {
@@ -179,14 +179,18 @@ class OrdenMeritoController extends BaseController
                 SUM(cal.nota_numerica)             AS total_notas,
                 ROUND(AVG(cal.nota_numerica), 2)   AS promedio_general
             FROM matriculas m
-            INNER JOIN estudiantes e    ON e.id  = m.estudiante_id
-            INNER JOIN personas p       ON p.id  = e.persona_id
-            INNER JOIN secciones s      ON s.id  = m.seccion_id
-            INNER JOIN grados g         ON g.id  = s.grado_id
+            INNER JOIN estudiantes e      ON e.id  = m.estudiante_id
+            INNER JOIN personas p         ON p.id  = e.persona_id
+            INNER JOIN secciones s        ON s.id  = m.seccion_id
+            INNER JOIN grados g           ON g.id  = s.grado_id
             INNER JOIN calificaciones cal ON cal.matricula_id = m.id
+            INNER JOIN competencias comp  ON comp.id = cal.competencia_id
+            LEFT  JOIN subareas sa        ON sa.id   = comp.subarea_id
+            INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE g.id           = ?
               AND cal.periodo_id = ?
               AND m.estado       = 'aprobada'
+              AND a.tipo        != 'transversal'
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, p.dni, s.nombre
             ORDER BY promedio_general DESC
@@ -245,7 +249,7 @@ class OrdenMeritoController extends BaseController
 
     /**
      * Cuenta áreas y competencias distintas calificadas en el grado+periodo.
-     * Usado para mostrar el total en el encabezado del reporte.
+     * Excluye competencias transversales del conteo.
      */
     private function getConteosGrado(int $gradoId, int $periodoId): array
     {
@@ -259,9 +263,11 @@ class OrdenMeritoController extends BaseController
             INNER JOIN grados g           ON g.id    = s.grado_id
             INNER JOIN competencias comp  ON comp.id = cal.competencia_id
             LEFT  JOIN subareas sa        ON sa.id   = comp.subarea_id
+            INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE g.id           = ?
               AND cal.periodo_id = ?
               AND m.estado       = 'aprobada'
+              AND a.tipo        != 'transversal'
         ", [$gradoId, $periodoId]);
 
         return [
@@ -292,9 +298,13 @@ class OrdenMeritoController extends BaseController
             INNER JOIN secciones s        ON s.id  = m.seccion_id
             INNER JOIN grados g           ON g.id  = s.grado_id
             INNER JOIN calificaciones cal ON cal.matricula_id = m.id
+            INNER JOIN competencias comp  ON comp.id = cal.competencia_id
+            LEFT  JOIN subareas sa        ON sa.id   = comp.subarea_id
+            INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE g.id           = ?
               AND cal.periodo_id = ?
               AND m.estado       = 'aprobada'
+              AND a.tipo        != 'transversal'
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, s.id, s.nombre
             ORDER BY s.nombre, promedio_general DESC

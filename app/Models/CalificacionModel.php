@@ -81,6 +81,7 @@ class CalificacionModel extends BaseModel
               AND cr.carga_id       = ?
               AND cr.competencia_id = ?
               AND cr.periodo_id     = ?
+              AND cr.eliminado_en   IS NULL
         ", [$matriculaId, $cargaId, $competenciaId, $periodoId]);
 
         return isset($resultado['promedio'])
@@ -132,6 +133,7 @@ class CalificacionModel extends BaseModel
             WHERE cr.carga_id       = ?
               AND cr.competencia_id = ?
               AND cr.periodo_id     = ?
+              AND cr.eliminado_en   IS NULL
         ", [$cargaId, $competenciaId, $periodoId]);
 
         foreach ($alumnos as $alumno) {
@@ -273,6 +275,7 @@ class CalificacionModel extends BaseModel
                 WHERE cr.carga_id       = ?
                   AND cr.competencia_id = ?
                   AND cr.periodo_id     = ?
+                  AND cr.eliminado_en   IS NULL
                 ORDER BY cr.orden
             ", [
                 $matriculaId,
@@ -367,6 +370,7 @@ class CalificacionModel extends BaseModel
                     WHERE cr.carga_id       = ca.id
                       AND cr.competencia_id = comp.id
                       AND cr.periodo_id     = ?
+                      AND cr.eliminado_en   IS NULL
                 )                    AS num_criterios
             FROM cargas_academicas ca
             INNER JOIN secciones s   ON s.id   = ca.seccion_id
@@ -397,13 +401,14 @@ class CalificacionModel extends BaseModel
         int $competenciaId,
         int $periodoId
     ): array {
-        // Obtener criterios
+        // Obtener criterios activos (excluye eliminados)
         $criterios = $this->query("
             SELECT id, nombre, orden
             FROM criterios
             WHERE carga_id       = ?
             AND competencia_id = ?
             AND periodo_id     = ?
+            AND eliminado_en   IS NULL
             ORDER BY orden, id
         ", [$cargaId, $competenciaId, $periodoId]);
 

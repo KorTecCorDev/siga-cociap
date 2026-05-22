@@ -286,24 +286,106 @@ class CalificacionController extends BaseController
     }
 
     /**
+     * POST /docente/criterios/{id}/renombrar
+     * Cambia el nombre de un criterio. Permitido aunque ya tenga calificaciones.
+     */
+    public function renombrarCriterio(string $id): void
+    {
+        $this->validateCsrf();
+        $id     = (int) $id;
+        $nombre = trim($this->input('nombre', ''));
+
+        if (empty($nombre)) {
+            $this->json(['success' => false, 'mensaje' => 'El nombre no puede estar vacío.'], 400);
+        }
+
+        $criterio = $this->critModel->queryOne(
+            "SELECT id, periodo_id FROM criterios WHERE id = ?",
+            [$id]
+        );
+
+        if (!$criterio) {
+            $this->json(['success' => false, 'mensaje' => 'Criterio no encontrado.'], 404);
+        }
+
+        if ($this->calModel->periodoEstaBloqueado((int) $criterio['periodo_id'])) {
+            $this->json(['success' => false, 'mensaje' => 'Periodo bloqueado.'], 403);
+        }
+
+        $this->critModel->renombrar($id, $nombre);
+
+        $this->json(['success' => true, 'nombre' => $nombre, 'mensaje' => 'Criterio actualizado.']);
+    }
+
+    /**
      * POST /docente/criterios/{id}/eliminar
-     * Elimina un criterio si no tiene calificaciones.
+     * Soft-delete de un criterio aunque ya tenga calificaciones.
+     * El criterio y sus calificaciones_criterio se conservan en BD para auditoría.
+     * Si tenía calificaciones, recalcula el promedio de la competencia.
      */
     public function eliminarCriterio(string $id): void
     {
         $this->validateCsrf();
         $id = (int) $id;
 
-        $ok = $this->critModel->eliminarSiVacio($id);
+        $criterio = $this->critModel->queryOne(
+            "SELECT id, carga_id, competencia_id, periodo_id
+             FROM criterios
+             WHERE id = ? AND eliminado_en IS NULL",
+            [$id]
+        );
 
-        if ($ok) {
-            $this->json(['success' => true, 'mensaje' => 'Criterio eliminado.']);
-        } else {
+        if (!$criterio) {
+            $this->json(['success' => false, 'mensaje' => 'Criterio no encontrado.'], 404);
+        }
+
+        $periodoId     = (int) $criterio['periodo_id'];
+        $cargaId       = (int) $criterio['carga_id'];
+        $competenciaId = (int) $criterio['competencia_id'];
+
+        if ($this->calModel->periodoEstaBloqueado($periodoId)) {
+            $this->json(['success' => false, 'mensaje' => 'El periodo está cerrado.'], 403);
+        }
+
+        if ($this->calModel->competenciaBloqueada($cargaId, $competenciaId, $periodoId)) {
             $this->json([
                 'success' => false,
-                'mensaje' => 'No se puede eliminar — ya tiene calificaciones.',
-            ], 409);
+                'mensaje' => 'Esta competencia ya fue aprobada y bloqueada.',
+            ], 403);
         }
+
+        $teniaCals = $this->critModel->tieneCalificaciones($id);
+        $user      = Session::user();
+
+        $ok = $this->critModel->eliminarConAuditoria($id, $user['id']);
+
+        if (!$ok) {
+            $this->json(['success' => false, 'mensaje' => 'Error al eliminar el criterio.'], 500);
+        }
+
+        if ($teniaCals) {
+            try {
+                $this->calModel->recalcularPromedioSeccion(
+                    $cargaId,
+                    $competenciaId,
+                    $periodoId,
+                    $user['id']
+                );
+            } catch (\Exception $e) {
+                log_error('Error al recalcular promedio tras eliminar criterio', [
+                    'criterio_id'    => $id,
+                    'carga_id'       => $cargaId,
+                    'competencia_id' => $competenciaId,
+                    'error'          => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $this->json([
+            'success'           => true,
+            'mensaje'           => 'Criterio eliminado.',
+            'tenia_calificaciones' => $teniaCals,
+        ]);
     }
 
     /**
@@ -465,8 +547,9 @@ class CalificacionController extends BaseController
                 cr.competencia_id
             FROM calificaciones_criterio cc
             INNER JOIN criterios cr ON cr.id = cc.criterio_id
-            WHERE cr.carga_id   = ?
-            AND cr.periodo_id = ?
+            WHERE cr.carga_id     = ?
+              AND cr.periodo_id   = ?
+              AND cr.eliminado_en IS NULL
         ", [$cargaId, $periodoId]);
 
         // Indexar por criterio_id y matricula_id para acceso rápido

@@ -10,7 +10,7 @@ const BASE = document.querySelector('meta[name="base-url"]')?.content ?? '';
 document.querySelectorAll('.criterio-bloque').forEach(bloque => {
     const header = bloque.querySelector('.criterio-bloque__header');
     header.addEventListener('click', (e) => {
-        if (e.target.closest('button')) return;
+        if (e.target.closest('button') || e.target.tagName === 'INPUT') return;
         const abriendo = !bloque.classList.contains('criterio-bloque--open');
         bloque.classList.toggle('criterio-bloque--open');
         if (abriendo) {
@@ -224,13 +224,106 @@ document.querySelectorAll('.btn-agregar-criterio').forEach(btn => {
     });
 });
 
+// ── Renombrar criterio ───────────────────────────────────────
+document.querySelectorAll('.btn-renombrar-criterio').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const criterioId = btn.dataset.criterioId;
+        const bloque     = document.getElementById(`criterio-${criterioId}`);
+        const h4         = bloque.querySelector('.criterio-bloque__nombre');
+        const acciones   = bloque.querySelector('.criterio-bloque__acciones');
+        const nombreActual = h4.textContent.trim();
+
+        const input = document.createElement('input');
+        input.type      = 'text';
+        input.value     = nombreActual;
+        input.maxLength = 120;
+        input.className = 'form-input criterio-nombre-input';
+
+        const btnGuardar = document.createElement('button');
+        btnGuardar.type      = 'button';
+        btnGuardar.textContent = 'Guardar';
+        btnGuardar.className = 'btn btn--primary btn--sm';
+
+        const btnCancelar = document.createElement('button');
+        btnCancelar.type      = 'button';
+        btnCancelar.textContent = 'Cancelar';
+        btnCancelar.className = 'btn btn--secondary btn--sm';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'criterio-nombre-editar';
+        wrapper.append(input, btnGuardar, btnCancelar);
+
+        h4.hidden       = true;
+        acciones.hidden = true;
+        h4.parentElement.append(wrapper);
+        input.focus();
+        input.select();
+
+        const cancelar = () => {
+            h4.hidden       = false;
+            acciones.hidden = false;
+            wrapper.remove();
+        };
+
+        const guardar = async () => {
+            const nuevo = input.value.trim();
+            if (!nuevo) { input.focus(); return; }
+            if (nuevo === nombreActual) { cancelar(); return; }
+
+            btnGuardar.disabled = btnCancelar.disabled = true;
+
+            try {
+                const formData = new FormData();
+                formData.append('_csrf_token', CSRF);
+                formData.append('nombre',      nuevo);
+
+                const res  = await fetch(
+                    `${BASE}/docente/criterios/${criterioId}/renombrar`,
+                    { method: 'POST', body: formData }
+                );
+                const data = await res.json();
+
+                if (data.success) {
+                    h4.textContent = data.nombre;
+                    const btnEliminar = acciones.querySelector('.btn-eliminar-criterio');
+                    if (btnEliminar) btnEliminar.dataset.nombre = data.nombre;
+                    cancelar();
+                } else {
+                    alert(data.mensaje);
+                    btnGuardar.disabled = btnCancelar.disabled = false;
+                }
+            } catch (err) {
+                alert('Error de conexión.');
+                btnGuardar.disabled = btnCancelar.disabled = false;
+            }
+        };
+
+        btnGuardar.addEventListener('click', guardar);
+        btnCancelar.addEventListener('click', cancelar);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter')  { e.preventDefault(); guardar(); }
+            if (e.key === 'Escape') { cancelar(); }
+        });
+    });
+});
+
 // ── Eliminar criterio ────────────────────────────────────────
 document.querySelectorAll('.btn-eliminar-criterio').forEach(btn => {
     btn.addEventListener('click', async () => {
-        const criterioId = btn.dataset.criterioId;
-        const nombre     = btn.dataset.nombre;
+        const criterioId  = btn.dataset.criterioId;
+        const nombre      = btn.dataset.nombre;
+        const tieneCals   = btn.dataset.tieneCalificaciones === '1';
 
-        if (!confirm(`¿Eliminar el criterio "${nombre}"?`)) return;
+        const mensaje = tieneCals
+            ? `¿Eliminar el criterio "${nombre}"?\n\n` +
+              `Este criterio tiene notas registradas. ` +
+              `El promedio de los alumnos será recalculado sin este criterio.\n\n` +
+              `Los datos quedan guardados en el sistema para auditoría.`
+            : `¿Eliminar el criterio "${nombre}"?`;
+
+        if (!confirm(mensaje)) return;
+
+        btn.disabled = true;
 
         try {
             const formData = new FormData();
@@ -243,12 +336,19 @@ document.querySelectorAll('.btn-eliminar-criterio').forEach(btn => {
             const data = await res.json();
 
             if (data.success) {
-                document.getElementById(`criterio-${criterioId}`)?.remove();
+                if (data.tenia_calificaciones) {
+                    // Recargar para reflejar el promedio recalculado
+                    window.location.reload();
+                } else {
+                    document.getElementById(`criterio-${criterioId}`)?.remove();
+                }
             } else {
                 alert(data.mensaje);
+                btn.disabled = false;
             }
         } catch (err) {
             alert('Error de conexión.');
+            btn.disabled = false;
         }
     });
 });
