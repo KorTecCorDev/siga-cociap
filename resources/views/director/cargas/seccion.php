@@ -19,7 +19,7 @@ $badgeEstado = fn(string $e): string => $e === 'activa' ? 'badge--activo' : 'bad
             · <?= count($cargas) ?> carga<?= count($cargas) !== 1 ? 's' : '' ?>
         </p>
     </div>
-    <a href="<?= url('director/cargas/crear') ?>" class="btn btn--primary">+ Nueva carga</a>
+    <a href="<?= url('director/cargas/crear?seccion_id=' . $seccion['id']) ?>" class="btn btn--primary">+ Nueva carga</a>
 </div>
 
 <?php if (empty($cargas)): ?>

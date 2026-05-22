@@ -39,11 +39,24 @@ function initAreaFilter() {
 
     if (!seccionSel || !areaSel) return;
 
-    seccionSel.addEventListener('change', filtrarAreas);
+    seccionSel.addEventListener('change', () => {
+        filtrarAreas();
+        autoSeleccionarTutor(seccionSel.options[seccionSel.selectedIndex]);
+    });
     areaSel.addEventListener('change', filtrarSubareas);
 
-    // Inicializar (editar: ya hay valores seleccionados)
+    // Inicializar (editar y crear-con-sección: ya hay valores seleccionados por PHP)
     filtrarAreas();
+}
+
+function autoSeleccionarTutor(seccionOpt) {
+    const docenteSel   = document.getElementById('docente_id');
+    if (!docenteSel) return;
+    const esUnidocente = seccionOpt?.dataset?.esUnidocente === '1';
+    const tutorId      = seccionOpt?.dataset?.tutorId || '';
+    if (esUnidocente && tutorId) {
+        docenteSel.value = tutorId;
+    }
 }
 
 function filtrarAreas() {

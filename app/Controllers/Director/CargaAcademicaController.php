@@ -55,9 +55,21 @@ class CargaAcademicaController extends BaseController
     // GET /director/cargas/crear
     public function create(): void
     {
+        $preselSeccionId = (int) ($_GET['seccion_id'] ?? 0);
+        $preselDocenteId = 0;
+
+        if ($preselSeccionId > 0) {
+            $seccion = $this->model->findSeccion($preselSeccionId);
+            if ($seccion && $seccion['es_unidocente'] && $seccion['tutor_id']) {
+                $preselDocenteId = (int) $seccion['tutor_id'];
+            }
+        }
+
         $this->view('director/cargas/crear', $this->datosFormulario() + [
-            'titulo'       => 'Nueva Carga Académica',
-            'page_scripts' => ['cargas'],
+            'titulo'          => 'Nueva Carga Académica',
+            'page_scripts'    => ['cargas'],
+            'preselSeccionId' => $preselSeccionId,
+            'preselDocenteId' => $preselDocenteId,
         ]);
     }
 

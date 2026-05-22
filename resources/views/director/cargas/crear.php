@@ -5,6 +5,8 @@
  * @var array  $areas
  * @var array  $subareas
  * @var array  $dias
+ * @var int    $preselSeccionId  ID de la sección pre-seleccionada (0 = ninguna)
+ * @var int    $preselDocenteId  ID del docente pre-seleccionado (0 = ninguno; solo si sección es unidocente)
  */
 ?>
 
@@ -34,7 +36,10 @@
                         <?php foreach ($secciones as $s): ?>
                             <option value="<?= $s['id'] ?>"
                                     data-nivel-id="<?= $s['nivel_id'] ?>"
-                                    data-anio-id="<?= $s['anio_id'] ?>">
+                                    data-anio-id="<?= $s['anio_id'] ?>"
+                                    data-es-unidocente="<?= $s['es_unidocente'] ? '1' : '0' ?>"
+                                    data-tutor-id="<?= (int) $s['tutor_id'] ?>"
+                                    <?= ($preselSeccionId && $s['id'] == $preselSeccionId) ? 'selected' : '' ?>>
                                 <?= e($s['grado']) ?> "<?= e($s['seccion']) ?>"
                                 — <?= e($s['nivel']) ?> <?= e($s['anio']) ?>
                             </option>
@@ -49,7 +54,8 @@
                     <select id="docente_id" name="docente_id" class="form-input" required>
                         <option value="">Seleccionar docente...</option>
                         <?php foreach ($docentes as $d): ?>
-                            <option value="<?= $d['id'] ?>">
+                            <option value="<?= $d['id'] ?>"
+                                    <?= ($preselDocenteId && $d['id'] == $preselDocenteId) ? 'selected' : '' ?>>
                                 <?= e(mb_strtoupper($d['apellido_paterno'] . ' ' . $d['apellido_materno'])) ?>,
                                 <?= e(ucwords(mb_strtolower($d['nombres']))) ?>
                             </option>

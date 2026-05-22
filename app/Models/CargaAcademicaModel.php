@@ -15,13 +15,15 @@ class CargaAcademicaModel extends BaseModel
         return $this->query("
             SELECT
                 s.id,
-                s.nombre        AS seccion,
+                s.nombre         AS seccion,
+                s.es_unidocente,
+                s.tutor_id,
                 g.nombre_display AS grado,
-                g.id            AS grado_id,
-                n.nombre        AS nivel,
-                n.id            AS nivel_id,
+                g.id             AS grado_id,
+                n.nombre         AS nivel,
+                n.id             AS nivel_id,
                 a.anio,
-                a.id            AS anio_id
+                a.id             AS anio_id
             FROM secciones s
             INNER JOIN grados g            ON g.id = s.grado_id
             INNER JOIN niveles n            ON n.id = g.nivel_id
@@ -157,6 +159,8 @@ class CargaAcademicaModel extends BaseModel
             SELECT
                 s.id,
                 s.nombre            AS seccion_nombre,
+                s.es_unidocente,
+                s.tutor_id,
                 g.nombre_display    AS grado_nombre,
                 g.numero            AS grado_numero,
                 n.nombre            AS nivel_nombre,
