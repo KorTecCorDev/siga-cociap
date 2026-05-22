@@ -58,6 +58,19 @@ unset($_n, $_c);
 </header>
 
 <!-- ── Datos del estudiante ─────────────────────────────────── -->
+<?php
+$sexoTutor     = $tutor['sexo'] ?? null;
+$cargoTutor    = match($sexoTutor) {
+    'F'     => 'Tutora de Aula',
+    'M'     => 'Tutor de Aula',
+    default => 'Tutor(a) de Aula',
+};
+$cargoDirector = match($directorEbr['sexo'] ?? null) {
+    'F'     => 'Directora E.B.R.',
+    'M'     => 'Director E.B.R.',
+    default => 'Director(a) E.B.R.',
+};
+?>
 <section class="boleta-alumno">
     <div class="boleta-alumno__item boleta-alumno__item--nombre">
         <span class="boleta-alumno__label">Apellidos y Nombres</span>
@@ -75,6 +88,12 @@ unset($_n, $_c);
         <span class="boleta-alumno__label">Nivel</span>
         <span class="boleta-alumno__valor"><?= e($alumno['nivel_nombre'] ?? '') ?></span>
     </div>
+    <?php if (!empty($tutor['nombre'])): ?>
+    <div class="boleta-alumno__item boleta-alumno__item--tutor">
+        <span class="boleta-alumno__label"><?= $cargoTutor ?></span>
+        <span class="boleta-alumno__valor"><?= e($tutor['nombre']) ?></span>
+    </div>
+    <?php endif; ?>
 </section>
 
 <!-- ── Leyenda de escala ─────────────────────────────────────── -->
@@ -228,10 +247,10 @@ unset($_n, $_c);
     <div class="boleta-footer__bloque">
         <div class="boleta-footer__espacio-firma"></div>
         <div class="boleta-footer__linea"></div>
-        <?php if (!empty($tutor)): ?>
-            <div class="boleta-footer__nombre"><?= e($tutor) ?></div>
+        <?php if (!empty($tutor['nombre'])): ?>
+            <div class="boleta-footer__nombre"><?= e($tutor['nombre']) ?></div>
         <?php endif; ?>
-        <div class="boleta-footer__cargo">Tutor(a) de Aula</div>
+        <div class="boleta-footer__cargo"><?= $cargoTutor ?></div>
     </div>
 
     <!-- Director EBR: firma PNG anclada al fondo del espacio -->
@@ -248,7 +267,7 @@ unset($_n, $_c);
         <?php if (!empty($directorEbr['nombre_completo'])): ?>
             <div class="boleta-footer__nombre"><?= e($directorEbr['nombre_completo']) ?></div>
         <?php endif; ?>
-        <div class="boleta-footer__cargo">Director(a) E.B.R.</div>
+        <div class="boleta-footer__cargo"><?= $cargoDirector ?></div>
     </div>
 
 </footer>

@@ -103,7 +103,43 @@ class BoletaPublicaController extends BaseController
             'areas'       => $this->buildAreasConBimestres($datosPorPeriodo, $periodos),
             'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, (int) $periodo['anio_id']),
             'institucion' => config('institucion'),
+            'tutor'       => $this->getTutorSeccion($matriculaId),
             'directorEbr' => $this->dirModel->getVigenteEnFecha((int) $periodo['anio_id']),
+        ];
+    }
+
+    private function getTutorSeccion(int $matriculaId): ?array
+    {
+        $seccion = $this->calModel->queryOne("
+            SELECT s.tutor_id
+            FROM matriculas m
+            INNER JOIN secciones s ON s.id = m.seccion_id
+            WHERE m.id = ?
+            LIMIT 1
+        ", [$matriculaId]);
+
+        $tutorId = (int) ($seccion['tutor_id'] ?? 0);
+        if (!$tutorId) {
+            return null;
+        }
+
+        $persona = $this->calModel->queryOne("
+            SELECT p.apellido_paterno, p.apellido_materno, p.nombres, p.sexo
+            FROM usuarios u
+            INNER JOIN personas p ON p.id = u.persona_id
+            WHERE u.id = ?
+            LIMIT 1
+        ", [$tutorId]);
+
+        if (!$persona || empty($persona['apellido_paterno'])) {
+            return null;
+        }
+
+        return [
+            'nombre' => $persona['apellido_paterno'] . ' '
+                      . $persona['apellido_materno'] . ', '
+                      . $persona['nombres'],
+            'sexo'   => $persona['sexo'],
         ];
     }
 

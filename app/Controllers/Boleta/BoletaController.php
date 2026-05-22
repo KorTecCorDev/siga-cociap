@@ -228,7 +228,7 @@ class BoletaController extends BaseController
         return $areas;
     }
 
-    private function getTutorSeccion(int $matriculaId): ?string
+    private function getTutorSeccion(int $matriculaId): ?array
     {
         $seccion = $this->calModel->queryOne("
             SELECT s.tutor_id
@@ -244,7 +244,7 @@ class BoletaController extends BaseController
         }
 
         $persona = $this->calModel->queryOne("
-            SELECT p.apellido_paterno, p.apellido_materno, p.nombres
+            SELECT p.apellido_paterno, p.apellido_materno, p.nombres, p.sexo
             FROM usuarios u
             INNER JOIN personas p ON p.id = u.persona_id
             WHERE u.id = ?
@@ -255,9 +255,12 @@ class BoletaController extends BaseController
             return null;
         }
 
-        return $persona['apellido_paterno'] . ' '
-             . $persona['apellido_materno'] . ', '
-             . $persona['nombres'];
+        return [
+            'nombre' => $persona['apellido_paterno'] . ' '
+                      . $persona['apellido_materno'] . ', '
+                      . $persona['nombres'],
+            'sexo'   => $persona['sexo'],
+        ];
     }
 
     private function getHijoPadre(int $usuarioId): ?array

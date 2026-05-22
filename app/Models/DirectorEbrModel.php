@@ -30,6 +30,7 @@ class DirectorEbrModel extends BaseModel
                 h.asignado_en,
                 h.firma_path,
                 h.sello_path,
+                p.sexo,
                 CONCAT(p.apellido_paterno, ' ', p.apellido_materno, ', ', p.nombres)
                     AS nombre_completo
             FROM director_ebr_historial h

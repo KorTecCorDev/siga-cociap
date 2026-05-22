@@ -352,14 +352,26 @@ unset($_n, $_c);
     <!-- ── FOOTER — FIRMAS ──────────────────────────────────── -->
     <footer class="bd-footer">
 
+        <?php
+        $bdCargoTutor    = match($tutor['sexo'] ?? null) {
+            'F'     => 'Tutora de Aula',
+            'M'     => 'Tutor de Aula',
+            default => 'Tutor(a) de Aula',
+        };
+        $bdCargoDirector = match($directorEbr['sexo'] ?? null) {
+            'F'     => 'Directora E.B.R.',
+            'M'     => 'Director E.B.R.',
+            default => 'Director(a) E.B.R.',
+        };
+        ?>
         <!-- Tutor: área de imagen vacía para igualar altura con Director -->
         <div class="bd-footer__sig">
             <div class="bd-footer__img-area"></div>
             <div class="bd-footer__line" role="presentation"></div>
-            <?php if (!empty($tutor)): ?>
-                <p class="bd-footer__name"><?= e($tutor) ?></p>
+            <?php if (!empty($tutor['nombre'])): ?>
+                <p class="bd-footer__name"><?= e($tutor['nombre']) ?></p>
             <?php endif; ?>
-            <p class="bd-footer__cargo">Tutor(a) de Aula</p>
+            <p class="bd-footer__cargo"><?= $bdCargoTutor ?></p>
         </div>
 
         <!-- Director EBR: sello en pantalla, firma al imprimir -->
@@ -381,7 +393,7 @@ unset($_n, $_c);
             <?php if (!empty($directorEbr['nombre_completo'])): ?>
                 <p class="bd-footer__name bd-solo-impresion"><?= e($directorEbr['nombre_completo']) ?></p>
             <?php endif; ?>
-            <p class="bd-footer__cargo">Director(a) E.B.R.</p>
+            <p class="bd-footer__cargo"><?= $bdCargoDirector ?></p>
         </div>
 
     </footer>

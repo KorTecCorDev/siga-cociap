@@ -149,6 +149,13 @@ body.boleta-body {
 
         &:last-child { border-right: none; }
         &--nombre { border-right: 0.6pt solid $c-borde; }
+        &--tutor {
+            grid-column: 1 / -1;
+            flex-direction: row;
+            align-items: baseline;
+            gap: 2mm;
+            border-top: 0.4pt solid #aaa;
+        }
     }
 
     &__label {

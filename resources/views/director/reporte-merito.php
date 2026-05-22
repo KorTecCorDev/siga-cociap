@@ -106,6 +106,11 @@ $hoy = (new DateTime())->format('d/m/Y');
         <?php endif; ?>
 
         <footer class="reporte-footer">
+            <?php $rmCargoDirector = match($directorEbr['sexo'] ?? null) {
+                'F'     => 'Directora E.B.R.',
+                'M'     => 'Director E.B.R.',
+                default => 'Director(a) E.B.R.',
+            }; ?>
 
             <!-- Director EBR: espacio de firma fijo para igualar altura con tutores -->
             <div class="reporte-footer__bloque">
@@ -121,7 +126,7 @@ $hoy = (new DateTime())->format('d/m/Y');
                 <?php if (!empty($directorEbr['nombre_completo'])): ?>
                     <div class="reporte-footer__nombre"><?= e($directorEbr['nombre_completo']) ?></div>
                 <?php endif; ?>
-                <div class="reporte-footer__cargo">Director(a) E.B.R.</div>
+                <div class="reporte-footer__cargo"><?= $rmCargoDirector ?></div>
             </div>
 
             <!-- Tutores: mismo espacio vacío para que la línea quede alineada -->

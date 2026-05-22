@@ -212,7 +212,7 @@ class BoletaPublicaController extends BaseController
         ];
     }
 
-    private function getTutorSeccion(int $matriculaId): ?string
+    private function getTutorSeccion(int $matriculaId): ?array
     {
         $seccion = $this->calModel->queryOne("
             SELECT s.tutor_id
@@ -228,7 +228,7 @@ class BoletaPublicaController extends BaseController
         }
 
         $persona = $this->calModel->queryOne("
-            SELECT p.apellido_paterno, p.apellido_materno, p.nombres
+            SELECT p.apellido_paterno, p.apellido_materno, p.nombres, p.sexo
             FROM usuarios u
             INNER JOIN personas p ON p.id = u.persona_id
             WHERE u.id = ?
@@ -239,9 +239,12 @@ class BoletaPublicaController extends BaseController
             return null;
         }
 
-        return $persona['apellido_paterno'] . ' '
-             . $persona['apellido_materno'] . ', '
-             . $persona['nombres'];
+        return [
+            'nombre' => $persona['apellido_paterno'] . ' '
+                      . $persona['apellido_materno'] . ', '
+                      . $persona['nombres'],
+            'sexo'   => $persona['sexo'],
+        ];
     }
 
     private function getAlumno(int $matriculaId): ?array

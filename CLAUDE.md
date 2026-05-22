@@ -588,6 +588,100 @@ Todos los bloques de firma (con y sin imagen) tienen un contenedor de **altura f
 Docentes subieron notas del I Bimestre el 16-17 de mayo 2026.
 Presentación pendiente al comité directivo — seed de demo listo en `database/seeds/003_demo_boletas.sql`.
 
+## Producción — Hostinger
+
+### Proveedor y requisitos mínimos
+Hostinger (plan Premium o Business). Requiere PHP 8.2+ — confirmar y fijar la versión
+en hPanel antes de subir cualquier archivo. El código usa `match`, `str_starts_with`,
+tipos de retorno `never` y otras funciones de PHP 8.1/8.2.
+
+### Estructura de despliegue obligatoria (Opción B)
+El document root del dominio/subdominio debe apuntar directamente a `public/`, no a la
+raíz del proyecto. Si apunta a la raíz, `url()` incluirá `/public/` en todas las URLs
+y los QR generarán rutas incorrectas desde el primer día.
+
+Configuración en hPanel: crear subdominio (ej. `siga.cociap.edu.pe`), establecer su
+document root en `public_html/siga-cociap/public/`.
+
+```
+public_html/
+└── siga-cociap/          ← repositorio completo
+    ├── app/
+    ├── config/
+    ├── public/           ← document root del subdominio ← apunta aquí
+    └── ...
+```
+
+### `url()` — no requiere cambios de código
+Con `app_url = ''` (valor actual en `config/app.php`), `url()` lee `$_SERVER['HTTP_HOST']`
+en cada request y construye la base automáticamente. En Hostinger genera
+`https://siga.cociap.edu.pe/boleta-publica?codigo=...` sin tocar una línea.
+Solo setear `app_url` si se necesita forzar una URL fija.
+
+### SSL — activar antes de la primera prueba
+Hostinger incluye Let's Encrypt gratuito. Activarlo en hPanel desde el inicio.
+Los teléfonos modernos bloquean contenido HTTP mixto y muestran advertencia en HTTP puro,
+lo que arruina la experiencia de escaneo de QR para los padres.
+
+### QR — dos tipos con comportamiento distinto
+| QR | Vista | URL incrustada | Requiere login |
+|---|---|---|---|
+| Footer boleta A4 | `boleta/alumno.php` | `/boleta/digital/{id}/{id}` | **Sí** → redirige a login |
+| Hoja de códigos admin | `/admin/boletas-publicas/{id}/imprimir` | `/boleta-publica?codigo=COCIAP-...` | **No** → acceso directo |
+
+El único QR que un padre puede escanear desde su celular sin cuenta es el de la
+**hoja de códigos**. El QR del footer de la boleta A4 es para usuarios autenticados.
+
+El QR se genera con `qrcode.min.js` (librería local, sin dependencia de terceros).
+La boleta digital en pantalla usa `chart.googleapis.com` para su QR de verificación —
+si el servidor no tiene salida a internet ese QR no renderiza, pero no afecta nada
+crítico del sistema.
+
+### Cambios en `config/app.php` para producción
+```php
+'debug'   => false,   // OBLIGATORIO — en true expone stack traces al público
+'app_url' => '',      // mantener vacío — la auto-detección funciona correctamente
+```
+
+### Archivos fuera de Git — transferir manualmente
+- `config/database.php` — crear con las credenciales MySQL de Hostinger
+- `public/assets/img/firmas/` — copiar los PNG de firma y sello del Director EBR
+- Permisos del directorio: `chmod 775 public/assets/img/firmas/` para que el
+  controlador pueda escribir nuevas imágenes al subir desde `/admin/director-ebr`
+
+### Base de datos en Hostinger
+- Crear BD y usuario MySQL desde hPanel de Hostinger.
+- Exportar el dump desde XAMPP local: estructura + datos, charset utf8mb4.
+  **No usar los backups del repositorio** — pueden estar desactualizados; los datos
+  reales (notas del I Bimestre) solo existen en la BD local de XAMPP.
+- Importar el dump via phpMyAdmin de Hostinger.
+- Las migraciones ya están aplicadas en la BD local — el dump las incluye.
+  No volver a correr los archivos de `migrations/` sobre el dump importado.
+
+### Checklist de despliegue
+1. Commitear todos los cambios pendientes (incluyendo `public/css/app.css` compilado)
+2. Exportar dump completo de la BD local (utf8mb4, con datos reales)
+3. Subir el repositorio a Hostinger vía Git o FTP
+4. Crear subdominio en hPanel y apuntar document root a `public/`
+5. Activar SSL (Let's Encrypt) en hPanel
+6. Crear BD MySQL en hPanel e importar el dump
+7. Crear `config/database.php` con credenciales de Hostinger
+8. Confirmar que `mod_rewrite` está activo (activo por defecto en planes compartidos)
+9. `chmod 775 public/assets/img/firmas/`
+10. Transferir los PNG de firma y sello del Director EBR
+11. Probar en navegador: login, boleta imprimible, boleta digital, boleta pública con código
+12. Escanear un QR de la hoja de códigos desde un celular con datos móviles (no WiFi local)
+13. Imprimir boleta de prueba en la RICOH MP4054 PCL6 del colegio
+
+### Riesgos conocidos
+- **PHP `exif_imagetype()`**: no disponible en XAMPP local → se usa `getimagesize()[2]`.
+  Verificar si Hostinger tiene `ext-exif` habilitada; si es así, la validación funciona
+  igual porque `getimagesize()[2]` es equivalente y más portable.
+- **Versión PHP**: confirmar PHP 8.2 en hPanel — algunos planes Hostinger tienen 8.1
+  como versión por defecto.
+- **`mod_rewrite`**: los planes compartidos de Hostinger lo incluyen, pero si se usa
+  un plan VPS hay que habilitarlo manualmente (`a2enmod rewrite`).
+
 ## Notas importantes
 - `config/database.php` NO está en Git — crear manualmente en cada equipo
 - Logo del colegio: `public/assets/img/logo_cociap.png` (con guión bajo)
