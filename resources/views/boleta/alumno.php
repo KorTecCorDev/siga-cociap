@@ -230,8 +230,18 @@ unset($_n, $_c);
         <?php endif; ?>
         <div class="boleta-footer__cargo">Tutor(a) de Aula</div>
     </div>
-    <div class="boleta-footer__bloque">
+    <?php $tieneFirma = !empty($directorEbr['firma_path']); ?>
+    <div class="boleta-footer__bloque <?= $tieneFirma ? 'boleta-footer__bloque--con-firma' : '' ?>">
+        <?php if ($tieneFirma): ?>
+            <img src="<?= url($directorEbr['firma_path']) ?>"
+                 alt=""
+                 aria-hidden="true"
+                 class="boleta-footer__firma-img">
+        <?php endif; ?>
         <div class="boleta-footer__linea"></div>
+        <?php if (!empty($directorEbr['nombre_completo'])): ?>
+            <div class="boleta-footer__nombre"><?= e($directorEbr['nombre_completo']) ?></div>
+        <?php endif; ?>
         <div class="boleta-footer__cargo">Director(a) E.B.R.</div>
     </div>
     <div class="boleta-footer__bloque">

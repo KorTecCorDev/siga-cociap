@@ -22,6 +22,13 @@
 
     <?php if (has_role('admin')): ?>
         <div class="card">
+            <a href="<?= url('admin/director-ebr') ?>">
+                <div class="card__icon"><img src="<?= url('assets/icons/user-plus.svg') ?>" alt="Director EBR"></div>
+                <div class="card__title">Director EBR</div>
+                <div class="card__desc">Historial y asignación del Director EBR</div>
+            </a>
+        </div>
+        <div class="card">
             <a href="<?= url('admin/secciones') ?>">
                 <div class="card__icon"><img src="<?= url('assets/icons/book-bookmark.svg') ?>" alt="Secciones"></div>
                 <div class="card__title">Secciones y Tutores</div>

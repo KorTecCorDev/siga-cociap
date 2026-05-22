@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\BoletaPublicaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
+use App\Models\DirectorEbrModel;
 use Core\View;
 
 class BoletaPublicaController extends BaseController
@@ -12,6 +13,7 @@ class BoletaPublicaController extends BaseController
     private BoletaPublicaModel $bpModel;
     private CalificacionModel  $calModel;
     private ConductaModel      $conductaModel;
+    private DirectorEbrModel   $dirModel;
 
     public function __construct()
     {
@@ -19,6 +21,7 @@ class BoletaPublicaController extends BaseController
         $this->bpModel       = new BoletaPublicaModel();
         $this->calModel      = new CalificacionModel();
         $this->conductaModel = new ConductaModel();
+        $this->dirModel      = new DirectorEbrModel();
     }
 
     /** GET /boleta-publica — formulario para ingresar código */
@@ -100,6 +103,7 @@ class BoletaPublicaController extends BaseController
             'areas'       => $this->buildAreasConBimestres($datosPorPeriodo, $periodos),
             'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, (int) $periodo['anio_id']),
             'institucion' => config('institucion'),
+            'directorEbr' => $this->dirModel->getVigenteEnFecha((int) $periodo['anio_id']),
         ];
     }
 

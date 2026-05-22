@@ -34,6 +34,10 @@ import_matriculas.php
 !storage/uploads/.gitkeep
 !storage/pdfs/.gitkeep
 
+# Imágenes de firma/sello del Director EBR (datos del entorno, no del repo)
+/public/assets/img/firmas/*.png
+!/public/assets/img/firmas/.gitkeep
+
 # Node
 node_modules/
 package-lock.json

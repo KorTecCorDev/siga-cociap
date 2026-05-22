@@ -5,6 +5,7 @@ namespace App\Controllers\Boleta;
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
+use App\Models\DirectorEbrModel;
 use Core\Session;
 use Core\View;
 
@@ -12,6 +13,7 @@ class BoletaController extends BaseController
 {
     private CalificacionModel $calModel;
     private ConductaModel     $conductaModel;
+    private DirectorEbrModel  $dirModel;
 
     public function __construct()
     {
@@ -25,6 +27,7 @@ class BoletaController extends BaseController
         ]);
         $this->calModel      = new CalificacionModel();
         $this->conductaModel = new ConductaModel();
+        $this->dirModel      = new DirectorEbrModel();
     }
 
     /**
@@ -96,6 +99,7 @@ class BoletaController extends BaseController
             'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, $periodo['anio_id']),
             'institucion' => config('institucion'),
             'tutor'       => $this->getTutorSeccion($matriculaId),
+            'directorEbr' => $this->dirModel->getVigenteEnFecha((int) $periodo['anio_id']),
         ];
     }
 

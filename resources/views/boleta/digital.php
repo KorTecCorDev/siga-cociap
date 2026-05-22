@@ -353,11 +353,22 @@ unset($_n, $_c);
     <footer class="bd-footer">
         <div class="bd-footer__sig">
             <div class="bd-footer__line" role="presentation"></div>
+            <?php if (!empty($tutor)): ?>
+                <p class="bd-footer__name"><?= e($tutor) ?></p>
+            <?php endif; ?>
             <p class="bd-footer__cargo">Tutor(a) de Aula</p>
         </div>
         <div class="bd-footer__sig">
+            <?php if (!empty($directorEbr['sello_path'])): ?>
+                <img src="<?= url($directorEbr['sello_path']) ?>"
+                     alt="Sello Director EBR"
+                     class="bd-footer__sello-img">
+            <?php endif; ?>
             <div class="bd-footer__line" role="presentation"></div>
-            <p class="bd-footer__cargo">Director(a) Académico(a)</p>
+            <?php if (!empty($directorEbr['nombre_completo'])): ?>
+                <p class="bd-footer__name"><?= e($directorEbr['nombre_completo']) ?></p>
+            <?php endif; ?>
+            <p class="bd-footer__cargo">Director(a) E.B.R.</p>
         </div>
         <div class="bd-footer__sig">
             <div class="bd-footer__line" role="presentation"></div>

@@ -441,10 +441,26 @@ body.boleta-body {
 
     &__bloque { text-align: center; }
 
+    // Firma manuscrita PNG — va encima de la línea de firma
+    &__firma-img {
+        display: block;
+        max-width: 36mm;
+        max-height: 16mm;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        margin: 0 auto;
+    }
+
     &__linea {
         border-top: 0.5pt solid $c-borde;
         width: 38mm;
         margin: 7mm auto 1mm;
+    }
+
+    // Cuando el bloque tiene firma, la línea no necesita tanto espacio superior
+    &__bloque--con-firma &__linea {
+        margin-top: 1.5mm;
     }
 
     &__nombre {

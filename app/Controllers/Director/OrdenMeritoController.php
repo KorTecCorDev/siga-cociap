@@ -4,6 +4,7 @@ namespace App\Controllers\Director;
 
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
+use App\Models\DirectorEbrModel;
 use Core\View;
 
 /**
@@ -13,6 +14,7 @@ use Core\View;
 class OrdenMeritoController extends BaseController
 {
     private CalificacionModel $calModel;
+    private DirectorEbrModel  $dirModel;
 
     public function __construct()
     {
@@ -21,6 +23,7 @@ class OrdenMeritoController extends BaseController
             'director_general', 'director_ebr'
         ]);
         $this->calModel = new CalificacionModel();
+        $this->dirModel = new DirectorEbrModel();
     }
 
     /**
@@ -158,6 +161,7 @@ class OrdenMeritoController extends BaseController
             'periodo'     => $periodo,
             'ranking'     => $ranking,
             'institucion' => config('institucion'),
+            'directorEbr' => $this->getDirectorEbr($periodo),
         ]);
     }
 
@@ -274,6 +278,16 @@ class OrdenMeritoController extends BaseController
             'num_areas'        => (int) ($resultado['num_areas']        ?? 0),
             'num_competencias' => (int) ($resultado['num_competencias'] ?? 0),
         ];
+    }
+
+    /**
+     * Director EBR vigente hoy para el año del periodo.
+     * Siempre usa la fecha actual: el reporte se imprime y firma hoy,
+     * por quien ejerce el cargo en este momento.
+     */
+    private function getDirectorEbr(array $periodo): ?array
+    {
+        return $this->dirModel->getVigenteEnFecha((int) $periodo['anio_id']);
     }
 
     private function calcularRankingPorSeccion(

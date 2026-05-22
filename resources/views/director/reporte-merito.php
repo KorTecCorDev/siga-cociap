@@ -35,7 +35,7 @@ $hoy = (new DateTime())->format('d/m/Y');
                 <div class="boleta-header__ugel">MINEDU &middot; DRE Áncash &middot; UGEL Huaraz</div>
                 <div class="boleta-header__colegio"><?= e($institucion ?? '') ?></div>
                 <div class="boleta-header__modular">Cód. Modular: <?= $codModular ?></div>
-                <div class="boleta-header__titulo">Orden de Mérito — <?= e($periodo['nombre_display'] ?? '') ?> &mdash; <?= e($periodo['anio'] ?? '') ?></div>
+                <div class="boleta-header__titulo">Reporte de Orden de Mérito &mdash; <?= e($periodo['anio'] ?? '') ?></div>
             </div>
             <div class="boleta-header__fecha-wrap">
                 <div class="boleta-header__fecha-label">Impresión</div>
@@ -45,9 +45,9 @@ $hoy = (new DateTime())->format('d/m/Y');
 
         <div class="reporte-titulo">
             <div class="reporte-titulo__grupo">
-                <span class="reporte-titulo__principal">Cuadro de Honor General</span>
+                <span class="reporte-titulo__principal">Orden de Mérito</span>
                 <span class="reporte-titulo__sub">
-                    &mdash; <?= e($grado['nivel_nombre'] ?? '') ?> &mdash; <?= e($grado['nombre_display'] ?? '') ?>
+                    &mdash; <?= e($grado['nombre_display'] ?? '') ?> &mdash; <?= e($grado['nivel_nombre'] ?? '') ?> &mdash; <?= e($periodo['nombre_display'] ?? '') ?>
                 </span>
             </div>
             <div class="reporte-titulo__meta">
@@ -107,18 +107,29 @@ $hoy = (new DateTime())->format('d/m/Y');
         <?php endif; ?>
 
         <footer class="boleta-footer">
-            <div class="boleta-footer__bloque">
+            <?php $tieneFirma = !empty($directorEbr['firma_path']); ?>
+            <div class="boleta-footer__bloque <?= $tieneFirma ? 'boleta-footer__bloque--con-firma' : '' ?>">
+                <?php if ($tieneFirma): ?>
+                    <img src="<?= url($directorEbr['firma_path']) ?>"
+                         alt=""
+                         aria-hidden="true"
+                         class="boleta-footer__firma-img">
+                <?php endif; ?>
                 <div class="boleta-footer__linea"></div>
+                <?php if (!empty($directorEbr['nombre_completo'])): ?>
+                    <div class="boleta-footer__nombre"><?= e($directorEbr['nombre_completo']) ?></div>
+                <?php endif; ?>
                 <div class="boleta-footer__cargo">Director(a) E.B.R.</div>
             </div>
-            <div class="boleta-footer__bloque">
-                <div class="boleta-footer__linea"></div>
-                <div class="boleta-footer__cargo">Director(a) General</div>
-            </div>
-            <div class="boleta-footer__bloque">
-                <div class="boleta-footer__linea"></div>
-                <div class="boleta-footer__cargo">Secretaria Académica</div>
-            </div>
+            <?php foreach ($tutores as $secNombre => $nombreTutor): ?>
+                <div class="boleta-footer__bloque">
+                    <div class="boleta-footer__linea"></div>
+                    <?php if (!empty($nombreTutor)): ?>
+                        <div class="boleta-footer__nombre"><?= e($nombreTutor) ?></div>
+                    <?php endif; ?>
+                    <div class="boleta-footer__cargo">Tutor(a) de Aula &mdash; Secc. <?= e($secNombre) ?></div>
+                </div>
+            <?php endforeach; ?>
         </footer>
 
     </div>

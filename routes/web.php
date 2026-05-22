@@ -30,6 +30,11 @@ $router->get( '/admin/conducta',              'Admin\ConductaController@index');
 $router->get( '/admin/conducta/{id}',         'Admin\ConductaController@seccion');
 $router->post('/admin/conducta/guardar',      'Admin\ConductaController@guardar');
 
+// ─── Admin — Director EBR ───────────────────────────────────
+$router->get( '/admin/director-ebr',                       'Admin\DirectorEbrController@index');
+$router->post('/admin/director-ebr/{anio_id}/asignar',     'Admin\DirectorEbrController@asignar');
+$router->post('/admin/director-ebr/{id}/imagenes',         'Admin\DirectorEbrController@actualizarImagenes');
+
 // ─── Admin — Usuarios ───────────────────────────────────────
 $router->get( '/admin/usuarios',             'Admin\UsuarioController@index');
 $router->get( '/admin/usuarios/crear',       'Admin\UsuarioController@create');
