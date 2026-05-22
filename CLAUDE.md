@@ -21,6 +21,7 @@ siga-cociap/
 │   │   ├── Admin/UsuarioController.php            ← NUEVO (sesión 3)
 │   │   ├── Admin/SeccionController.php             ← NUEVO (sesión 4)
 │   │   ├── Admin/BoletaPublicaController.php       ← NUEVO (sesión 6)
+│   │   ├── Admin/DirectorEbrController.php         ← NUEVO (sesión 7)
 │   │   ├── Auth/AuthController.php
 │   │   ├── Boleta/BoletaController.php
 │   │   ├── BoletaPublicaController.php             ← NUEVO (sesión 6) público sin login
@@ -34,6 +35,7 @@ siga-cociap/
 │   │   ├── UsuarioModel.php
 │   │   ├── SeccionModel.php                        ← NUEVO (sesión 4)
 │   │   ├── BoletaPublicaModel.php                  ← NUEVO (sesión 6)
+│   │   ├── DirectorEbrModel.php                    ← NUEVO (sesión 7)
 │   │   ├── CalificacionModel.php
 │   │   └── CriterioModel.php
 │   ├── Middleware/AuthMiddleware.php
@@ -62,26 +64,28 @@ siga-cociap/
 │   │   ├── resumen.js
 │   │   └── secciones.js                      ← NUEVO (sesión 4)
 │   └── assets/
-│       ├── img/logo_cociap.png   ← logo del colegio
-│       ├── fonts/inter/          ← fuente Inter local
-│       └── icons/                ← SVGs locales
+│       ├── img/logo_cociap.png      ← logo del colegio
+│       ├── img/firmas/              ← PNGs de firma/sello Director EBR (excluidos de Git)
+│       ├── fonts/inter/             ← fuente Inter local
+│       └── icons/                   ← SVGs locales
 ├── resources/
 │   ├── sass/
 │   │   ├── app.scss              ← archivo principal
 │   │   ├── base/(_variables, _reset, _typography)
 │   │   ├── components/(_buttons, _forms, _alerts, _cards, _tables, _navbar)
-│   │   └── pages/(_auth, _dashboard, _boleta, _boleta-digital, _admin)
-│   │                                          ← _boleta-digital y _admin NUEVOS (sesión 3)
+│   │   └── pages/(_auth, _dashboard, _boleta, _boleta-digital, _admin, _reporte-merito)
+│   │              ← _boleta-digital y _admin NUEVOS (sesión 3); _reporte-merito (sesión 7)
 │   └── views/
 │       ├── layouts/(auth.php, app.php, print.php, digital.php)
 │       │                                      ← digital.php NUEVO (sesión 3)
 │       ├── auth/login.php
 │       ├── admin/usuarios/(index, crear, editar).php  ← NUEVO (sesión 3)
 │       ├── admin/secciones/index.php                 ← NUEVO (sesión 4)
+│       ├── admin/director-ebr/index.php              ← NUEVO (sesión 7)
 │       ├── dashboard/index.php
 │       ├── boleta/(alumno.php, digital.php)   ← digital.php NUEVO (sesión 3)
 │       ├── docente/(mis-cargas, calificaciones, resumen-competencia)
-│       ├── director/(orden-merito, orden-merito-periodo)
+│       ├── director/(orden-merito, orden-merito-periodo, reporte-merito)
 │       ├── padre/(inicio, notas, alertas)
 │       └── shared/(404.php, 403.php)
 └── routes/web.php
@@ -98,7 +102,8 @@ estudiantes, apoderados, vinculo_familiar
 matriculas, alertas
 criterios, calificaciones_criterio, calificaciones
 bloqueos_competencia
-boletas_publicas  ← NUEVO (sesión 6)
+boletas_publicas        ← NUEVO (sesión 6)
+director_ebr_historial  ← NUEVO (sesión 7)
 ```
 
 ## Orden de ejecución SQL (setup desde cero)
@@ -107,8 +112,13 @@ boletas_publicas  ← NUEVO (sesión 6)
 2. migrations/siga_cociap.sql
 3. migrations/002_criterios_calificaciones.sql
 4. migrations/003_bloqueos_competencia.sql
-5. seeds/001_datos_prueba.sql
-6. seeds/002_completar_sistema.sql
+5. migrations/004_limpiar_datos_semilla.sql
+6. migrations/005_boletas_publicas.sql
+7. migrations/006_soft_delete_criterios.sql   ← sesión 7
+8. migrations/007_director_ebr_historial.sql  ← sesión 7
+9. migrations/008_director_ebr_imagenes.sql   ← sesión 7
+10. seeds/001_datos_prueba.sql
+11. seeds/002_completar_sistema.sql
 ```
 Los seeds 003 y 004 son solo para desarrollo/testing, no van en producción.
 
@@ -201,10 +211,12 @@ por seeds aplicados con FOREIGN_KEY_CHECKS=0. No afecta datos reales
 - **Subárea:** se antepone al nombre de la competencia para áreas `con_subareas`
   (ej: `Aritmética — C23. Resuelve problemas...`). Las áreas-curso no llevan prefijo.
 - **Primaria:** muestra solo literal (AD/A/B/C); **Secundaria:** nota numérica + literal.
-- **Pie de página:** tres líneas de firma — Tutor(a) de Aula, Director(a) Académico(a),
-  Padre/Madre/Tutor(a).
+- **Pie de página:** DOS firmas — Tutor(a) de Aula y Director(a) E.B.R. (sesión 7).
+  Se eliminó "Padre/Madre/Tutor(a)". Las líneas se alinean con `boleta-footer__espacio-firma`
+  de 18mm fijo en ambos bloques (firma PNG anclada al fondo con `align-items: flex-end`).
 - **buildBoletaData():** lógica de carga de datos extraída a método privado compartido
-  entre `ver()` (imprimible) y `verDigital()` (digital).
+  entre `ver()` (imprimible) y `verDigital()` (digital). Incluye `directorEbr` con
+  `firma_path` y `sello_path` del Director EBR vigente.
 
 ## Módulo de boleta digital (sesión 3)
 - **Ruta:** `GET /boleta/digital/{matricula_id}/{periodo_id}`
@@ -224,6 +236,9 @@ por seeds aplicados con FOREIGN_KEY_CHECKS=0. No afecta datos reales
 - **BEM prefix `.bd-`** en todos los elementos del componente
 - **Logros con color semántico:** AD=verde, A=azul, B=naranja, C=rojo con borde izquierdo
 - **`beforeprint` event** expande acordeones al usar Ctrl+P nativo
+- **Pie de página:** DOS firmas — Tutor(a) de Aula y Director(a) E.B.R. (sesión 7).
+  Pantalla: sello PNG del director (`.bd-solo-pantalla`). Al imprimir: firma PNG + nombre
+  (`.bd-solo-impresion`). Alineación con `bd-footer__img-area` de 44px/14mm fijo.
 - **IMPORTANTE — orden de rutas:** la ruta literal `/boleta/digital/...` debe registrarse
   ANTES del patrón `/boleta/{matricula_id}/...` en `routes/web.php`, o el router la captura
   primero con parámetros incorrectos.
@@ -481,7 +496,75 @@ NUNCA CSS inline en PHP (convención del proyecto).
 - **Fuentes Inter 404** — `@font-face` usaba rutas absolutas con `/siga-cociap/public/`.
   Corregido a rutas relativas `../assets/fonts/inter/` en `_typography.scss`.
 
-## Pendientes al 18 de mayo 2026
+## Módulo soft-delete de criterios (sesión 7)
+- **Migración:** `006_soft_delete_criterios.sql` — agrega `eliminado_en DATETIME NULL` y
+  `eliminado_por INT UNSIGNED NULL FK→usuarios` a la tabla `criterios`.
+- **Comportamiento:** eliminar un criterio con calificaciones hace soft-delete (el registro
+  permanece en BD para auditoría). El promedio de la competencia se recalcula automáticamente.
+- **Patrón de filtro:** todas las queries que leen criterios incluyen `AND eliminado_en IS NULL`
+  (12 puntos actualizados en `CriterioModel`, `CalificacionModel` y `CalificacionController`).
+- **`CriterioModel::eliminarConAuditoria(int $id, int $eliminadoPor): bool`** — método de borrado.
+- **JS:** si el criterio tiene calificaciones, muestra confirm con advertencia y recarga la
+  página tras el borrado para reflejar el promedio recalculado.
+
+## Módulo Director EBR — historial de cargo (sesión 7)
+
+### Tabla `director_ebr_historial`
+```sql
+id, usuario_id, anio_id, desde DATE, hasta DATE NULL,
+asignado_por, asignado_en, firma_path VARCHAR(255), sello_path VARCHAR(255)
+```
+- `hasta = NULL` significa vigente. Un registro por periodo de cargo.
+- `firma_path` / `sello_path`: ruta relativa a `public/` de los PNG (excluidos de Git).
+- Al asignar nuevo director: cierra el registro vigente (`hasta = desde_nuevo - 1 día`)
+  e inserta el nuevo. Transacción garantiza atomicidad.
+
+### `DirectorEbrModel` — métodos clave
+- `getVigenteEnFecha(int $anioId, ?string $fecha = null): ?array` — director en una fecha
+  (NULL = hoy). Retorna `nombre_completo`, `firma_path`, `sello_path`.
+- `asignar(...): int` — retorna ID del nuevo registro (necesario para subir imágenes).
+- `actualizarImagenes(int $id, ?string $firma, ?string $sello): bool`
+- `getHistorialPorAnio(int $anioId): array`
+
+### `Admin\DirectorEbrController`
+- Rutas: `GET /admin/director-ebr`, `POST /admin/director-ebr/{anio_id}/asignar`,
+  `POST /admin/director-ebr/{id}/imagenes`
+- Solo rol `admin`.
+- Validación de PNG con `\getimagesize()` (NO `exif_imagetype()` — ext-exif deshabilitada
+  en XAMPP). Límite 2 MB. Almacena en `public/assets/img/firmas/` (excluido de Git).
+- Elimina el archivo anterior al reemplazar imagen.
+
+### Uso en documentos
+- **`OrdenMeritoController::imprimir()`** llama `getVigenteEnFecha($anioId)` sin fecha
+  (siempre hoy — el documento se firma en el momento de impresión).
+- **`Boleta\BoletaController::buildBoletaData()`** y **`Admin\BoletaPublicaController::buildBoletaData()`**
+  incluyen `directorEbr` en su array de retorno.
+- **`BoletaPublicaController` público** (sin login) también inyecta `DirectorEbrModel`.
+
+### Firma y sello en vistas
+| Vista | Elemento visible | CSS |
+|-------|-----------------|-----|
+| Boleta imprimible A4 | Firma PNG + nombre | `boleta-footer__espacio-firma` (18mm fijo) |
+| Reporte orden de mérito A4 | Firma PNG + nombre | `reporte-footer__espacio-firma` (18mm fijo) |
+| Boleta digital (pantalla) | Sello PNG | `bd-footer__img-area` (44px) + `.bd-solo-pantalla` |
+| Boleta digital (al imprimir) | Firma PNG + nombre | `bd-footer__img-area` (14mm) + `.bd-solo-impresion` |
+
+### Técnica de alineación de líneas de firma
+Todos los bloques de firma (con y sin imagen) tienen un contenedor de **altura fija**:
+- Print: `boleta-footer__espacio-firma` / `reporte-footer__espacio-firma` — 18mm
+- Digital: `bd-footer__img-area` — 44px pantalla / 14mm print
+- La imagen se ancla al fondo con `align-items: flex-end; justify-content: center`.
+- El bloque sin imagen tiene el contenedor vacío de la misma altura → líneas al mismo nivel.
+- `bd-footer__line` pasa a `height: 0` (solo dibuja el borde); el espacio lo provee `__img-area`.
+
+### Reporte orden de mérito — footer dinámico
+- Clase dedicada `.reporte-footer` en `_reporte-merito.scss` (no reutiliza `.boleta-footer`).
+- `flex-wrap: wrap; justify-content: space-around; flex: 0 0 30%` por bloque → máx 3 por fila.
+  4ª firma: nueva fila centrada. Soporta hasta 6 firmas (2 filas de 3).
+- Firmas: Director EBR + 1 tutor por sección del grado (dinámico desde `$tutores`).
+- `$infoConteos` muestra solo el número de áreas (no competencias — varían por docente).
+
+## Pendientes al 22 de mayo 2026
 - [x] Boleta de calificaciones imprimible A4 ← completado sesión 2
 - [x] Boleta digital mobile-first con QR ← completado sesión 3
 - [x] Botón "Ver boleta digital" en panel del padre ← completado sesión 3
@@ -489,6 +572,8 @@ NUNCA CSS inline en PHP (convención del proyecto).
 - [x] Módulo secciones y tutores (modal asignación) ← completado sesión 4
 - [x] Seed de escenarios de boleta para demo ← completado sesión 4
 - [x] Módulo de boletas públicas con código de acceso ← completado sesión 6
+- [x] Soft-delete de criterios con auditoría ← completado sesión 7
+- [x] Módulo Director EBR con historial y firma/sello en documentos ← completado sesión 7
 - [ ] Asignar tutores a secciones de primaria 1°B-6°B (actualmente sin tutor)
 - [ ] Cargas académicas para primaria desde interfaz director (actualmente solo por BD)
 - [ ] Verificar boleta impresa en RICOH MP4054 PCL6 (márgenes, paginación)
@@ -511,6 +596,11 @@ Presentación pendiente al comité directivo — seed de demo listo en `database
 - Alias Git Bash: `local3000` para iniciar el entorno
 - `hash.php` en raíz: archivo temporal para generar hashes bcrypt — eliminar
   tras usarlo, NO commitear ni dejar en el servidor
+- **`exif_imagetype()` NO disponible en XAMPP local** — usar `\getimagesize($path)[2]`
+  para validar tipo de imagen en controllers con namespace.
+- **Firma/sello PNG del Director EBR** — almacenados en `public/assets/img/firmas/`
+  con nombres `firma_{historial_id}_{timestamp}.png`. Excluidos de Git (`.gitignore`).
+  Subir desde `/admin/director-ebr` — se validan por contenido real (no solo extensión).
 
 ## Listado de áreas o áreas-curso con sus respectivas subáreas o competencias.
 ### Áreas Curriculares y Competencias - Modelo SIAGIE - NIVEL SECUNDARIA
