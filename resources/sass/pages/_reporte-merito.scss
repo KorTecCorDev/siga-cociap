@@ -245,6 +245,71 @@ $c-beca:   #1a5c1a;
     }
 }
 
+// ── Bloque de firmas del reporte (Director EBR + tutores por sección) ────
+//
+// Diseño: flex-wrap con máximo 3 columnas por fila.
+// Cada bloque tiene un __espacio-firma de altura fija (18mm) que alinea
+// la línea de firma al mismo nivel en todos los bloques de la fila,
+// independientemente de si el Director lleva imagen PNG o no.
+//
+// Distribución: justify-content: space-around con flex: 0 0 30%
+//   · 2 firmas → distribución centrada con espacio entre ellas
+//   · 3 firmas → fila completa, gaps uniformes
+//   · 4 firmas → fila 1: 3 · fila 2: 1 (centrada)
+//   · 5 firmas → fila 1: 3 · fila 2: 2 (centradas)
+//   · 6 firmas → 2 filas de 3
+.reporte-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    margin-top: 4mm;
+    padding-top: 2mm;
+    border-top: 0.6pt solid #000;
+    font-family: Arial, Helvetica, sans-serif;
+
+    &__bloque {
+        flex: 0 0 30%;
+        text-align: center;
+        // Separación vertical entre filas cuando hay salto
+        &:nth-child(n+4) { margin-top: 5mm; }
+    }
+
+    // Espacio de altura fija: aquí va la firma PNG (Director)
+    // o queda vacío (tutores). Fija la línea al mismo nivel en todos los bloques.
+    &__espacio-firma {
+        height: 18mm;
+        display: flex;
+        align-items: flex-end;   // la imagen se ancla al fondo del espacio
+        justify-content: center;
+    }
+
+    &__firma-img {
+        max-width: 44mm;
+        max-height: 16mm;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+    }
+
+    &__linea {
+        border-top: 0.4pt solid #000;
+        width: 50mm;
+        margin: 0 auto 1mm;
+    }
+
+    &__nombre {
+        font-size: 5.5pt;
+        font-weight: bold;
+        color: #111;
+        margin-bottom: 0.3mm;
+    }
+
+    &__cargo {
+        font-size: 6pt;
+        color: #333;
+    }
+}
+
 // ── Texto de estado vacío ─────────────────────────────────────
 .reporte-vacio {
     font-family: Arial, Helvetica, sans-serif;

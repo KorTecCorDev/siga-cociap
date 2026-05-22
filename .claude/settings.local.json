@@ -45,7 +45,10 @@
       "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e \"UPDATE periodos SET limite_notas = '2026-05-31 23:59:00' WHERE id = 1;\")",
       "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e \"SELECT id, nombre_display, estado, limite_notas FROM periodos WHERE id = 1;\")",
       "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e \"DESCRIBE cargas_academicas;\")",
-      "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e \"DESCRIBE calificaciones;\")"
+      "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e \"DESCRIBE calificaciones;\")",
+      "Bash(mkdir -p \"C:/xampp/htdocs/siga-cociap/public/assets/img/firmas\")",
+      "Bash(echo \"\")",
+      "Bash(New-Item -ItemType File -Path \"C:/xampp/htdocs/siga-cociap/public/assets/img/firmas/.gitkeep\" -Force)"
     ]
   }
 }

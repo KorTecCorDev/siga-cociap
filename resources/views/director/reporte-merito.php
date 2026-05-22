@@ -106,30 +106,37 @@ $hoy = (new DateTime())->format('d/m/Y');
 
         <?php endif; ?>
 
-        <footer class="boleta-footer">
-            <?php $tieneFirma = !empty($directorEbr['firma_path']); ?>
-            <div class="boleta-footer__bloque <?= $tieneFirma ? 'boleta-footer__bloque--con-firma' : '' ?>">
-                <?php if ($tieneFirma): ?>
-                    <img src="<?= url($directorEbr['firma_path']) ?>"
-                         alt=""
-                         aria-hidden="true"
-                         class="boleta-footer__firma-img">
-                <?php endif; ?>
-                <div class="boleta-footer__linea"></div>
-                <?php if (!empty($directorEbr['nombre_completo'])): ?>
-                    <div class="boleta-footer__nombre"><?= e($directorEbr['nombre_completo']) ?></div>
-                <?php endif; ?>
-                <div class="boleta-footer__cargo">Director(a) E.B.R.</div>
-            </div>
-            <?php foreach ($tutores as $secNombre => $nombreTutor): ?>
-                <div class="boleta-footer__bloque">
-                    <div class="boleta-footer__linea"></div>
-                    <?php if (!empty($nombreTutor)): ?>
-                        <div class="boleta-footer__nombre"><?= e($nombreTutor) ?></div>
+        <footer class="reporte-footer">
+
+            <!-- Director EBR: espacio de firma fijo para igualar altura con tutores -->
+            <div class="reporte-footer__bloque">
+                <div class="reporte-footer__espacio-firma">
+                    <?php if (!empty($directorEbr['firma_path'])): ?>
+                        <img src="<?= url($directorEbr['firma_path']) ?>"
+                             alt=""
+                             aria-hidden="true"
+                             class="reporte-footer__firma-img">
                     <?php endif; ?>
-                    <div class="boleta-footer__cargo">Tutor(a) de Aula &mdash; Secc. <?= e($secNombre) ?></div>
+                </div>
+                <div class="reporte-footer__linea"></div>
+                <?php if (!empty($directorEbr['nombre_completo'])): ?>
+                    <div class="reporte-footer__nombre"><?= e($directorEbr['nombre_completo']) ?></div>
+                <?php endif; ?>
+                <div class="reporte-footer__cargo">Director(a) E.B.R.</div>
+            </div>
+
+            <!-- Tutores: mismo espacio vacío para que la línea quede alineada -->
+            <?php foreach ($tutores as $secNombre => $nombreTutor): ?>
+                <div class="reporte-footer__bloque">
+                    <div class="reporte-footer__espacio-firma"></div>
+                    <div class="reporte-footer__linea"></div>
+                    <?php if (!empty($nombreTutor)): ?>
+                        <div class="reporte-footer__nombre"><?= e($nombreTutor) ?></div>
+                    <?php endif; ?>
+                    <div class="reporte-footer__cargo">Tutor(a) de Aula &mdash; Secc. <?= e($secNombre) ?></div>
                 </div>
             <?php endforeach; ?>
+
         </footer>
 
     </div>
