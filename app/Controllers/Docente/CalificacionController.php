@@ -45,8 +45,8 @@ class CalificacionController extends BaseController
     public function misCargas(): void
     {
         $user    = Session::user();
-        $cargas  = $this->getCargas($user['id']);
         $periodo = $this->getPeriodoActivo();
+        $cargas  = $this->getCargas($user['id'], $periodo ? (int) $periodo['id'] : 0);
 
         $this->view('docente/mis-cargas', [
             'titulo'  => 'Mis cargas académicas',
@@ -356,7 +356,7 @@ class CalificacionController extends BaseController
         ");
     }
 
-    private function getCargas(int $docenteId): array
+    private function getCargas(int $docenteId, int $periodoId = 0): array
     {
         return $this->calModel->query("
             SELECT
@@ -376,7 +376,23 @@ class CalificacionController extends BaseController
                 a.nombre          AS area_nombre,
                 a.tipo            AS area_tipo,
                 sa.id             AS subarea_id,
-                a.id              AS area_id
+                a.id              AS area_id,
+                (
+                    SELECT COUNT(DISTINCT comp2.id)
+                    FROM competencias comp2
+                    WHERE (
+                        (ca.subarea_id IS NOT NULL AND comp2.subarea_id = ca.subarea_id)
+                        OR
+                        (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL
+                            AND comp2.area_id = ca.area_id)
+                    )
+                ) AS total_competencias,
+                (
+                    SELECT COUNT(*)
+                    FROM bloqueos_competencia bc2
+                    WHERE bc2.carga_id   = ca.id
+                      AND bc2.periodo_id = ?
+                ) AS competencias_bloqueadas
             FROM cargas_academicas ca
             INNER JOIN secciones s  ON s.id  = ca.seccion_id
             INNER JOIN grados g     ON g.id  = s.grado_id
@@ -386,7 +402,7 @@ class CalificacionController extends BaseController
             WHERE ca.docente_id = ?
               AND ca.estado     = 'activa'
             ORDER BY n.id, g.numero, s.nombre, a.orden
-        ", [$docenteId]);
+        ", [$periodoId, $docenteId]);
     }
 
     private function validarCargaDocente(int $cargaId): ?array

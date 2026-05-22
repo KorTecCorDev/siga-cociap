@@ -37,6 +37,12 @@
             <div class="card__body">
                 <div class="cargas-grid">
                     <?php foreach ($items as $carga): ?>
+                        <?php
+                        $total      = (int) ($carga['total_competencias'] ?? 0);
+                        $bloqueadas = (int) ($carga['competencias_bloqueadas'] ?? 0);
+                        $pct        = $total > 0 ? round($bloqueadas / $total * 100) : 0;
+                        $estado     = $pct >= 100 ? 'completo' : ($pct > 0 ? 'parcial' : 'vacio');
+                        ?>
                         <a href="<?= url('docente/calificaciones/' . $carga['id']) ?>"
                            class="carga-item <?= $periodo ? '' : 'carga-item--disabled' ?>">
 
@@ -54,6 +60,19 @@
 
                             <div class="carga-item__horas">
                                 <?= e($carga['horas_semanales']) ?> hrs/semana
+                            </div>
+
+                            <div class="carga-progreso">
+                                <div class="carga-progreso__track">
+                                    <div class="carga-progreso__fill carga-progreso__fill--<?= $estado ?>"
+                                         style="--pct: <?= $pct ?>%"></div>
+                                </div>
+                                <div class="carga-progreso__meta">
+                                    <span><?= $bloqueadas ?>/<?= $total ?> aprobadas</span>
+                                    <span class="carga-progreso__valor carga-progreso__valor--<?= $estado ?>">
+                                        <?= $pct ?>%
+                                    </span>
+                                </div>
                             </div>
 
                         </a>
