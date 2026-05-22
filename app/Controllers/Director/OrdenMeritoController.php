@@ -148,6 +148,7 @@ class OrdenMeritoController extends BaseController
                 'conteos'     => $this->getConteosGrado($grado['id'], $periodoId),
                 'general'     => $this->calcularRanking($grado['id'], $periodoId),
                 'por_seccion' => $this->calcularRankingPorSeccion($grado['id'], $periodoId),
+                'tutores'     => $this->getTutoresPorGrado($grado['id']),
             ];
         }
 
@@ -204,6 +205,44 @@ class OrdenMeritoController extends BaseController
      * Agrupa y rankea estudiantes dentro de cada sección del grado.
      * Retorna array [seccion_nombre => [top-N estudiantes con puesto]].
      */
+    /**
+     * Devuelve el nombre del tutor por sección para el grado dado.
+     * Clave: seccion_nombre → string|null.
+     */
+    private function getTutoresPorGrado(int $gradoId): array
+    {
+        $secciones = $this->calModel->query("
+            SELECT s.nombre AS seccion_nombre, s.tutor_id
+            FROM secciones s
+            INNER JOIN grados g ON g.id = s.grado_id
+            WHERE g.id = ?
+            ORDER BY s.nombre
+        ", [$gradoId]);
+
+        $tutores = [];
+        foreach ($secciones as $sec) {
+            $tutorId = (int) ($sec['tutor_id'] ?? 0);
+            if (!$tutorId) {
+                $tutores[$sec['seccion_nombre']] = null;
+                continue;
+            }
+
+            $persona = $this->calModel->queryOne("
+                SELECT p.apellido_paterno, p.apellido_materno, p.nombres
+                FROM usuarios u
+                INNER JOIN personas p ON p.id = u.persona_id
+                WHERE u.id = ?
+                LIMIT 1
+            ", [$tutorId]);
+
+            $tutores[$sec['seccion_nombre']] = ($persona && !empty($persona['apellido_paterno']))
+                ? $persona['apellido_paterno'] . ' ' . $persona['apellido_materno'] . ', ' . $persona['nombres']
+                : null;
+        }
+
+        return $tutores;
+    }
+
     /**
      * Cuenta áreas y competencias distintas calificadas en el grado+periodo.
      * Usado para mostrar el total en el encabezado del reporte.

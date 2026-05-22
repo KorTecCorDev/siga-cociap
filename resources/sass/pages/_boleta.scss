@@ -447,5 +447,13 @@ body.boleta-body {
         margin: 7mm auto 1mm;
     }
 
+    &__nombre {
+        font-size: 5.5pt;
+        font-weight: bold;
+        text-align: center;
+        color: #111;
+        margin-bottom: 0.3mm;
+    }
+
     &__cargo { font-size: 6.5pt; color: #333; }
 }

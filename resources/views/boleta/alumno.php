@@ -225,11 +225,14 @@ unset($_n, $_c);
 <footer class="boleta-footer">
     <div class="boleta-footer__bloque">
         <div class="boleta-footer__linea"></div>
+        <?php if (!empty($tutor)): ?>
+            <div class="boleta-footer__nombre"><?= e($tutor) ?></div>
+        <?php endif; ?>
         <div class="boleta-footer__cargo">Tutor(a) de Aula</div>
     </div>
     <div class="boleta-footer__bloque">
         <div class="boleta-footer__linea"></div>
-        <div class="boleta-footer__cargo">Director(a) Académico(a)</div>
+        <div class="boleta-footer__cargo">Director(a) E.B.R.</div>
     </div>
     <div class="boleta-footer__bloque">
         <div class="boleta-footer__linea"></div>

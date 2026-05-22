@@ -13,6 +13,7 @@ $hoy = (new DateTime())->format('d/m/Y');
     <?php
     $grado         = $data['grado'];
     $conteos       = $data['conteos'];
+    $tutores       = $data['tutores'];
     $codModular    = ($grado['nivel_codigo'] ?? '') === 'sec' ? '1310044 - 0' : '1719525 - 0';
     $totalGeneral  = count($data['general']);
     $totalSecciones= count($data['por_seccion']);
@@ -108,7 +109,7 @@ $hoy = (new DateTime())->format('d/m/Y');
         <footer class="boleta-footer">
             <div class="boleta-footer__bloque">
                 <div class="boleta-footer__linea"></div>
-                <div class="boleta-footer__cargo">Director(a) Académico(a)</div>
+                <div class="boleta-footer__cargo">Director(a) E.B.R.</div>
             </div>
             <div class="boleta-footer__bloque">
                 <div class="boleta-footer__linea"></div>
@@ -200,6 +201,13 @@ $hoy = (new DateTime())->format('d/m/Y');
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                    <div class="reporte-seccion-firma">
+                        <div class="reporte-seccion-firma__linea"></div>
+                        <?php if (!empty($tutores[$secNombre])): ?>
+                            <div class="reporte-seccion-firma__nombre"><?= e($tutores[$secNombre]) ?></div>
+                        <?php endif; ?>
+                        <div class="reporte-seccion-firma__cargo">Tutor(a) de Aula &mdash; Sección <?= e($secNombre) ?></div>
+                    </div>
                 </div>
             <?php endforeach; ?>
 

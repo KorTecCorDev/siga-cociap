@@ -217,6 +217,34 @@ $c-beca:   #1a5c1a;
     }
 }
 
+// ── Firma del tutor al pie de cada bloque de sección ─────────
+.reporte-seccion-firma {
+    text-align: center;
+    margin-top: 3mm;
+    padding-top: 1mm;
+    break-inside: avoid;
+
+    &__linea {
+        border-top: 0.4pt solid #000;
+        width: 55mm;
+        margin: 5mm auto 0.8mm;
+    }
+
+    &__nombre {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 5.5pt;
+        font-weight: bold;
+        color: #111;
+        margin-bottom: 0.3mm;
+    }
+
+    &__cargo {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 5.5pt;
+        color: #444;
+    }
+}
+
 // ── Texto de estado vacío ─────────────────────────────────────
 .reporte-vacio {
     font-family: Arial, Helvetica, sans-serif;
