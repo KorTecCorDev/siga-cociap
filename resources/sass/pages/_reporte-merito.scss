@@ -1,0 +1,226 @@
+// ============================================================
+// _reporte-merito.scss — Reporte de Orden de Mérito imprimible
+// Layout: print.php | Orientación: A4 landscape (hereda @page de _boleta.scss)
+//
+// Estructura por grado:
+//   Página 1 → Cuadro de Honor General (tabla con todos los estudiantes)
+//   Página 2 → Primeros Puestos por Sección (grid de mini-tablas)
+// ============================================================
+
+// ── Colores de medalla ────────────────────────────────────────
+$c-oro:    #7A5C14;
+$c-plata:  #5A6878;
+$c-bronce: #6B3A22;
+$c-beca:   #1a5c1a;
+
+// ── Separador visual entre páginas (solo pantalla) ───────────
+.boleta-salto-pagina + .reporte-pagina {
+    @media screen {
+        margin-top: 6mm;
+        padding-top: 4mm;
+        border-top: 1.5pt dashed #bbb;
+    }
+}
+
+// ── Encabezado de sección dentro de una página ───────────────
+.reporte-titulo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 3mm;
+    border-bottom: 1.5pt solid #000;
+    padding: 0.8mm 0;
+    margin: 1.5mm 0 2mm;
+    font-family: Arial, Helvetica, sans-serif;
+
+    &__grupo { flex: 1; }
+
+    &__principal {
+        font-size: 8.5pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.3pt;
+    }
+
+    &__sub {
+        font-size: 6.5pt;
+        color: #555;
+        font-weight: normal;
+    }
+
+    // Agrupa info de curriculo + conteo de estudiantes (lado derecho)
+    &__meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.4mm;
+        flex-shrink: 0;
+    }
+
+    &__info {
+        font-size: 5.5pt;
+        color: #444;
+        font-style: italic;
+        white-space: nowrap;
+    }
+
+    &__badge {
+        font-size: 5.5pt;
+        font-weight: bold;
+        color: #777;
+        white-space: nowrap;
+    }
+}
+
+// ── Tabla principal — ranking general ────────────────────────
+.tabla-merito {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 6.5pt;
+    table-layout: fixed;
+    margin-bottom: 2mm;
+
+    .tm-puesto     { width: 12mm; }
+    .tm-seccion    { width: 14mm; }
+    .tm-comp       { width: 12mm; }
+    .tm-total      { width: 16mm; }
+    .tm-promedio   { width: 20mm; }
+    .tm-distincion { width: 44mm; }
+
+    thead th {
+        background: #efefef;
+        font-weight: bold;
+        font-size: 5.5pt;
+        text-transform: uppercase;
+        letter-spacing: 0.2pt;
+        color: #333;
+        padding: 0.6mm 1mm;
+        border: 0.4pt solid #999;
+        border-bottom: 1.2pt solid #000;
+        text-align: center;
+        vertical-align: middle;
+
+        &.tm-nombre { text-align: left; padding-left: 1.5mm; }
+    }
+
+    tbody td {
+        padding: 0.5mm 1mm;
+        border: 0.3pt solid #ddd;
+        vertical-align: middle;
+        background: #fff;
+        line-height: 1.2;
+    }
+
+    tbody tr:nth-child(even) td { background: #f8f8f8; }
+
+    .tm-puesto, .tm-seccion, .tm-comp, .tm-total, .tm-promedio, .tm-distincion { text-align: center; }
+    .tm-nombre { text-align: left; padding-left: 1.5mm; }
+
+    // ── Filas top-3 con acento izquierdo ─────────────────────
+    .fila-merito--1 td {
+        background: #fffcec !important;
+    }
+    .fila-merito--1 td:first-child { border-left: 2.5pt solid $c-oro; }
+
+    .fila-merito--2 td {
+        background: #f4f6f8 !important;
+    }
+    .fila-merito--2 td:first-child { border-left: 2.5pt solid $c-plata; }
+
+    .fila-merito--3 td {
+        background: #fdf6f2 !important;
+    }
+    .fila-merito--3 td:first-child { border-left: 2.5pt solid $c-bronce; }
+}
+
+// ── Número de puesto ─────────────────────────────────────────
+.medalla {
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: bold;
+    font-size: 7pt;
+    display: inline-block;
+
+    &--1 { color: $c-oro; }
+    &--2 { color: $c-plata; }
+    &--3 { color: $c-bronce; }
+    &--n { color: #555; }
+}
+
+// ── Promedio numérico ─────────────────────────────────────────
+.promedio-val {
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: bold;
+    font-size: 7.5pt;
+}
+
+// ── Badges de distinción ─────────────────────────────────────
+.distincion-beca {
+    display: inline-block;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 5pt;
+    font-weight: bold;
+    color: $c-beca;
+    border: 0.5pt solid $c-beca;
+    border-radius: 1mm;
+    padding: 0.2mm 1.5mm;
+    letter-spacing: 0.2pt;
+    white-space: nowrap;
+}
+
+.distincion-grado {
+    display: inline-block;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 5pt;
+    border: 0.4pt solid #bbb;
+    border-radius: 1mm;
+    padding: 0.2mm 1.5mm;
+    white-space: nowrap;
+    color: #555;
+
+    &--2 { color: $c-plata;  border-color: $c-plata; }
+    &--3 { color: $c-bronce; border-color: $c-bronce; }
+}
+
+// ── Bloque de ranking completo por sección ───────────────────
+.reporte-seccion-bloque {
+    margin-bottom: 4mm;
+
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        background: #dce8f0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 7pt;
+        font-weight: bold;
+        padding: 0.8mm 1.5mm;
+        border: 0.5pt solid #7aa0b8;
+        border-bottom: 0.5pt solid #aac4d8;
+        text-transform: uppercase;
+        letter-spacing: 0.3pt;
+        break-after: avoid;
+    }
+
+    &__nombre { color: #1a3a5c; }
+
+    &__count {
+        font-size: 5.5pt;
+        font-weight: normal;
+        color: #4a6880;
+        font-style: italic;
+    }
+
+    // La tabla de esta sección no necesita borde superior propio
+    .tabla-merito thead th {
+        border-top: none;
+    }
+}
+
+// ── Texto de estado vacío ─────────────────────────────────────
+.reporte-vacio {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 7pt;
+    color: #666;
+    margin: 3mm 0;
+}

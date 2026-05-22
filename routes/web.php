@@ -103,8 +103,9 @@ $router->get('/boleta/digital/{matricula_id}/{periodo_id}', 'Boleta\BoletaContro
 $router->get('/boleta/{matricula_id}/{periodo_id}',         'Boleta\BoletaController@ver');
 
 // ─── Orden de mérito ─────────────────────────────────────────
-$router->get('/director/orden-merito',              'Director\OrdenMeritoController@index');
-$router->get('/director/orden-merito/{periodo_id}', 'Director\OrdenMeritoController@porPeriodo');
+$router->get('/director/orden-merito',                          'Director\OrdenMeritoController@index');
+$router->get('/director/orden-merito/{periodo_id}/imprimir',    'Director\OrdenMeritoController@imprimir');
+$router->get('/director/orden-merito/{periodo_id}',             'Director\OrdenMeritoController@porPeriodo');
 
 // ─── Gestión de bloqueos ─────────────────────────────────────
 $router->get( '/director/bloqueos',                     'Director\BloqueoController@index');

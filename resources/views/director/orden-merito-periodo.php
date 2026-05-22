@@ -14,6 +14,10 @@
             <?= e($periodo['nombre_display']) ?> — <?= e($periodo['anio']) ?>
         </p>
     </div>
+    <a href="<?= url('director/orden-merito/' . $periodo['id'] . '/imprimir') ?>"
+       class="btn btn--primary btn--sm" target="_blank">
+        🖨 Imprimir reporte
+    </a>
 </div>
 
 <?php if (empty($ranking)): ?>
@@ -46,6 +50,8 @@
                             <th class="text-center">Puesto</th>
                             <th>Apellidos y nombres</th>
                             <th class="text-center">Sección</th>
+                            <th class="text-center">Comp.</th>
+                            <th class="text-center">Total</th>
                             <th class="text-center">Promedio</th>
                             <th class="text-center">Distinción</th>
                         </tr>
@@ -65,6 +71,12 @@
                                 </td>
                                 <td class="text-center">
                                     <?= e($est['seccion_nombre']) ?>
+                                </td>
+                                <td class="text-center">
+                                    <?= (int) $est['num_competencias'] ?>
+                                </td>
+                                <td class="text-center">
+                                    <?= (int) $est['total_notas'] ?>
                                 </td>
                                 <td class="text-center">
                                     <strong><?= sprintf('%05.2f', $est['promedio_general']) ?></strong>
