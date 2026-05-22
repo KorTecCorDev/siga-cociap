@@ -351,29 +351,39 @@ unset($_n, $_c);
 
     <!-- ── FOOTER — FIRMAS ──────────────────────────────────── -->
     <footer class="bd-footer">
+
+        <!-- Tutor: área de imagen vacía para igualar altura con Director -->
         <div class="bd-footer__sig">
+            <div class="bd-footer__img-area"></div>
             <div class="bd-footer__line" role="presentation"></div>
             <?php if (!empty($tutor)): ?>
                 <p class="bd-footer__name"><?= e($tutor) ?></p>
             <?php endif; ?>
             <p class="bd-footer__cargo">Tutor(a) de Aula</p>
         </div>
+
+        <!-- Director EBR: sello en pantalla, firma al imprimir -->
         <div class="bd-footer__sig">
-            <?php if (!empty($directorEbr['sello_path'])): ?>
-                <img src="<?= url($directorEbr['sello_path']) ?>"
-                     alt="Sello Director EBR"
-                     class="bd-footer__sello-img">
-            <?php endif; ?>
+            <div class="bd-footer__img-area">
+                <?php if (!empty($directorEbr['sello_path'])): ?>
+                    <img src="<?= url($directorEbr['sello_path']) ?>"
+                         alt="Sello Director EBR"
+                         class="bd-footer__sello-img bd-solo-pantalla">
+                <?php endif; ?>
+                <?php if (!empty($directorEbr['firma_path'])): ?>
+                    <img src="<?= url($directorEbr['firma_path']) ?>"
+                         alt=""
+                         aria-hidden="true"
+                         class="bd-footer__firma-img bd-solo-impresion">
+                <?php endif; ?>
+            </div>
             <div class="bd-footer__line" role="presentation"></div>
             <?php if (!empty($directorEbr['nombre_completo'])): ?>
-                <p class="bd-footer__name"><?= e($directorEbr['nombre_completo']) ?></p>
+                <p class="bd-footer__name bd-solo-impresion"><?= e($directorEbr['nombre_completo']) ?></p>
             <?php endif; ?>
             <p class="bd-footer__cargo">Director(a) E.B.R.</p>
         </div>
-        <div class="bd-footer__sig">
-            <div class="bd-footer__line" role="presentation"></div>
-            <p class="bd-footer__cargo">Padre / Madre / Tutor(a)</p>
-        </div>
+
     </footer>
 
 </article>

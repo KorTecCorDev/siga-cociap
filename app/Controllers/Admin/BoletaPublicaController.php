@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\BoletaPublicaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
+use App\Models\DirectorEbrModel;
 use Core\Session;
 use Core\View;
 
@@ -14,6 +15,7 @@ class BoletaPublicaController extends BaseController
     private BoletaPublicaModel $model;
     private CalificacionModel  $calModel;
     private ConductaModel      $conductaModel;
+    private DirectorEbrModel   $dirModel;
 
     public function __construct()
     {
@@ -21,6 +23,7 @@ class BoletaPublicaController extends BaseController
         $this->model         = new BoletaPublicaModel();
         $this->calModel      = new CalificacionModel();
         $this->conductaModel = new ConductaModel();
+        $this->dirModel      = new DirectorEbrModel();
     }
 
     /** GET /admin/boletas-publicas — selector de periodos */
@@ -205,6 +208,7 @@ class BoletaPublicaController extends BaseController
             'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, $anioId),
             'institucion' => config('institucion'),
             'tutor'       => $this->getTutorSeccion($matriculaId),
+            'directorEbr' => $this->dirModel->getVigenteEnFecha($anioId),
         ];
     }
 

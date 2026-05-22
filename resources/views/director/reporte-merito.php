@@ -17,8 +17,7 @@ $hoy = (new DateTime())->format('d/m/Y');
     $codModular    = ($grado['nivel_codigo'] ?? '') === 'sec' ? '1310044 - 0' : '1719525 - 0';
     $totalGeneral  = count($data['general']);
     $totalSecciones= count($data['por_seccion']);
-    $infoConteos   = $conteos['num_areas'] . ' área' . ($conteos['num_areas'] !== 1 ? 's' : '')
-                   . ' · ' . $conteos['num_competencias'] . ' competencia' . ($conteos['num_competencias'] !== 1 ? 's' : '');
+    $infoConteos   = $conteos['num_areas'] . ' área' . ($conteos['num_areas'] !== 1 ? 's' : '') . ' a promediar';
     ?>
 
     <!-- ══════════════════════════════════════════════════════════
@@ -51,7 +50,7 @@ $hoy = (new DateTime())->format('d/m/Y');
                 </span>
             </div>
             <div class="reporte-titulo__meta">
-                <span class="reporte-titulo__info"><?= e($infoConteos) ?> a promediar</span>
+                <span class="reporte-titulo__info"><?= e($infoConteos) ?></span>
                 <span class="reporte-titulo__badge"><?= $totalGeneral ?> estudiante<?= $totalGeneral !== 1 ? 's' : '' ?></span>
             </div>
         </div>
@@ -172,7 +171,7 @@ $hoy = (new DateTime())->format('d/m/Y');
                 </span>
             </div>
             <div class="reporte-titulo__meta">
-                <span class="reporte-titulo__info"><?= e($infoConteos) ?> a promediar</span>
+                <span class="reporte-titulo__info"><?= e($infoConteos) ?></span>
                 <span class="reporte-titulo__badge"><?= $totalSecciones ?> sección<?= $totalSecciones !== 1 ? 'es' : '' ?></span>
             </div>
         </div>

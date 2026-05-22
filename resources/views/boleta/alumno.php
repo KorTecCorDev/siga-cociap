@@ -223,29 +223,32 @@ unset($_n, $_c);
 
 <!-- ── Pie de página — firmas ────────────────────────────────── -->
 <footer class="boleta-footer">
+
+    <!-- Tutor: espacio de firma vacío para igualar altura con Director -->
     <div class="boleta-footer__bloque">
+        <div class="boleta-footer__espacio-firma"></div>
         <div class="boleta-footer__linea"></div>
         <?php if (!empty($tutor)): ?>
             <div class="boleta-footer__nombre"><?= e($tutor) ?></div>
         <?php endif; ?>
         <div class="boleta-footer__cargo">Tutor(a) de Aula</div>
     </div>
-    <?php $tieneFirma = !empty($directorEbr['firma_path']); ?>
-    <div class="boleta-footer__bloque <?= $tieneFirma ? 'boleta-footer__bloque--con-firma' : '' ?>">
-        <?php if ($tieneFirma): ?>
-            <img src="<?= url($directorEbr['firma_path']) ?>"
-                 alt=""
-                 aria-hidden="true"
-                 class="boleta-footer__firma-img">
-        <?php endif; ?>
+
+    <!-- Director EBR: firma PNG anclada al fondo del espacio -->
+    <div class="boleta-footer__bloque">
+        <div class="boleta-footer__espacio-firma">
+            <?php if (!empty($directorEbr['firma_path'])): ?>
+                <img src="<?= url($directorEbr['firma_path']) ?>"
+                     alt=""
+                     aria-hidden="true"
+                     class="boleta-footer__firma-img">
+            <?php endif; ?>
+        </div>
         <div class="boleta-footer__linea"></div>
         <?php if (!empty($directorEbr['nombre_completo'])): ?>
             <div class="boleta-footer__nombre"><?= e($directorEbr['nombre_completo']) ?></div>
         <?php endif; ?>
         <div class="boleta-footer__cargo">Director(a) E.B.R.</div>
     </div>
-    <div class="boleta-footer__bloque">
-        <div class="boleta-footer__linea"></div>
-        <div class="boleta-footer__cargo">Padre / Madre / Tutor(a)</div>
-    </div>
+
 </footer>
