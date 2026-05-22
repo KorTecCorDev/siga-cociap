@@ -458,6 +458,7 @@ class CalificacionController extends BaseController
                 a.nombre          AS area_nombre,
                 a.tipo            AS area_tipo,
                 sa.id             AS subarea_id,
+                sa.nombre         AS subarea_nombre,
                 a.id              AS area_id,
                 (
                     SELECT COUNT(DISTINCT comp2.id)
@@ -474,7 +475,14 @@ class CalificacionController extends BaseController
                     FROM bloqueos_competencia bc2
                     WHERE bc2.carga_id   = ca.id
                       AND bc2.periodo_id = ?
-                ) AS competencias_bloqueadas
+                ) AS competencias_bloqueadas,
+                (
+                    SELECT COUNT(DISTINCT cr2.competencia_id)
+                    FROM criterios cr2
+                    WHERE cr2.carga_id     = ca.id
+                      AND cr2.periodo_id   = ?
+                      AND cr2.eliminado_en IS NULL
+                ) AS competencias_con_criterios
             FROM cargas_academicas ca
             INNER JOIN secciones s  ON s.id  = ca.seccion_id
             INNER JOIN grados g     ON g.id  = s.grado_id
@@ -484,7 +492,7 @@ class CalificacionController extends BaseController
             WHERE ca.docente_id = ?
               AND ca.estado     = 'activa'
             ORDER BY n.id, g.numero, s.nombre, a.orden
-        ", [$periodoId, $docenteId]);
+        ", [$periodoId, $periodoId, $docenteId]);
     }
 
     private function validarCargaDocente(int $cargaId): ?array

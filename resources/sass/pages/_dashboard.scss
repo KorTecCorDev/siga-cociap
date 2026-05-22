@@ -118,10 +118,56 @@
         font-weight: 600;
     }
 
+    &__badge {
+        align-self: flex-start;
+    }
+
     &__horas {
         font-size: $font-size-sm;
         color: $text-muted;
         margin-top: auto;
+    }
+}
+
+// ── Área agrupada — múltiples subáreas del mismo área ────────
+.carga-area {
+    grid-column: 1 / -1;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius-lg;
+    background: $bg-white;
+    overflow: hidden;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+        padding: $spacing-sm $spacing-md;
+        background: $bg-secondary;
+        border-bottom: 1px solid $border-color;
+    }
+
+    &__seccion {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        font-weight: 500;
+    }
+
+    &__sep {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &__nombre {
+        font-size: $font-size-base;
+        font-weight: 700;
+        color: $text-primary;
+    }
+
+    &__items {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: $spacing-md;
+        padding: $spacing-md;
     }
 }
 
