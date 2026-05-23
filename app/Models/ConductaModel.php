@@ -29,7 +29,12 @@ class ConductaModel extends BaseModel
         ");
     }
 
-    /** Periodos del año activo con flag de edición. */
+    /**
+     * Periodos del año activo con flag de edición.
+     * "editable" solo es true cuando el periodo está en estado 'activo'
+     * y dentro del límite de notas. Los periodos 'pendiente' (aún no abiertos)
+     * y 'cerrado' (ya vencidos) quedan como no editables.
+     */
     public function listarPeriodosActivos(): array
     {
         return $this->query("
@@ -40,7 +45,7 @@ class ConductaModel extends BaseModel
                 p.estado,
                 p.limite_notas,
                 (
-                    p.estado != 'cerrado'
+                    p.estado = 'activo'
                     AND (p.limite_notas IS NULL OR NOW() <= p.limite_notas)
                 ) AS editable
             FROM periodos p
@@ -48,6 +53,43 @@ class ConductaModel extends BaseModel
             WHERE a.estado = 'activo'
             ORDER BY p.numero
         ");
+    }
+
+    /**
+     * Progreso de llenado de conducta por sección para un periodo dado.
+     * Devuelve un mapa [seccion_id => ['esperados' => N, 'calificados' => M]].
+     * Una sola query con LEFT JOIN para evitar N+1 cuando hay decenas de
+     * secciones. Solo se consideran matrículas con estado 'aprobada' del año
+     * activo (mismo criterio que getEstudiantesConConducra).
+     */
+    public function getProgresoConductaPorSeccion(int $periodoId): array
+    {
+        $rows = $this->query("
+            SELECT
+                s.id                            AS seccion_id,
+                COUNT(DISTINCT m.id)            AS esperados,
+                COUNT(DISTINCT cc.matricula_id) AS calificados
+            FROM secciones s
+            INNER JOIN anios_academicos a ON a.id = s.anio_id AND a.estado = 'activo'
+            LEFT JOIN matriculas m
+                   ON m.seccion_id = s.id
+                  AND m.estado     = 'aprobada'
+                  AND m.anio_id    = s.anio_id
+            LEFT JOIN calificaciones_conducta cc
+                   ON cc.matricula_id = m.id
+                  AND cc.periodo_id   = ?
+            WHERE s.estado_nomina = 'aprobada'
+            GROUP BY s.id
+        ", [$periodoId]);
+
+        $mapa = [];
+        foreach ($rows as $r) {
+            $mapa[(int) $r['seccion_id']] = [
+                'esperados'   => (int) $r['esperados'],
+                'calificados' => (int) $r['calificados'],
+            ];
+        }
+        return $mapa;
     }
 
     /**
@@ -176,7 +218,12 @@ class ConductaModel extends BaseModel
 
     // ── Verificación de edición ──────────────────────────────────
 
-    /** true si el periodo está abierto para edición de conducta. */
+    /**
+     * true si el periodo está abierto para edición de conducta.
+     * Solo aceptamos estado 'activo' — los 'pendiente' aún no abren y los
+     * 'cerrado' ya vencieron. Mismo criterio que el flag editable de
+     * listarPeriodosActivos para mantener defense in depth coherente.
+     */
     public function periodoEditable(int $periodoId): bool
     {
         $p = $this->queryOne("
@@ -184,7 +231,7 @@ class ConductaModel extends BaseModel
             FROM periodos WHERE id = ?
         ", [$periodoId]);
 
-        if (!$p || $p['estado'] === 'cerrado') {
+        if (!$p || $p['estado'] !== 'activo') {
             return false;
         }
         if ($p['limite_notas'] && strtotime($p['limite_notas']) < time()) {

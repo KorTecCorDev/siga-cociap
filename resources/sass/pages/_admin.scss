@@ -882,8 +882,6 @@ $cond-teal: #2a7a6e;
 .conducta-seccion-card {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
     padding: $spacing-md;
     background: #fff;
     border: 1.5px solid $border-color;
@@ -908,6 +906,59 @@ $cond-teal: #2a7a6e;
     &__nombre {
         font-size: $font-size-base;
         font-weight: 700;
+        margin-bottom: $spacing-sm;
+    }
+}
+
+// ── Barra de progreso de llenado de conducta ─────────────────
+// Mismo patrón que .carga-progreso en pages/_dashboard.scss: el ancho del
+// fill se inyecta por la variable CSS --pct desde la vista.
+.conducta-progreso {
+    margin-top: auto;
+    width: 100%;
+    padding-top: $spacing-sm;
+
+    &__track {
+        height: 6px;
+        background: $border-color;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    &__fill {
+        height: 100%;
+        border-radius: 3px;
+        width: var(--pct, 0%);
+        background: $cond-teal;
+        transition: width .4s ease, background-color .2s ease;
+    }
+
+    &__meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 4px;
+        font-size: 11px;
+        color: $text-muted;
+    }
+
+    &__pct {
+        font-weight: 700;
+        color: $text-secondary;
+    }
+
+    &__vacio {
+        display: block;
+        font-size: 11px;
+        color: $text-muted;
+        font-style: italic;
+    }
+
+    // Sección con el 100% calificado: confirmamos el cierre del periodo
+    // para esa sección con verde de éxito.
+    &--completo {
+        .conducta-progreso__fill { background: $color-success; }
+        .conducta-progreso__pct  { color: $color-success; }
     }
 }
 
@@ -942,52 +993,99 @@ $cond-teal: #2a7a6e;
     &--c  { color: #dc2626;  background: #fef2f2; }
 }
 
-// Tabla de estudiantes
+// ── Tabla de conducta ────────────────────────────────────────
+// Hereda sticky de .tabla-notas (col-num + col-nombre) en _tables.scss.
+// Aquí solo se ajustan columnas propias del módulo.
 .conducta-tabla {
     font-size: $font-size-sm;
 
-    .conducta-th-num    { width: 48px; text-align: center; }
-    .conducta-th-nombre { min-width: 220px; }
-    .conducta-th-dni    { width: 100px; }
-    .conducta-th-periodo {
+    .conducta-th-dni      { width: 100px; }
+    .conducta-td-dni      { color: $text-muted; font-size: 11px; }
+
+    .conducta-th-periodo  {
         text-align: center;
-        min-width: 120px;
+        min-width: 180px;
         font-size: 11px;
-
-        &--activo { color: $cond-teal; }
     }
 
-    .conducta-badge-editable {
-        display: block;
-        font-size: 9px;
-        font-weight: 600;
-        text-transform: uppercase;
-        color: $cond-teal;
-        letter-spacing: .4px;
-        margin-top: 2px;
-    }
-
-    .conducta-fila--alt td { background: $bg-secondary; }
-    .conducta-td-num  { text-align: center; color: $text-muted; }
-    .conducta-td-dni  { color: $text-muted; font-size: 11px; }
-    .conducta-td-periodo { text-align: center; }
+    .conducta-td-periodo  { text-align: center; }
 }
 
-.conducta-select {
-    width: 80px;
-    padding: 3px 4px;
+// ── Segmented control AD/A/B/C/limpiar ───────────────────────
+// Reemplaza al <select> nativo. Cada literal muestra su color cuando es
+// el activo (mejora "color persistente": el valor guardado se ve en la
+// celda sin desplegar nada).
+.conducta-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    background: $bg-white;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-sm;
+    transition: opacity 150ms ease;
+
+    &--guardando {
+        opacity: .55;
+        pointer-events: none;
+    }
+}
+
+.conducta-btn {
+    border: 0;
+    background: transparent;
+    padding: 4px 8px;
+    min-width: 30px;
+    font-family: $font-family;
     font-size: $font-size-sm;
     font-weight: 700;
-    border: 1.5px solid $border-color;
-    border-radius: $border-radius-sm;
-    background: #fff;
+    line-height: 1;
+    color: $text-muted;
+    border-radius: 3px;
     cursor: pointer;
-    text-align: center;
+    transition: background-color 150ms ease, color 150ms ease;
 
-    &:focus { border-color: $cond-teal; outline: none; box-shadow: 0 0 0 2px rgba(42,122,110,.2); }
+    &:hover:not(&--activo):not(:disabled) {
+        background: $bg-secondary;
+    }
+
+    &:focus-visible {
+        outline: 2px solid $brand-mid;
+        outline-offset: 1px;
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+    }
+
+    // Tinte del literal cuando NO está activo (texto)
+    &--ad:not(.conducta-btn--activo) { color: #16a34a; }
+    &--a:not(.conducta-btn--activo)  { color: $brand-mid; }
+    &--b:not(.conducta-btn--activo)  { color: #d97706; }
+    &--c:not(.conducta-btn--activo)  { color: #dc2626; }
+
+    // Fondo del literal cuando está activo (color persistente en la celda)
+    &--ad.conducta-btn--activo { background: #16a34a; color: #fff; }
+    &--a.conducta-btn--activo  { background: $brand-mid; color: #fff; }
+    &--b.conducta-btn--activo  { background: #d97706; color: #fff; }
+    &--c.conducta-btn--activo  { background: #dc2626; color: #fff; }
+
+    &--clear {
+        color: $text-muted;
+        font-size: 16px;
+        padding: 2px 8px;
+        margin-left: 2px;
+        border-left: 1px solid $border-color;
+        border-radius: 0 3px 3px 0;
+
+        &:hover:not(:disabled) {
+            background: $color-error-bg;
+            color: $color-error;
+        }
+    }
 }
 
-// Feedback de guardado
+// ── Feedback global de guardado ──────────────────────────────
 .conducta-feedback {
     position: fixed;
     bottom: 20px;
@@ -997,7 +1095,9 @@ $cond-teal: #2a7a6e;
     font-size: $font-size-sm;
     font-weight: 600;
     z-index: 9999;
-    box-shadow: 0 2px 10px rgba(0,0,0,.15);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .15);
+
+    &[hidden] { display: none; }
 
     &--ok    { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
     &--error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }

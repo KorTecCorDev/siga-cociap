@@ -22,6 +22,22 @@ class ConductaController extends BaseController
         $secciones = $this->model->listarSeccionesActivas();
         $periodos  = $this->model->listarPeriodosActivos();
 
+        // Periodo abierto actual: el progreso de las secciones refleja el
+        // llenado del periodo en curso (coherente con la vista de detalle
+        // que solo expone el editable). Si no hay periodo activo, $progreso
+        // queda vacío y la vista omite la barra.
+        $periodoActivo = null;
+        foreach ($periodos as $p) {
+            if ((bool) $p['editable']) {
+                $periodoActivo = $p;
+                break;
+            }
+        }
+
+        $progreso = $periodoActivo
+            ? $this->model->getProgresoConductaPorSeccion((int) $periodoActivo['id'])
+            : [];
+
         // Agrupar secciones por nivel
         $porNivel = [];
         foreach ($secciones as $s) {
@@ -29,9 +45,11 @@ class ConductaController extends BaseController
         }
 
         $this->view('admin/conducta/index', [
-            'titulo'   => 'Calificaciones de Conducta',
-            'porNivel' => $porNivel,
-            'periodos' => $periodos,
+            'titulo'        => 'Calificaciones de Conducta',
+            'porNivel'      => $porNivel,
+            'periodos'      => $periodos,
+            'periodoActivo' => $periodoActivo,
+            'progreso'      => $progreso,
         ]);
     }
 
@@ -45,7 +63,15 @@ class ConductaController extends BaseController
             $this->redirectWithError(url('admin/conducta'), 'No hay periodos configurados.');
         }
 
-        $periodoIds = array_column($periodos, 'id');
+        // Solo mostramos los periodos editables (los cerrados o vencidos
+        // permanecen ocultos en esta vista). array_values reindexa para
+        // que las claves sean 0..N tras el filtrado.
+        $periodos = array_values(array_filter(
+            $periodos,
+            fn(array $p): bool => (bool) $p['editable']
+        ));
+
+        $periodoIds  = array_column($periodos, 'id');
         $estudiantes = $this->model->getEstudiantesConConducra($seccionId, $periodoIds);
 
         // Info de la sección
@@ -63,11 +89,12 @@ class ConductaController extends BaseController
         }
 
         $this->view('admin/conducta/seccion', [
-            'titulo'      => 'Conducta — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
-            'seccion'     => $seccion,
-            'periodos'    => $periodos,
-            'estudiantes' => $estudiantes,
-            'literales'   => ['AD', 'A', 'B', 'C'],
+            'titulo'       => 'Conducta — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
+            'seccion'      => $seccion,
+            'periodos'     => $periodos,
+            'estudiantes'  => $estudiantes,
+            'literales'    => ['AD', 'A', 'B', 'C'],
+            'page_scripts' => ['conducta'],
         ]);
     }
 

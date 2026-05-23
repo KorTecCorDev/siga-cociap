@@ -7,6 +7,14 @@
  */
 
 $csrfToken = \Core\Session::csrfToken();
+
+// Tooltips por literal — coherentes con la leyenda del proyecto
+$titulos = [
+    'AD' => 'Muy bueno',
+    'A'  => 'Bueno',
+    'B'  => 'En proceso',
+    'C'  => 'Inicio',
+];
 ?>
 
 <div class="page-header">
@@ -27,60 +35,66 @@ $csrfToken = \Core\Session::csrfToken();
     <span class="conducta-lit conducta-lit--c">C</span> Inicio
 </div>
 
-<div id="conducta-feedback" class="conducta-feedback" style="display:none" role="status" aria-live="polite"></div>
+<div id="conducta-feedback" class="conducta-feedback" hidden role="status" aria-live="polite"></div>
 
-<?php if (empty($estudiantes)): ?>
+<?php if (empty($periodos)): ?>
+    <div class="empty-state">
+        <p>No hay periodo abierto para edición. Comunícate con Registro Académico.</p>
+    </div>
+<?php elseif (empty($estudiantes)): ?>
     <div class="empty-state">
         <p>No hay estudiantes matriculados en esta sección.</p>
     </div>
 <?php else: ?>
 
-<div class="table-responsive">
-    <table class="table conducta-tabla">
+<div class="tabla-notas-wrapper">
+    <table class="tabla-notas conducta-tabla">
         <thead>
             <tr>
-                <th class="conducta-th-num">N°</th>
-                <th class="conducta-th-nombre">Apellidos y Nombres</th>
+                <th class="col-num">N°</th>
+                <th class="col-nombre">Apellidos y Nombres</th>
                 <th class="conducta-th-dni">DNI</th>
                 <?php foreach ($periodos as $p): ?>
-                    <th class="conducta-th-periodo <?= $p['editable'] ? 'conducta-th-periodo--activo' : '' ?>">
+                    <th class="conducta-th-periodo">
                         <?= e($p['nombre_display']) ?>
-                        <?php if ($p['editable']): ?>
-                            <span class="conducta-badge-editable">editable</span>
-                        <?php endif; ?>
                     </th>
                 <?php endforeach; ?>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($estudiantes as $i => $est): ?>
-                <tr class="conducta-fila <?= $i % 2 !== 0 ? 'conducta-fila--alt' : '' ?>">
-                    <td class="conducta-td-num"><?= $i + 1 ?></td>
-                    <td class="conducta-td-nombre"><?= e($est['nombre_completo']) ?></td>
+                <tr>
+                    <td class="col-num"><?= $i + 1 ?></td>
+                    <td class="col-nombre"><?= e($est['nombre_completo']) ?></td>
                     <td class="conducta-td-dni"><?= e($est['dni']) ?></td>
                     <?php foreach ($periodos as $p):
                         $val = $est['conducta'][$p['id']] ?? '';
                     ?>
                         <td class="conducta-td-periodo">
-                            <?php if ($p['editable']): ?>
-                                <select class="conducta-select js-conducta-select"
-                                        data-matricula="<?= $est['matricula_id'] ?>"
-                                        data-periodo="<?= $p['id'] ?>"
-                                        data-csrf="<?= e($csrfToken) ?>">
-                                    <option value="">— sin nota —</option>
-                                    <?php foreach ($literales as $lit): ?>
-                                        <option value="<?= $lit ?>" <?= $val === $lit ? 'selected' : '' ?>>
-                                            <?= $lit ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            <?php elseif ($val): ?>
-                                <span class="conducta-lit conducta-lit--<?= strtolower($val) ?>">
-                                    <?= e($val) ?>
-                                </span>
-                            <?php else: ?>
-                                <span class="text-muted">—</span>
-                            <?php endif; ?>
+                            <div class="conducta-control"
+                                 data-matricula="<?= $est['matricula_id'] ?>"
+                                 data-periodo="<?= $p['id'] ?>"
+                                 data-csrf="<?= e($csrfToken) ?>"
+                                 data-valor="<?= e($val) ?>"
+                                 role="group"
+                                 aria-label="Conducta de <?= e($est['nombre_completo']) ?> en <?= e($p['nombre_display']) ?>">
+                                <?php foreach ($literales as $lit):
+                                    $activo = $val === $lit;
+                                ?>
+                                    <button type="button"
+                                            class="conducta-btn conducta-btn--<?= strtolower($lit) ?><?= $activo ? ' conducta-btn--activo' : '' ?>"
+                                            data-lit="<?= $lit ?>"
+                                            title="<?= e($titulos[$lit]) ?>"
+                                            aria-pressed="<?= $activo ? 'true' : 'false' ?>">
+                                        <?= $lit ?>
+                                    </button>
+                                <?php endforeach; ?>
+                                <button type="button"
+                                        class="conducta-btn conducta-btn--clear"
+                                        data-lit=""
+                                        title="Limpiar"
+                                        aria-label="Limpiar nota">×</button>
+                            </div>
                         </td>
                     <?php endforeach; ?>
                 </tr>
@@ -90,56 +104,3 @@ $csrfToken = \Core\Session::csrfToken();
 </div>
 
 <?php endif; ?>
-
-<script>
-(function () {
-    const feedback = document.getElementById('conducta-feedback');
-    let timer;
-
-    function mostrar(msg, tipo) {
-        feedback.textContent = msg;
-        feedback.className = 'conducta-feedback conducta-feedback--' + tipo;
-        feedback.style.display = 'block';
-        clearTimeout(timer);
-        timer = setTimeout(() => { feedback.style.display = 'none'; }, 3000);
-    }
-
-    document.querySelectorAll('.js-conducta-select').forEach(function (sel) {
-        sel.addEventListener('change', function () {
-            const matriculaId = this.dataset.matricula;
-            const periodoId   = this.dataset.periodo;
-            const literal     = this.value;
-            const csrf        = this.dataset.csrf;
-            const original    = this.dataset.original ?? this.value;
-
-            this.dataset.original = this.value;
-            this.disabled = true;
-
-            fetch('<?= url('admin/conducta/guardar') ?>', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    matricula_id: matriculaId,
-                    periodo_id:   periodoId,
-                    literal:      literal,
-                    _csrf_token:  csrf,
-                }),
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    mostrar('✓ Guardado', 'ok');
-                } else {
-                    mostrar('Error: ' + data.mensaje, 'error');
-                    this.value = original;
-                }
-            })
-            .catch(() => {
-                mostrar('Error de conexión.', 'error');
-                this.value = original;
-            })
-            .finally(() => { this.disabled = false; });
-        });
-    });
-})();
-</script>
