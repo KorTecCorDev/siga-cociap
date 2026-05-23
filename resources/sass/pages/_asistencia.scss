@@ -1,0 +1,217 @@
+// ============================================================
+// _asistencia.scss — vista admin/asistencia
+// Reutiliza .tabla-notas + .col-num / .col-nombre del sistema.
+// Lenguaje visual coherente con el módulo de conducta y con los
+// modificadores --con-notas / --con-cambios de calificaciones.
+// ============================================================
+
+// ── Índice: grid de secciones con barra de progreso ─────────
+.asistencia-nivel-titulo {
+    font-size: $font-size-lg;
+    font-weight: 600;
+    color: $text-secondary;
+    margin: $spacing-lg 0 $spacing-sm;
+    padding-bottom: $spacing-sm;
+    border-bottom: 1px solid $border-color;
+}
+
+.asistencia-secciones-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+}
+
+.asistencia-seccion-card {
+    display: flex;
+    flex-direction: column;
+    padding: $spacing-md;
+    background: #fff;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius;
+    text-decoration: none;
+    color: $text-primary;
+    transition: border-color .15s, box-shadow .15s;
+    text-align: center;
+
+    &:hover {
+        border-color: $brand-accent;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+        text-decoration: none;
+    }
+
+    &__grado {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin-bottom: 2px;
+    }
+
+    &__nombre {
+        font-size: $font-size-base;
+        font-weight: 700;
+        margin-bottom: $spacing-sm;
+    }
+}
+
+// ── Barra de progreso del índice ────────────────────────────
+// Mismo patrón --pct que .conducta-progreso y .carga-progreso.
+.asistencia-progreso {
+    margin-top: auto;
+    width: 100%;
+    padding-top: $spacing-sm;
+
+    &__track {
+        height: 6px;
+        background: $border-color;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    &__fill {
+        height: 100%;
+        border-radius: 3px;
+        width: var(--pct, 0%);
+        background: $brand-accent;
+        transition: width .4s ease, background-color .2s ease;
+    }
+
+    &__meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 4px;
+        font-size: 11px;
+        color: $text-muted;
+    }
+
+    &__pct {
+        font-weight: 700;
+        color: $text-secondary;
+    }
+
+    &__vacio {
+        display: block;
+        font-size: 11px;
+        color: $text-muted;
+        font-style: italic;
+    }
+
+    &--completo {
+        .asistencia-progreso__fill { background: $color-success; }
+        .asistencia-progreso__pct  { color: $color-success; }
+    }
+}
+
+// ── Tabla de ingreso ────────────────────────────────────────
+.asistencia-tabla {
+    font-size: $font-size-sm;
+
+    .asistencia-th-dni      { width: 100px; }
+    .asistencia-td-dni      { color: $text-muted; font-size: 11px; }
+
+    .asistencia-th-contador {
+        width: 64px;
+        text-align: center;
+        font-weight: 700;
+    }
+
+    .asistencia-td-input    { text-align: center; }
+
+    .asistencia-th-acciones { width: 150px; text-align: center; }
+    .asistencia-td-acciones {
+        text-align: center;
+        white-space: nowrap;
+    }
+}
+
+.asistencia-input {
+    width: 54px;
+    padding: 4px 6px;
+    text-align: center;
+    font-family: $font-family;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius-sm;
+    background: #fff;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+
+    &:focus {
+        outline: none;
+        border-color: $brand-mid;
+        box-shadow: 0 0 0 2px rgba($brand-mid, .18);
+    }
+
+    // Ocultar los spin buttons nativos (ruido visual en una tabla)
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    -moz-appearance: textfield;
+}
+
+// ── Estados de fila ─────────────────────────────────────────
+// Heredan el lenguaje verde/ámbar establecido por --con-notas /
+// --con-cambios en calificaciones. El ámbar gana por orden de cascade.
+.asistencia-fila {
+    transition: background-color 200ms ease;
+
+    &--registrada {
+        background: rgba($color-success, .06);
+
+        td.col-num,
+        td.col-nombre {
+            background: rgba($color-success, .06);
+        }
+    }
+
+    &--con-cambios {
+        background: rgba($color-warning, .10);
+
+        td.col-num,
+        td.col-nombre {
+            background: rgba($color-warning, .10);
+        }
+
+        .asistencia-input {
+            border-color: $color-warning;
+        }
+    }
+}
+
+.asistencia-status {
+    display: inline-block;
+    margin-left: $spacing-sm;
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 80px;
+    text-align: left;
+
+    &.status--success { color: $color-success; }
+    &.status--error   { color: $color-error;   }
+    &.status--loading { color: $text-muted;    }
+}
+
+// ── Feedback global flotante ────────────────────────────────
+.asistencia-feedback {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: $spacing-sm $spacing-md;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    z-index: 9999;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .15);
+
+    &[hidden] { display: none; }
+
+    &--ok    { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    &--error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+}
+
+// Nota: el bloque de asistencia en la boleta se define específicamente
+// en _boleta.scss (.boleta-asistencia, unidades pt/mm) y en _boleta-digital.scss
+// (.bd-asistencia, unidades responsive + @media print). No comparten estilos
+// porque viven en sistemas visuales distintos.

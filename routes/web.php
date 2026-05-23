@@ -30,6 +30,11 @@ $router->get( '/admin/conducta',              'Admin\ConductaController@index');
 $router->get( '/admin/conducta/{id}',         'Admin\ConductaController@seccion');
 $router->post('/admin/conducta/guardar',      'Admin\ConductaController@guardar');
 
+// ─── Admin — Asistencia (incidencias) ───────────────────────
+$router->get( '/admin/asistencia',            'Admin\AsistenciaController@index');
+$router->get( '/admin/asistencia/{id}',       'Admin\AsistenciaController@seccion');
+$router->post('/admin/asistencia/guardar',    'Admin\AsistenciaController@guardar');
+
 // ─── Admin — Director EBR ───────────────────────────────────
 $router->get( '/admin/director-ebr',                       'Admin\DirectorEbrController@index');
 $router->post('/admin/director-ebr/{anio_id}/asignar',     'Admin\DirectorEbrController@asignar');
@@ -101,6 +106,7 @@ $router->get( '/admin/boletas-publicas/{periodo_id}',                'Admin\Bole
 $router->post('/admin/boletas-publicas/{periodo_id}/generar',        'Admin\BoletaPublicaController@generar');
 $router->post('/admin/boletas-publicas/{periodo_id}/actualizar',     'Admin\BoletaPublicaController@actualizar');
 $router->get( '/admin/boletas-publicas/{periodo_id}/imprimir',       'Admin\BoletaPublicaController@imprimir');
+$router->get( '/admin/boletas-publicas/{periodo_id}/vista-previa',   'Admin\BoletaPublicaController@vistaPrevia');
 $router->get( '/admin/boletas-publicas/{periodo_id}/boletas-alumno', 'Admin\BoletaPublicaController@boletasAlumno');
 
 // ─── Boleta de calificaciones ────────────────────────────────

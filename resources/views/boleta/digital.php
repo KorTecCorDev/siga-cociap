@@ -348,6 +348,46 @@ unset($_n, $_c);
             </div>
         </section>
         <?php endif; ?>
+
+        <?php if (!empty($asistencia)):
+            $aB = $asistencia['bimestre'];
+            $aA = $asistencia['anual'];
+        ?>
+        <section class="bd-asistencia" aria-label="Asistencia">
+            <h2 class="bd-asistencia__titulo">Asistencia</h2>
+            <table class="bd-asistencia__tabla">
+                <thead>
+                    <tr>
+                        <th class="bd-asistencia__th-tipo">Tipo</th>
+                        <th class="bd-asistencia__th-num">Bimestre</th>
+                        <th class="bd-asistencia__th-num">Acum. anual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Faltas</td>
+                        <td class="bd-asistencia__num"><?= $aB['faltas'] ?></td>
+                        <td class="bd-asistencia__num"><?= $aA['faltas'] ?></td>
+                    </tr>
+                    <tr>
+                        <td>Faltas justificadas</td>
+                        <td class="bd-asistencia__num"><?= $aB['faltas_justificadas'] ?></td>
+                        <td class="bd-asistencia__num"><?= $aA['faltas_justificadas'] ?></td>
+                    </tr>
+                    <tr>
+                        <td>Tardanzas</td>
+                        <td class="bd-asistencia__num"><?= $aB['tardanzas'] ?></td>
+                        <td class="bd-asistencia__num"><?= $aA['tardanzas'] ?></td>
+                    </tr>
+                    <tr>
+                        <td>Tardanzas justificadas</td>
+                        <td class="bd-asistencia__num"><?= $aB['tardanzas_justificadas'] ?></td>
+                        <td class="bd-asistencia__num"><?= $aA['tardanzas_justificadas'] ?></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <?php endif; ?>
     </main>
 
 

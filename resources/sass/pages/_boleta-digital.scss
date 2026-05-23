@@ -1037,6 +1037,117 @@ $bd-cond-border: #a7d4ce;
 }
 
 // ══════════════════════════════════════════════════════════════
+// ASISTENCIA — mismo lenguaje visual que .bd-conducta, paleta neutra
+// (azul brand) para distinguir semánticamente: la conducta es teal,
+// la asistencia es informativa.
+// ══════════════════════════════════════════════════════════════
+$bd-asis-color:  $brand-mid;
+$bd-asis-bg:     #f1f5f9;
+$bd-asis-border: #cbd5e1;
+
+.bd-asistencia {
+    background: $bd-asis-bg;
+    border: 1.5px solid $bd-asis-border;
+    border-radius: $bd-radius-card;
+    padding: 16px 20px;
+    margin: 12px 0 0;
+
+    @media (min-width: 640px) { padding: 20px 24px; }
+
+    &__titulo {
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .6px;
+        color: $bd-asis-color;
+        margin: 0 0 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid $bd-asis-border;
+    }
+
+    &__tabla {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        background: #fff;
+        border: 1px solid $bd-asis-border;
+        border-radius: 8px;
+        overflow: hidden;
+
+        th, td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+
+        thead th {
+            background: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            color: #475569;
+            text-align: center;
+        }
+
+        tbody tr:last-child td { border-bottom: none; }
+
+        td:first-child {
+            font-weight: 600;
+            color: #1e293b;
+        }
+    }
+
+    &__th-tipo { text-align: left !important; }
+
+    &__th-num {
+        width: 28%;
+        text-align: center !important;
+    }
+
+    &__num {
+        text-align: center;
+        font-weight: 700;
+        font-size: 15px;
+        color: $bd-asis-color;
+        font-variant-numeric: tabular-nums;
+    }
+
+    @media print {
+        background: #fff;
+        border: 1.5pt solid $bd-asis-color;
+        border-radius: 0;
+        padding: 4mm 5mm;
+        margin: 3mm 0 0;
+        page-break-inside: avoid;
+
+        .bd-asistencia__titulo {
+            font-size: 7pt;
+            color: $bd-asis-color;
+            padding-bottom: 1mm;
+        }
+
+        .bd-asistencia__tabla {
+            font-size: 6.5pt;
+            border-radius: 0;
+            border: 0.4pt solid #bbb;
+
+            th, td {
+                padding: 0.6mm 1.5mm;
+                border-bottom: 0.3pt solid #ddd;
+            }
+
+            thead th { font-size: 5.5pt; }
+        }
+
+        .bd-asistencia__num {
+            font-size: 7pt;
+            color: #111;
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
 // @page — impresión A4 portrait
 // ══════════════════════════════════════════════════════════════
 @media print {

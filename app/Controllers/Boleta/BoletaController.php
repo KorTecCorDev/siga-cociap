@@ -3,6 +3,7 @@
 namespace App\Controllers\Boleta;
 
 use App\Controllers\BaseController;
+use App\Models\AsistenciaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
 use App\Models\DirectorEbrModel;
@@ -14,12 +15,14 @@ class BoletaController extends BaseController
     private CalificacionModel $calModel;
     private ConductaModel     $conductaModel;
     private DirectorEbrModel  $dirModel;
+    private AsistenciaModel   $asistenciaModel;
 
     public function __construct()
     {
-        $this->calModel      = new CalificacionModel();
-        $this->conductaModel = new ConductaModel();
-        $this->dirModel      = new DirectorEbrModel();
+        $this->calModel        = new CalificacionModel();
+        $this->conductaModel   = new ConductaModel();
+        $this->dirModel        = new DirectorEbrModel();
+        $this->asistenciaModel = new AsistenciaModel();
     }
 
     /**
@@ -96,6 +99,10 @@ class BoletaController extends BaseController
             'periodos'    => $periodos,
             'areas'       => $this->buildAreasConBimestres($datosPorPeriodo, $periodos),
             'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, $periodo['anio_id']),
+            'asistencia'  => [
+                'bimestre' => $this->asistenciaModel->getDelBimestre($matriculaId, $periodoId),
+                'anual'    => $this->asistenciaModel->getAcumuladoAnual($matriculaId, $periodoId),
+            ],
             'institucion' => config('institucion'),
             'tutor'       => $this->getTutorSeccion($matriculaId),
             'directorEbr' => $this->dirModel->getVigenteEnFecha((int) $periodo['anio_id']),

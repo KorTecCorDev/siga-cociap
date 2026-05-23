@@ -369,7 +369,87 @@ body.boleta-body {
 }
 
 // ════════════════════════════════════════════════════════════
+// BLOQUE INFERIOR — asistencia + QR alineados horizontalmente
+// Convive con la tabla de calificaciones encima y el footer de
+// firmas debajo. flex con gap permite que cualquiera de los dos
+// pueda omitirse (boletas sin URL, etc.) sin romper el layout.
+// ════════════════════════════════════════════════════════════
+.boleta-info {
+    display: flex;
+    align-items: stretch;
+    gap: 3mm;
+    margin: 1.5mm 0 1mm;
+    page-break-inside: avoid;
+}
+
+// ════════════════════════════════════════════════════════════
+// ASISTENCIA — tabla compacta con paleta y métricas del sistema
+// Coherente con .boleta-tabla: bordes 0.4pt, header en $c-area-bg,
+// fuente 5-6pt. Ancho fijo (~70mm) para mantener al QR a la derecha.
+// ════════════════════════════════════════════════════════════
+.boleta-asistencia {
+    flex: 0 0 auto;
+    width: 70mm;
+    border: 0.5pt solid $c-borde;
+    border-radius: 2mm;
+    padding: 1.2mm 2mm 1.5mm;
+
+    &__titulo {
+        font-size: 6.5pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.3pt;
+        color: #333;
+        margin: 0 0 1mm;
+        padding-bottom: 0.6mm;
+        border-bottom: 0.4pt solid #aaa;
+    }
+
+    &__tabla {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 6pt;
+        table-layout: fixed;
+
+        th, td {
+            border: 0.3pt solid #bbb;
+            padding: 0.4mm 1mm;
+            vertical-align: middle;
+            line-height: 1.15;
+        }
+
+        th {
+            background: $c-area-bg;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+
+        td:first-child {
+            text-align: left;
+            font-weight: 600;
+            color: #222;
+        }
+    }
+
+    &__th-tipo { /* auto */ }
+
+    &__th-num {
+        width: 12mm;
+        font-size: 5.5pt;
+    }
+
+    &__num {
+        text-align: center;
+        font-weight: bold;
+        font-size: 6.5pt;
+        color: #111;
+    }
+}
+
+// ════════════════════════════════════════════════════════════
 // QR DE BOLETA DIGITAL
+// margin-top: 0 cuando vive dentro de .boleta-info (flex ya separa).
 // ════════════════════════════════════════════════════════════
 .boleta-qr-wrap {
     display: flex;
@@ -380,6 +460,8 @@ body.boleta-body {
     border: 0.5pt solid $c-borde;
     border-radius: 2mm;
     width: fit-content;
+
+    .boleta-info & { margin-top: 0; }
 }
 
 .boleta-qr {
@@ -483,4 +565,78 @@ body.boleta-body {
     }
 
     &__cargo { font-size: 6.5pt; color: #333; }
+}
+
+// ════════════════════════════════════════════════════════════
+// VISTA PREVIA — banner institucional + marca de agua
+// El banner vive dentro de boleta/alumno.php (una vez por boleta =
+// una por página al imprimir, sin necesidad de position:fixed).
+// La marca de agua vive en el wrapper vista-previa.php, position:fixed
+// para repetirse por página. print-color-adjust:exact obliga al driver
+// a respetar tonos traslúcidos.
+// ════════════════════════════════════════════════════════════
+
+// ── Banner BORRADOR (ámbar institucional) ──────────────────
+.boleta-borrador-banner {
+    display: flex;
+    align-items: center;
+    gap: 2.5mm;
+    margin: 0 0 1.2mm;
+    padding: 1mm 2.5mm;
+    background: #fff7e6;
+    border: 0.6pt solid #d97706;
+    border-left-width: 2pt;
+    border-radius: 1mm;
+    color: #7a4a00;
+    page-break-inside: avoid;
+    page-break-after:  avoid;
+
+    -webkit-print-color-adjust: exact;
+    print-color-adjust:         exact;
+
+    &__tag {
+        flex-shrink: 0;
+        background: #d97706;
+        color: #fff;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 7pt;
+        font-weight: 800;
+        letter-spacing: 0.4pt;
+        padding: 0.4mm 2mm;
+        border-radius: 0.8mm;
+
+        -webkit-print-color-adjust: exact;
+        print-color-adjust:         exact;
+    }
+
+    &__msg {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 6pt;
+        line-height: 1.2;
+    }
+}
+
+// ── Marca de agua diagonal BORRADOR (gris suave) ───────────
+.boleta-watermark {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    transform-origin: center center;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 140pt;
+    font-weight: 900;
+    letter-spacing: 12pt;
+    color: #555;
+    opacity: 0.08;
+    text-transform: uppercase;
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+    z-index: 9999;
+
+    -webkit-print-color-adjust: exact;
+    print-color-adjust:         exact;
+
+    @media screen { font-size: 130pt; }
 }

@@ -4,6 +4,9 @@
  * @var array  $boletas           [{ id, matricula_id, codigo_acceso, nombre_completo,
  *                                   grado_nombre, seccion_nombre, veces_consultada,
  *                                   ultima_consulta, generada_en, novedades_count }]
+ * @var array  $secciones         [{ seccion_id, seccion_nombre, grado_nombre,
+ *                                   nivel_id, nivel_nombre, total_aprobables,
+ *                                   total_generadas }]
  * @var int    $totalAprobadas    matrículas con ≥1 competencia bloqueada
  * @var int    $totalConNovedades boletas con competencias nuevas desde la generación
  * @var string $titulo
@@ -12,6 +15,13 @@ $totalGeneradas  = count($boletas);
 $_pendientes     = $totalAprobadas - $totalGeneradas;
 $hayNovedades    = $totalConNovedades > 0;
 $hayPendientes   = $_pendientes > 0;
+
+// Agrupar secciones por nivel para el grid de loteo
+$seccionesPorNivel = [];
+foreach ($secciones ?? [] as $_sec) {
+    $seccionesPorNivel[$_sec['nivel_nombre']][] = $_sec;
+}
+unset($_sec);
 ?>
 
 <div class="page-header">
@@ -21,15 +31,26 @@ $hayPendientes   = $_pendientes > 0;
         <p class="page-subtitle"><?= e($periodo['anio']) ?></p>
     </div>
     <div class="btn-group">
+        <?php if ($totalAprobadas > 0): ?>
+        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/vista-previa") ?>"
+           class="btn btn--secondary btn--sm"
+           target="_blank"
+           title="Procesa el periodo completo — puede tardar con muchas boletas">
+            👁 Vista previa de todas
+        </a>
+        <?php endif; ?>
+
         <?php if ($totalGeneradas > 0): ?>
         <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/boletas-alumno") ?>"
            class="btn btn--secondary btn--sm"
-           target="_blank">
-            🖨 Imprimir boletas
+           target="_blank"
+           title="Procesa el periodo completo — puede tardar con muchas boletas">
+            🖨 Imprimir todas
         </a>
         <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/imprimir") ?>"
            class="btn btn--secondary btn--sm"
-           target="_blank">
+           target="_blank"
+           title="Imprime los códigos de todo el periodo">
             🔑 Imprimir códigos
         </a>
         <?php endif; ?>
@@ -87,6 +108,73 @@ $hayPendientes   = $_pendientes > 0;
     pero si entregaste copias impresas debes reimprimir esas boletas.
     Usa <strong>Actualizar</strong> para registrar la fecha de actualización.
 </div>
+<?php endif; ?>
+
+<?php if (!empty($seccionesPorNivel)): ?>
+<section class="bp-secciones">
+    <header class="bp-secciones__header">
+        <h2 class="bp-secciones__titulo">Impresión por sección</h2>
+        <p class="bp-secciones__sub">
+            Procesa las boletas en lotes más pequeños para evitar tiempos de espera largos.
+        </p>
+    </header>
+
+    <?php foreach ($seccionesPorNivel as $nivel => $secs): ?>
+        <h3 class="bp-secciones__nivel"><?= e($nivel) ?></h3>
+        <div class="bp-secciones__grid">
+            <?php foreach ($secs as $sec):
+                $sid          = (int) $sec['seccion_id'];
+                $aprobables   = (int) $sec['total_aprobables'];
+                $generadas    = (int) $sec['total_generadas'];
+                $tieneGeneradas = $generadas > 0;
+            ?>
+                <article class="bp-seccion-card">
+                    <header class="bp-seccion-card__head">
+                        <span class="bp-seccion-card__grado"><?= e($sec['grado_nombre']) ?></span>
+                        <span class="bp-seccion-card__nombre">Sección <?= e($sec['seccion_nombre']) ?></span>
+                    </header>
+
+                    <dl class="bp-seccion-card__stats">
+                        <div>
+                            <dt>Aprobables</dt>
+                            <dd><?= $aprobables ?></dd>
+                        </div>
+                        <div>
+                            <dt>Con código</dt>
+                            <dd class="<?= $tieneGeneradas ? '' : 'bp-seccion-card__stat--vacio' ?>">
+                                <?= $generadas ?>
+                            </dd>
+                        </div>
+                    </dl>
+
+                    <div class="bp-seccion-card__acciones">
+                        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/vista-previa?seccion_id={$sid}") ?>"
+                           class="btn btn--secondary btn--sm"
+                           target="_blank"
+                           title="Vista previa de esta sección">
+                            👁 Vista previa
+                        </a>
+
+                        <?php if ($tieneGeneradas): ?>
+                        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/boletas-alumno?seccion_id={$sid}") ?>"
+                           class="btn btn--primary btn--sm"
+                           target="_blank"
+                           title="Imprimir boletas de esta sección">
+                            🖨 Boletas
+                        </a>
+                        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/imprimir?seccion_id={$sid}") ?>"
+                           class="btn btn--secondary btn--sm"
+                           target="_blank"
+                           title="Imprimir códigos de esta sección">
+                            🔑 Códigos
+                        </a>
+                        <?php endif; ?>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    <?php endforeach; ?>
+</section>
 <?php endif; ?>
 
 <?php if (empty($boletas)): ?>

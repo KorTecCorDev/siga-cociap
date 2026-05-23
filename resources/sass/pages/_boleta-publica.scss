@@ -265,6 +265,120 @@
     letter-spacing: 0.03em;
 }
 
+// ── Impresión por sección (loteo) ───────────────────────────
+// Reduce el render a una sección a la vez para evitar timeouts
+// cuando hay muchas boletas. Grid responsivo de cards con
+// conteo y mini-botones para vista previa / imprimir / códigos.
+.bp-secciones {
+    margin-bottom: $spacing-lg;
+
+    &__header {
+        margin-bottom: $spacing-md;
+    }
+
+    &__titulo {
+        font-size: $font-size-lg;
+        font-weight: 600;
+        color: $text-primary;
+        margin: 0 0 4px;
+    }
+
+    &__sub {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin: 0;
+    }
+
+    &__nivel {
+        font-size: $font-size-base;
+        font-weight: 600;
+        color: $text-secondary;
+        margin: $spacing-lg 0 $spacing-sm;
+        padding-bottom: 4px;
+        border-bottom: 1px solid $border-color;
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: $spacing-md;
+    }
+}
+
+.bp-seccion-card {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+    padding: $spacing-md;
+    background: $bg-white;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-sm;
+    transition: border-color .15s, box-shadow .15s;
+
+    &:hover {
+        border-color: $brand-accent;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+    }
+
+    &__head {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    &__grado {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &__nombre {
+        font-size: $font-size-base;
+        font-weight: 700;
+        color: $text-primary;
+    }
+
+    &__stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: $spacing-sm;
+        margin: 0;
+        padding: $spacing-sm 0;
+        border-top: 1px solid $border-color;
+        border-bottom: 1px solid $border-color;
+
+        > div {
+            text-align: center;
+        }
+
+        dt {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: $text-muted;
+            letter-spacing: .4px;
+        }
+
+        dd {
+            margin: 2px 0 0;
+            font-size: $font-size-lg;
+            font-weight: 700;
+            color: $brand-mid;
+            font-variant-numeric: tabular-nums;
+        }
+    }
+
+    &__stat--vacio {
+        color: $text-muted !important;
+    }
+
+    &__acciones {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+
+        .btn { flex: 1 1 auto; }
+    }
+}
+
 // ── Admin — impresión de tarjetas de código ─────────────────
 // Solo se activa en @media print / layout print
 

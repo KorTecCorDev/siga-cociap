@@ -15,6 +15,12 @@
 $esSecundaria = ($alumno['escala_boleta'] === 'ambas');
 $hoy          = (new DateTime())->format('d/m/Y');
 
+// Vista previa antes de la aprobación del registro académico:
+// suprime QR y la imagen de firma del director (los datos textuales
+// del director — nombre y cargo — se mantienen para que el RA pueda
+// validar el documento como va a salir).
+$vistaPrevia = $vistaPrevia ?? false;
+
 // Columnas por bimestre: nota(sec)+literal+conclusión  ó  literal+conclusión
 $subCols   = $esSecundaria ? 3 : 2;
 $totalCols = 1 + count($periodos) * $subCols + 1;
@@ -35,6 +41,17 @@ foreach ($areas as $_n => $_c) {
 $areasOrdenadas = array_merge($areasRegulares, $areasTransversales);
 unset($_n, $_c);
 ?>
+
+<?php if ($vistaPrevia): ?>
+<!-- ── Banner BORRADOR (vista previa, una vez por boleta = una por página) ── -->
+<div class="boleta-borrador-banner" role="note">
+    <span class="boleta-borrador-banner__tag">BORRADOR</span>
+    <span class="boleta-borrador-banner__msg">
+        Vista previa para revisión &middot;
+        No constituye documento oficial mientras no sea aprobado por Registro Académico
+    </span>
+</div>
+<?php endif; ?>
 
 <!-- ── Cabecera institucional ───────────────────────────────── -->
 <header class="boleta-header">
@@ -206,16 +223,69 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
 
 <?php endif; ?>
 
-<!-- ── QR de boleta digital ──────────────────────────────────── -->
-<?php if (!empty($url_boleta)): ?>
-<div class="boleta-qr-wrap">
-    <div class="boleta-qr" data-qr-url="<?= e($url_boleta) ?>"></div>
-    <div class="boleta-qr-info">
-        <p class="boleta-qr-info__titulo">Boleta digital</p>
-        <p class="boleta-qr-info__sub">Escanea para ver la versión digital</p>
-        <code class="boleta-qr-info__url"><?= e($url_boleta) ?></code>
+<!-- ── Bloque inferior: asistencia + QR alineados horizontalmente ─ -->
+<?php
+$mostrarAsistencia = !empty($asistencia);
+$mostrarQr         = !$vistaPrevia && !empty($url_boleta);
+?>
+<?php if ($mostrarAsistencia || $mostrarQr): ?>
+<div class="boleta-info">
+
+    <?php if ($mostrarAsistencia):
+        $aB = $asistencia['bimestre'];
+        $aA = $asistencia['anual'];
+    ?>
+    <section class="boleta-asistencia">
+        <h2 class="boleta-asistencia__titulo">Asistencia</h2>
+        <table class="boleta-asistencia__tabla">
+            <thead>
+                <tr>
+                    <th class="boleta-asistencia__th-tipo">Tipo</th>
+                    <th class="boleta-asistencia__th-num">Bim.</th>
+                    <th class="boleta-asistencia__th-num">Anual</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Faltas</td>
+                    <td class="boleta-asistencia__num"><?= $aB['faltas'] ?></td>
+                    <td class="boleta-asistencia__num"><?= $aA['faltas'] ?></td>
+                </tr>
+                <tr>
+                    <td>Faltas justificadas</td>
+                    <td class="boleta-asistencia__num"><?= $aB['faltas_justificadas'] ?></td>
+                    <td class="boleta-asistencia__num"><?= $aA['faltas_justificadas'] ?></td>
+                </tr>
+                <tr>
+                    <td>Tardanzas</td>
+                    <td class="boleta-asistencia__num"><?= $aB['tardanzas'] ?></td>
+                    <td class="boleta-asistencia__num"><?= $aA['tardanzas'] ?></td>
+                </tr>
+                <tr>
+                    <td>Tardanzas justificadas</td>
+                    <td class="boleta-asistencia__num"><?= $aB['tardanzas_justificadas'] ?></td>
+                    <td class="boleta-asistencia__num"><?= $aA['tardanzas_justificadas'] ?></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+    <?php endif; ?>
+
+    <?php if ($mostrarQr): ?>
+    <div class="boleta-qr-wrap">
+        <div class="boleta-qr" data-qr-url="<?= e($url_boleta) ?>"></div>
+        <div class="boleta-qr-info">
+            <p class="boleta-qr-info__titulo">Boleta digital</p>
+            <p class="boleta-qr-info__sub">Escanea para ver la versión digital</p>
+            <code class="boleta-qr-info__url"><?= e($url_boleta) ?></code>
+        </div>
     </div>
+    <?php endif; ?>
+
 </div>
+<?php endif; ?>
+
+<?php if ($mostrarQr): ?>
 <?php if (!defined('BOLETA_QR_SCRIPT_LOADED')): define('BOLETA_QR_SCRIPT_LOADED', true); ?>
 <script src="<?= url('js/qrcode.min.js') ?>"></script>
 <script>
@@ -253,10 +323,12 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
         <div class="boleta-footer__cargo"><?= $cargoTutor ?></div>
     </div>
 
-    <!-- Director EBR: firma PNG anclada al fondo del espacio -->
+    <!-- Director EBR: firma PNG anclada al fondo del espacio.
+         En vista previa el espacio queda vacío (igual que el del tutor) para
+         mantener la alineación, pero el nombre y cargo siguen impresos. -->
     <div class="boleta-footer__bloque">
         <div class="boleta-footer__espacio-firma">
-            <?php if (!empty($directorEbr['firma_path'])): ?>
+            <?php if (!$vistaPrevia && !empty($directorEbr['firma_path'])): ?>
                 <img src="<?= url($directorEbr['firma_path']) ?>"
                      alt=""
                      aria-hidden="true"

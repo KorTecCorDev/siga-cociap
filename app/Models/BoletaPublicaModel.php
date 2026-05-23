@@ -78,11 +78,92 @@ class BoletaPublicaModel extends BaseModel
     }
 
     /**
+     * Matrículas aprobadas que tienen al menos una competencia bloqueada en el
+     * periodo dado. Es el conjunto candidato a generar boleta pública y también
+     * el que alimenta la vista previa antes de la aprobación del registro
+     * académico. Si se pasa $seccionId, filtra a esa sección (loteo por sección
+     * para evitar timeouts al renderizar todas las boletas a la vez).
+     */
+    public function getMatriculasAprobadasParaBoleta(int $periodoId, ?int $seccionId = null): array
+    {
+        $whereSeccion = $seccionId ? 'AND s.id = ?' : '';
+        $params       = $seccionId ? [$periodoId, $seccionId] : [$periodoId];
+
+        return $this->query("
+            SELECT DISTINCT
+                m.id            AS matricula_id,
+                CONCAT(
+                    per.apellido_paterno, ' ',
+                    per.apellido_materno, ', ',
+                    per.nombres
+                )                AS nombre_completo,
+                g.nombre_display AS grado_nombre,
+                s.nombre         AS seccion_nombre,
+                g.id             AS grado_id
+            FROM matriculas m
+            INNER JOIN estudiantes e ON e.id   = m.estudiante_id
+            INNER JOIN personas per  ON per.id = e.persona_id
+            INNER JOIN secciones s   ON s.id   = m.seccion_id
+            INNER JOIN grados g      ON g.id   = s.grado_id
+            INNER JOIN calificaciones cal
+                ON cal.matricula_id = m.id AND cal.periodo_id = ?
+            INNER JOIN bloqueos_competencia bc
+                ON bc.carga_id       = cal.carga_id
+               AND bc.competencia_id = cal.competencia_id
+               AND bc.periodo_id     = cal.periodo_id
+            WHERE m.estado = 'aprobada'
+              {$whereSeccion}
+            ORDER BY g.id, s.nombre, per.apellido_paterno, per.apellido_materno, per.nombres
+        ", $params);
+    }
+
+    /**
+     * Secciones del año activo agregadas para el periodo dado, con dos
+     * conteos: matrículas aprobables (con ≥1 competencia bloqueada) y
+     * boletas ya generadas. Solo devuelve secciones con al menos una
+     * matrícula aprobable — las demás no aportan nada al loteo.
+     * Una sola query con LEFT JOINs condicionales para evitar N+1.
+     */
+    public function getSeccionesParaPeriodo(int $periodoId): array
+    {
+        return $this->query("
+            SELECT
+                s.id                                                        AS seccion_id,
+                s.nombre                                                    AS seccion_nombre,
+                g.nombre_display                                            AS grado_nombre,
+                g.numero                                                    AS grado_numero,
+                n.id                                                        AS nivel_id,
+                n.nombre                                                    AS nivel_nombre,
+                COUNT(DISTINCT CASE WHEN bc.id IS NOT NULL THEN m.id END)   AS total_aprobables,
+                COUNT(DISTINCT bp.matricula_id)                             AS total_generadas
+            FROM secciones s
+            INNER JOIN grados            g ON g.id = s.grado_id
+            INNER JOIN niveles           n ON n.id = g.nivel_id
+            INNER JOIN anios_academicos  a ON a.id = s.anio_id AND a.estado = 'activo'
+            INNER JOIN matriculas        m ON m.seccion_id = s.id AND m.estado = 'aprobada'
+            LEFT JOIN calificaciones    cal ON cal.matricula_id = m.id AND cal.periodo_id = ?
+            LEFT JOIN bloqueos_competencia bc
+                   ON bc.carga_id       = cal.carga_id
+                  AND bc.competencia_id = cal.competencia_id
+                  AND bc.periodo_id     = cal.periodo_id
+            LEFT JOIN boletas_publicas   bp ON bp.matricula_id = m.id AND bp.periodo_id = ?
+            WHERE s.estado_nomina = 'aprobada'
+            GROUP BY s.id
+            HAVING total_aprobables > 0
+            ORDER BY n.id, g.numero, s.nombre
+        ", [$periodoId, $periodoId]);
+    }
+
+    /**
      * Lista boletas de un periodo con datos del estudiante, grado y sección.
      * Incluye novedades_count: competencias bloqueadas DESPUÉS de que se generó la boleta.
+     * Si se pasa $seccionId, filtra a esa sección (loteo).
      */
-    public function getPorPeriodo(int $periodoId): array
+    public function getPorPeriodo(int $periodoId, ?int $seccionId = null): array
     {
+        $whereSeccion = $seccionId ? 'AND s.id = ?' : '';
+        $params       = $seccionId ? [$periodoId, $seccionId] : [$periodoId];
+
         return $this->query("
             SELECT
                 bp.id,
@@ -116,8 +197,9 @@ class BoletaPublicaModel extends BaseModel
             INNER JOIN secciones s   ON s.id   = m.seccion_id
             INNER JOIN grados g      ON g.id   = s.grado_id
             WHERE bp.periodo_id = ?
+              {$whereSeccion}
             ORDER BY g.id, s.nombre, per.apellido_paterno, per.apellido_materno, per.nombres
-        ", [$periodoId]);
+        ", $params);
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
+use App\Models\AsistenciaModel;
 use App\Models\BoletaPublicaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
@@ -16,14 +17,16 @@ class BoletaPublicaController extends BaseController
     private CalificacionModel  $calModel;
     private ConductaModel      $conductaModel;
     private DirectorEbrModel   $dirModel;
+    private AsistenciaModel    $asistenciaModel;
 
     public function __construct()
     {
         $this->requireRole(['admin', 'registro_academico']);
-        $this->model         = new BoletaPublicaModel();
-        $this->calModel      = new CalificacionModel();
-        $this->conductaModel = new ConductaModel();
-        $this->dirModel      = new DirectorEbrModel();
+        $this->model           = new BoletaPublicaModel();
+        $this->calModel        = new CalificacionModel();
+        $this->conductaModel   = new ConductaModel();
+        $this->dirModel        = new DirectorEbrModel();
+        $this->asistenciaModel = new AsistenciaModel();
     }
 
     /** GET /admin/boletas-publicas — selector de periodos */
@@ -56,26 +59,19 @@ class BoletaPublicaController extends BaseController
             $this->redirectWithError(url('admin/boletas-publicas'), 'Período no encontrado.');
         }
 
-        $boletas = $this->model->getPorPeriodo($periodoId);
+        $boletas   = $this->model->getPorPeriodo($periodoId);
+        $secciones = $this->model->getSeccionesParaPeriodo($periodoId);
 
-        $row = $this->model->queryOne("
-            SELECT COUNT(DISTINCT m.id) AS total
-            FROM matriculas m
-            INNER JOIN calificaciones cal
-                ON cal.matricula_id = m.id AND cal.periodo_id = ?
-            INNER JOIN bloqueos_competencia bc
-                ON bc.carga_id       = cal.carga_id
-               AND bc.competencia_id = cal.competencia_id
-               AND bc.periodo_id     = cal.periodo_id
-            WHERE m.estado = 'aprobada'
-        ", [$periodoId]);
-        $totalAprobadas  = (int) ($row['total'] ?? 0);
-        $totalConNovedades = count(array_filter($boletas, fn($b) => (int)$b['novedades_count'] > 0));
+        // total_aprobables ya viene calculado por sección; el total global
+        // del periodo es la suma. Evita la query separada que vivía aquí.
+        $totalAprobadas    = array_sum(array_map(fn($s) => (int) $s['total_aprobables'], $secciones));
+        $totalConNovedades = count(array_filter($boletas, fn($b) => (int) $b['novedades_count'] > 0));
 
         $this->view('admin/boletas-publicas/periodo', [
             'titulo'            => 'Boletas Públicas — ' . $periodo['nombre_display'],
             'periodo'           => $periodo,
             'boletas'           => $boletas,
+            'secciones'         => $secciones,
             'totalAprobadas'    => $totalAprobadas,
             'totalConNovedades' => $totalConNovedades,
         ]);
@@ -127,7 +123,10 @@ class BoletaPublicaController extends BaseController
             : $this->redirectWithError(url("admin/boletas-publicas/{$periodoId}"), $msg);
     }
 
-    /** GET /admin/boletas-publicas/{periodo_id}/imprimir — impresión de códigos de acceso */
+    /**
+     * GET /admin/boletas-publicas/{periodo_id}/imprimir[?seccion_id=N]
+     * Impresión de códigos de acceso. Opcionalmente loteable por sección.
+     */
     public function imprimir($periodoId): void
     {
         $periodoId = (int) $periodoId;
@@ -137,7 +136,8 @@ class BoletaPublicaController extends BaseController
             $this->redirectWithError(url('admin/boletas-publicas'), 'Período no encontrado.');
         }
 
-        $boletas = $this->model->getPorPeriodo($periodoId);
+        $seccionId = (int) $this->query('seccion_id', 0) ?: null;
+        $boletas   = $this->model->getPorPeriodo($periodoId, $seccionId);
 
         View::setLayout('print');
         $this->view('admin/boletas-publicas/imprimir', [
@@ -147,7 +147,51 @@ class BoletaPublicaController extends BaseController
         ]);
     }
 
-    /** GET /admin/boletas-publicas/{periodo_id}/boletas-alumno — impresión masiva de boletas */
+    /**
+     * GET /admin/boletas-publicas/{periodo_id}/vista-previa[?seccion_id=N]
+     * Vista previa antes de la aprobación de registro académico.
+     * Itera sobre las matrículas con ≥1 competencia bloqueada (set candidato
+     * a generación), no sobre las que ya tienen código. Pasa $vistaPrevia=true
+     * a la vista compartida boleta/alumno.php para suprimir QR y la imagen
+     * de firma del director (los datos de la línea de firma se mantienen).
+     * Opcionalmente loteable por sección para evitar timeouts con muchos alumnos.
+     */
+    public function vistaPrevia($periodoId): void
+    {
+        $periodoId = (int) $periodoId;
+        $periodo   = $this->getPeriodo($periodoId);
+
+        if (!$periodo) {
+            $this->redirectWithError(url('admin/boletas-publicas'), 'Período no encontrado.');
+        }
+
+        $seccionId   = (int) $this->query('seccion_id', 0) ?: null;
+        $matriculas  = $this->model->getMatriculasAprobadasParaBoleta($periodoId, $seccionId);
+        $boletasData = [];
+
+        foreach ($matriculas as $m) {
+            $data = $this->buildBoletaData((int) $m['matricula_id'], $periodoId, (int) $periodo['anio_id']);
+            if ($data) {
+                // En vista previa no inyectamos url_boleta (sin QR) ni mostramos
+                // firma del director; el flag lo decide en alumno.php.
+                $data['vistaPrevia'] = true;
+                $boletasData[] = $data;
+            }
+        }
+
+        View::setLayout('print');
+        $this->view('admin/boletas-publicas/vista-previa', [
+            'titulo'      => 'Vista previa — ' . $periodo['nombre_display'],
+            'periodo'     => $periodo,
+            'boletasData' => $boletasData,
+        ]);
+    }
+
+    /**
+     * GET /admin/boletas-publicas/{periodo_id}/boletas-alumno[?seccion_id=N]
+     * Impresión masiva de boletas. Opcionalmente loteable por sección para
+     * evitar que el render de 200+ boletas dispare timeouts.
+     */
     public function boletasAlumno($periodoId): void
     {
         $periodoId = (int) $periodoId;
@@ -157,7 +201,8 @@ class BoletaPublicaController extends BaseController
             $this->redirectWithError(url('admin/boletas-publicas'), 'Período no encontrado.');
         }
 
-        $boletas     = $this->model->getPorPeriodo($periodoId);
+        $seccionId   = (int) $this->query('seccion_id', 0) ?: null;
+        $boletas     = $this->model->getPorPeriodo($periodoId, $seccionId);
         $boletasData = [];
 
         foreach ($boletas as $b) {
@@ -206,6 +251,10 @@ class BoletaPublicaController extends BaseController
             'periodos'    => $periodos,
             'areas'       => $this->buildAreasConBimestres($datosPorPeriodo, $periodos),
             'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, $anioId),
+            'asistencia'  => [
+                'bimestre' => $this->asistenciaModel->getDelBimestre($matriculaId, $periodoId),
+                'anual'    => $this->asistenciaModel->getAcumuladoAnual($matriculaId, $periodoId),
+            ],
             'institucion' => config('institucion'),
             'tutor'       => $this->getTutorSeccion($matriculaId),
             'directorEbr' => $this->dirModel->getVigenteEnFecha($anioId),
