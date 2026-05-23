@@ -113,6 +113,14 @@ unset($_n, $_c);
             <span class="bd-student__label">Nivel</span>
             <strong class="bd-student__value"><?= e($alumno['nivel_nombre'] ?? '') ?></strong>
         </div>
+        <?php if (!empty($tutor['nombre'])): ?>
+        <div class="bd-student__field">
+            <span class="bd-student__label">
+                <?= ($tutor['sexo'] ?? null) === 'F' ? 'Tutora' : 'Tutor' ?>
+            </span>
+            <strong class="bd-student__value"><?= e($tutor['nombre']) ?></strong>
+        </div>
+        <?php endif; ?>
     </section>
 
     <!-- ── LEYENDA DE ESCALA ─────────────────────────────────── -->
@@ -140,23 +148,6 @@ unset($_n, $_c);
 
     <!-- ── CUERPO PRINCIPAL ─────────────────────────────────── -->
     <main class="bd-main">
-
-        <!-- Indicador visual de bimestres -->
-        <div class="bd-periods" role="list" aria-label="Bimestres del año académico">
-            <?php foreach ($periodos as $p):
-                $num = (int) $p['numero'];
-                $rom = $romanos[$num - 1] ?? $num;
-            ?>
-            <div class="bd-periods__item" role="listitem">
-                <span class="bd-periods__roman"><?= $rom ?></span>
-                <span class="bd-periods__name">Bimestre</span>
-            </div>
-            <?php endforeach; ?>
-            <div class="bd-periods__item bd-periods__item--anual" role="listitem">
-                <span class="bd-periods__roman">&#931;</span>
-                <span class="bd-periods__name">Anual</span>
-            </div>
-        </div>
 
         <!-- Estado vacío -->
         <?php if (empty($areas)): ?>
