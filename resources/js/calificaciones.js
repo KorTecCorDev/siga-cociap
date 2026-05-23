@@ -19,6 +19,46 @@ document.querySelectorAll('.criterio-bloque').forEach(bloque => {
     });
 });
 
+// ── Detección de cambios sin guardar ─────────────────────────
+// Compara el valor actual de cada input contra su data-nota-inicial.
+// Si difieren (ignorando vaciados, porque el backend no borra notas),
+// marca el card con el modificador --con-cambios (ámbar). El ámbar
+// gana sobre el verde por orden de cascade en el CSS.
+function notaActualDifiereDeInicial(input) {
+    const inicial = (input.dataset.notaInicial ?? '').trim();
+    const actual  = (input.value ?? '').trim();
+
+    // Vaciar una nota previamente registrada NO cuenta como cambio
+    // persistible: el endpoint `guardar` no borra notas vaciadas.
+    if (actual === '' && inicial !== '') return false;
+
+    // Comparar como enteros para evitar falsos positivos por padding ('8' vs '08').
+    const ni = inicial === '' ? null : parseInt(inicial, 10);
+    const na = actual  === '' ? null : parseInt(actual,  10);
+    return ni !== na;
+}
+
+// Vista normal: el form vive dentro de .criterio-bloque.
+// Vista transversales: el form vive directamente dentro de .competencia-card
+// (cada competencia tiene un único criterio implícito). Devolvemos el ancestro
+// y el prefijo BEM apropiado para que los modificadores compartan lenguaje.
+function obtenerContenedorIluminacion(form) {
+    const contenedor = form.closest('.criterio-bloque, .competencia-card');
+    if (!contenedor) return null;
+    const prefijo = contenedor.classList.contains('criterio-bloque')
+        ? 'criterio-bloque'
+        : 'competencia-card';
+    return { contenedor, prefijo };
+}
+
+function recalcularCambiosForm(form) {
+    const info = obtenerContenedorIluminacion(form);
+    if (!info) return;
+    const hayCambios = Array.from(form.querySelectorAll('.input-nota'))
+        .some(notaActualDifiereDeInicial);
+    info.contenedor.classList.toggle(`${info.prefijo}--con-cambios`, hayCambios);
+}
+
 // ── Pegado masivo desde Excel / portapapeles ─────────────────
 // Al copiar una columna en Excel y pegarla sobre cualquier input-nota,
 // distribuye cada línea en el input correspondiente hacia abajo.
@@ -64,6 +104,10 @@ document.querySelectorAll('.form-notas').forEach(form => {
             mostrarStatus(status, 'success',
                 `✓ ${pegados} nota(s) pegada(s) — revisa y guarda`);
         }
+
+        // El paste asigna value directamente y no dispara el evento `input`,
+        // así que recalculamos el estado de cambios manualmente.
+        recalcularCambiosForm(form);
     });
 });
 
@@ -85,6 +129,8 @@ document.querySelectorAll('.input-nota').forEach(input => {
     input.addEventListener('input', () => {
         const soloDigitos = input.value.replace(/\D/g, '');
         if (input.value !== soloDigitos) input.value = soloDigitos;
+        const form = input.closest('.form-notas');
+        if (form) recalcularCambiosForm(form);
     });
 
     // 3. Al salir del campo: ajustar rango y aplicar cero inicial
@@ -92,18 +138,21 @@ document.querySelectorAll('.input-nota').forEach(input => {
         const val = input.value.trim();
         if (val === '') {
             input.classList.remove('input--error');
-            return;
-        }
-        const nota = parseInt(val, 10);
-        if (!isNaN(nota)) {
-            // Clamp al rango válido
-            const valida = Math.min(20, Math.max(0, nota));
-            input.value = String(valida).padStart(2, '0');
-            input.classList.remove('input--error');
         } else {
-            input.value = '';
-            input.classList.remove('input--error');
+            const nota = parseInt(val, 10);
+            if (!isNaN(nota)) {
+                // Clamp al rango válido
+                const valida = Math.min(20, Math.max(0, nota));
+                input.value = String(valida).padStart(2, '0');
+                input.classList.remove('input--error');
+            } else {
+                input.value = '';
+                input.classList.remove('input--error');
+            }
         }
+        // Tras la normalización ('8' → '08') volvemos a evaluar el estado.
+        const form = input.closest('.form-notas');
+        if (form) recalcularCambiosForm(form);
     });
 });
 
@@ -172,6 +221,30 @@ document.querySelectorAll('.form-notas').forEach(form => {
 
             if (data.success) {
                 mostrarStatus(status, 'success', '✓ ' + data.mensaje);
+
+                // Encender el card en vivo si quedó al menos una nota cargada.
+                // El backend no borra notas vaciadas, así que el estado iluminado
+                // es "pegajoso": una vez activado, refleja la realidad de la BD.
+                const tieneAlgunaNota = Array.from(form.querySelectorAll('.input-nota'))
+                    .some(i => i.value.trim() !== '');
+                if (tieneAlgunaNota) {
+                    const info = obtenerContenedorIluminacion(form);
+                    if (info) {
+                        info.contenedor.classList.add(`${info.prefijo}--con-notas`);
+                        // Sincroniza el botón eliminar (solo existe en .criterio-bloque)
+                        // para que muestre el confirm extendido sobre el promedio.
+                        const btnEliminar = info.contenedor.querySelector('.btn-eliminar-criterio');
+                        if (btnEliminar) btnEliminar.dataset.tieneCalificaciones = '1';
+                    }
+                }
+
+                // El servidor confirmó: lo que está en pantalla es ahora el nuevo
+                // estado inicial. Resetea el "valor inicial" de cada input y limpia
+                // el modificador ámbar de cambios sin guardar.
+                form.querySelectorAll('.input-nota').forEach(i => {
+                    i.dataset.notaInicial = i.value;
+                });
+                recalcularCambiosForm(form);
             } else {
                 mostrarStatus(status, 'error', '⚠ ' + data.mensaje);
             }

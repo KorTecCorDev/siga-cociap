@@ -218,6 +218,10 @@
     border-radius: $border-radius-lg;
     margin-bottom: $spacing-lg;
     overflow: hidden;
+    transition:
+        border-color     200ms ease,
+        box-shadow       200ms ease,
+        background-color 200ms ease;
 
     &__header {
         padding: $spacing-md $spacing-lg;
@@ -227,6 +231,9 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: $spacing-md;
+        transition:
+            background-color    200ms ease,
+            border-bottom-color 200ms ease;
     }
 
     &__codigo {
@@ -245,10 +252,47 @@
         color: $text-primary;
         margin: 0;
         display: inline;
+        transition: color 200ms ease;
     }
 
     &__body {
         padding: $spacing-lg;
+    }
+
+    // Estado iluminado: la competencia transversal ya tiene notas guardadas
+    // en BD. Mismo lenguaje visual que .criterio-bloque--con-notas pero con
+    // un glow ligeramente mayor por el tamaño del card.
+    &--con-notas {
+        border-color: $color-success;
+        box-shadow:
+            0 0 0 1px rgba($color-success, 0.25),
+            0 2px 10px rgba($color-success, 0.18);
+
+        .competencia-card__header {
+            background: $color-success-bg;
+            border-bottom-color: rgba($color-success, 0.3);
+        }
+
+        .competencia-card__nombre {
+            color: darken($color-success, 8%);
+        }
+    }
+
+    // Cambios sin guardar. Gana sobre --con-notas por orden de cascade.
+    &--con-cambios {
+        border-color: $color-warning;
+        box-shadow:
+            0 0 0 1px rgba($color-warning, 0.3),
+            0 2px 10px rgba($color-warning, 0.22);
+
+        .competencia-card__header {
+            background: $color-warning-bg;
+            border-bottom-color: rgba($color-warning, 0.35);
+        }
+
+        .competencia-card__nombre {
+            color: darken($color-warning, 5%);
+        }
     }
 }
 
@@ -258,6 +302,10 @@
     border-radius: $border-radius;
     margin-bottom: $spacing-md;
     overflow: hidden;
+    transition:
+        border-color     200ms ease,
+        box-shadow       200ms ease,
+        background-color 200ms ease;
 
     &__header {
         display: flex;
@@ -268,6 +316,9 @@
         border-bottom: 0.5px solid $border-color;
         cursor: pointer;
         user-select: none;
+        transition:
+            background-color    200ms ease,
+            border-bottom-color 200ms ease;
 
         &:hover {
             background: darken($bg-secondary, 3%);
@@ -308,6 +359,7 @@
         font-weight: 500;
         color: $text-primary;
         margin: 0;
+        transition: color 200ms ease;
     }
 
     // Animación de apertura/cierre con CSS grid
@@ -324,6 +376,50 @@
 
     &--open &__content {
         grid-template-rows: 1fr;
+    }
+
+    // Estado iluminado: el criterio ya tiene notas guardadas en BD.
+    // Borde uniforme + anillo + glow para no alterar el layout al cambiar de estado.
+    &--con-notas {
+        border-color: $color-success;
+        box-shadow:
+            0 0 0 1px rgba($color-success, 0.25),
+            0 2px 8px rgba($color-success, 0.18);
+
+        .criterio-bloque__header {
+            background: $color-success-bg;
+            border-bottom-color: rgba($color-success, 0.3);
+
+            &:hover {
+                background: darken($color-success-bg, 3%);
+            }
+        }
+
+        .criterio-bloque__nombre {
+            color: darken($color-success, 8%);
+        }
+    }
+
+    // Estado "cambios sin guardar": el docente está editando notas que aún
+    // no se han enviado al servidor. Gana sobre --con-notas por orden de cascade.
+    &--con-cambios {
+        border-color: $color-warning;
+        box-shadow:
+            0 0 0 1px rgba($color-warning, 0.3),
+            0 2px 8px rgba($color-warning, 0.22);
+
+        .criterio-bloque__header {
+            background: $color-warning-bg;
+            border-bottom-color: rgba($color-warning, 0.35);
+
+            &:hover {
+                background: darken($color-warning-bg, 3%);
+            }
+        }
+
+        .criterio-bloque__nombre {
+            color: darken($color-warning, 5%);
+        }
     }
 }
 

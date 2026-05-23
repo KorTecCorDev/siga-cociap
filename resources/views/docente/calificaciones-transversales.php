@@ -39,12 +39,16 @@
 <?php else: ?>
 
 <?php foreach ($competencias as $comp):
-    $compId       = (int) $comp['id'];
+    $compId        = (int) $comp['id'];
     $compBloqueada = in_array($compId, $bloqueos ?? []);
-    $criterioId   = $criteriosPorComp[$compId] ?? null;
+    $criterioId    = $criteriosPorComp[$compId] ?? null;
+    $tieneCals     = $criterioId && !empty($notasExistentes[$criterioId]);
+    // Solo iluminar cuando la competencia está editable: si ya está aprobada,
+    // el badge 🔒 Aprobada comunica el estado y el form no se renderiza.
+    $iluminar      = $tieneCals && !$compBloqueada;
 ?>
 
-<div class="competencia-card" id="comp-<?= $compId ?>">
+<div class="competencia-card<?= $iluminar ? ' competencia-card--con-notas' : '' ?>" id="comp-<?= $compId ?>">
 
     <div class="competencia-card__header">
         <div>
@@ -100,6 +104,9 @@
                             <td class="col-nombre"><?= e($alumno['nombre_completo']) ?></td>
                             <td><?= e($alumno['dni']) ?></td>
                             <td class="text-center">
+                                <?php $valorInicial = isset($notasExistentes[$criterioId][$alumno['matricula_id']])
+                                    ? fmt_nota((int)$notasExistentes[$criterioId][$alumno['matricula_id']])
+                                    : ''; ?>
                                 <input
                                     type="text"
                                     inputmode="numeric"
@@ -110,9 +117,8 @@
                                     autocomplete="off"
                                     <?= ($bloqueado || $compBloqueada) ? 'disabled' : '' ?>
                                     placeholder="—"
-                                    value="<?= isset($notasExistentes[$criterioId][$alumno['matricula_id']])
-                                        ? htmlspecialchars(fmt_nota((int)$notasExistentes[$criterioId][$alumno['matricula_id']]))
-                                        : '' ?>">
+                                    value="<?= e($valorInicial) ?>"
+                                    data-nota-inicial="<?= e($valorInicial) ?>">
                             </td>
                         </tr>
                         <?php endforeach; ?>

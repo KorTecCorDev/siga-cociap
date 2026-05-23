@@ -88,7 +88,7 @@
 
                         <?php foreach ($competencia['criterios'] as $ci => $criterio): ?>
                             <?php $tieneCals = !empty($notasExistentes[$criterio['id']]); ?>
-                            <div class="criterio-bloque<?= $ci === 0 ? ' criterio-bloque--open' : '' ?>"
+                            <div class="criterio-bloque<?= $ci === 0 ? ' criterio-bloque--open' : '' ?><?= $tieneCals ? ' criterio-bloque--con-notas' : '' ?>"
                                  id="criterio-<?= $criterio['id'] ?>">
 
                                 <div class="criterio-bloque__header">
@@ -140,6 +140,7 @@
                                                         <td class="col-nombre"><?= e($alumno['nombre_completo']) ?></td>
                                                         <td><?= e($alumno['dni']) ?></td>
                                                         <td class="text-center">
+                                                            <?php $valorInicial = isset($notasExistentes[$criterio['id']][$alumno['matricula_id']]) ? fmt_nota((int)$notasExistentes[$criterio['id']][$alumno['matricula_id']]) : ''; ?>
                                                             <input
                                                                 type="text"
                                                                 inputmode="numeric"
@@ -150,7 +151,8 @@
                                                                 autocomplete="off"
                                                                 <?= $bloqueado ? 'disabled' : '' ?>
                                                                 placeholder="—"
-                                                                value="<?= isset($notasExistentes[$criterio['id']][$alumno['matricula_id']]) ? fmt_nota((int)$notasExistentes[$criterio['id']][$alumno['matricula_id']]) : '' ?>"
+                                                                value="<?= $valorInicial ?>"
+                                                                data-nota-inicial="<?= $valorInicial ?>"
                                                             >
                                                         </td>
                                                     </tr>
