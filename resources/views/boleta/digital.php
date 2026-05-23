@@ -69,7 +69,6 @@ unset($_n, $_c);
 <!-- ══ DOCUMENTO ════════════════════════════════════════════════ -->
 <article class="bd"
          id="boleta-documento"
-         data-url="<?= e($url_boleta ?? '') ?>"
          data-nivel="<?= e($alumno['nivel_codigo'] ?? '') ?>">
 
     <!-- ── HEADER INSTITUCIONAL ─────────────────────────────── -->
@@ -328,17 +327,6 @@ unset($_n, $_c);
         <?php endif; ?>
     </main>
 
-    <!-- ── QR INSTITUCIONAL ─────────────────────────────────── -->
-    <?php if (!empty($url_boleta)): ?>
-    <aside class="bd-qr" aria-label="Verificación digital">
-        <div class="bd-qr__code" id="qr-container"></div>
-        <div class="bd-qr__info">
-            <p class="bd-qr__title">Verificación digital</p>
-            <p class="bd-qr__subtitle">Escanea el código para acceder a esta boleta en línea</p>
-            <code class="bd-qr__url"><?= e($url_boleta) ?></code>
-        </div>
-    </aside>
-    <?php endif; ?>
 
     <!-- ── FOOTER — FIRMAS ──────────────────────────────────── -->
     <footer class="bd-footer">
@@ -382,7 +370,7 @@ unset($_n, $_c);
             </div>
             <div class="bd-footer__line" role="presentation"></div>
             <?php if (!empty($directorEbr['nombre_completo'])): ?>
-                <p class="bd-footer__name bd-solo-impresion"><?= e($directorEbr['nombre_completo']) ?></p>
+                <p class="bd-footer__name"><?= e($directorEbr['nombre_completo']) ?></p>
             <?php endif; ?>
             <p class="bd-footer__cargo"><?= $bdCargoDirector ?></p>
         </div>

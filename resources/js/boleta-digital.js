@@ -33,35 +33,6 @@
         });
     }
 
-    // ── Generar QR (librería local sin internet) ───────────────
-    var doc         = document.getElementById('boleta-documento');
-    var qrContainer = document.getElementById('qr-container');
-
-    if (qrContainer && doc) {
-        var url = (doc.dataset.url || '').trim();
-        if (url) {
-            if (typeof QRCode !== 'undefined') {
-                new QRCode(qrContainer, {
-                    text:         url,
-                    width:        120,
-                    height:       120,
-                    correctLevel: QRCode.CorrectLevel.M
-                });
-            } else {
-                var img      = document.createElement('img');
-                img.src      = 'https://chart.googleapis.com/chart?chs=120x120&cht=qr&chl='
-                             + encodeURIComponent(url) + '&choe=UTF-8';
-                img.alt      = 'Código QR de verificación';
-                img.className = 'bd-qr__img';
-                img.onerror  = function () {
-                    qrContainer.closest('.bd-qr').classList.add('bd-qr--offline');
-                    qrContainer.remove();
-                };
-                qrContainer.appendChild(img);
-            }
-        }
-    }
-
     // ── Botón PDF ──────────────────────────────────────────────
     var btnPdf = document.getElementById('btn-pdf');
     if (btnPdf) {

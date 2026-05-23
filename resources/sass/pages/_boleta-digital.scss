@@ -798,92 +798,6 @@ $bd-radius-card:     16px;
     }
 }
 
-// ══════════════════════════════════════════════════════════════
-// QR INSTITUCIONAL
-// ══════════════════════════════════════════════════════════════
-.bd-qr {
-    background: $bg-white;
-    border: 1px solid $border-color;
-    border-radius: $border-radius-lg;
-    padding: 20px;
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-
-    @media print {
-        margin-top: 8pt;
-        border-radius: 0;
-        border: .5pt solid #ccc;
-        padding: 6pt;
-    }
-
-    &--offline .bd-qr__code { display: none; }
-
-    &__code {
-        flex-shrink: 0;
-        width: 80px;
-        height: 80px;
-
-        canvas, img {
-            width: 80px !important;
-            height: 80px !important;
-            display: block;
-
-            @media (min-width: 640px) { width: 100px !important; height: 100px !important; }
-            @media print { width: 22mm !important; height: 22mm !important; }
-        }
-        background: $bg-secondary;
-        border-radius: $border-radius-sm;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        @media (min-width: 640px) { width: 100px; height: 100px; }
-        @media print { width: 22mm; height: 22mm; }
-    }
-
-    &__img {
-        width: 80px !important;
-        height: 80px !important;
-        display: block;
-
-        @media (min-width: 640px) { width: 100px !important; height: 100px !important; }
-        @media print { width: 22mm !important; height: 22mm !important; }
-    }
-
-    &__info { min-width: 0; flex: 1; }
-
-    &__title {
-        font-size: 14px;
-        font-weight: 700;
-        color: $text-primary;
-        margin: 0 0 4px;
-
-        @media print { font-size: 8pt; }
-    }
-
-    &__subtitle {
-        font-size: 12px;
-        color: $text-muted;
-        margin: 0 0 8px;
-
-        @media print { font-size: 6.5pt; }
-    }
-
-    &__url {
-        font-size: 11px;
-        color: $text-secondary;
-        word-break: break-all;
-        display: block;
-        background: $bg-secondary;
-        padding: 5px 8px;
-        border-radius: $border-radius-sm;
-        font-family: 'Courier New', monospace;
-
-        @media print { font-size: 6pt; background: none; padding: 0; }
-    }
-}
 
 // ══════════════════════════════════════════════════════════════
 // FOOTER — FIRMAS
@@ -914,12 +828,15 @@ $bd-radius-card:     16px;
 
     // Contenedor de altura fija: sello/firma (Director) o vacío (Tutor).
     // Iguala la altura entre bloques → línea al mismo nivel en todos.
+    // La altura sigue al sello (52/60/72px) con 8px de margen inferior.
     &__img-area {
-        height: 44px;
+        height: 60px;
         display: flex;
         align-items: flex-end;
         justify-content: center;
 
+        @media (min-width: 640px) { height: 68px; }
+        @media (min-width: 960px) { height: 80px; }
         @media print { height: 14mm; }
     }
 

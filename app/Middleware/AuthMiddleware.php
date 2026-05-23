@@ -10,7 +10,7 @@ use Core\Session;
  */
 class AuthMiddleware
 {
-    /** Rutas públicas que no requieren autenticación */
+    /** Rutas públicas que no requieren autenticación (coincidencia exacta) */
     private static array $publicRoutes = [
         '/login',
         '/login/procesar',
@@ -19,11 +19,21 @@ class AuthMiddleware
         '/boleta-publica/consultar',
     ];
 
+    /** Prefijos de rutas públicas (cualquier URI que empiece con estos) */
+    private static array $publicPrefixes = [
+        '/boleta/digital/',
+    ];
+
     public static function handle(string $uri, string $method): void
     {
-        // Si es ruta pública, no verificar
+        // Si es ruta pública exacta, no verificar
         foreach (self::$publicRoutes as $route) {
             if ($uri === $route) return;
+        }
+
+        // Si comienza con un prefijo público, no verificar
+        foreach (self::$publicPrefixes as $prefix) {
+            if (str_starts_with($uri, $prefix)) return;
         }
 
         // Si no está autenticado, redirigir al login

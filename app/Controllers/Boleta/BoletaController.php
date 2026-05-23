@@ -17,14 +17,6 @@ class BoletaController extends BaseController
 
     public function __construct()
     {
-        $this->requireRole([
-            'admin',
-            'director_general',
-            'director_ebr',
-            'registro_academico',
-            'secretaria',
-            'padre',
-        ]);
         $this->calModel      = new CalificacionModel();
         $this->conductaModel = new ConductaModel();
         $this->dirModel      = new DirectorEbrModel();
@@ -36,6 +28,14 @@ class BoletaController extends BaseController
      */
     public function ver($matriculaId, $periodoId): void
     {
+        $this->requireRole([
+            'admin',
+            'director_general',
+            'director_ebr',
+            'registro_academico',
+            'secretaria',
+            'padre',
+        ]);
         $data = $this->buildBoletaData((int) $matriculaId, (int) $periodoId);
 
         View::setLayout('print');
@@ -57,8 +57,7 @@ class BoletaController extends BaseController
 
         View::setLayout('digital');
         $this->view('boleta/digital', array_merge($data, [
-            'titulo'      => 'Boleta Digital — ' . $data['alumno']['nombre_completo'],
-            'url_boleta'  => url("boleta/digital/{$matriculaId}/{$periodoId}"),
+            'titulo' => 'Boleta Digital — ' . $data['alumno']['nombre_completo'],
         ]));
     }
 
