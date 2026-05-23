@@ -361,6 +361,7 @@ class CalificacionModel extends BaseModel
                 n.id                 AS nivel_id,
                 g.numero             AS grado_numero,
                 g.nombre_display     AS grado_nombre,
+                s.id                 AS seccion_id,
                 s.nombre             AS seccion_nombre,
                 pu.apellido_paterno  AS docente_apellido,
                 pu.nombres           AS docente_nombres,
@@ -391,7 +392,6 @@ class CalificacionModel extends BaseModel
                 AND bc.periodo_id     = ?
             WHERE ca.estado  = 'activa'
               AND ca.anio_id = (SELECT anio_id FROM periodos WHERE id = ?)
-              AND (a.tipo IS NULL OR a.tipo != 'transversal')
             ORDER BY n.id, g.numero, s.nombre, a.orden, comp.orden
         ", [$periodoId, $periodoId, $periodoId]);
     }

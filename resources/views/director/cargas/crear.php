@@ -5,10 +5,16 @@
  * @var array  $areas
  * @var array  $subareas
  * @var array  $dias
+ * @var array  $ocupadas         [seccion_id => ['areas'=>[...], 'subareas'=>[...]]]
  * @var int    $preselSeccionId  ID de la sección pre-seleccionada (0 = ninguna)
  * @var int    $preselDocenteId  ID del docente pre-seleccionado (0 = ninguno; solo si sección es unidocente)
  */
 ?>
+<div id="cargasData"
+     data-ocupadas="<?= e(json_encode($ocupadas)) ?>"
+     data-horarios="<?= e(json_encode($horarios)) ?>"
+     data-bloques-docentes="<?= e(json_encode($bloquesDocentes)) ?>"
+     hidden></div>
 
 <div class="page-header">
     <a href="<?= url('director/cargas') ?>" class="btn btn--secondary btn--sm">← Volver</a>
@@ -120,6 +126,7 @@
                                    name="hora_inicio[<?= $dia ?>]"
                                    class="form-input form-input--time"
                                    disabled>
+                            <small id="hint-<?= $dia ?>" class="dia-row__hint" hidden></small>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="hf_<?= $dia ?>">Fin</label>

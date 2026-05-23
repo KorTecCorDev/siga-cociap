@@ -7,8 +7,13 @@
  * @var array  $areas
  * @var array  $subareas
  * @var array  $dias
+ * @var array  $ocupadas      [seccion_id => ['areas'=>[...], 'subareas'=>[...]]]
  */
 ?>
+<div id="cargasData"
+     data-ocupadas="<?= e(json_encode($ocupadas)) ?>"
+     data-bloques-docentes="<?= e(json_encode($bloquesDocentes)) ?>"
+     hidden></div>
 
 <div class="page-header">
     <a href="<?= url('director/cargas') ?>" class="btn btn--secondary btn--sm">← Volver</a>

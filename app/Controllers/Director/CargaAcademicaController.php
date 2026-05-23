@@ -114,7 +114,10 @@ class CargaAcademicaController extends BaseController
             );
         }
 
-        $this->redirectWithSuccess(url('director/cargas'), 'Carga académica registrada correctamente.');
+        $this->redirectWithSuccess(
+            url('director/cargas/seccion/' . $datosCarga['seccion_id']),
+            'Carga académica registrada correctamente.'
+        );
     }
 
     // GET /director/cargas/{id}/editar
@@ -134,7 +137,7 @@ class CargaAcademicaController extends BaseController
             ];
         }
 
-        $this->view('director/cargas/editar', $this->datosFormulario() + [
+        $this->view('director/cargas/editar', $this->datosFormulario($id) + [
             'titulo'       => 'Editar Carga Académica',
             'carga'        => $carga,
             'sesionesMap'  => $sesionesMap,
@@ -215,14 +218,85 @@ class CargaAcademicaController extends BaseController
 
     // ── Métodos privados ──────────────────────────────────────
 
-    private function datosFormulario(): array
+    private function datosFormulario(int $excludeCargaId = 0): array
     {
+        // area_id y subarea_id ya ocupados por seccion en el año activo.
+        // Se excluye la carga actual al editar (excludeCargaId > 0).
+        $rawOcupadas = $this->model->query("
+            SELECT ca.seccion_id, ca.area_id, ca.subarea_id
+            FROM cargas_academicas ca
+            INNER JOIN secciones s        ON s.id  = ca.seccion_id
+            INNER JOIN anios_academicos a ON a.id  = s.anio_id
+            WHERE ca.estado  = 'activa'
+              AND a.estado   IN ('planificado', 'activo')
+              AND ca.id      != ?
+        ", [$excludeCargaId]);
+
+        $ocupadas = [];
+        foreach ($rawOcupadas as $c) {
+            $sid = (int) $c['seccion_id'];
+            if (!isset($ocupadas[$sid])) {
+                $ocupadas[$sid] = ['areas' => [], 'subareas' => []];
+            }
+            if ($c['area_id'] !== null) {
+                $ocupadas[$sid]['areas'][] = (int) $c['area_id'];
+            }
+            if ($c['subarea_id'] !== null) {
+                $ocupadas[$sid]['subareas'][] = (int) $c['subarea_id'];
+            }
+        }
+
+        $rawHorarios = $this->model->query("
+            SELECT ca.seccion_id, bh.dia_semana,
+                   MAX(bh.hora_fin) AS ultima_fin
+            FROM cargas_academicas ca
+            INNER JOIN sesiones_horario sh ON sh.carga_id = ca.id
+            INNER JOIN bloques_horario bh  ON bh.id       = sh.bloque_id
+            INNER JOIN secciones s         ON s.id        = ca.seccion_id
+            INNER JOIN anios_academicos a  ON a.id        = s.anio_id
+            WHERE ca.estado = 'activa'
+              AND a.estado  IN ('planificado', 'activo')
+              AND ca.id     != ?
+            GROUP BY ca.seccion_id, bh.dia_semana
+        ", [$excludeCargaId]);
+
+        $horarios = [];
+        foreach ($rawHorarios as $h) {
+            $sid = (int) $h['seccion_id'];
+            $horarios[$sid][$h['dia_semana']] = substr($h['ultima_fin'], 0, 5);
+        }
+
+        $rawBloques = $this->model->query("
+            SELECT ca.docente_id, bh.dia_semana,
+                   bh.hora_inicio, bh.hora_fin
+            FROM cargas_academicas ca
+            INNER JOIN sesiones_horario sh ON sh.carga_id = ca.id
+            INNER JOIN bloques_horario bh  ON bh.id       = sh.bloque_id
+            INNER JOIN secciones s         ON s.id        = ca.seccion_id
+            INNER JOIN anios_academicos a  ON a.id        = s.anio_id
+            WHERE ca.estado = 'activa'
+              AND a.estado  IN ('planificado', 'activo')
+              AND ca.id     != ?
+            ORDER BY ca.docente_id, bh.dia_semana, bh.hora_inicio
+        ", [$excludeCargaId]);
+
+        $bloquesDocentes = [];
+        foreach ($rawBloques as $b) {
+            $did   = (int) $b['docente_id'];
+            $dia   = $b['dia_semana'];
+            $rango = substr($b['hora_inicio'], 0, 5) . '-' . substr($b['hora_fin'], 0, 5);
+            $bloquesDocentes[$did][$dia][] = $rango;
+        }
+
         return [
-            'secciones' => $this->model->listarSecciones(),
-            'docentes'  => $this->model->listarDocentes(),
-            'areas'     => $this->model->listarAreas(),
-            'subareas'  => $this->model->listarSubareas(),
-            'dias'      => self::DIAS,
+            'secciones'       => $this->model->listarSecciones(),
+            'docentes'        => $this->model->listarDocentes(),
+            'areas'           => $this->model->listarAreas(),
+            'subareas'        => $this->model->listarSubareas(),
+            'dias'            => self::DIAS,
+            'ocupadas'        => $ocupadas,
+            'horarios'        => $horarios,
+            'bloquesDocentes' => $bloquesDocentes,
         ];
     }
 

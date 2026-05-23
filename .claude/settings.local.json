@@ -48,7 +48,8 @@
       "Bash(./mysql/bin/mysql.exe -u root siga_cociap -e \"DESCRIBE calificaciones;\")",
       "Bash(mkdir -p \"C:/xampp/htdocs/siga-cociap/public/assets/img/firmas\")",
       "Bash(echo \"\")",
-      "Bash(New-Item -ItemType File -Path \"C:/xampp/htdocs/siga-cociap/public/assets/img/firmas/.gitkeep\" -Force)"
+      "Bash(New-Item -ItemType File -Path \"C:/xampp/htdocs/siga-cociap/public/assets/img/firmas/.gitkeep\" -Force)",
+      "Bash(Test-Path *)"
     ]
   }
 }

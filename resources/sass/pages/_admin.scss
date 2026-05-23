@@ -194,6 +194,131 @@ tr.fila-inactiva td {
     }
 }
 
+// ── Bloqueos — titulo de nivel entre grupos de acordeones ────
+.bloqueos-nivel-titulo {
+    font-size: $font-size-sm;
+    font-weight: 600;
+    color: $text-secondary;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin: $spacing-lg 0 $spacing-sm;
+    padding-bottom: $spacing-xs;
+    border-bottom: 2px solid $border-color;
+
+    &:first-of-type { margin-top: 0; }
+}
+
+// ── Bloqueos — acordeon por seccion ──────────────────────────
+.bloqueo-seccion {
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius-lg;
+    background: $bg-white;
+    margin-bottom: $spacing-sm;
+    overflow: hidden;
+
+    &--completa      { border-color: lighten($color-success, 30%); }
+    &--parcial       { border-color: lighten($color-warning, 20%); }
+    &--pendiente     { border-color: lighten($color-warning, 20%); }
+    &--sin-criterios { border-color: lighten($color-error,   30%); }
+
+    &__header {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-md;
+        padding: $spacing-sm $spacing-md;
+        background: none;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+
+        &:hover { background: $bg-secondary; }
+    }
+
+    &__titulo {
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+        flex: 1;
+        min-width: 0;
+        font-size: $font-size-base;
+        font-weight: 600;
+        color: $text-primary;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__sep {
+        color: $text-muted;
+        font-weight: 400;
+    }
+
+    &__meta {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+        flex-shrink: 0;
+    }
+
+    &__progreso {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+    }
+
+    &__barra {
+        width: 80px;
+        height: 6px;
+        background: $border-color;
+        border-radius: 3px;
+        overflow: hidden;
+
+        @media (max-width: 600px) { display: none; }
+    }
+
+    &__fill {
+        height: 100%;
+        border-radius: 3px;
+        width: var(--pct, 0%);
+        background: $color-success;
+        transition: width .3s ease;
+    }
+
+    &--parcial       &__fill { background: $brand-accent; }
+    &--pendiente     &__fill { background: $color-warning; }
+    &--sin-criterios &__fill { background: $color-error;   }
+
+    &__cuenta {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        white-space: nowrap;
+    }
+
+    &__chevron {
+        font-size: 18px;
+        color: $text-muted;
+        line-height: 1;
+        transition: transform .2s ease;
+        flex-shrink: 0;
+    }
+
+    &[data-open] &__chevron {
+        transform: rotate(180deg);
+    }
+
+    &__body {
+        display: none;
+        border-top: 1px solid $border-color;
+        overflow-x: auto;
+    }
+
+    &[data-open] &__body {
+        display: block;
+    }
+}
+
 // ── Módulo de Cargas Académicas — grid de secciones ──────────
 
 .cargas-nivel-titulo {

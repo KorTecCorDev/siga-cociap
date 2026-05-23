@@ -1,0 +1,1 @@
+document.addEventListener("DOMContentLoaded",()=>{document.querySelectorAll(".bloqueo-seccion__header").forEach(t=>{t.addEventListener("click",()=>{var e=t.closest(".bloqueo-seccion");e.hasAttribute("data-open")?(e.removeAttribute("data-open"),t.setAttribute("aria-expanded","false")):(e.setAttribute("data-open",""),t.setAttribute("aria-expanded","true"))})})});

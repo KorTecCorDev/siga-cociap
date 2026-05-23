@@ -59,6 +59,7 @@ class BloqueoController extends BaseController
             'periodo'      => $periodo,
             'competencias' => $competencias,
             'stats'        => $stats,
+            'page_scripts' => ['bloqueos'],
         ]);
     }
 

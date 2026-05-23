@@ -106,6 +106,16 @@
     font-variant-numeric: tabular-nums;
 }
 
+.dia-row__hint {
+    display: block;
+    margin-top: 3px;
+    font-size: $font-size-sm;
+    font-weight: 500;
+    color: $brand-accent;      // seccion: libre desde HH:MM
+
+    &--conflicto { color: $color-error; }   // docente: ocupado
+}
+
 // ── Responsive ────────────────────────────────────────────────
 
 @media (max-width: 640px) {
