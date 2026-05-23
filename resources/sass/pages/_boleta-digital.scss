@@ -826,9 +826,6 @@ $bd-radius-card:     16px;
         min-width: 0;
     }
 
-    // Contenedor de altura fija: sello/firma (Director) o vacío (Tutor).
-    // Iguala la altura entre bloques → línea al mismo nivel en todos.
-    // La altura sigue al sello (52/60/72px) con 8px de margen inferior.
     &__img-area {
         height: 60px;
         display: flex;
@@ -837,19 +834,24 @@ $bd-radius-card:     16px;
 
         @media (min-width: 640px) { height: 68px; }
         @media (min-width: 960px) { height: 80px; }
-        @media print { height: 14mm; }
+        @media print { height: 26mm; }
     }
 
-    // La línea es solo el borde — el espacio lo provee __img-area
     &__line {
         height: 0;
+        width: 52px;
         border-bottom: 1.5px solid $text-primary;
-        margin: 0 8px 8px;
+        margin: 0 auto 8px;
 
-        @media print { border-bottom: .5pt solid #000; }
+        @media (min-width: 640px) { width: 60px; }
+        @media (min-width: 960px) { width: 72px; }
+        @media print {
+            width: 24mm;
+            border-bottom: .5pt solid #000;
+            margin: 0 auto 4pt;
+        }
     }
 
-    // Sello: visible solo en pantalla
     &__sello-img {
         display: block;
         width: 52px;
@@ -859,20 +861,7 @@ $bd-radius-card:     16px;
 
         @media (min-width: 640px) { width: 60px; height: 60px; }
         @media (min-width: 960px) { width: 72px; height: 72px; }
-        @media print             { display: none; }
-    }
-
-    // Firma: visible solo al imprimir (Ctrl+P o botón PDF)
-    &__firma-img {
-        display: none;
-        max-width: 36mm;
-        max-height: 14mm;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-        margin: 0 auto;
-
-        @media print { display: block; }
+        @media print { width: 24mm; height: 24mm; margin: 0 auto 2mm; }
     }
 
     &__name {

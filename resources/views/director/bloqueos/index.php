@@ -4,7 +4,9 @@
  * @var int        $periodoId
  * @var array|null $periodo
  * @var array      $competencias
- * @var array      $stats  ['total','bloqueadas','pendientes','sin_criterios']
+ * @var array      $stats         ['total','bloqueadas','pendientes','sin_criterios']
+ * @var array      $statsDocentes [['apellido','nombres','total','bloqueadas','pendientes','sin_criterios'], ...]
+ * @var array      $topCriticos   primeros 5 con incumplimiento, mismo shape que $statsDocentes
  */
 
 $porNivel = [];
@@ -76,33 +78,208 @@ foreach ($competencias as $c) {
 }
 ?>
 
-<div class="bloqueos-stats">
-    <div class="bloqueos-stat">
-        <span class="bloqueos-stat__num"><?= $stats['total'] ?></span>
-        <span class="bloqueos-stat__label">Total competencias</span>
+<?php
+$_t   = $stats['total'];
+$_pB  = $_t > 0 ? $stats['bloqueadas']    / $_t * 100 : 0;
+$_pP  = $_t > 0 ? $stats['pendientes']    / $_t * 100 : 0;
+$_pS  = $_t > 0 ? $stats['sin_criterios'] / $_t * 100 : 0;
+
+// stroke-dasharray: segmento visible, resto oculto (circunferencia = 100)
+$_dB  = round($_pB, 2) . ' ' . round(100 - $_pB, 2);
+$_dP  = round($_pP, 2) . ' ' . round(100 - $_pP, 2);
+$_dS  = round($_pS, 2) . ' ' . round(100 - $_pS, 2);
+
+// stroke-dashoffset: posición de inicio de cada arco (12 en punto = offset 25)
+$_oB  = 25;
+$_oP  = round(25 - $_pB, 2);
+$_oS  = round(25 - $_pB - $_pP, 2);
+?>
+
+<div class="bloqueos-donut card mb-md">
+    <div class="bloqueos-donut__svg-wrap" role="img" aria-label="Gráfico de estado de competencias">
+        <svg viewBox="0 0 42 42" class="bloqueos-donut__svg">
+            <!-- Fondo -->
+            <circle cx="21" cy="21" r="15.9155" fill="none"
+                    stroke="#e5e7eb" stroke-width="4"/>
+            <!-- Bloqueadas -->
+            <?php if ($_pB > 0): ?>
+            <circle cx="21" cy="21" r="15.9155" fill="none"
+                    stroke="#16a34a" stroke-width="4"
+                    stroke-dasharray="<?= $_dB ?>"
+                    stroke-dashoffset="<?= $_oB ?>"/>
+            <?php endif; ?>
+            <!-- Pendientes -->
+            <?php if ($_pP > 0): ?>
+            <circle cx="21" cy="21" r="15.9155" fill="none"
+                    stroke="#d97706" stroke-width="4"
+                    stroke-dasharray="<?= $_dP ?>"
+                    stroke-dashoffset="<?= $_oP ?>"/>
+            <?php endif; ?>
+            <!-- Sin criterios -->
+            <?php if ($_pS > 0): ?>
+            <circle cx="21" cy="21" r="15.9155" fill="none"
+                    stroke="#dc2626" stroke-width="4"
+                    stroke-dasharray="<?= $_dS ?>"
+                    stroke-dashoffset="<?= $_oS ?>"/>
+            <?php endif; ?>
+            <!-- Texto central -->
+            <text x="21" y="19.5" class="bloqueos-donut__pct-svg"><?= round($_pB) ?>%</text>
+            <text x="21" y="24"   class="bloqueos-donut__sub-svg">completado</text>
+        </svg>
     </div>
-    <div class="bloqueos-stat bloqueos-stat--ok">
-        <span class="bloqueos-stat__num"><?= $stats['bloqueadas'] ?></span>
-        <span class="bloqueos-stat__label">Bloqueadas</span>
-    </div>
-    <div class="bloqueos-stat bloqueos-stat--warn">
-        <span class="bloqueos-stat__num"><?= $stats['pendientes'] ?></span>
-        <span class="bloqueos-stat__label">Pendientes</span>
-    </div>
-    <div class="bloqueos-stat bloqueos-stat--err">
-        <span class="bloqueos-stat__num"><?= $stats['sin_criterios'] ?></span>
-        <span class="bloqueos-stat__label">Sin criterios</span>
+
+    <div class="bloqueos-donut__leyenda">
+        <p class="bloqueos-donut__titulo">
+            <?= $_t ?> competencias &mdash; <?= e($periodo['nombre_display']) ?>
+        </p>
+        <div class="bloqueos-donut__item">
+            <span class="bloqueos-donut__dot bloqueos-donut__dot--ok"></span>
+            <span class="bloqueos-donut__label">Bloqueadas</span>
+            <strong class="bloqueos-donut__num"><?= $stats['bloqueadas'] ?></strong>
+            <span class="bloqueos-donut__pct-txt"><?= round($_pB) ?>%</span>
+        </div>
+        <div class="bloqueos-donut__item">
+            <span class="bloqueos-donut__dot bloqueos-donut__dot--warn"></span>
+            <span class="bloqueos-donut__label">Pendientes</span>
+            <strong class="bloqueos-donut__num"><?= $stats['pendientes'] ?></strong>
+            <span class="bloqueos-donut__pct-txt"><?= round($_pP) ?>%</span>
+        </div>
+        <div class="bloqueos-donut__item">
+            <span class="bloqueos-donut__dot bloqueos-donut__dot--err"></span>
+            <span class="bloqueos-donut__label">Sin criterios</span>
+            <strong class="bloqueos-donut__num"><?= $stats['sin_criterios'] ?></strong>
+            <span class="bloqueos-donut__pct-txt"><?= round($_pS) ?>%</span>
+        </div>
     </div>
 </div>
 
-<div class="card mb-md">
-    <div class="card__header">
-        <h2 class="card__title">
-            <?= e($periodo['nombre_display']) ?> &mdash; <?= e($periodo['anio']) ?>
-        </h2>
-        <span class="text-muted text-sm"><?= $stats['total'] ?> competencias</span>
+
+<?php if ($periodoId && $periodo): ?>
+<div class="bloqueos-lateral mb-md">
+
+    <!-- Ranking docentes -->
+    <div class="card">
+        <div class="card__header">
+            <h2 class="card__title">Docentes con mayor incumplimiento</h2>
+            <?php if (!empty($topCriticos)): ?>
+            <span class="badge badge--error">Top <?= count($topCriticos) ?></span>
+            <?php else: ?>
+            <span class="badge badge--activo">Al dia</span>
+            <?php endif; ?>
+        </div>
+        <?php if (!empty($topCriticos)): ?>
+        <ol class="ranking-criticos">
+            <?php foreach ($topCriticos as $pos => $d):
+                $itemMod = $d['sin_criterios'] > 0 ? 'ranking-criticos__item--err' : 'ranking-criticos__item--warn';
+            ?>
+            <li class="ranking-criticos__item <?= $itemMod ?>">
+                <span class="ranking-criticos__pos"><?= $pos + 1 ?>°</span>
+                <div class="ranking-criticos__info">
+                    <span class="ranking-criticos__nombre">
+                        <?= e($d['apellido'] . ', ' . $d['nombres']) ?>
+                    </span>
+                    <div class="ranking-criticos__chips">
+                        <?php if ($d['sin_criterios'] > 0): ?>
+                        <span class="ranking-criticos__chip ranking-criticos__chip--err">
+                            <?= $d['sin_criterios'] ?> sin criterios
+                        </span>
+                        <?php endif; ?>
+                        <?php if ($d['pendientes'] > 0): ?>
+                        <span class="ranking-criticos__chip ranking-criticos__chip--warn">
+                            <?= $d['pendientes'] ?> pendientes
+                        </span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </li>
+            <?php endforeach; ?>
+        </ol>
+        <?php else: ?>
+        <div class="card__body">
+            <p class="empty-state">Todos los docentes estan al dia.</p>
+        </div>
+        <?php endif; ?>
     </div>
-</div>
+
+    <!-- Indicadores laterales -->
+    <div class="bloqueos-widgets">
+
+        <!-- Widget: dias restantes -->
+        <?php
+            if ($diasRestantes === null) {
+                $_diasTxt = '&mdash;';
+                $_diasSub = 'Sin fecha limite';
+                $_diasMod = 'muted';
+            } elseif ($diasRestantes < 0) {
+                $_diasTxt = abs($diasRestantes);
+                $_diasSub = 'dias desde el cierre';
+                $_diasMod = 'muted';
+            } elseif ($diasRestantes <= 3) {
+                $_diasTxt = $diasRestantes;
+                $_diasSub = 'dias para el cierre';
+                $_diasMod = 'err';
+            } elseif ($diasRestantes <= 7) {
+                $_diasTxt = $diasRestantes;
+                $_diasSub = 'dias para el cierre';
+                $_diasMod = 'warn';
+            } else {
+                $_diasTxt = $diasRestantes;
+                $_diasSub = 'dias para el cierre';
+                $_diasMod = 'ok';
+            }
+        ?>
+        <div class="card">
+            <span class="bloqueos-widget__label">Cierre del periodo</span>
+            <div class="bloqueos-widget__body">
+                <strong class="widget-dias__num widget-dias__num--<?= $_diasMod ?>">
+                    <?= $_diasTxt ?>
+                </strong>
+                <span class="widget-dias__sub"><?= $_diasSub ?></span>
+            </div>
+        </div>
+
+        <!-- Widget: avance por nivel -->
+        <div class="card">
+            <span class="bloqueos-widget__label">Avance por nivel</span>
+            <div class="bloqueos-widget__body">
+                <?php foreach ($statsPorNivel as $niv):
+                    $_pNiv = $niv['total'] > 0
+                        ? round($niv['bloqueadas'] / $niv['total'] * 100)
+                        : 0;
+                ?>
+                <div class="widget-niveles__fila">
+                    <span class="widget-niveles__nombre"
+                          title="<?= e($niv['nombre']) ?>"><?= e($niv['nombre']) ?></span>
+                    <div class="widget-niveles__track">
+                        <div class="widget-niveles__fill" style="--fill:<?= $_pNiv ?>%"></div>
+                    </div>
+                    <span class="widget-niveles__pct"><?= $_pNiv ?>%</span>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <!-- Widget: secciones completas -->
+        <?php $_pSec = $totalSecciones > 0
+            ? round($seccionesCompletas / $totalSecciones * 100)
+            : 0;
+        ?>
+        <div class="card">
+            <span class="bloqueos-widget__label">Secciones completas</span>
+            <div class="bloqueos-widget__body">
+                <strong class="widget-secciones__fraction">
+                    <?= $seccionesCompletas ?> / <?= $totalSecciones ?>
+                </strong>
+                <span class="widget-secciones__sub">secciones al 100%</span>
+                <div class="widget-secciones__track">
+                    <div class="widget-secciones__fill" style="--fill:<?= $_pSec ?>%"></div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /.bloqueos-widgets -->
+</div><!-- /.bloqueos-lateral -->
+<?php endif; ?>
 
 <?php foreach ($porNivel as $nivelNombre => $secciones): ?>
 

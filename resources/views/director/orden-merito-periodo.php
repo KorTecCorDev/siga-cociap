@@ -26,17 +26,22 @@
     </div>
 <?php else: ?>
 
-    <?php foreach ($ranking as $gradoId => $data): ?>
-        <div class="card mb-lg">
-            <div class="card__header">
-                <h2 class="card__title">
-                    <?= e($data['grado']['nivel_nombre']) ?> —
-                    <?= e($data['grado']['nombre_display']) ?>
-                </h2>
-                <span class="badge badge--info">
-                    <?= count($data['estudiantes']) ?> estudiantes
-                </span>
-            </div>
+    <?php $gradoIdx = 0; foreach ($ranking as $gradoId => $data): $gradoIdx++; ?>
+        <details class="card mb-lg" <?= $gradoIdx === 1 ? 'open' : '' ?>>
+            <summary class="card__header card__header--toggle">
+                <div class="card__header-left">
+                    <h2 class="card__title">
+                        <?= e($data['grado']['nivel_nombre']) ?> —
+                        <?= e($data['grado']['nombre_display']) ?>
+                    </h2>
+                    <span class="badge badge--info">
+                        <?= count($data['estudiantes']) ?> estudiantes
+                    </span>
+                </div>
+                <svg class="card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="6,9 12,15 18,9"/>
+                </svg>
+            </summary>
 
             <?php if (empty($data['estudiantes'])): ?>
                 <div class="card__body">
@@ -94,7 +99,7 @@
                 </table>
 
             <?php endif; ?>
-        </div>
+        </details>
     <?php endforeach; ?>
 
 <?php endif; ?>

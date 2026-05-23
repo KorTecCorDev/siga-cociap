@@ -26,6 +26,40 @@
     &__body {
         padding: $spacing-lg;
     }
+
+    &__header-left {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    &__chevron {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        color: $text-muted;
+        transition: transform .2s ease;
+    }
+}
+
+// ── Card como acordeón (details/summary) ─────────────────────
+details.card {
+    > summary {
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+
+        &::-webkit-details-marker { display: none; }
+        &::marker               { display: none; }
+
+        &:hover { background: darken($bg-secondary, 3%); }
+    }
+
+    &[open] > summary .card__chevron {
+        transform: rotate(180deg);
+    }
 }
 
 // ── Badges ───────────────────────────────────────────────────

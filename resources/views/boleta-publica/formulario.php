@@ -17,7 +17,7 @@
              class="bpf-header__logo">
         <h1 class="bpf-header__colegio"><?= e($institucion ?? '') ?></h1>
         <p class="bpf-header__ugel">MINEDU · DRE Áncash · UGEL Huaraz</p>
-        <p class="bpf-header__titulo">Consulta de Boleta de Calificaciones</p>
+        <p class="bpf-header__titulo">Consulta de Boleta de Notas</p>
     </header>
 
     <main class="bpf-main">

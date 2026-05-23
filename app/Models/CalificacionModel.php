@@ -363,6 +363,7 @@ class CalificacionModel extends BaseModel
                 g.nombre_display     AS grado_nombre,
                 s.id                 AS seccion_id,
                 s.nombre             AS seccion_nombre,
+                ud.id                AS docente_id,
                 pu.apellido_paterno  AS docente_apellido,
                 pu.nombres           AS docente_nombres,
                 (
