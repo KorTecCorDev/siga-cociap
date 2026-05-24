@@ -169,7 +169,9 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
                         <?= e($comp['nombre']) ?>
                     </td>
 
-                    <?php foreach ($periodos as $p):
+                    <?php
+                    $esExonerado = !empty($comp['es_exonerado']);
+                    foreach ($periodos as $p):
                         $b   = $comp['bimestres'][$p['id']] ?? null;
                         $lit = $b['literal'] ?? null;
                         $lc  = $lit ? strtolower($lit) : 'vacio';
@@ -185,7 +187,7 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
                         </td>
 
                         <td class="td-concl">
-                            <?php if ($b && !empty($b['conclusion'])): ?>
+                            <?php if (!$esExonerado && $b && !empty($b['conclusion'])): ?>
                                 <div class="conclusion-clip"><?= e($b['conclusion']) ?></div>
                             <?php endif; ?>
                         </td>

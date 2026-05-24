@@ -696,14 +696,19 @@ $bd-radius-card:     16px;
         @media print { font-size: 9pt; }
     }
 
-    &--ad { background: $bd-ad-bg; color: $bd-ad-color; }
-    &--a  { background: $bd-a-bg;  color: $bd-a-color;  }
-    &--b  { background: $bd-b-bg;  color: $bd-b-color;  }
-    &--c  { background: $bd-c-bg;  color: $bd-c-color;  }
+    &--ad  { background: $bd-ad-bg; color: $bd-ad-color; }
+    &--a   { background: $bd-a-bg;  color: $bd-a-color;  }
+    &--b   { background: $bd-b-bg;  color: $bd-b-color;  }
+    &--c   { background: $bd-c-bg;  color: $bd-c-color;  }
     &--vacio {
         background: $bg-secondary;
         color: $text-muted;
         border: 1px dashed $border-color;
+    }
+    &--exo {
+        background: #f5f3ff;
+        color:      #6d28d9;
+        border: 1px solid #ddd6fe;
     }
 }
 
@@ -724,13 +729,17 @@ $bd-radius-card:     16px;
         gap: 2pt;
     }
 
-    &--ad { background: $bd-ad-bg; color: $bd-ad-color; }
-    &--a  { background: $bd-a-bg;  color: $bd-a-color;  }
-    &--b  { background: $bd-b-bg;  color: $bd-b-color;  }
-    &--c  { background: $bd-c-bg;  color: $bd-c-color;  }
+    &--ad  { background: $bd-ad-bg; color: $bd-ad-color; }
+    &--a   { background: $bd-a-bg;  color: $bd-a-color;  }
+    &--b   { background: $bd-b-bg;  color: $bd-b-color;  }
+    &--c   { background: $bd-c-bg;  color: $bd-c-color;  }
     &--vacio {
         background: $bg-secondary;
         color: $text-muted;
+    }
+    &--exo {
+        background: #f5f3ff;
+        color:      #7c3aed;
     }
 
     &__periodo {
@@ -1158,4 +1167,71 @@ $bd-asis-border: #cbd5e1;
 
     .bd-area      { page-break-inside: avoid; }
     .bd-competencia { page-break-inside: avoid; }
+}
+
+// ── Omisiones en boleta digital ──────────────────────────────────────────────
+// Se muestra solo cuando el alumno no tiene nota anual Y tiene motivo registrado.
+// Ubicado debajo del header de la competencia, antes de los chips de bimestre.
+
+.bd-omision {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-xs;
+    margin: $spacing-xs 0 $spacing-sm;
+    padding: $spacing-xs $spacing-sm;
+    background: #eff6ff;
+    border-left: 3px solid #93c5fd;
+    border-radius: 0 $border-radius-sm $border-radius-sm 0;
+
+    &__icono {
+        flex-shrink: 0;
+        font-size: $font-size-sm;
+        color: #3b82f6;
+        line-height: 1.4;
+    }
+
+    &__texto {
+        font-size: $font-size-sm;
+        color: #1e40af;
+        line-height: 1.4;
+    }
+
+    @media print {
+        background: #f0f4ff;
+        border-left-color: #6b8cff;
+        print-color-adjust: exact;
+    }
+}
+
+// ── Exoneración en boleta digital ──────────────────────────────────────────────
+// Se muestra cuando el alumno está exonerado del área — reemplaza omisión y bimestres.
+
+.bd-exo {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-xs;
+    margin: $spacing-xs 0 $spacing-sm;
+    padding: $spacing-xs $spacing-sm;
+    background: #f5f3ff;
+    border-left: 3px solid #a78bfa;
+    border-radius: 0 $border-radius-sm $border-radius-sm 0;
+
+    &__icono {
+        flex-shrink: 0;
+        font-size: $font-size-sm;
+        color: #7c3aed;
+        line-height: 1.4;
+    }
+
+    &__texto {
+        font-size: $font-size-sm;
+        color: #4c1d95;
+        line-height: 1.4;
+    }
+
+    @media print {
+        background: #f0ecff;
+        border-left-color: #8b5cf6;
+        print-color-adjust: exact;
+    }
 }

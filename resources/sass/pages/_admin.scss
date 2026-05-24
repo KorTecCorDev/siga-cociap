@@ -51,6 +51,17 @@ tr.fila-inactiva td {
     opacity: .55;
 }
 
+// ── Separador de nivel en tablas de secciones / exoneraciones ─
+tr.fila-separador-nivel td {
+    background:  $bg-secondary;
+    font-weight: 700;
+    font-size:   $font-size-sm;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color:       $text-muted;
+    padding-top: $spacing-sm;
+}
+
 // ── Acciones de tabla ─────────────────────────────────────────
 .td-acciones {
     display: flex;

@@ -366,6 +366,12 @@ body.boleta-body {
     .td-lit--b,  .td-final.td-lit--b  { color: $c-b;  }
     .td-lit--c,  .td-final.td-lit--c  { color: $c-c;  }
     .td-lit--vacio                     { color: #ccc;  }
+    .td-lit--exo, .td-final.td-lit--exo {
+        color:          #6b21a8;
+        font-weight:    600;
+        font-size:      0.72rem;
+        letter-spacing: 0.04em;
+    }
 }
 
 // ════════════════════════════════════════════════════════════

@@ -7,15 +7,19 @@ use App\Models\AsistenciaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
 use App\Models\DirectorEbrModel;
+use App\Models\ExoneracionModel;
+use App\Models\OmisionCriterioModel;
 use Core\Session;
 use Core\View;
 
 class BoletaController extends BaseController
 {
-    private CalificacionModel $calModel;
-    private ConductaModel     $conductaModel;
-    private DirectorEbrModel  $dirModel;
-    private AsistenciaModel   $asistenciaModel;
+    private CalificacionModel    $calModel;
+    private ConductaModel        $conductaModel;
+    private DirectorEbrModel     $dirModel;
+    private AsistenciaModel      $asistenciaModel;
+    private OmisionCriterioModel $omisionModel;
+    private ExoneracionModel     $exoModel;
 
     public function __construct()
     {
@@ -23,6 +27,8 @@ class BoletaController extends BaseController
         $this->conductaModel   = new ConductaModel();
         $this->dirModel        = new DirectorEbrModel();
         $this->asistenciaModel = new AsistenciaModel();
+        $this->omisionModel    = new OmisionCriterioModel();
+        $this->exoModel        = new ExoneracionModel();
     }
 
     /**
@@ -87,25 +93,31 @@ class BoletaController extends BaseController
             );
         }
 
-        $periodos = $this->getPeriodosDelAnio($periodo['anio_id']);
+        $anioId  = (int) $periodo['anio_id'];
+        $periodos = $this->getPeriodosDelAnio($anioId);
 
         $datosPorPeriodo = [];
         foreach ($periodos as $p) {
             $datosPorPeriodo[$p['id']] = $this->calModel->getBoletaAlumno($matriculaId, $p['id']);
         }
 
+        $areas  = $this->buildAreasConBimestres($datosPorPeriodo, $periodos);
+        $exoData = $this->exoModel->getConCompetenciasParaBoleta($matriculaId, $anioId);
+        $areas  = ExoneracionModel::inyectarEnAreas($areas, $exoData, $periodos);
+
         return [
             'alumno'      => $alumno,
             'periodos'    => $periodos,
-            'areas'       => $this->buildAreasConBimestres($datosPorPeriodo, $periodos),
-            'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, $periodo['anio_id']),
+            'areas'       => $areas,
+            'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, $anioId),
             'asistencia'  => [
                 'bimestre' => $this->asistenciaModel->getDelBimestre($matriculaId, $periodoId),
                 'anual'    => $this->asistenciaModel->getAcumuladoAnual($matriculaId, $periodoId),
             ],
+            'omisiones'   => $this->omisionModel->getPorMatriculaAnio($matriculaId, $anioId),
             'institucion' => config('institucion'),
             'tutor'       => $this->getTutorSeccion($matriculaId),
-            'directorEbr' => $this->dirModel->getVigenteEnFecha((int) $periodo['anio_id']),
+            'directorEbr' => $this->dirModel->getVigenteEnFecha($anioId),
         ];
     }
 

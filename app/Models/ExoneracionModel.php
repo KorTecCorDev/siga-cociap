@@ -1,0 +1,302 @@
+<?php
+
+namespace App\Models;
+
+/**
+ * ExoneracionModel
+ * Gestiona exoneraciones anuales de alumnos de áreas o subáreas.
+ */
+class ExoneracionModel extends BaseModel
+{
+    protected string $table = 'exoneraciones';
+
+    /**
+     * Retorna los matricula_id de alumnos exonerados para el área/subárea de una carga.
+     * Incluye exoneraciones a nivel de área (aplica a toda la carga) y a nivel de subárea.
+     * @return int[]
+     */
+    public function getActivasParaCarga(int $cargaId, int $anioId): array
+    {
+        $carga = $this->queryOne("
+            SELECT ca.area_id, ca.subarea_id, ca.seccion_id, sa.area_id AS sa_area_id
+            FROM cargas_academicas ca
+            LEFT JOIN subareas sa ON sa.id = ca.subarea_id
+            WHERE ca.id = ?
+        ", [$cargaId]);
+
+        if (!$carga) return [];
+
+        $seccionId = (int) $carga['seccion_id'];
+        $subareaId = $carga['subarea_id'] ? (int) $carga['subarea_id'] : null;
+        $areaId    = $carga['area_id']
+                   ? (int) $carga['area_id']
+                   : ($carga['sa_area_id'] ? (int) $carga['sa_area_id'] : null);
+
+        if (!$areaId && !$subareaId) return [];
+
+        $params     = [$anioId, $seccionId];
+        $conditions = [];
+
+        if ($areaId) {
+            $conditions[] = "e.area_id = ?";
+            $params[]     = $areaId;
+        }
+        if ($subareaId) {
+            $conditions[] = "e.subarea_id = ?";
+            $params[]     = $subareaId;
+        }
+
+        $where = '(' . implode(' OR ', $conditions) . ')';
+
+        $rows = $this->query("
+            SELECT DISTINCT e.matricula_id
+            FROM exoneraciones e
+            INNER JOIN matriculas m ON m.id = e.matricula_id
+            WHERE e.anio_id      = ?
+              AND e.revocado_en  IS NULL
+              AND m.seccion_id   = ?
+              AND $where
+        ", $params);
+
+        return array_map('intval', array_column($rows, 'matricula_id'));
+    }
+
+    /**
+     * Retorna datos de competencias exoneradas de un alumno en un año,
+     * en el formato que necesita inyectarEnAreas() para la boleta.
+     */
+    public function getConCompetenciasParaBoleta(int $matriculaId, int $anioId): array
+    {
+        return $this->query("
+            SELECT
+                COALESCE(a_dir.nombre,     a_sub.nombre)     AS area_nombre,
+                COALESCE(a_dir.nombre_boleta, a_sub.nombre_boleta) AS nombre_boleta,
+                COALESCE(a_dir.alias_boleta,  a_sub.alias_boleta)  AS alias_boleta,
+                COALESCE(a_dir.tipo,       a_sub.tipo)       AS area_tipo,
+                COALESCE(a_dir.orden,      a_sub.orden)      AS area_orden,
+                sa.nombre  AS subarea_nombre,
+                comp.id    AS competencia_id,
+                comp.codigo_minedu,
+                comp.nombre_corto,
+                comp.nombre_completo AS competencia_nombre,
+                comp.orden           AS comp_orden
+            FROM exoneraciones e
+            LEFT  JOIN areas       a_dir ON a_dir.id  = e.area_id
+            LEFT  JOIN subareas    sa    ON sa.id      = e.subarea_id
+            LEFT  JOIN areas       a_sub ON a_sub.id   = sa.area_id
+            INNER JOIN competencias comp ON (
+                (e.area_id    IS NOT NULL AND comp.area_id    = e.area_id)
+                OR
+                (e.subarea_id IS NOT NULL AND comp.subarea_id = e.subarea_id)
+            )
+            WHERE e.matricula_id = ?
+              AND e.anio_id     = ?
+              AND e.revocado_en IS NULL
+            ORDER BY COALESCE(a_dir.orden, a_sub.orden), comp.orden
+        ", [$matriculaId, $anioId]);
+    }
+
+    /**
+     * Retorna las exoneraciones activas de una sección con detalle de alumno y área.
+     */
+    public function getParaSeccion(int $seccionId, int $anioId): array
+    {
+        return $this->query("
+            SELECT
+                e.id,
+                e.motivo,
+                e.registrado_en,
+                e.area_id,
+                e.subarea_id,
+                m.id AS matricula_id,
+                CONCAT(p.apellido_paterno, ' ', p.apellido_materno, ', ', p.nombres)
+                    AS alumno_nombre,
+                COALESCE(a_dir.nombre, a_sub.nombre) AS area_nombre,
+                sa.nombre AS subarea_nombre,
+                CONCAT(p_reg.apellido_paterno, ' ', p_reg.nombres) AS registrado_por_nombre
+            FROM exoneraciones e
+            INNER JOIN matriculas   m     ON m.id     = e.matricula_id
+            INNER JOIN estudiantes  est   ON est.id   = m.estudiante_id
+            INNER JOIN personas     p     ON p.id     = est.persona_id
+            LEFT  JOIN areas        a_dir ON a_dir.id = e.area_id
+            LEFT  JOIN subareas     sa    ON sa.id    = e.subarea_id
+            LEFT  JOIN areas        a_sub ON a_sub.id = sa.area_id
+            INNER JOIN usuarios     u_reg ON u_reg.id = e.registrado_por
+            INNER JOIN personas     p_reg ON p_reg.id = u_reg.persona_id
+            WHERE m.seccion_id  = ?
+              AND e.anio_id     = ?
+              AND e.revocado_en IS NULL
+            ORDER BY p.apellido_paterno, p.apellido_materno
+        ", [$seccionId, $anioId]);
+    }
+
+    /**
+     * Retorna las opciones de área/subárea exonerable para una sección.
+     * Usa las cargas activas de la sección para determinar qué áreas están en juego.
+     * No incluye transversales.
+     * @return array [['area_id', 'subarea_id', 'label'], ...]
+     */
+    public function getOpcionesParaSeccion(int $seccionId, int $anioId): array
+    {
+        $rows = $this->query("
+            SELECT DISTINCT
+                ca.area_id,
+                ca.subarea_id,
+                COALESCE(a_dir.nombre, a_sub.nombre) AS area_nombre,
+                sa.nombre                             AS subarea_nombre,
+                COALESCE(a_dir.orden,  a_sub.orden)  AS area_orden,
+                sa.orden                              AS sub_orden
+            FROM cargas_academicas ca
+            LEFT  JOIN areas    a_dir ON a_dir.id = ca.area_id
+            LEFT  JOIN subareas sa    ON sa.id    = ca.subarea_id
+            LEFT  JOIN areas    a_sub ON a_sub.id = sa.area_id
+            WHERE ca.seccion_id = ?
+              AND ca.anio_id   = ?
+              AND ca.estado    = 'activa'
+              AND COALESCE(a_dir.tipo, a_sub.tipo) NOT IN ('transversal')
+            ORDER BY area_orden, sub_orden
+        ", [$seccionId, $anioId]);
+
+        $opciones = [];
+        foreach ($rows as $r) {
+            if ($r['subarea_id']) {
+                $opciones[] = [
+                    'value'     => 'sub_' . $r['subarea_id'],
+                    'area_id'   => null,
+                    'subarea_id'=> (int) $r['subarea_id'],
+                    'label'     => ($r['area_nombre'] ?? '') . ' — ' . ($r['subarea_nombre'] ?? '') . ' (subárea)',
+                ];
+            } else {
+                $opciones[] = [
+                    'value'   => 'area_' . $r['area_id'],
+                    'area_id' => (int) $r['area_id'],
+                    'subarea_id' => null,
+                    'label'   => ($r['area_nombre'] ?? '') . ' (área completa)',
+                ];
+            }
+        }
+
+        return $opciones;
+    }
+
+    /**
+     * Retorna los alumnos activos de una sección.
+     */
+    public function getAlumnosSeccion(int $seccionId, int $anioId): array
+    {
+        return $this->query("
+            SELECT
+                m.id AS matricula_id,
+                CONCAT(p.apellido_paterno, ' ', p.apellido_materno, ', ', p.nombres)
+                    AS nombre_completo
+            FROM matriculas m
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas    p ON p.id = e.persona_id
+            WHERE m.seccion_id = ?
+              AND m.anio_id   = ?
+              AND m.estado    = 'aprobada'
+            ORDER BY p.apellido_paterno, p.apellido_materno
+        ", [$seccionId, $anioId]);
+    }
+
+    /**
+     * Registra una exoneracion. Valida que no exista ya una activa para el mismo
+     * alumno + año + área/subárea antes de insertar.
+     */
+    public function registrar(
+        int    $matriculaId,
+        int    $anioId,
+        ?int   $areaId,
+        ?int   $subareaId,
+        string $motivo,
+        int    $registradoPor
+    ): bool {
+        if (!$areaId && !$subareaId) return false;
+
+        $existe = $this->queryOne("
+            SELECT id FROM exoneraciones
+            WHERE matricula_id = ?
+              AND anio_id      = ?
+              AND area_id    <=> ?
+              AND subarea_id <=> ?
+              AND revocado_en  IS NULL
+        ", [$matriculaId, $anioId, $areaId, $subareaId]);
+
+        if ($existe) return false;
+
+        return $this->execute("
+            INSERT INTO exoneraciones
+                (matricula_id, anio_id, area_id, subarea_id, motivo, registrado_por)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ", [$matriculaId, $anioId, $areaId, $subareaId, trim($motivo), $registradoPor]);
+    }
+
+    /**
+     * Revoca (soft-delete) una exoneración por su ID.
+     */
+    public function revocar(int $id, int $revocadoPor): bool
+    {
+        return $this->execute("
+            UPDATE exoneraciones
+            SET revocado_en  = NOW(),
+                revocado_por = ?
+            WHERE id         = ?
+              AND revocado_en IS NULL
+        ", [$revocadoPor, $id]);
+    }
+
+    /**
+     * Inyecta competencias EXO en el array $areas que genera buildAreasConBimestres().
+     * Las áreas exoneradas aparecen al final si no tienen ninguna nota regular.
+     *
+     * @param array $areas   Estructura areas[nombre][comp_id] = {nombre, bimestres, literal_final}
+     * @param array $exoData Filas devueltas por getConCompetenciasParaBoleta()
+     * @param array $periodos [{ id, numero, nombre_display }, ...]
+     */
+    public static function inyectarEnAreas(array $areas, array $exoData, array $periodos): array
+    {
+        $bimestresVacios = [];
+        foreach ($periodos as $p) {
+            $bimestresVacios[$p['id']] = ['nota' => null, 'literal' => 'EXO', 'conclusion' => null];
+        }
+
+        foreach ($exoData as $exo) {
+            $nombreArea = $exo['nombre_boleta'] ?? $exo['area_nombre'];
+            if (!empty($exo['alias_boleta'])) {
+                $nombreArea .= ' ' . $exo['alias_boleta'];
+            }
+            $compId = (int) $exo['competencia_id'];
+
+            // Construir nombre de competencia igual que buildAreasConBimestres()
+            $prefijoSubarea = '';
+            if (($exo['area_tipo'] ?? '') === 'con_subareas' && !empty($exo['subarea_nombre'])) {
+                $prefijoSubarea = $exo['subarea_nombre'] . ' — ';
+            }
+            $nombreComp = trim(
+                $prefijoSubarea .
+                ($exo['codigo_minedu'] ? $exo['codigo_minedu'] . '. ' : '') .
+                ($exo['nombre_corto'] ?? $exo['competencia_nombre'] ?? '')
+            );
+
+            if (!isset($areas[$nombreArea])) {
+                $areas[$nombreArea] = [];
+            }
+
+            // Solo inyectar si no hay ya una entrada con notas reales
+            if (!isset($areas[$nombreArea][$compId])) {
+                $areas[$nombreArea][$compId] = [
+                    'nombre'       => $nombreComp,
+                    'bimestres'    => $bimestresVacios,
+                    'literal_final'=> 'EXO',
+                    'es_exonerado' => true,
+                ];
+            } else {
+                // Si ya existe con notas (raro pero posible en datos inconsistentes),
+                // no sobreescribir el literal_final calculado.
+                $areas[$nombreArea][$compId]['es_exonerado'] = true;
+            }
+        }
+
+        return $areas;
+    }
+}

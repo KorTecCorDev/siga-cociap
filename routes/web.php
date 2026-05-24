@@ -35,6 +35,12 @@ $router->get( '/admin/asistencia',            'Admin\AsistenciaController@index'
 $router->get( '/admin/asistencia/{id}',       'Admin\AsistenciaController@seccion');
 $router->post('/admin/asistencia/guardar',    'Admin\AsistenciaController@guardar');
 
+// ─── Admin — Exoneraciones ──────────────────────────────────
+$router->get( '/admin/exoneraciones',                         'Admin\ExoneracionController@index');
+$router->get( '/admin/exoneraciones/{seccion_id}',            'Admin\ExoneracionController@seccion');
+$router->post('/admin/exoneraciones/{seccion_id}/registrar',  'Admin\ExoneracionController@registrar');
+$router->post('/admin/exoneraciones/{id}/revocar',            'Admin\ExoneracionController@revocar');
+
 // ─── Admin — Director EBR ───────────────────────────────────
 $router->get( '/admin/director-ebr',                       'Admin\DirectorEbrController@index');
 $router->post('/admin/director-ebr/{anio_id}/asignar',     'Admin\DirectorEbrController@asignar');
@@ -81,7 +87,8 @@ $router->post('/director/matriculas/{id}/aprobar',  'Director\MatriculaControlle
 // ─── Calificaciones ──────────────────────────────────────────
 $router->get( '/docente/mis-cargas',                        'Docente\CalificacionController@misCargas');
 $router->get( '/docente/calificaciones/{carga_id}',         'Docente\CalificacionController@formulario');
-$router->post('/docente/calificaciones/{carga_id}/guardar', 'Docente\CalificacionController@guardar');
+$router->post('/docente/calificaciones/{carga_id}/guardar',   'Docente\CalificacionController@guardar');
+$router->post('/docente/calificaciones/{carga_id}/omisiones', 'Docente\CalificacionController@guardarOmisiones');
 
 // ─── Criterios ───────────────────────────────────────────────
 $router->post('/docente/criterios/crear',             'Docente\CalificacionController@crearCriterio');

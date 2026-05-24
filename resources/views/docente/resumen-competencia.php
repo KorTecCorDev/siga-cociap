@@ -112,13 +112,15 @@ $nivelCodigo = $carga['nivel_codigo'];
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($alumnos as $i => $alumno): ?>
-                        <?php
-                        $promedio  = $alumno['promedio'];
-                        $literal   = $alumno['literal'];
-                        $esOblig   = false;
+                    <?php
+                    $exoneradosSet = array_flip($exonerados ?? []);
+                    foreach ($alumnos as $i => $alumno):
+                        $esExonerado = isset($exoneradosSet[$alumno['matricula_id']]);
+                        $promedio    = $alumno['promedio'];
+                        $literal     = $alumno['literal'];
+                        $esOblig     = false;
 
-                        if ($literal !== null) {
+                        if (!$esExonerado && $literal !== null) {
                             if ($nivelCodigo === 'prim' && in_array($literal, ['B','C'])) {
                                 $esOblig = true;
                             }
@@ -126,8 +128,8 @@ $nivelCodigo = $carga['nivel_codigo'];
                                 $esOblig = true;
                             }
                         }
-                        ?>
-                        <tr class="<?= $esOblig && empty($alumno['conclusion_descriptiva']) ? 'fila-pendiente' : '' ?>">
+                    ?>
+                        <tr class="<?= $esExonerado ? 'fila-exonerado' : ($esOblig && empty($alumno['conclusion_descriptiva']) ? 'fila-pendiente' : '') ?>">
                             <td class="col-num"><?= $i + 1 ?></td>
                             <td class="col-nombre">
                                 <strong><?= e($alumno['apellido_paterno'] . ' ' . $alumno['apellido_materno']) ?></strong>
@@ -138,14 +140,29 @@ $nivelCodigo = $carga['nivel_codigo'];
                             <!-- Notas por criterio -->
                             <?php foreach ($criterios as $criterio): ?>
                                 <td class="col-criterio text-center">
-                                    <?php $nc = $alumno['notas_criterios'][$criterio['id']] ?? null; ?>
-                                    <?= $nc !== null ? fmt_nota((int)$nc) : '—' ?>
+                                    <?php if ($esExonerado): ?>
+                                        <span class="exo-badge" title="Exonerado(a)">EXO</span>
+                                    <?php else:
+                                        $nc = $alumno['notas_criterios'][$criterio['id']] ?? null;
+                                        $om = $alumno['omisiones_criterios'][$criterio['id']] ?? null;
+                                    ?>
+                                        <?php if ($nc !== null): ?>
+                                            <?= fmt_nota((int) $nc) ?>
+                                        <?php elseif ($om !== null): ?>
+                                            <span class="omision-badge"
+                                                  title="<?= e(\App\Models\OmisionCriterioModel::etiqueta($om)) ?>">—</span>
+                                        <?php else: ?>
+                                            —
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 </td>
                             <?php endforeach; ?>
 
                             <!-- Numeral -->
                             <td class="col-numeral text-center">
-                                <?php if ($promedio !== null): ?>
+                                <?php if ($esExonerado): ?>
+                                    <span class="exo-badge" title="Exonerado(a)">EXO</span>
+                                <?php elseif ($promedio !== null): ?>
                                     <span class="nota-numeral nota-numeral--<?= strtolower($literal) ?>">
                                         <?= fmt_nota((int)$promedio) ?>
                                     </span>
@@ -156,7 +173,9 @@ $nivelCodigo = $carga['nivel_codigo'];
 
                             <!-- Literal -->
                             <td class="col-literal text-center">
-                                <?php if ($literal !== null): ?>
+                                <?php if ($esExonerado): ?>
+                                    <span class="exo-badge exo-badge--lit" title="Exonerado(a)">EXO</span>
+                                <?php elseif ($literal !== null): ?>
                                     <span class="nota-literal nota-literal--<?= strtolower($literal) ?>">
                                         <?= $literal ?>
                                     </span>
@@ -167,7 +186,9 @@ $nivelCodigo = $carga['nivel_codigo'];
 
                             <!-- Conclusión descriptiva -->
                             <td class="col-conclusion">
-                                <?php if (!$bloqueada && $promedio !== null): ?>
+                                <?php if ($esExonerado): ?>
+                                    <span class="text-muted text-sm">Exonerado(a) — no aplica</span>
+                                <?php elseif (!$bloqueada && $promedio !== null): ?>
                                     <div class="conclusion-alumno">
                                         <textarea
                                             class="form-input textarea-conclusion-alumno"

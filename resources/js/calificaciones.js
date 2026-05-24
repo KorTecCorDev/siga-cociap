@@ -19,6 +19,20 @@ document.querySelectorAll('.criterio-bloque').forEach(bloque => {
     });
 });
 
+// ── Banner "ir al criterio pendiente" ────────────────────────
+// El boton abre el criterio destino y hace scroll suave. Esperamos a que
+// arranque la animacion del acordeon antes de calcular el destino para que
+// scrollIntoView use la altura final, no la cerrada.
+document.querySelectorAll('[data-criterio-target]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const criterioId = btn.dataset.criterioTarget;
+        const bloque = document.getElementById('criterio-' + criterioId);
+        if (!bloque) return;
+        bloque.classList.add('criterio-bloque--open');
+        setTimeout(() => bloque.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    });
+});
+
 // ── Detección de cambios sin guardar ─────────────────────────
 // Compara el valor actual de cada input contra su data-nota-inicial.
 // Si difieren (ignorando vaciados, porque el backend no borra notas),
@@ -200,61 +214,180 @@ document.querySelectorAll('.form-notas').forEach(form => {
             return;
         }
 
-        // Enviar al servidor
-        btn.disabled = true;
-        mostrarStatus(status, 'loading', 'Guardando...');
-
-        try {
-            const formData = new FormData();
-            formData.append('_csrf_token',   CSRF);
-            formData.append('criterio_id',   criterioId);
-            formData.append('competencia_id',competenciaId);
-
-            Object.entries(notas).forEach(([id, nota]) => {
-                formData.append(`notas[${id}]`, nota);
-            });
-
-            const url = `${BASE}/docente/calificaciones/${cargaId}/guardar`;
-            const res = await fetch(url, { method: 'POST', body: formData });
-
-            const data = await res.json();
-
-            if (data.success) {
-                mostrarStatus(status, 'success', '✓ ' + data.mensaje);
-
-                // Encender el card en vivo si quedó al menos una nota cargada.
-                // El backend no borra notas vaciadas, así que el estado iluminado
-                // es "pegajoso": una vez activado, refleja la realidad de la BD.
-                const tieneAlgunaNota = Array.from(form.querySelectorAll('.input-nota'))
-                    .some(i => i.value.trim() !== '');
-                if (tieneAlgunaNota) {
-                    const info = obtenerContenedorIluminacion(form);
-                    if (info) {
-                        info.contenedor.classList.add(`${info.prefijo}--con-notas`);
-                        // Sincroniza el botón eliminar (solo existe en .criterio-bloque)
-                        // para que muestre el confirm extendido sobre el promedio.
-                        const btnEliminar = info.contenedor.querySelector('.btn-eliminar-criterio');
-                        if (btnEliminar) btnEliminar.dataset.tieneCalificaciones = '1';
-                    }
-                }
-
-                // El servidor confirmó: lo que está en pantalla es ahora el nuevo
-                // estado inicial. Resetea el "valor inicial" de cada input y limpia
-                // el modificador ámbar de cambios sin guardar.
-                form.querySelectorAll('.input-nota').forEach(i => {
-                    i.dataset.notaInicial = i.value;
-                });
-                recalcularCambiosForm(form);
-            } else {
-                mostrarStatus(status, 'error', '⚠ ' + data.mensaje);
+        // Detectar alumnos sin nota — requieren motivo obligatorio antes de guardar.
+        // El promedio usa AVG (ignora NULLs): vacío ≠ cero. El docente debe
+        // justificar cada omisión a través del modal antes de poder confirmar.
+        const sinCalificar = [];
+        inputs.forEach(input => {
+            if (input.value.trim() === '') {
+                const fila      = input.closest('tr');
+                const nombre    = fila?.querySelector('.col-nombre')?.textContent?.trim()
+                                  ?? 'Alumno sin nombre';
+                const matricula = input.name.match(/\[(\d+)\]/)?.[1] ?? null;
+                sinCalificar.push({ nombre, matricula });
             }
-        } catch (err) {
-            mostrarStatus(status, 'error', 'Error de conexión.');
-        } finally {
-            btn.disabled = false;
+        });
+
+        if (sinCalificar.length > 0) {
+            // Abrir modal y esperar confirmación antes de continuar con el fetch.
+            abrirModalOmisiones(sinCalificar, async (omisiones) => {
+                await ejecutarGuardado(
+                    form, criterioId, competenciaId, cargaId,
+                    notas, omisiones, status, btn
+                );
+            });
+            return; // El fetch se lanzará desde el callback del modal
         }
+
+        // Sin alumnos vacíos: guardar directamente
+        await ejecutarGuardado(
+            form, criterioId, competenciaId, cargaId,
+            notas, {}, status, btn
+        );
     });
 });
+
+// ── Guardar notas (función extraída para reutilizar desde el modal) ──────────
+// omisiones = { matricula_id: motivo } — vacío cuando no hay alumnos sin nota
+async function ejecutarGuardado(form, criterioId, competenciaId, cargaId, notas, omisiones, status, btn) {
+    btn.disabled = true;
+    mostrarStatus(status, 'loading', 'Guardando...');
+
+    try {
+        const formData = new FormData();
+        formData.append('_csrf_token',    CSRF);
+        formData.append('criterio_id',    criterioId);
+        formData.append('competencia_id', competenciaId);
+        Object.entries(notas).forEach(([id, nota]) => {
+            formData.append(`notas[${id}]`, nota);
+        });
+
+        const url = `${BASE}/docente/calificaciones/${cargaId}/guardar`;
+        const res  = await fetch(url, { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!data.success) {
+            mostrarStatus(status, 'error', '⚠ ' + data.mensaje);
+            return;
+        }
+
+        // Guardar omisiones si las hay (segundo fetch, secuencial)
+        if (Object.keys(omisiones).length > 0) {
+            const omData = new FormData();
+            omData.append('_csrf_token',    CSRF);
+            omData.append('criterio_id',    criterioId);
+            omData.append('competencia_id', competenciaId);
+            Object.entries(omisiones).forEach(([id, motivo]) => {
+                omData.append(`omisiones[${id}]`, motivo);
+            });
+            await fetch(`${BASE}/docente/calificaciones/${cargaId}/omisiones`,
+                { method: 'POST', body: omData }
+            );
+        }
+
+        mostrarStatus(status, 'success', '✓ ' + data.mensaje);
+
+        const tieneAlgunaNota = Array.from(form.querySelectorAll('.input-nota'))
+            .some(i => i.value.trim() !== '');
+        if (tieneAlgunaNota) {
+            const info = obtenerContenedorIluminacion(form);
+            if (info) {
+                info.contenedor.classList.add(`${info.prefijo}--con-notas`);
+                const btnEliminar = info.contenedor.querySelector('.btn-eliminar-criterio');
+                if (btnEliminar) btnEliminar.dataset.tieneCalificaciones = '1';
+            }
+        }
+
+        form.querySelectorAll('.input-nota').forEach(i => {
+            i.dataset.notaInicial = i.value;
+        });
+        recalcularCambiosForm(form);
+
+    } catch (err) {
+        mostrarStatus(status, 'error', 'Error de conexión.');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ── Modal de omisiones ───────────────────────────────────────────────────────
+// Muestra el modal con un select de motivo por cada alumno sin nota.
+// onConfirmar recibe { matricula_id: motivo } y ejecuta el guardado real.
+
+const MOTIVOS_OMISION = [
+    ['ausencia_injustificada', 'Ausencia injustificada'],
+    ['ausencia_justificada',   'Ausencia justificada (enfermedad, permiso)'],
+    ['abandono',               'Abandono / retiro'],
+    ['no_aplico',              'No aplicó para este alumno'],
+];
+
+function abrirModalOmisiones(alumnos, onConfirmar) {
+    const modal     = document.getElementById('omision-modal');
+    const lista     = document.getElementById('omision-lista');
+    const btnOk     = document.getElementById('omision-confirmar');
+    const btnCancel = document.getElementById('omision-cancelar');
+    const statusEl  = document.getElementById('omision-status');
+
+    // Poblar lista de alumnos con un select por cada uno
+    lista.innerHTML = '';
+    alumnos.forEach(({ nombre, matricula }) => {
+        const fila = document.createElement('div');
+        fila.className = 'omision-modal__fila';
+
+        const label = document.createElement('span');
+        label.className   = 'omision-modal__nombre';
+        label.textContent = nombre;
+
+        const select = document.createElement('select');
+        select.className         = 'omision-modal__select form-input';
+        select.dataset.matricula = matricula;
+        select.required          = true;
+
+        const placeholder = document.createElement('option');
+        placeholder.value       = '';
+        placeholder.textContent = '— Selecciona un motivo —';
+        select.appendChild(placeholder);
+
+        MOTIVOS_OMISION.forEach(([val, txt]) => {
+            const opt = document.createElement('option');
+            opt.value       = val;
+            opt.textContent = txt;
+            select.appendChild(opt);
+        });
+
+        fila.append(label, select);
+        lista.appendChild(fila);
+    });
+
+    // Habilitar "Confirmar" solo cuando todos los selects tienen valor
+    const actualizarBoton = () => {
+        const selects = lista.querySelectorAll('select');
+        btnOk.disabled = Array.from(selects).some(s => s.value === '');
+    };
+    lista.addEventListener('change', actualizarBoton);
+    actualizarBoton();
+
+    statusEl.textContent = '';
+    statusEl.className   = 'omision-modal__status';
+    modal.hidden = false;
+
+    const cerrar = () => {
+        modal.hidden = true;
+        lista.removeEventListener('change', actualizarBoton);
+    };
+
+    btnCancel.onclick = cerrar;
+    modal.querySelector('.omision-modal__backdrop').onclick = cerrar;
+
+    btnOk.onclick = async () => {
+        const omisiones = {};
+        lista.querySelectorAll('select').forEach(s => {
+            if (s.value) omisiones[s.dataset.matricula] = s.value;
+        });
+        cerrar();
+        await onConfirmar(omisiones);
+    };
+}
 
 // ── Agregar criterio ─────────────────────────────────────────
 document.querySelectorAll('.btn-agregar-criterio').forEach(btn => {

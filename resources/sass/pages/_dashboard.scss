@@ -332,6 +332,28 @@
         min-width: 0;
     }
 
+    // Contador "X de Y" en la cabecera. Pista pasiva del estado del criterio
+    // sin tener que abrirlo. Se complementa con el modificador --con-notas
+    // (verde) que ya pinta la cabecera entera cuando hay al menos una nota.
+    &__progreso {
+        flex-shrink: 0;
+        font-size: 11px;
+        font-weight: 600;
+        color: $text-muted;
+        background: $bg-white;
+        border: 1px solid $border-color;
+        border-radius: 100px;
+        padding: 2px 10px;
+        font-variant-numeric: tabular-nums;
+        transition: color 200ms ease, border-color 200ms ease, background-color 200ms ease;
+
+        &--completo {
+            color: $color-success;
+            border-color: rgba($color-success, .35);
+            background: $color-success-bg;
+        }
+    }
+
     &__caret {
         display: inline-flex;
         align-items: center;
@@ -420,6 +442,49 @@
         .criterio-bloque__nombre {
             color: darken($color-warning, 5%);
         }
+    }
+}
+
+// ── Banner "ir al siguiente criterio pendiente" ──────────────
+// Pista activa, no urgente. Usa la paleta info ($color-info) para
+// distinguirse de los estados verde (completo) y ambar (cambios).
+// Solo se renderiza si hay pendientes; al estar todo al 100% desaparece.
+.calificaciones-pendiente {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+    padding: $spacing-sm $spacing-md;
+    background: $color-info-bg;
+    border: 1px solid rgba($color-info, .35);
+    border-left: 3px solid $color-info;
+    border-radius: $border-radius;
+
+    &__icono {
+        flex-shrink: 0;
+        font-size: $font-size-lg;
+        font-weight: 700;
+        color: $color-info;
+        line-height: 1;
+    }
+
+    &__texto {
+        flex: 1;
+        min-width: 0;
+        font-size: $font-size-sm;
+        color: darken($color-info, 10%);
+        line-height: 1.4;
+
+        strong { color: $color-info; }
+    }
+
+    &__sep {
+        color: $text-muted;
+        margin: 0 4px;
+    }
+
+    &__btn {
+        flex-shrink: 0;
     }
 }
 
@@ -897,4 +962,139 @@
     opacity: .45;
     cursor: not-allowed;
     pointer-events: none;
+}
+
+// ── Modal de omisiones ───────────────────────────────────────────────────────
+// Aparece cuando el docente guarda con alumnos sin calificar.
+// Requiere que todos los selects tengan motivo antes de habilitar Confirmar.
+
+.omision-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &[hidden] { display: none; }
+
+    &__backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, .45);
+    }
+
+    &__dialog {
+        position: relative;
+        background: $bg-white;
+        border-radius: $border-radius-lg;
+        box-shadow: $shadow-md;
+        width: min(520px, calc(100vw - #{$spacing-lg} * 2));
+        max-height: calc(100vh - 80px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    &__header {
+        padding: $spacing-lg $spacing-lg $spacing-md;
+        border-bottom: 1px solid $border-color;
+    }
+
+    &__titulo {
+        font-size: $font-size-base;
+        font-weight: 700;
+        color: $text-primary;
+        margin: 0 0 $spacing-xs;
+    }
+
+    &__desc {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    &__lista {
+        flex: 1;
+        overflow-y: auto;
+        padding: $spacing-sm $spacing-lg;
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-sm;
+    }
+
+    &__fila {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+        padding: $spacing-sm 0;
+        border-bottom: 1px solid $border-color;
+
+        &:last-child { border-bottom: none; }
+    }
+
+    &__nombre {
+        flex: 0 0 auto;
+        width: 180px;
+        font-size: $font-size-sm;
+        font-weight: 500;
+        color: $text-primary;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__select {
+        flex: 1;
+        font-size: $font-size-sm;
+        padding: $spacing-xs $spacing-sm;
+        min-width: 0;
+    }
+
+    &__footer {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        padding: $spacing-md $spacing-lg;
+        border-top: 1px solid $border-color;
+        background: $bg-secondary;
+    }
+
+    &__status {
+        font-size: $font-size-sm;
+        margin-left: auto;
+    }
+}
+
+// ── Badge de omision en tabla resumen ────────────────────────────────────────
+// Dash con cursor de ayuda — el title muestra el motivo al hover.
+.omision-badge {
+    cursor: help;
+    border-bottom: 1px dashed $text-muted;
+    color: $text-muted;
+    font-size: $font-size-sm;
+}
+
+// ── Badge y fila EXO en vistas docente ──────────────────────────────────────
+.exo-badge {
+    display:        inline-block;
+    padding:        1px 6px;
+    background:     #f5f3ff;
+    color:          #6d28d9;
+    border:         1px solid #ddd6fe;
+    border-radius:  4px;
+    font-size:      11px;
+    font-weight:    700;
+    letter-spacing: .04em;
+    cursor:         help;
+
+    &--lit { font-size: 12px; padding: 2px 8px; }
+}
+
+.fila-exonerado {
+    background: #faf5ff !important;
+    opacity: .85;
+
+    td { color: #6d28d9; }
 }

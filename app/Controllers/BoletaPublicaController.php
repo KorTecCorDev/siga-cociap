@@ -6,6 +6,8 @@ use App\Models\BoletaPublicaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
 use App\Models\DirectorEbrModel;
+use App\Models\ExoneracionModel;
+use App\Models\OmisionCriterioModel;
 use Core\View;
 
 class BoletaPublicaController extends BaseController
@@ -14,6 +16,8 @@ class BoletaPublicaController extends BaseController
     private CalificacionModel  $calModel;
     private ConductaModel      $conductaModel;
     private DirectorEbrModel   $dirModel;
+    private ExoneracionModel   $exoModel;
+    private OmisionCriterioModel $omisionModel;
 
     public function __construct()
     {
@@ -22,6 +26,8 @@ class BoletaPublicaController extends BaseController
         $this->calModel      = new CalificacionModel();
         $this->conductaModel = new ConductaModel();
         $this->dirModel      = new DirectorEbrModel();
+        $this->exoModel      = new ExoneracionModel();
+        $this->omisionModel  = new OmisionCriterioModel();
     }
 
     /** GET /boleta-publica — formulario para ingresar código */
@@ -97,14 +103,20 @@ class BoletaPublicaController extends BaseController
             $datosPorPeriodo[$p['id']] = $this->calModel->getBoletaAlumno($matriculaId, $p['id']);
         }
 
+        $anioId = (int) $periodo['anio_id'];
+        $areas  = $this->buildAreasConBimestres($datosPorPeriodo, $periodos);
+        $exoData = $this->exoModel->getConCompetenciasParaBoleta($matriculaId, $anioId);
+        $areas  = ExoneracionModel::inyectarEnAreas($areas, $exoData, $periodos);
+
         return [
             'alumno'      => $alumno,
             'periodos'    => $periodos,
-            'areas'       => $this->buildAreasConBimestres($datosPorPeriodo, $periodos),
-            'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, (int) $periodo['anio_id']),
+            'areas'       => $areas,
+            'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, $anioId),
+            'omisiones'   => $this->omisionModel->getPorMatriculaAnio($matriculaId, $anioId),
             'institucion' => config('institucion'),
             'tutor'       => $this->getTutorSeccion($matriculaId),
-            'directorEbr' => $this->dirModel->getVigenteEnFecha((int) $periodo['anio_id']),
+            'directorEbr' => $this->dirModel->getVigenteEnFecha($anioId),
         ];
     }
 

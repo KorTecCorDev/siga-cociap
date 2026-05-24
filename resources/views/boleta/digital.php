@@ -246,15 +246,23 @@ unset($_n, $_c);
                      aria-label="Competencias de <?= e($areaNombre) ?>">
 
                     <?php foreach ($competencias as $compId => $comp):
-                        $literalFinal = $comp['literal_final'];
-                        $lf           = $literalFinal ? strtolower($literalFinal) : 'vacio';
+                        $literalFinal   = $comp['literal_final'];
+                        $esExonerado    = !empty($comp['es_exonerado']);
+                        $lf             = $literalFinal ? strtolower($literalFinal) : 'vacio';
+                        $motivosOmision = $esExonerado ? [] : ($omisiones[(int) $compId] ?? []);
                     ?>
                     <div class="bd-competencia" data-logro="<?= $lf ?>">
 
                         <!-- Encabezado: nombre + logro anual -->
                         <div class="bd-competencia__header">
                             <h3 class="bd-competencia__nombre"><?= e($comp['nombre']) ?></h3>
-                            <?php if ($literalFinal): ?>
+                            <?php if ($esExonerado): ?>
+                            <div class="bd-logro bd-logro--exo"
+                                 aria-label="Exonerado(a)">
+                                <span class="bd-logro__label">Logro</span>
+                                <span class="bd-logro__value">EXO</span>
+                            </div>
+                            <?php elseif ($literalFinal): ?>
                             <div class="bd-logro bd-logro--<?= $lf ?>"
                                  aria-label="Logro anual: <?= e($literalFinal) ?>">
                                 <span class="bd-logro__label">Anual</span>
@@ -267,6 +275,26 @@ unset($_n, $_c);
                             </div>
                             <?php endif; ?>
                         </div>
+
+                        <?php if ($esExonerado): ?>
+                        <div class="bd-exo">
+                            <span class="bd-exo__icono" aria-hidden="true">✓</span>
+                            <span class="bd-exo__texto">
+                                Alumno(a) exonerado(a) de esta área — no requiere evaluación.
+                            </span>
+                        </div>
+                        <?php elseif (!$literalFinal && !empty($motivosOmision)): ?>
+                        <div class="bd-omision">
+                            <span class="bd-omision__icono" aria-hidden="true">ℹ</span>
+                            <span class="bd-omision__texto">
+                                No evaluado —
+                                <?= e(implode(' / ', array_map(
+                                    [\App\Models\OmisionCriterioModel::class, 'etiqueta'],
+                                    $motivosOmision
+                                ))) ?>
+                            </span>
+                        </div>
+                        <?php endif; ?>
 
                         <!-- Chips de bimestre -->
                         <div class="bd-competencia__bimestres" role="list" aria-label="Notas por bimestre">

@@ -5,6 +5,8 @@ namespace App\Controllers\Docente;
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
 use App\Models\CriterioModel;
+use App\Models\ExoneracionModel;
+use App\Models\OmisionCriterioModel;
 use Core\Session;
 
 /**
@@ -15,14 +17,18 @@ use Core\Session;
 
 class CalificacionController extends BaseController
 {
-    private CalificacionModel $calModel;
-    private CriterioModel     $critModel;
+    private CalificacionModel    $calModel;
+    private CriterioModel        $critModel;
+    private OmisionCriterioModel $omisionModel;
+    private ExoneracionModel     $exoModel;
 
     public function __construct()
     {
         $this->requireRole(['docente', 'admin', 'registro_academico']);
-        $this->calModel  = new CalificacionModel();
-        $this->critModel = new CriterioModel();
+        $this->calModel    = new CalificacionModel();
+        $this->critModel   = new CriterioModel();
+        $this->omisionModel = new OmisionCriterioModel();
+        $this->exoModel    = new ExoneracionModel();
     }
     
     private function getBloqueos(int $cargaId, int $periodoId): array
@@ -92,6 +98,7 @@ class CalificacionController extends BaseController
         $alumnos         = $this->getAlumnosSeccion($carga['seccion_id']);
         $notasExistentes = $this->getNotasExistentes($cargaId, $periodo['id']);
         $bloqueos        = $this->getBloqueos($cargaId, $periodo['id']);
+        $exonerados      = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
 
         $this->view('docente/calificaciones', [
             'titulo'          => 'Calificaciones — ' . ($carga['nombre_display'] ?? ''),
@@ -102,6 +109,7 @@ class CalificacionController extends BaseController
             'bloqueado'       => $bloqueado,
             'notasExistentes' => $notasExistentes,
             'bloqueos'        => $bloqueos,
+            'exonerados'      => $exonerados,
             'page_scripts'    => ['calificaciones'],
         ]);
     }
@@ -241,6 +249,41 @@ class CalificacionController extends BaseController
             'success' => true,
             'mensaje' => 'Notas guardadas correctamente.',
         ]);
+    }
+
+    /**
+     * POST /docente/calificaciones/{carga_id}/omisiones
+     * Registra el motivo por el que uno o más alumnos no fueron evaluados
+     * en un criterio. Puede llamarse varias veces (upsert por pares).
+     */
+    public function guardarOmisiones(string $cargaId): void
+    {
+        $this->validateCsrf();
+        $cargaId = (int) $cargaId;
+
+        $periodo = $this->getPeriodoActivo();
+        if (!$periodo || $this->calModel->periodoEstaBloqueado($periodo['id'])) {
+            $this->json(['success' => false, 'mensaje' => 'El periodo está cerrado.'], 403);
+        }
+
+        $criterioId    = (int) $this->input('criterio_id');
+        $competenciaId = (int) $this->input('competencia_id');
+        $omisiones     = $this->input('omisiones', []);
+
+        if (!$criterioId || !$competenciaId || empty($omisiones) || !is_array($omisiones)) {
+            $this->json(['success' => false, 'mensaje' => 'Datos incompletos.'], 400);
+        }
+
+        if ($this->calModel->competenciaBloqueada($cargaId, $competenciaId, $periodo['id'])) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Esta competencia ya fue aprobada y bloqueada.',
+            ], 403);
+        }
+
+        $this->omisionModel->guardarLote($criterioId, $omisiones, Session::user()['id']);
+
+        $this->json(['success' => true, 'mensaje' => 'Omisiones registradas.']);
     }
 
     /**
@@ -607,6 +650,25 @@ class CalificacionController extends BaseController
             $cargaId, $competenciaId, $periodo['id']
         );
 
+        // Añadir omisiones por criterio a cada alumno
+        $omisionesPorCriterio = [];
+        foreach ($resumen['criterios'] as $criterio) {
+            $omisionesPorCriterio[(int) $criterio['id']] =
+                $this->omisionModel->getPorCriterio((int) $criterio['id']);
+        }
+        foreach ($resumen['alumnos'] as &$alumno) {
+            $alumno['omisiones_criterios'] = [];
+            $matId = (int) $alumno['matricula_id'];
+            foreach ($omisionesPorCriterio as $critId => $porMatricula) {
+                if (isset($porMatricula[$matId])) {
+                    $alumno['omisiones_criterios'][$critId] = $porMatricula[$matId];
+                }
+            }
+        }
+        unset($alumno);
+
+        $exonerados = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
+
         $this->view('docente/resumen-competencia', [
             'titulo'       => 'Resumen — ' . ($competencia['nombre_corto'] ?? ''),
             'carga'        => $carga,
@@ -615,6 +677,7 @@ class CalificacionController extends BaseController
             'criterios'    => $resumen['criterios'],
             'alumnos'      => $resumen['alumnos'],
             'bloqueada'    => $bloqueada,
+            'exonerados'   => $exonerados,
             'page_scripts' => ['resumen'],
         ]);
     }
@@ -693,16 +756,25 @@ class CalificacionController extends BaseController
         $confirmaSinNotas = !empty($this->input('sin_calificaciones'));
 
         if (!($sinCriterios && $confirmaSinNotas)) {
-            // Validación normal: todos los alumnos deben tener promedio
+            // Los alumnos con promedio null son válidos si:
+            //   a) tienen al menos una omision registrada (ausencia justificada), o
+            //   b) están exonerados de esta área/subárea.
+            $matriculasConOmision = $this->omisionModel->getMatriculasConOmisionEnCompetencia(
+                $cargaId, $competenciaId, $periodo['id']
+            );
+            $exonerados = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
+
             $sinNota = array_filter(
                 $resumen['alumnos'],
                 fn($a) => $a['promedio'] === null
+                    && !in_array((int) $a['matricula_id'], $matriculasConOmision, true)
+                    && !in_array((int) $a['matricula_id'], $exonerados, true)
             );
 
             if (!empty($sinNota)) {
                 $this->json([
                     'success' => false,
-                    'mensaje' => 'Hay ' . count($sinNota) . ' alumno(s) sin nota registrada.',
+                    'mensaje' => 'Hay ' . count($sinNota) . ' alumno(s) sin nota ni motivo de omisión registrado.',
                 ], 400);
             }
         }
