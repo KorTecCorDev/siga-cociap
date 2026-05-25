@@ -257,11 +257,12 @@ class BoletaPublicaController extends BaseController
         $areas  = ExoneracionModel::inyectarEnAreas($areas, $exoData, $periodos);
 
         return [
-            'alumno'      => $alumno,
-            'periodos'    => $periodos,
-            'areas'       => $areas,
-            'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, $anioId),
-            'asistencia'  => [
+            'alumno'            => $alumno,
+            'periodos'          => $periodos,
+            'periodo_activo_id' => $periodoId,
+            'areas'             => $areas,
+            'conducta'          => $this->conductaModel->getParaBoleta($matriculaId, $anioId),
+            'asistencia'        => [
                 'bimestre' => $this->asistenciaModel->getDelBimestre($matriculaId, $periodoId),
                 'anual'    => $this->asistenciaModel->getAcumuladoAnual($matriculaId, $periodoId),
             ],

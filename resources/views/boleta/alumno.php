@@ -236,38 +236,53 @@ $mostrarQr         = !$vistaPrevia && !empty($url_boleta);
     <?php if ($mostrarAsistencia):
         $aB = $asistencia['bimestre'];
         $aA = $asistencia['anual'];
+        $campos = [
+            'faltas'                 => 'Faltas',
+            'faltas_justificadas'    => 'F. justificadas',
+            'tardanzas'              => 'Tardanzas',
+            'tardanzas_justificadas' => 'T. justificadas',
+        ];
+        $colspanTotal = count($periodos) + 2;
     ?>
     <section class="boleta-asistencia">
-        <h2 class="boleta-asistencia__titulo">Asistencia</h2>
         <table class="boleta-asistencia__tabla">
             <thead>
                 <tr>
-                    <th class="boleta-asistencia__th-tipo">Tipo</th>
-                    <th class="boleta-asistencia__th-num">Bim.</th>
-                    <th class="boleta-asistencia__th-num">Anual</th>
+                    <th class="boleta-asistencia__th-seccion" colspan="<?= $colspanTotal ?>">
+                        Asistencia
+                    </th>
+                </tr>
+                <tr>
+                    <th class="boleta-asistencia__th-tipo"></th>
+                    <?php foreach ($periodos as $p):
+                        $num = (int) $p['numero'];
+                        $esActivo = ((int) $p['id'] === (int) $periodo_activo_id);
+                    ?>
+                        <th class="boleta-asistencia__th-num <?= $esActivo ? 'boleta-asistencia__th--activo' : '' ?>">
+                            <?= ($romanos[$num - 1] ?? $num) ?> Bim.
+                        </th>
+                    <?php endforeach; ?>
+                    <th class="boleta-asistencia__th-num boleta-asistencia__th--anual">Total</th>
                 </tr>
             </thead>
             <tbody>
+                <?php foreach ($campos as $clave => $etiqueta): ?>
                 <tr>
-                    <td>Faltas</td>
-                    <td class="boleta-asistencia__num"><?= $aB['faltas'] ?></td>
-                    <td class="boleta-asistencia__num"><?= $aA['faltas'] ?></td>
+                    <td><?= $etiqueta ?></td>
+                    <?php foreach ($periodos as $p):
+                        $esActivo = ((int) $p['id'] === (int) $periodo_activo_id);
+                    ?>
+                        <?php if ($esActivo): ?>
+                            <td class="boleta-asistencia__num boleta-asistencia__num--activo">
+                                <?= $aB[$clave] ?>
+                            </td>
+                        <?php else: ?>
+                            <td class="boleta-asistencia__num boleta-asistencia__num--pendiente">&mdash;</td>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                    <td class="boleta-asistencia__num boleta-asistencia__num--anual"><?= $aA[$clave] ?></td>
                 </tr>
-                <tr>
-                    <td>Faltas justificadas</td>
-                    <td class="boleta-asistencia__num"><?= $aB['faltas_justificadas'] ?></td>
-                    <td class="boleta-asistencia__num"><?= $aA['faltas_justificadas'] ?></td>
-                </tr>
-                <tr>
-                    <td>Tardanzas</td>
-                    <td class="boleta-asistencia__num"><?= $aB['tardanzas'] ?></td>
-                    <td class="boleta-asistencia__num"><?= $aA['tardanzas'] ?></td>
-                </tr>
-                <tr>
-                    <td>Tardanzas justificadas</td>
-                    <td class="boleta-asistencia__num"><?= $aB['tardanzas_justificadas'] ?></td>
-                    <td class="boleta-asistencia__num"><?= $aA['tardanzas_justificadas'] ?></td>
-                </tr>
+                <?php endforeach; ?>
             </tbody>
         </table>
     </section>
