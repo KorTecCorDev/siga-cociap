@@ -143,3 +143,36 @@
 
 <?php endforeach; ?>
 <?php endif; ?>
+
+<!-- ── Modal de omisiones ────────────────────────────────────────
+     Oculto por defecto. El JS lo puebla y lo muestra cuando el
+     docente intenta guardar dejando alumnos sin calificar.
+-->
+<div id="omision-modal" class="omision-modal" hidden aria-modal="true" role="dialog" aria-labelledby="omision-modal-titulo">
+    <div class="omision-modal__backdrop"></div>
+    <div class="omision-modal__dialog">
+        <div class="omision-modal__header">
+            <h3 class="omision-modal__titulo" id="omision-modal-titulo">
+                Alumnos sin calificar — registra el motivo
+            </h3>
+            <p class="omision-modal__desc">
+                Los siguientes alumnos quedarán sin nota en este criterio.
+                Al calcular el promedio, los campos vacíos
+                <strong>no cuentan como cero</strong>: se excluyen del cálculo.
+                Selecciona el motivo de cada uno para poder guardar.
+            </p>
+        </div>
+        <div class="omision-modal__lista" id="omision-lista">
+            <!-- Filas insertadas dinámicamente por JS -->
+        </div>
+        <div class="omision-modal__footer">
+            <button type="button" class="btn btn--secondary" id="omision-cancelar">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn--primary" id="omision-confirmar" disabled>
+                Confirmar y guardar
+            </button>
+            <span class="omision-modal__status" id="omision-status"></span>
+        </div>
+    </div>
+</div>
