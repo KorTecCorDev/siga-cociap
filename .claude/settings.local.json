@@ -50,7 +50,18 @@
       "Bash(echo \"\")",
       "Bash(New-Item -ItemType File -Path \"C:/xampp/htdocs/siga-cociap/public/assets/img/firmas/.gitkeep\" -Force)",
       "Bash(Test-Path *)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(php -l \"C:/xampp/htdocs/siga_cociap/app/Models/CurriculumModel.php\")",
+      "Bash(php -l \"C:/xampp/htdocs/siga_cociap/app/Controllers/Admin/CurriculumController.php\")",
+      "Bash(php -l \"C:/xampp/htdocs/siga_cociap/resources/views/admin/curriculum/index.php\")",
+      "Bash(where npx *)",
+      "Bash(npx playwright *)",
+      "PowerShell(New-Item *)",
+      "PowerShell(Set-Location *)",
+      "PowerShell(cd \"$env:TEMP\\\\verify_curr\" && node verify.js 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root siga_cociap -e \"SELECT a.id, a.nombre, a.orden FROM areas a JOIN niveles n ON a.nivel_id=n.id WHERE n.nombre='Primaria' ORDER BY a.orden;\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root siga_cociap -e \"SELECT a.id, a.nombre, a.orden FROM areas a JOIN niveles n ON a.nivel_id = n.id WHERE n.nombre = 'Secundaria' ORDER BY a.orden;\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --default-character-set=utf8mb4 siga_cociap -e \"SELECT id, nombre, nivel_id, orden FROM areas WHERE nivel_id = 2 ORDER BY orden;\" 2>&1)"
     ]
   }
 }

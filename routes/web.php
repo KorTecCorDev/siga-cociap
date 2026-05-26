@@ -21,6 +21,14 @@ $router->get( '/logout',         'Auth\AuthController@logout');
 $router->get('/',          'DashboardController@index');
 $router->get('/dashboard', 'DashboardController@index');
 
+// ─── Admin — Currículo Académico ────────────────────────────
+$router->get( '/admin/curriculum',                                  'Admin\CurriculumController@index');
+$router->post('/admin/curriculum/areas/{id}/editar',               'Admin\CurriculumController@guardarArea');
+$router->post('/admin/curriculum/areas/{id}/toggle',               'Admin\CurriculumController@toggleActivaArea');
+$router->post('/admin/curriculum/areas/{id}/mover',                'Admin\CurriculumController@moverArea');
+$router->post('/admin/curriculum/subareas/{id}/editar',            'Admin\CurriculumController@guardarSubarea');
+$router->post('/admin/curriculum/competencias/{id}/editar',        'Admin\CurriculumController@guardarCompetencia');
+
 // ─── Admin — Secciones y Tutores ────────────────────────────
 $router->get( '/admin/secciones',             'Admin\SeccionController@index');
 $router->post('/admin/secciones/{id}/tutor',  'Admin\SeccionController@asignarTutor');

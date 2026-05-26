@@ -46,6 +46,13 @@
 
     <?php if (has_role(['admin', 'registro_academico'])): ?>
         <div class="card">
+            <a href="<?= url('admin/asistencia') ?>">
+                <div class="card__icon"><img src="<?= url('assets/icons/calendar-add.svg') ?>" alt="Asistencia"></div>
+                <div class="card__title">Asistencia</div>
+                <div class="card__desc">Registro de faltas y tardanzas por sección</div>
+            </a>
+        </div>
+        <div class="card">
             <a href="<?= url('admin/boletas-publicas') ?>">
                 <div class="card__icon"><img src="<?= url('assets/icons/file-send.svg') ?>" alt="Boletas públicas"></div>
                 <div class="card__title">Boletas públicas</div>
