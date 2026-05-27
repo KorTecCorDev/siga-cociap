@@ -61,6 +61,16 @@
         </div>
     <?php endif; ?>
 
+    <?php if (has_role(['admin', 'registro_academico', 'secretaria', 'director_general', 'director_ebr'])): ?>
+        <div class="card">
+            <a href="<?= url('admin/buscar-estudiante') ?>">
+                <div class="card__icon"><img src="<?= url('assets/icons/user.svg') ?>" alt="Buscar estudiante"></div>
+                <div class="card__title">Buscar estudiante</div>
+                <div class="card__desc">Consultar nivel, grado y sección por DNI o nombre</div>
+            </a>
+        </div>
+    <?php endif; ?>
+
     <?php if (has_role(['admin', 'registro_academico', 'secretaria'])): ?>
         <div class="card">
             <a href="<?= url('secretaria/matriculas') ?>">

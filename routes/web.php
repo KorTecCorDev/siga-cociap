@@ -33,6 +33,10 @@ $router->post('/admin/curriculum/competencias/{id}/editar',        'Admin\Curric
 $router->get( '/admin/secciones',             'Admin\SeccionController@index');
 $router->post('/admin/secciones/{id}/tutor',  'Admin\SeccionController@asignarTutor');
 
+// ─── Admin — Buscador de estudiantes ────────────────────────
+$router->get( '/admin/buscar-estudiante',     'Admin\BuscadorEstudianteController@index');
+$router->get( '/admin/buscar-estudiante/api', 'Admin\BuscadorEstudianteController@buscar');
+
 // ─── Admin — Conducta ───────────────────────────────────────
 $router->get( '/admin/conducta',              'Admin\ConductaController@index');
 $router->get( '/admin/conducta/{id}',         'Admin\ConductaController@seccion');

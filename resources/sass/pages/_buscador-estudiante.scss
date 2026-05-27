@@ -1,0 +1,227 @@
+// ============================================================
+// _buscador-estudiante.scss — Buscador de estudiantes SIGA-COCIAP
+// ============================================================
+
+.buscador {
+    &__campo {
+        position: relative;
+        max-width: 560px;
+        color: $text-muted;
+
+        // El ícono y el borde toman color de marca al enfocar el input
+        &:focus-within {
+            color: $brand-accent;
+        }
+    }
+
+    &__icono {
+        position: absolute;
+        top: 50%;
+        left: 16px;
+        transform: translateY(-50%);
+        pointer-events: none;
+        color: inherit;
+        transition: color $transition;
+    }
+
+    &__input {
+        // Hereda .form-input; aquí solo se ajusta el espacio para los iconos
+        padding: 12px 44px 12px 46px;
+        font-size: $font-size-lg;
+
+        &::placeholder {
+            color: $text-muted;
+            font-size: $font-size-base;
+        }
+
+        // Oculta la "x" nativa de type=search (usamos nuestro propio botón)
+        &::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+    }
+
+    &__limpiar {
+        position: absolute;
+        top: 50%;
+        right: 12px;
+        transform: translateY(-50%);
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: $bg-secondary;
+        color: $text-secondary;
+        font-size: 12px;
+        line-height: 1;
+        cursor: pointer;
+        transition: $transition;
+
+        &:hover {
+            background: $color-error-bg;
+            color: $color-error;
+        }
+
+        &[hidden] { display: none; }
+    }
+
+    &__spinner {
+        position: absolute;
+        top: 50%;
+        right: 16px;
+        width: 18px;
+        height: 18px;
+        margin-top: -9px;
+        border: 2px solid $border-color;
+        border-top-color: $brand-accent;
+        border-radius: 50%;
+        animation: buscador-girar .6s linear infinite;
+
+        &[hidden] { display: none; }
+    }
+
+    &__hint {
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+        margin: $spacing-sm 0 0;
+    }
+
+    &__hint-icono {
+        font-size: $font-size-base;
+        line-height: 1;
+    }
+}
+
+@keyframes buscador-girar {
+    to { transform: rotate(360deg); }
+}
+
+// ── Lista de resultados ───────────────────────────────────────
+.buscador-resultados {
+    margin-top: $spacing-md;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+
+    &__contador {
+        margin: 0 0 $spacing-xs;
+    }
+}
+
+.buscador-item {
+    margin: 0;
+
+    &__body {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+        padding: $spacing-md;
+
+        @media (max-width: 600px) {
+            flex-wrap: wrap;
+        }
+    }
+
+    &__avatar {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        background: $brand-mid;
+        user-select: none;
+    }
+
+    &__info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    &__nombre {
+        font-weight: 600;
+        color: $text-primary;
+        line-height: 1.25;
+    }
+
+    &__sub {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin-top: 2px;
+    }
+
+    &__ubicacion {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+        text-align: right;
+        flex-shrink: 0;
+
+        @media (max-width: 600px) {
+            align-items: flex-start;
+            text-align: left;
+            width: 100%;
+            padding-left: 56px;
+        }
+    }
+
+    &__lugar {
+        font-weight: 600;
+        color: $text-primary;
+    }
+
+    &__nivel {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+    }
+
+    &__sin-seccion {
+        font-size: $font-size-sm;
+        font-style: italic;
+        color: $text-muted;
+    }
+}
+
+// ── Badge de estado de matrícula ──────────────────────────────
+.buscador-badge {
+    display: inline-block;
+    margin-top: 2px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 50px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+
+    &--aprobada  { background: $color-success-bg; color: $color-success; }
+    &--pendiente { background: $color-warning-bg; color: $color-warning; }
+    &--observada { background: $color-warning-bg; color: $color-warning; }
+    &--retirada  { background: $color-error-bg;   color: $color-error;   }
+}
+
+// ── Mensajes (vacío / error) ──────────────────────────────────
+.buscador-mensaje {
+    padding: $spacing-lg;
+    border-radius: $border-radius;
+    text-align: center;
+    font-size: $font-size-base;
+    border: 1px solid $border-color;
+
+    &--info {
+        background: $bg-white;
+        color: $text-secondary;
+    }
+
+    &--error {
+        background: $color-error-bg;
+        color: $color-error;
+        border-color: lighten($color-error, 30%);
+    }
+}
