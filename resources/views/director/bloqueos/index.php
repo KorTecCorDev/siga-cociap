@@ -123,7 +123,7 @@ $_oS  = round(25 - $_pB - $_pP, 2);
                     stroke-dashoffset="<?= $_oS ?>"/>
             <?php endif; ?>
             <!-- Texto central -->
-            <text x="21" y="19.5" class="bloqueos-donut__pct-svg"><?= round($_pB) ?>%</text>
+            <text x="21" y="19.5" class="bloqueos-donut__pct-svg"><?= number_format($_pB, 2) ?>%</text>
             <text x="21" y="24"   class="bloqueos-donut__sub-svg">completado</text>
         </svg>
     </div>
@@ -136,19 +136,19 @@ $_oS  = round(25 - $_pB - $_pP, 2);
             <span class="bloqueos-donut__dot bloqueos-donut__dot--ok"></span>
             <span class="bloqueos-donut__label">Bloqueadas</span>
             <strong class="bloqueos-donut__num"><?= $stats['bloqueadas'] ?></strong>
-            <span class="bloqueos-donut__pct-txt"><?= round($_pB) ?>%</span>
+            <span class="bloqueos-donut__pct-txt"><?= number_format($_pB, 2) ?>%</span>
         </div>
         <div class="bloqueos-donut__item">
             <span class="bloqueos-donut__dot bloqueos-donut__dot--warn"></span>
             <span class="bloqueos-donut__label">Pendientes</span>
             <strong class="bloqueos-donut__num"><?= $stats['pendientes'] ?></strong>
-            <span class="bloqueos-donut__pct-txt"><?= round($_pP) ?>%</span>
+            <span class="bloqueos-donut__pct-txt"><?= number_format($_pP, 2) ?>%</span>
         </div>
         <div class="bloqueos-donut__item">
             <span class="bloqueos-donut__dot bloqueos-donut__dot--err"></span>
             <span class="bloqueos-donut__label">Sin criterios</span>
             <strong class="bloqueos-donut__num"><?= $stats['sin_criterios'] ?></strong>
-            <span class="bloqueos-donut__pct-txt"><?= round($_pS) ?>%</span>
+            <span class="bloqueos-donut__pct-txt"><?= number_format($_pS, 2) ?>%</span>
         </div>
     </div>
 </div>

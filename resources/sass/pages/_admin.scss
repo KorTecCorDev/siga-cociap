@@ -152,14 +152,14 @@ tr.fila-separador-nivel td {
 
     &__svg-wrap {
         flex-shrink: 0;
-        width: 140px;
-        height: 140px;
+        width: 180px;
+        height: 180px;
     }
 
     &__svg { width: 100%; height: 100%; }
 
     &__pct-svg {
-        font-size: 7.5px;
+        font-size: 5.5px;
         font-weight: 700;
         fill: $text-primary;
         text-anchor: middle;
@@ -226,7 +226,7 @@ tr.fila-separador-nivel td {
     &__pct-txt {
         font-size: $font-size-sm;
         color: $text-muted;
-        min-width: 36px;
+        min-width: 54px;
         text-align: right;
     }
 }
