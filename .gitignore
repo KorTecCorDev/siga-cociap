@@ -32,6 +32,9 @@ nul
 hash.php
 import_matriculas.php
 
+# Logs de chat / notas (no versionar ni desplegar)
+/CHAT_CLAUDE_CODE_*.txt
+
 # Mantener carpetas vacías con .gitkeep
 !storage/logs/.gitkeep
 !storage/uploads/.gitkeep

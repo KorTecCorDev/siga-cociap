@@ -15,5 +15,9 @@ return [
     'timezone'        => 'America/Lima',
     'locale'          => 'es_PE',
     'url'             => 'http://localhost/siga-cociap/public', // fallback CLI únicamente
-    'app_url'         => '', // vacío = detección automática por HTTP_HOST (funciona con BrowserSync :3000 y cualquier IP LAN/DHCP)
+    // En producción (host sigacociap.net) fuerza la base limpia sin prefijo /public.
+    // En local/LAN queda '' → autodetección por HTTP_HOST (BrowserSync :3000, IP DHCP).
+    'app_url'         => str_contains($_SERVER['HTTP_HOST'] ?? '', 'sigacociap.net')
+        ? 'https://sigacociap.net'
+        : '',
 ];
