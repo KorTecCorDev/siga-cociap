@@ -45,6 +45,18 @@ class BoletaPublicaController extends BaseController
     {
         $this->validateCsrf();
 
+        // Rate limiting: frena el escaneo/fuerza bruta de códigos.
+        // Máx 15 intentos por IP cada 5 minutos.
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'desconocida';
+        if (\Core\Throttle::hit('boleta-publica:' . $ip, 15, 300)) {
+            http_response_code(429);
+            $this->mostrarFormularioConError(
+                'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.',
+                ''
+            );
+            return;
+        }
+
         $codigo = trim(strtoupper($_POST['codigo_acceso'] ?? ''));
 
         if (empty($codigo)) {
