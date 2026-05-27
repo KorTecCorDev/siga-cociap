@@ -38,6 +38,17 @@ spl_autoload_register(function (string $class): void {
 require_once CONFIG_PATH . '/app.php';
 require_once APP_PATH   . '/Helpers/helpers.php';
 
+// ── Manejo de errores según entorno ─────────────────────────
+// En local (debug): muestra todo. En producción: oculta los errores al
+// usuario (sin stack traces) pero los registra en el log del servidor.
+error_reporting(E_ALL);
+if (config('debug')) {
+    ini_set('display_errors', '1');
+} else {
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+}
+
 // Aplicar timezone desde config (evita que strtotime interprete fechas como UTC)
 date_default_timezone_set(config('timezone'));
 
