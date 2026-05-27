@@ -1,6 +1,21 @@
 Options -Indexes
 
-# Redirige todo al directorio public/
 RewriteEngine On
+
+# ── Defensa en profundidad ──────────────────────────────────────────
+# El rewrite de mas abajo ya envia todo a public/ (los archivos internos
+# dan 404), pero estas reglas niegan el acceso de forma EXPLICITA por si
+# el rewrite cambiara o se intentara evadir.
+
+# Archivos/carpetas ocultos (.git, .env, etc.) salvo .well-known (SSL/ACME)
+RewriteRule (^|/)\.(?!well-known) - [F,L]
+
+# Carpetas internas del proyecto (no contienen assets publicos)
+RewriteRule ^(app|core|config|database|resources|storage)(/|$) - [F,L]
+
+# Extensiones sensibles (volcados, docs, logs, configs)
+RewriteRule \.(sql|md|log|lock|sh|ya?ml|dist)$ - [F,L]
+
+# ── Front controller: todo lo demas pasa por public/ ────────────────
 RewriteRule ^$ public/ [L]
 RewriteRule (.*) public/$1 [L]
