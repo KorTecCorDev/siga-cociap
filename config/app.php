@@ -29,4 +29,11 @@ return [
     'app_url'         => str_contains($_SERVER['HTTP_HOST'] ?? '', 'sigacociap.net')
         ? 'https://sigacociap.net'
         : '',
+
+    // Almacenamiento de firmas/sello del Director EBR. DEBE vivir FUERA del repo
+    // porque el auto-deploy de Hostinger borra todo lo no versionado. Si existe el
+    // directorio externo (produccion) se usa; si no (XAMPP local) cae a storage/.
+    'firmas_path'     => is_dir('/home/u761410128/siga_uploads/firmas')
+        ? '/home/u761410128/siga_uploads/firmas'
+        : dirname(__DIR__) . '/storage/firmas',
 ];

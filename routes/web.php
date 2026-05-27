@@ -119,6 +119,9 @@ $router->get('/padre/alertas', 'Padre\PanelController@alertas');
 $router->get( '/boleta-publica',            'BoletaPublicaController@formulario');
 $router->post('/boleta-publica/consultar',  'BoletaPublicaController@consultar');
 
+// ─── Firmas/sello del Director EBR (servido público desde almacenamiento externo) ───
+$router->get('/firmas/{archivo}', 'FirmaController@servir');
+
 // ─── Admin — Boletas públicas ────────────────────────────────
 $router->get( '/admin/boletas-publicas',                             'Admin\BoletaPublicaController@index');
 $router->post('/admin/boletas-publicas/generar-tokens',              'Admin\BoletaPublicaController@generarTokens');

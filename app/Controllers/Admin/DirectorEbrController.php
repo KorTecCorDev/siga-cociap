@@ -15,8 +15,8 @@ class DirectorEbrController extends BaseController
 {
     private DirectorEbrModel $model;
 
-    /** Directorio relativo a public/ donde se almacenan las imágenes */
-    private const IMG_DIR = 'assets/img/firmas';
+    /** Segmento de URL de la ruta pública que sirve las imágenes (GET /firmas/{archivo}) */
+    private const IMG_ROUTE = 'firmas';
 
     public function __construct()
     {
@@ -143,7 +143,9 @@ class DirectorEbrController extends BaseController
 
     /**
      * Procesa un archivo PNG subido desde $_FILES[$inputName].
-     * Retorna la ruta relativa a public/ guardada, o null si no se subió nada.
+     * Lo guarda en el almacenamiento externo (config 'firmas_path', fuera del
+     * repo para sobrevivir a los deploys) y retorna la ruta de servido
+     * "firmas/{archivo}" para guardar en BD, o null si no se subió nada.
      * Si $rutaAnterior se proporciona, elimina el archivo anterior al reemplazar.
      *
      * @throws \RuntimeException si el archivo es inválido o no se puede guardar.
@@ -177,26 +179,27 @@ class DirectorEbrController extends BaseController
             throw new \RuntimeException("El archivo \"{$inputName}\" no debe superar 2 MB.");
         }
 
-        $dir = ROOT_PATH . '/public/' . self::IMG_DIR . '/';
+        $dir = rtrim((string) config('firmas_path'), '/');
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
         $nombre  = $prefijo . '_' . $historialId . '_' . time() . '.png';
-        $destino = $dir . $nombre;
+        $destino = $dir . '/' . $nombre;
 
         if (!move_uploaded_file($file['tmp_name'], $destino)) {
             throw new \RuntimeException("No se pudo guardar el archivo \"{$inputName}\".");
         }
 
-        // Eliminar archivo anterior si existe y es diferente al nuevo
-        if ($rutaAnterior && $rutaAnterior !== self::IMG_DIR . '/' . $nombre) {
-            $rutaAbsoluta = ROOT_PATH . '/public/' . $rutaAnterior;
-            if (file_exists($rutaAbsoluta)) {
-                @unlink($rutaAbsoluta);
+        // Eliminar archivo anterior si existe y es diferente al nuevo.
+        // $rutaAnterior puede venir como "firmas/archivo.png"; tomamos solo el nombre.
+        if ($rutaAnterior) {
+            $anterior = $dir . '/' . basename($rutaAnterior);
+            if ($anterior !== $destino && is_file($anterior)) {
+                @unlink($anterior);
             }
         }
 
-        return self::IMG_DIR . '/' . $nombre;
+        return self::IMG_ROUTE . '/' . $nombre;
     }
 }
