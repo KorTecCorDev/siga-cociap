@@ -61,7 +61,10 @@
       "PowerShell(cd \"$env:TEMP\\\\verify_curr\" && node verify.js 2>&1)",
       "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root siga_cociap -e \"SELECT a.id, a.nombre, a.orden FROM areas a JOIN niveles n ON a.nivel_id=n.id WHERE n.nombre='Primaria' ORDER BY a.orden;\" 2>&1)",
       "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root siga_cociap -e \"SELECT a.id, a.nombre, a.orden FROM areas a JOIN niveles n ON a.nivel_id = n.id WHERE n.nombre = 'Secundaria' ORDER BY a.orden;\" 2>&1)",
-      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --default-character-set=utf8mb4 siga_cociap -e \"SELECT id, nombre, nivel_id, orden FROM areas WHERE nivel_id = 2 ORDER BY orden;\" 2>&1)"
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --default-character-set=utf8mb4 siga_cociap -e \"SELECT id, nombre, nivel_id, orden FROM areas WHERE nivel_id = 2 ORDER BY orden;\" 2>&1)",
+      "Bash(php -l \"C:/xampp/htdocs/siga-cociap/app/Models/EstudianteModel.php\")",
+      "Bash(php -l \"C:/xampp/htdocs/siga-cociap/app/Controllers/Admin/BuscadorEstudianteController.php\")",
+      "Bash(php -l \"C:/xampp/htdocs/siga-cociap/resources/views/admin/buscar-estudiante/index.php\")"
     ]
   }
 }
