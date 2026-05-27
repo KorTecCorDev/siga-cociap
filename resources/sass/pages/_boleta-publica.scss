@@ -513,6 +513,8 @@
         width: 60px;
         height: 60px;
 
+        @media screen { display: none; }
+
         canvas, img, table {
             display: block;
             max-width: 60px;

@@ -188,6 +188,13 @@ unset($_n, $_c);
                     $_svg = '<path d="M12,2L2,7l10,5,10-5-10-5z"/><path d="M2,17l10,5,10-5"/><path d="M2,12l10,5,10-5"/>';
                 } elseif (str_contains($_n, 'arte')) {
                     $_svg = '<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/>';
+                } elseif (str_contains($_n, 'razonamiento') || (str_contains($_n, 'taller') && str_contains($_n, 'raz'))) {
+                    // Razonamiento matemático — bombilla / foco (idea, resolución)
+                    // Cubre 'Taller de Razonamiento Matemático' y la forma abreviada 'Taller Raz. Matemático'
+                    $_svg = '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/>';
+                } elseif (str_contains($_n, 'cálculo') || str_contains($_n, 'calculo')) {
+                    // Pre-cálculo — gráfica de función con ejes
+                    $_svg = '<path d="M4 4v16h16"/><path d="M5 16c3 0 3-8 7-8s4 5 8 5"/>';
                 } elseif (str_contains($_n, 'taller')) {
                     $_svg = '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>';
                 } elseif (str_contains($_n, 'matem')) {
@@ -419,14 +426,6 @@ unset($_n, $_c);
     </main>
 
 
-    <?php if (!empty($url_boleta)): ?>
-    <!-- ── QR de acceso permanente ──────────────────────────── -->
-    <div class="bd-qr">
-        <div class="bd-qr__code" id="bd-qr-code" data-url="<?= e($url_boleta) ?>"></div>
-        <p class="bd-qr__label">Escanea para ver esta boleta</p>
-    </div>
-    <?php endif; ?>
-
     <!-- ── FOOTER — FIRMAS ──────────────────────────────────── -->
     <footer class="bd-footer">
 
@@ -450,5 +449,16 @@ unset($_n, $_c);
         </div>
 
     </footer>
+
+    <?php if (!empty($url_boleta)): ?>
+    <!-- ── QR de verificación (solo impresión / PDF) ────────── -->
+    <section class="bd-qr" aria-hidden="true">
+        <h2 class="bd-qr__titulo">Código QR</h2>
+        <div class="bd-qr__contenido">
+            <div class="bd-qr__code" id="bd-qr-code" data-url="<?= e($url_boleta) ?>"></div>
+            <p class="bd-qr__label">Escanea el código QR para ver la boleta digital actualizada en línea, si tienes algún inconveniente comunícate con el área de secretaría.</p>
+        </div>
+    </section>
+    <?php endif; ?>
 
 </article>

@@ -5,7 +5,7 @@
  *
  * @var array  $periodo  { id, numero, nombre_display, anio }
  * @var array  $boletas  [{ nombre_completo, grado_nombre, seccion_nombre,
- *                          codigo_acceso, matricula_id }]
+ *                          codigo_acceso, matricula_id, token_acceso }]
  * @var string $titulo
  */
 $urlBase = rtrim(url(''), '/');
@@ -18,14 +18,17 @@ $urlBase = rtrim(url(''), '/');
         &middot; <?= count($boletas) ?> estudiante<?= count($boletas) !== 1 ? 's' : '' ?>
     </p>
     <p class="bpi-encabezado__instruccion">
-        Entrega este comprobante a cada padre/madre. El código permite consultar
-        la boleta sin necesidad de crear una cuenta.
+        Entrega este comprobante a cada padre/madre. Escanea el QR o ingresa el código
+        para consultar la boleta sin necesidad de crear una cuenta.
     </p>
 </div>
 
 <div class="bpi-grid">
 <?php foreach ($boletas as $b):
     $urlConsulta = $urlBase . '/boleta-publica';
+    $urlQr = !empty($b['token_acceso'])
+        ? $urlBase . '/boleta/digital/' . $b['token_acceso']
+        : $urlConsulta . '?codigo=' . urlencode($b['codigo_acceso']);
 ?>
 <div class="bpi-tarjeta">
     <div class="bpi-tarjeta__header">
@@ -47,9 +50,7 @@ $urlBase = rtrim(url(''), '/');
             <p class="bpi-tarjeta__codigo"><?= e($b['codigo_acceso']) ?></p>
             <p class="bpi-tarjeta__url"><?= e($urlConsulta) ?></p>
         </div>
-        <div class="bpi-tarjeta__qr"
-             data-qr-url="<?= e($urlConsulta . '?codigo=' . urlencode($b['codigo_acceso'])) ?>">
-        </div>
+        <div class="bpi-tarjeta__qr" data-qr-url="<?= e($urlQr) ?>"></div>
     </div>
     <div class="bpi-tarjeta__footer">
         Ingresa el código en <strong><?= e($urlConsulta) ?></strong>

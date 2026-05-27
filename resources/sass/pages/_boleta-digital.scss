@@ -900,27 +900,57 @@ $bd-radius-card:     16px;
 // QR — código de acceso permanente
 // ══════════════════════════════════════════════════════════════
 .bd-qr {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    padding: $spacing-xs $spacing-lg $spacing-sm;
+    // Oculto en pantalla — aparece únicamente al imprimir / guardar PDF.
+    display: none;
+
+    // Card con el mismo lenguaje que .bd-asistencia pero más sobrio:
+    // borde gris neutro fino y título en gris en vez del color de marca.
+    @media print {
+        display: block;
+        background: #fff;
+        border: 0.75pt solid #bbb;
+        padding: 4mm 5mm;
+        margin: 3mm 0 0;
+        // Mantiene el bloque completo junto: si no cabe pasa entero a la
+        // siguiente página — nunca se parte ni descuadra al crecer contenido.
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    &__titulo {
+        font-size: 7pt;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        color: #555;
+        margin: 0 0 2mm;
+        padding-bottom: 1mm;
+        border-bottom: 0.4pt solid #ddd;
+    }
+
+    &__contenido {
+        display: flex;
+        align-items: center;
+        gap: 4mm;
+    }
 
     &__code {
-        width: 80px;
-        height: 80px;
+        flex-shrink: 0;
+        width: 20mm;
+        height: 20mm;
 
-        canvas, img { display: block; }
-
-        @media print { width: 18mm; height: 18mm; }
+        canvas, img {
+            display: block;
+            width: 20mm  !important;
+            height: 20mm !important;
+        }
     }
 
     &__label {
-        font-size: 10px;
-        color: $text-muted;
-        margin-top: 4px;
-        text-align: right;
-
-        @media print { font-size: 5pt; }
+        margin: 0;
+        font-size: 6.5pt;
+        color: #555;
+        line-height: 1.3;
     }
 }
 
