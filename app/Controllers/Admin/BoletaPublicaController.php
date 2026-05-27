@@ -83,6 +83,20 @@ class BoletaPublicaController extends BaseController
         ]);
     }
 
+    /** POST /admin/boletas-publicas/generar-tokens — genera tokens permanentes para matrículas sin token */
+    public function generarTokens(): void
+    {
+        $this->validateCsrf();
+        $count = $this->model->generarTokensActivos();
+        $msg   = $count > 0
+            ? "Se generaron {$count} token" . ($count !== 1 ? 's' : '') . " de acceso."
+            : 'Todas las matrículas ya tienen token de acceso.';
+
+        $count > 0
+            ? $this->redirectWithSuccess(url('admin/boletas-publicas'), $msg)
+            : $this->redirectWithError(url('admin/boletas-publicas'), $msg);
+    }
+
     /** POST /admin/boletas-publicas/{periodo_id}/actualizar — resetea fechas de boletas con novedades */
     public function actualizar($periodoId): void
     {
@@ -214,7 +228,9 @@ class BoletaPublicaController extends BaseController
         foreach ($boletas as $b) {
             $data = $this->buildBoletaData((int) $b['matricula_id'], $periodoId, (int) $periodo['anio_id']);
             if ($data) {
-                $data['url_boleta'] = url("boleta/digital/{$b['matricula_id']}/{$periodoId}");
+                $data['url_boleta'] = !empty($b['token_acceso'])
+                    ? url("boleta/digital/{$b['token_acceso']}")
+                    : url("boleta/digital/{$b['matricula_id']}/{$periodoId}");
                 $boletasData[] = $data;
             }
         }

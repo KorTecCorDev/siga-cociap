@@ -20,6 +20,21 @@
 <div class="alert alert--error"><?= e($flash_error) ?></div>
 <?php endif; ?>
 
+<div class="card mb-md">
+    <div class="card__header">
+        <h2 class="card__title">Tokens de acceso permanente</h2>
+        <p class="text-sm text-muted">Un token por alumno — URL fija que no expone IDs y se puede compartir o imprimir en QR</p>
+    </div>
+    <div class="card__body">
+        <form method="POST" action="<?= url('admin/boletas-publicas/generar-tokens') ?>">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn--primary">
+                Generar tokens faltantes
+            </button>
+        </form>
+    </div>
+</div>
+
 <?php if (empty($periodos)): ?>
 <div class="card">
     <div class="card__body">

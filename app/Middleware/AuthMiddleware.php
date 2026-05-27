@@ -22,6 +22,7 @@ class AuthMiddleware
     /** Prefijos de rutas públicas (cualquier URI que empiece con estos) */
     private static array $publicPrefixes = [
         '/boleta/digital/',
+        '/boleta/ver/',
     ];
 
     public static function handle(string $uri, string $method): void

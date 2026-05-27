@@ -55,6 +55,40 @@ class BoletaController extends BaseController
     }
 
     /**
+     * GET /boleta/digital/{token}
+     * Vista digital pública sin login — resuelve token → matricula + periodo.
+     */
+    public function verDigitalToken(string $token): void
+    {
+        ['matricula_id' => $matriculaId, 'periodo_id' => $periodoId] = $this->resolveToken($token);
+
+        $data = $this->buildBoletaData($matriculaId, $periodoId);
+
+        View::setLayout('digital');
+        $this->view('boleta/digital', array_merge($data, [
+            'titulo'     => 'Boleta Digital — ' . $data['alumno']['nombre_completo'],
+            'url_boleta' => url("boleta/digital/{$token}"),
+        ]));
+    }
+
+    /**
+     * GET /boleta/ver/{token}
+     * Vista imprimible pública sin login — resuelve token → matricula + periodo.
+     */
+    public function verToken(string $token): void
+    {
+        ['matricula_id' => $matriculaId, 'periodo_id' => $periodoId] = $this->resolveToken($token);
+
+        $data = $this->buildBoletaData($matriculaId, $periodoId);
+
+        View::setLayout('print');
+        $this->view('boleta/alumno', array_merge($data, [
+            'titulo'     => 'Boleta — ' . $data['alumno']['nombre_completo'],
+            'url_boleta' => url("boleta/digital/{$token}"),
+        ]));
+    }
+
+    /**
      * GET /boleta/digital/{matricula_id}/{periodo_id}
      * Vista digital mobile-first con conclusiones completas y QR.
      */
@@ -280,6 +314,61 @@ class BoletaController extends BaseController
                       . $persona['nombres'],
             'sexo'   => $persona['sexo'],
         ];
+    }
+
+    /**
+     * Resuelve un token a matricula_id + periodo_id.
+     * Elige el período más reciente con competencias bloqueadas;
+     * si no hay ninguno, usa el primer período del año.
+     * Termina con 404 si el token no existe o no hay períodos.
+     */
+    private function resolveToken(string $token): array
+    {
+        $matricula = $this->calModel->queryOne(
+            "SELECT id, anio_id FROM matriculas WHERE token_acceso = ? LIMIT 1",
+            [$token]
+        );
+
+        if (!$matricula) {
+            http_response_code(404);
+            require VIEW_PATH . '/shared/404.php';
+            exit;
+        }
+
+        $matriculaId = (int) $matricula['id'];
+        $anioId      = (int) $matricula['anio_id'];
+
+        $periodo = $this->calModel->queryOne("
+            SELECT p.id
+            FROM periodos p
+            WHERE p.anio_id = ?
+              AND EXISTS (
+                  SELECT 1
+                  FROM calificaciones cal
+                  INNER JOIN bloqueos_competencia bc
+                      ON bc.carga_id       = cal.carga_id
+                     AND bc.competencia_id = cal.competencia_id
+                     AND bc.periodo_id     = cal.periodo_id
+                  WHERE cal.matricula_id = ? AND cal.periodo_id = p.id
+              )
+            ORDER BY p.numero DESC
+            LIMIT 1
+        ", [$anioId, $matriculaId]);
+
+        if (!$periodo) {
+            $periodo = $this->calModel->queryOne(
+                "SELECT id FROM periodos WHERE anio_id = ? ORDER BY numero ASC LIMIT 1",
+                [$anioId]
+            );
+        }
+
+        if (!$periodo) {
+            http_response_code(404);
+            require VIEW_PATH . '/shared/404.php';
+            exit;
+        }
+
+        return ['matricula_id' => $matriculaId, 'periodo_id' => (int) $periodo['id']];
     }
 
     private function getHijoPadre(int $usuarioId): ?array

@@ -117,6 +117,7 @@ $router->post('/boleta-publica/consultar',  'BoletaPublicaController@consultar')
 
 // ─── Admin — Boletas públicas ────────────────────────────────
 $router->get( '/admin/boletas-publicas',                             'Admin\BoletaPublicaController@index');
+$router->post('/admin/boletas-publicas/generar-tokens',              'Admin\BoletaPublicaController@generarTokens');
 $router->get( '/admin/boletas-publicas/{periodo_id}',                'Admin\BoletaPublicaController@porPeriodo');
 $router->post('/admin/boletas-publicas/{periodo_id}/generar',        'Admin\BoletaPublicaController@generar');
 $router->post('/admin/boletas-publicas/{periodo_id}/actualizar',     'Admin\BoletaPublicaController@actualizar');
@@ -125,7 +126,9 @@ $router->get( '/admin/boletas-publicas/{periodo_id}/vista-previa',   'Admin\Bole
 $router->get( '/admin/boletas-publicas/{periodo_id}/boletas-alumno', 'Admin\BoletaPublicaController@boletasAlumno');
 
 // ─── Boleta de calificaciones ────────────────────────────────
-// La ruta literal /boleta/digital/... debe ir antes del patrón con parámetros
+// Token (1 segmento) antes del patrón de 2 segmentos para evitar captura errónea
+$router->get('/boleta/digital/{token}',                     'Boleta\BoletaController@verDigitalToken');
+$router->get('/boleta/ver/{token}',                         'Boleta\BoletaController@verToken');
 $router->get('/boleta/digital/{matricula_id}/{periodo_id}', 'Boleta\BoletaController@verDigital');
 $router->get('/boleta/{matricula_id}/{periodo_id}',         'Boleta\BoletaController@ver');
 

@@ -419,6 +419,14 @@ unset($_n, $_c);
     </main>
 
 
+    <?php if (!empty($url_boleta)): ?>
+    <!-- ── QR de acceso permanente ──────────────────────────── -->
+    <div class="bd-qr">
+        <div class="bd-qr__code" id="bd-qr-code" data-url="<?= e($url_boleta) ?>"></div>
+        <p class="bd-qr__label">Escanea para ver esta boleta</p>
+    </div>
+    <?php endif; ?>
+
     <!-- ── FOOTER — FIRMAS ──────────────────────────────────── -->
     <footer class="bd-footer">
 

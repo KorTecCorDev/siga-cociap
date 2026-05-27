@@ -66,6 +66,20 @@
         });
     }
 
+    // ── QR de acceso permanente ───────────────────────────────
+    var qrContainer = document.getElementById('bd-qr-code');
+    if (qrContainer && typeof QRCode !== 'undefined') {
+        var qrUrl = qrContainer.getAttribute('data-url');
+        if (qrUrl) {
+            new QRCode(qrContainer, {
+                text: qrUrl,
+                width: 80,
+                height: 80,
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+    }
+
     // ── Expandir todo al imprimir (Ctrl+P nativo) ─────────────
     window.addEventListener('beforeprint', function () {
         document.querySelectorAll('[data-area-toggle]').forEach(function (btn) {

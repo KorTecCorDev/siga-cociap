@@ -897,6 +897,34 @@ $bd-radius-card:     16px;
 }
 
 // ══════════════════════════════════════════════════════════════
+// QR — código de acceso permanente
+// ══════════════════════════════════════════════════════════════
+.bd-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding: $spacing-xs $spacing-lg $spacing-sm;
+
+    &__code {
+        width: 80px;
+        height: 80px;
+
+        canvas, img { display: block; }
+
+        @media print { width: 18mm; height: 18mm; }
+    }
+
+    &__label {
+        font-size: 10px;
+        color: $text-muted;
+        margin-top: 4px;
+        text-align: right;
+
+        @media print { font-size: 5pt; }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
 // TOAST — notificación transitoria
 // ══════════════════════════════════════════════════════════════
 // ── Helpers de visibilidad pantalla / impresión ───────────────

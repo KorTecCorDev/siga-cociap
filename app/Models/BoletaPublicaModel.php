@@ -172,6 +172,7 @@ class BoletaPublicaModel extends BaseModel
                 bp.veces_consultada,
                 bp.ultima_consulta,
                 bp.generada_en,
+                m.token_acceso,
                 CONCAT(
                     per.apellido_paterno, ' ',
                     per.apellido_materno, ', ',
@@ -249,6 +250,37 @@ class BoletaPublicaModel extends BaseModel
         ", [$usuarioId, $periodoId]);
 
         return $total;
+    }
+
+    /**
+     * Genera un token hex-32 único para todas las matrículas aprobadas
+     * que aún no tienen token_acceso. Idempotente.
+     * Retorna el número de tokens generados.
+     */
+    public function generarTokensActivos(): int
+    {
+        $matriculas = $this->query(
+            "SELECT id FROM matriculas WHERE estado = 'aprobada' AND token_acceso IS NULL"
+        );
+
+        $count = 0;
+        foreach ($matriculas as $m) {
+            do {
+                $token = bin2hex(random_bytes(16));
+                $existe = $this->queryOne(
+                    "SELECT id FROM matriculas WHERE token_acceso = ? LIMIT 1",
+                    [$token]
+                );
+            } while ($existe);
+
+            $this->execute(
+                "UPDATE matriculas SET token_acceso = ? WHERE id = ?",
+                [$token, $m['id']]
+            );
+            $count++;
+        }
+
+        return $count;
     }
 
     /**
