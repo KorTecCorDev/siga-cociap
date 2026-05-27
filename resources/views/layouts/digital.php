@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow">
     <title><?= e($titulo ?? 'Boleta Digital') ?> — SIGA-COCIAP</title>
     <meta name="base-url" content="<?= rtrim(url(''), '/') ?>">
     <meta name="theme-color" content="#1a3a5c">
