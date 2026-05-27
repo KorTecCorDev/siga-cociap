@@ -18,12 +18,24 @@ class Session
             return;
         }
 
+        // Solo aceptar IDs de sesión generados por el servidor (refuerza la
+        // anti-fijación) y nunca leer el ID desde la URL.
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_only_cookies', '1');
+
+        // Detecta HTTPS (directo o tras el proxy SSL de Hostinger) para marcar la
+        // cookie como Secure solo cuando corresponde. En local HTTP queda false,
+        // así no se rompe el desarrollo en XAMPP/BrowserSync.
+        $isHttps = (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off')
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+            || (($_SERVER['SERVER_PORT'] ?? '') == 443);
+
         // Configuración segura de la cookie de sesión
         session_set_cookie_params([
             'lifetime' => 0,           // expira al cerrar navegador
             'path'     => '/',
             'domain'   => '',
-            'secure'   => false,       // true en producción (HTTPS)
+            'secure'   => $isHttps,    // Secure solo bajo HTTPS (producción)
             'httponly' => true,        // inaccesible desde JS
             'samesite' => 'Lax',
         ]);
