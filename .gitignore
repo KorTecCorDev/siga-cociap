@@ -4,6 +4,9 @@
 # Configuración local (contiene credenciales)
 /config/database.php
 
+# Volcados completos de la base de datos (datos personales de menores, no versionar)
+/database/backup_*.sql
+
 # Storage generado
 /storage/logs/*.log
 /storage/uploads/*
