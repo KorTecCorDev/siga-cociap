@@ -277,6 +277,7 @@ class ExoneracionModel extends BaseModel
                 ($exo['codigo_minedu'] ? $exo['codigo_minedu'] . '. ' : '') .
                 ($exo['nombre_corto'] ?? $exo['competencia_nombre'] ?? '')
             );
+            $nombreLargo = trim($prefijoSubarea . ($exo['competencia_nombre'] ?? ''));
 
             if (!isset($areas[$nombreArea])) {
                 $areas[$nombreArea] = [];
@@ -286,6 +287,7 @@ class ExoneracionModel extends BaseModel
             if (!isset($areas[$nombreArea][$compId])) {
                 $areas[$nombreArea][$compId] = [
                     'nombre'       => $nombreComp,
+                    'nombre_largo' => $nombreLargo,
                     'bimestres'    => $bimestresVacios,
                     'literal_final'=> 'EXO',
                     'es_exonerado' => true,

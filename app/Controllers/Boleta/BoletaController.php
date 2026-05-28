@@ -241,12 +241,13 @@ class BoletaController extends BaseController
                         $prefijoSubarea = $nota['subarea_nombre'] . ' — ';
                     }
                     $areas[$nombreArea][$compId] = [
-                        'nombre'    => trim(
+                        'nombre'      => trim(
                             $prefijoSubarea .
                             ($nota['codigo_minedu'] ? $nota['codigo_minedu'] . '. ' : '') .
                             ($nota['nombre_corto'] ?? $nota['competencia_nombre'] ?? '')
                         ),
-                        'bimestres' => [],
+                        'nombre_largo' => trim($prefijoSubarea . ($nota['competencia_nombre'] ?? '')),
+                        'bimestres'   => [],
                     ];
                 }
 

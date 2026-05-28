@@ -262,7 +262,7 @@ unset($_n, $_c);
 
                         <!-- Encabezado: nombre + logro anual -->
                         <div class="bd-competencia__header">
-                            <h3 class="bd-competencia__nombre"><?= e($comp['nombre']) ?></h3>
+                            <h3 class="bd-competencia__nombre"><?= e($comp['nombre_largo'] ?? $comp['nombre']) ?></h3>
                             <?php if ($esExonerado): ?>
                             <div class="bd-logro bd-logro--exo"
                                  aria-label="Exonerado(a)">
