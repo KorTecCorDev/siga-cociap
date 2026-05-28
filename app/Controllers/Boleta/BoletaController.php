@@ -4,6 +4,7 @@ namespace App\Controllers\Boleta;
 
 use App\Controllers\BaseController;
 use App\Models\AsistenciaModel;
+use App\Models\BoletaPublicaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
 use App\Models\DirectorEbrModel;
@@ -61,6 +62,8 @@ class BoletaController extends BaseController
     public function verDigitalToken(string $token): void
     {
         ['matricula_id' => $matriculaId, 'periodo_id' => $periodoId] = $this->resolveToken($token);
+
+        (new BoletaPublicaModel())->registrarVisitaToken($matriculaId, $periodoId);
 
         $data = $this->buildBoletaData($matriculaId, $periodoId);
 

@@ -284,6 +284,21 @@ class BoletaPublicaModel extends BaseModel
     }
 
     /**
+     * Registra una visita a la boleta digital vía token (QR de la boleta impresa).
+     * Solo actualiza si existe registro en boletas_publicas para ese par.
+     */
+    public function registrarVisitaToken(int $matriculaId, int $periodoId): void
+    {
+        $this->execute(
+            "UPDATE boletas_publicas
+             SET veces_consultada = veces_consultada + 1,
+                 ultima_consulta  = NOW()
+             WHERE matricula_id = ? AND periodo_id = ?",
+            [$matriculaId, $periodoId]
+        );
+    }
+
+    /**
      * Busca por código; si existe incrementa el contador de consultas.
      * Retorna el registro completo (matricula_id + periodo_id para getBoletaAlumno).
      */

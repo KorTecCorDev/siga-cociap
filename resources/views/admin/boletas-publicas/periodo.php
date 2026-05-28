@@ -181,7 +181,7 @@ unset($_sec);
                     <th>#</th>
                     <th>Estudiante</th>
                     <th>Sección</th>
-                    <th>Código de acceso</th>
+                    <th>Boleta digital</th>
                     <th class="text-center">Consultas</th>
                     <th>Última consulta</th>
                     <th>Generada</th>
@@ -201,7 +201,16 @@ unset($_sec);
                         <?= e($b['grado_nombre']) ?> &ldquo;<?= e($b['seccion_nombre']) ?>&rdquo;
                     </td>
                     <td>
-                        <code class="bp-codigo"><?= e($b['codigo_acceso']) ?></code>
+                        <?php if (!empty($b['token_acceso'])): ?>
+                        <a href="<?= url("boleta/digital/{$b['token_acceso']}") ?>"
+                           target="_blank"
+                           class="bp-enlace-digital"
+                           title="Abrir boleta digital">
+                            Ver boleta ↗
+                        </a>
+                        <?php else: ?>
+                        <span class="text-muted">Sin token</span>
+                        <?php endif; ?>
                     </td>
                     <td class="text-center">
                         <?php if ($b['veces_consultada'] > 0): ?>

@@ -6298,6 +6298,16 @@ body.modal-abierto {
   letter-spacing: 0.03em;
 }
 
+.bp-enlace-digital {
+  font-size: 12px;
+  color: #1e6fa8;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.bp-enlace-digital:hover {
+  text-decoration: underline;
+}
+
 .bp-secciones {
   margin-bottom: 24px;
 }

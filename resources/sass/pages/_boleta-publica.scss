@@ -265,6 +265,15 @@
     letter-spacing: 0.03em;
 }
 
+.bp-enlace-digital {
+    font-size: $font-size-sm;
+    color: $brand-mid;
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:hover { text-decoration: underline; }
+}
+
 // ── Impresión por sección (loteo) ───────────────────────────
 // Reduce el render a una sección a la vez para evitar timeouts
 // cuando hay muchas boletas. Grid responsivo de cards con
