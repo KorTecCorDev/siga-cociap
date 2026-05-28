@@ -1187,7 +1187,7 @@ $bd-asis-border: #cbd5e1;
     }
 
     &__num {
-        text-align: center;
+        text-align: center !important;
         font-weight: 700;
         font-size: 15px;
         color: $bd-asis-color;
