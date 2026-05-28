@@ -27,7 +27,7 @@ function redirect(string $url): never
 }
 
 /**
- * Formatea un datetime guardado en UTC a hora de Lima (UTC-5).
+ * Formatea un datetime de la BD (guardado en hora Lima por la conexión).
  * Devuelve '—' si el valor es nulo o vacío.
  */
 function fechaLima(?string $dt, string $formato = 'd/m/Y H:i'): string
@@ -35,9 +35,7 @@ function fechaLima(?string $dt, string $formato = 'd/m/Y H:i'): string
     if ($dt === null || $dt === '') {
         return '—';
     }
-    return (new DateTime($dt, new DateTimeZone('UTC')))
-        ->setTimezone(new DateTimeZone('America/Lima'))
-        ->format($formato);
+    return (new DateTime($dt))->format($formato);
 }
 
 /** Escapa HTML para prevenir XSS */
