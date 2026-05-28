@@ -254,12 +254,10 @@ unset($_b, $_sid);
                             <?php endif; ?>
                         </td>
                         <td class="text-sm text-muted">
-                            <?= $b['ultima_consulta']
-                                ? date('d/m/Y H:i', strtotime($b['ultima_consulta']))
-                                : '—' ?>
+                            <?= fechaLima($b['ultima_consulta']) ?>
                         </td>
                         <td class="text-sm text-muted">
-                            <?= date('d/m/Y H:i', strtotime($b['generada_en'])) ?>
+                            <?= fechaLima($b['generada_en']) ?>
                         </td>
                         <td class="text-center">
                             <?php if ($novedades > 0): ?>
