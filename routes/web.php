@@ -33,6 +33,10 @@ $router->post('/admin/curriculum/competencias/{id}/editar',        'Admin\Curric
 $router->get( '/admin/secciones',             'Admin\SeccionController@index');
 $router->post('/admin/secciones/{id}/tutor',  'Admin\SeccionController@asignarTutor');
 
+// ─── Admin — Buscador de estudiantes ────────────────────────
+$router->get( '/admin/buscar-estudiante',     'Admin\BuscadorEstudianteController@index');
+$router->get( '/admin/buscar-estudiante/api', 'Admin\BuscadorEstudianteController@buscar');
+
 // ─── Admin — Conducta ───────────────────────────────────────
 $router->get( '/admin/conducta',              'Admin\ConductaController@index');
 $router->get( '/admin/conducta/{id}',         'Admin\ConductaController@seccion');
@@ -114,6 +118,9 @@ $router->get('/padre/alertas', 'Padre\PanelController@alertas');
 // Registrar ANTES de /boleta/{id} para que el router no capture "publica" como parámetro
 $router->get( '/boleta-publica',            'BoletaPublicaController@formulario');
 $router->post('/boleta-publica/consultar',  'BoletaPublicaController@consultar');
+
+// ─── Firmas/sello del Director EBR (servido público desde almacenamiento externo) ───
+$router->get('/firmas/{archivo}', 'FirmaController@servir');
 
 // ─── Admin — Boletas públicas ────────────────────────────────
 $router->get( '/admin/boletas-publicas',                             'Admin\BoletaPublicaController@index');

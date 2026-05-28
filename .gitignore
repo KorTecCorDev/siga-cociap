@@ -1,8 +1,11 @@
 # Dependencias
 /vendor/
 
-# Configuración local (contiene credenciales)
-/config/database.php
+# Credenciales de produccion: viven fuera del repo (~/siga_secrets/database.php).
+# config/database.php ahora es solo un cargador sin secretos, por eso SI se versiona.
+
+# Volcados completos de la base de datos (datos personales de menores, no versionar)
+/database/backup_*.sql
 
 # Storage generado
 /storage/logs/*.log
@@ -28,6 +31,9 @@ nul
 # Scripts temporales de uso único (no commitear)
 hash.php
 import_matriculas.php
+
+# Logs de chat / notas (no versionar ni desplegar)
+/CHAT_CLAUDE_CODE_*.txt
 
 # Mantener carpetas vacías con .gitkeep
 !storage/logs/.gitkeep

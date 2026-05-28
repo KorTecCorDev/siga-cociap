@@ -230,7 +230,7 @@ por seeds aplicados con FOREIGN_KEY_CHECKS=0. No afecta datos reales
 - **Mobile-first, responsive** — 3 breakpoints: < 640px, 640-959px, ≥ 960px
 - **Conclusiones descriptivas completas** — sin `line-clamp`, texto íntegro visible
 - **Cards expandibles** por área curricular — colapsadas por defecto en móvil
-- **QR de verificación** — imagen generada via `chart.googleapis.com`; se oculta sin internet
+- **QR de verificación** — generado en cliente con `qrcode.min.js` (librería local, sin terceros)
 - **Botón PDF** — abre diálogo de impresión del navegador con instrucción "Guardar como PDF"
 - **Print A4 portrait** — `@media print` expande todos los acordeones automáticamente
 - **BEM prefix `.bd-`** en todos los elementos del componente
@@ -588,7 +588,82 @@ Todos los bloques de firma (con y sin imagen) tienen un contenedor de **altura f
 Docentes subieron notas del I Bimestre el 16-17 de mayo 2026.
 Presentación pendiente al comité directivo — seed de demo listo en `database/seeds/003_demo_boletas.sql`.
 
+## Seguridad y estado REAL de producción (sesión 8 — endurecimiento)
+
+> Esta sección refleja cómo quedó realmente el despliegue y **SUPERSEDE** lo que
+> diga distinto la sección "Producción — Hostinger" de más abajo (esa describía el
+> plan original con subdominio y docroot a `public/`; el real usa el dominio).
+
+### Despliegue real (Hostinger)
+- **Dominio:** `sigacociap.net` (se descartó el subdominio).
+- **Ruta en servidor:** `~/domains/sigacociap.net/public_html` (es el repo; clon shallow → "grafted").
+- **Document root:** `public_html` (NO `public/`). El `.htaccess` raíz reescribe todo a `public/`.
+- **SSH:** `ssh -p 65002 u761410128@89.116.115.116`.
+- **BD:** `u761410128_siga_cociap` / usuario `u761410128_ktcdev` (contraseña rotada).
+
+### El auto-deploy BORRA todo lo no versionado (CRÍTICO)
+El Git auto-deploy de Hostinger hace un **checkout limpio** en cada push: elimina
+archivos en `.gitignore` y carpetas no rastreadas. Por eso **todo secreto o archivo
+subido debe vivir FUERA del repo** (`~/...`), nunca bajo `public_html/`.
+
+### Credenciales de BD — fuera del repo
+- Viven en `~/siga_secrets/database.php` (array de conexión, `chmod 600`).
+- `config/database.php` es un **cargador versionado SIN secretos**: si existe el archivo
+  externo lo usa, si no cae al fallback de XAMPP local. Ya NO se gitignora.
+
+### Firmas/sello del Director EBR — fuera del repo
+- Se guardan en `~/siga_uploads/firmas/` (config `firmas_path`, env-aware por `is_dir`).
+  El directorio externo debe existir ANTES de subir (si no, cae al fallback local).
+- Se sirven por la ruta pública `GET /firmas/{archivo}` (`FirmaController`, valida el
+  nombre contra path traversal). La subida guarda en BD `firmas/{archivo}`.
+- Ya NO se usa `public/assets/img/firmas/`.
+
+### config/app.php — valores env-aware (no fijos)
+- `debug`: `true` solo en hosts locales/privados (localhost, 127.*, 192.168.*, 10.*);
+  `false` en producción y ante un `Host` inyectado (default seguro OFF).
+- `app_url`: `https://sigacociap.net` si el host es `sigacociap.net`; `''` en local.
+- `firmas_path`: `~/siga_uploads/firmas` en prod; `storage/firmas` en local.
+- El manejo de errores se cablea en `public/index.php` según `debug`:
+  producción → `display_errors=0` + `log_errors=1`; local → `display_errors=1`.
+
+### .htaccess raíz — endurecido
+- **Fuerza HTTPS** (301, loop-safe con `X-Forwarded-Proto` / puerto 443).
+- **Cabeceras** (en `<IfModule mod_headers.c>`, que LiteSpeed sí procesa): HSTS,
+  `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`.
+- **Niega** acceso directo a `.git`, carpetas internas (app/core/config/database/
+  resources/storage) y extensiones sensibles (sql/md/log/lock/sh/yml/dist).
+
+### Sesión endurecida (`core/Session.php`)
+Cookie `Secure` (solo bajo HTTPS, detectado), `HttpOnly`, `SameSite=Lax`;
+`session.use_strict_mode` + `use_only_cookies`. El login regenera el ID (anti-fijación).
+
+### Vistas públicas
+- **Rate limiting** en `POST /boleta-publica/consultar`: `Core\Throttle` (contadores
+  en `storage/throttle/`), máx 15 intentos por IP cada 5 min → responde 429.
+- **noindex** en layouts `digital` y `print` + `public/robots.txt` (`Disallow: /`).
+
+### QR — TODO local
+Todo el QR usa la librería local `qrcode.min.js` (boleta digital, footer A4, hoja de
+códigos). **NO se usa `chart.googleapis.com` en ningún lado**; no se filtran códigos a
+terceros. (Las menciones a Google Charts en este documento quedaron obsoletas.)
+
+### PENDIENTES de seguridad (próximas sesiones)
+- [ ] **Fase 3:** auditar interpolaciones SQL (`ORDER BY`/`LIMIT`/`LIKE`), validar
+  longitud/charset de entradas públicas, reforzar subida de imágenes.
+- [ ] **Fase 4:** mover `error_log` fuera del docroot, revisar permisos de archivos,
+  auditoría de accesos (aprovechar `veces_consultada`/`ultima_consulta` de `boletas_publicas`).
+- [ ] **CSP:** pasada dedicada — auditar estilos inline (`style="--pct:..."`) y el QR
+  antes de aplicar `Content-Security-Policy`.
+- [ ] **Limpieza menor:** quitar del `.gitignore` las reglas obsoletas de
+  `public/assets/img/firmas/`; `AuthMiddleware` está SIN USAR (la auth es por controlador)
+  → decidir si se conecta o se elimina.
+- [ ] **Re-subir firma/sello** si se recrea el entorno (se pierden solo si se borra el
+  directorio externo; el deploy ya no los toca).
+
 ## Producción — Hostinger
+
+> NOTA: la sección de arriba ("Seguridad y estado REAL de producción") es la fuente
+> autoritativa. Lo de abajo es el plan original previo al despliegue real.
 
 ### Proveedor y requisitos mínimos
 Hostinger (plan Premium o Business). Requiere PHP 8.2+ — confirmar y fijar la versión
@@ -632,10 +707,9 @@ lo que arruina la experiencia de escaneo de QR para los padres.
 El único QR que un padre puede escanear desde su celular sin cuenta es el de la
 **hoja de códigos**. El QR del footer de la boleta A4 es para usuarios autenticados.
 
-El QR se genera con `qrcode.min.js` (librería local, sin dependencia de terceros).
-La boleta digital en pantalla usa `chart.googleapis.com` para su QR de verificación —
-si el servidor no tiene salida a internet ese QR no renderiza, pero no afecta nada
-crítico del sistema.
+Todo el QR (boleta digital, footer A4 y hoja de códigos) se genera con `qrcode.min.js`
+(librería local, sin dependencia de terceros). No requiere salida a internet ni filtra
+datos a servicios externos.
 
 ### Cambios en `config/app.php` para producción
 ```php
@@ -683,7 +757,9 @@ crítico del sistema.
   un plan VPS hay que habilitarlo manualmente (`a2enmod rewrite`).
 
 ## Notas importantes
-- `config/database.php` NO está en Git — crear manualmente en cada equipo
+- `config/database.php` SÍ está en Git pero es un cargador SIN secretos: en prod lee
+  las credenciales de `~/siga_secrets/database.php` (fuera del repo); en local usa el
+  fallback de XAMPP. Ver "Seguridad y estado REAL de producción".
 - Logo del colegio: `public/assets/img/logo_cociap.png` (con guión bajo)
 - URL base dinámica via meta tag: `<meta name="base-url" content="...">`
 - BrowserSync corre en puerto 3000, proxy a `:3000/`
@@ -692,9 +768,10 @@ crítico del sistema.
   tras usarlo, NO commitear ni dejar en el servidor
 - **`exif_imagetype()` NO disponible en XAMPP local** — usar `\getimagesize($path)[2]`
   para validar tipo de imagen en controllers con namespace.
-- **Firma/sello PNG del Director EBR** — almacenados en `public/assets/img/firmas/`
-  con nombres `firma_{historial_id}_{timestamp}.png`. Excluidos de Git (`.gitignore`).
-  Subir desde `/admin/director-ebr` — se validan por contenido real (no solo extensión).
+- **Firma/sello PNG del Director EBR** — almacenados FUERA del repo en `~/siga_uploads/firmas/`
+  (prod) o `storage/firmas/` (local), con nombres `firma_{historial_id}_{timestamp}.png`.
+  Se sirven por `GET /firmas/{archivo}` (`FirmaController`). Subir desde `/admin/director-ebr`
+  — se validan por contenido real (no solo extensión). Ya NO se usa `public/assets/img/firmas/`.
 
 ## Listado de áreas o áreas-curso con sus respectivas subáreas o competencias.
 ### Áreas Curriculares y Competencias - Modelo SIAGIE - NIVEL SECUNDARIA
