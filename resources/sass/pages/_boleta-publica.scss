@@ -204,12 +204,14 @@
 
 .bp-stats-bar {
     display: flex;
+    flex-wrap: wrap;
     gap: $spacing-md;
     margin-bottom: $spacing-lg;
 }
 
 .bp-stat {
-    flex: 1;
+    // basis 140px → 4 por fila en escritorio, 2x2 en móvil sin apretarse
+    flex: 1 1 140px;
     background: $bg-white;
     border: 1px solid $border-color;
     border-radius: $border-radius-sm;
@@ -288,12 +290,12 @@
     }
 
     &__chevron {
-        width: 18px;
-        height: 18px;
+        width: 8px;
+        height: 8px;
         flex-shrink: 0;
         border-right: 2px solid $text-muted;
         border-bottom: 2px solid $text-muted;
-        transform: rotate(-45deg); // apunta a la derecha → cerrado
+        transform: rotate(-45deg);
         transition: transform 0.2s ease;
         margin-right: 2px;
     }

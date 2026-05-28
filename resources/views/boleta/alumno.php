@@ -148,9 +148,9 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
         <!-- Fila 2: sub-columnas -->
         <tr>
             <?php foreach ($periodos as $p): ?>
-                <?php if ($esSecundaria): ?><th class="th-mini">Nota</th><?php endif; ?>
-                <th class="th-mini">Lit.</th>
-                <th class="th-concl">Conclusión descriptiva</th>
+                <?php if ($esSecundaria): ?><th class="th-mini">N.Num.</th><?php endif; ?>
+                <th class="th-mini">N.Lit.</th>
+                <th class="th-concl">Conclusión<br>D.</th>
             <?php endforeach; ?>
         </tr>
     </thead>

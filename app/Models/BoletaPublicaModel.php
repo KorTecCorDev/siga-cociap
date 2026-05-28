@@ -178,8 +178,10 @@ class BoletaPublicaModel extends BaseModel
                     per.apellido_materno, ', ',
                     per.nombres
                 )                AS nombre_completo,
+                s.id             AS seccion_id,
                 g.nombre_display AS grado_nombre,
                 s.nombre         AS seccion_nombre,
+                n.nombre         AS nivel_nombre,
                 (
                     SELECT COUNT(*)
                     FROM calificaciones cal
@@ -197,9 +199,10 @@ class BoletaPublicaModel extends BaseModel
             INNER JOIN personas per  ON per.id = e.persona_id
             INNER JOIN secciones s   ON s.id   = m.seccion_id
             INNER JOIN grados g      ON g.id   = s.grado_id
+            INNER JOIN niveles n     ON n.id   = g.nivel_id
             WHERE bp.periodo_id = ?
               {$whereSeccion}
-            ORDER BY g.id, s.nombre, per.apellido_paterno, per.apellido_materno, per.nombres
+            ORDER BY n.id, g.numero, s.nombre, per.apellido_paterno, per.apellido_materno, per.nombres
         ", $params);
     }
 

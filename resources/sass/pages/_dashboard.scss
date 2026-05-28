@@ -15,6 +15,24 @@
     }
 }
 
+// ── Grupos por categoría del dashboard ──────────────────────
+.dash-grupo {
+    margin-bottom: $spacing-xl;
+
+    &:last-child { margin-bottom: 0; }
+
+    &__titulo {
+        font-size: $font-size-sm;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: $text-muted;
+        margin: 0 0 $spacing-md;
+        padding-bottom: $spacing-xs;
+        border-bottom: 1px solid $border-color;
+    }
+}
+
 .cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -37,6 +55,12 @@
         text-decoration: none;
         color: inherit;
         display: block;
+
+        &:focus-visible {
+            outline: 2px solid $brand-mid;
+            outline-offset: 2px;
+            border-radius: $border-radius;
+        }
     }
 
     .card__icon {

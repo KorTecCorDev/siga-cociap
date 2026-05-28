@@ -2,8 +2,9 @@
 /**
  * @var array  $periodo           { id, numero, nombre_display, anio }
  * @var array  $boletas           [{ id, matricula_id, codigo_acceso, nombre_completo,
- *                                   grado_nombre, seccion_nombre, veces_consultada,
- *                                   ultima_consulta, generada_en, novedades_count }]
+ *                                   seccion_id, grado_nombre, seccion_nombre, nivel_nombre,
+ *                                   token_acceso, veces_consultada, ultima_consulta,
+ *                                   generada_en, novedades_count }]
  * @var array  $secciones         [{ seccion_id, seccion_nombre, grado_nombre,
  *                                   nivel_id, nivel_nombre, total_aprobables,
  *                                   total_generadas }]
@@ -23,13 +24,21 @@ foreach ($secciones ?? [] as $_sec) {
 }
 unset($_sec);
 
-// Agrupar boletas por sección para los acordeones de la tabla
+// Agrupar boletas por sección (clave = seccion_id, única) para los acordeones.
+// Un mismo grado/sección existe en primaria y secundaria (ej. 1° A en ambos),
+// por eso agrupamos por seccion_id y mostramos el nivel en la etiqueta.
 $boletasPorSeccion = [];
 foreach ($boletas as $_b) {
-    $_key = $_b['grado_nombre'] . ' "' . $_b['seccion_nombre'] . '"';
-    $boletasPorSeccion[$_key][] = $_b;
+    $_sid = (int) $_b['seccion_id'];
+    if (!isset($boletasPorSeccion[$_sid])) {
+        $boletasPorSeccion[$_sid] = [
+            'label'        => $_b['nivel_nombre'] . ' · ' . $_b['grado_nombre'] . ' "' . $_b['seccion_nombre'] . '"',
+            'estudiantes'  => [],
+        ];
+    }
+    $boletasPorSeccion[$_sid]['estudiantes'][] = $_b;
 }
-unset($_b, $_key);
+unset($_b, $_sid);
 ?>
 
 <div class="page-header">
@@ -181,7 +190,8 @@ unset($_b, $_key);
 </div>
 <?php else: ?>
 
-<?php foreach ($boletasPorSeccion as $seccionLabel => $estudiantesSeccion):
+<?php foreach ($boletasPorSeccion as $grupo):
+    $estudiantesSeccion = $grupo['estudiantes'];
     $totalSec      = count($estudiantesSeccion);
     $consultasSec  = count(array_filter($estudiantesSeccion, fn($b) => (int) $b['veces_consultada'] > 0));
     $novedadesSec  = count(array_filter($estudiantesSeccion, fn($b) => (int) $b['novedades_count'] > 0));
@@ -189,7 +199,7 @@ unset($_b, $_key);
 <details class="bp-acordeon">
     <summary class="bp-acordeon__header">
         <span class="bp-acordeon__chevron" aria-hidden="true"></span>
-        <span class="bp-acordeon__titulo"><?= e($seccionLabel) ?></span>
+        <span class="bp-acordeon__titulo"><?= e($grupo['label']) ?></span>
         <div class="bp-acordeon__meta">
             <span class="bp-acordeon__chip"><?= $totalSec ?> estudiantes</span>
             <?php if ($consultasSec > 0): ?>

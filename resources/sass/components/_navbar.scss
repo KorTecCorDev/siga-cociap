@@ -60,12 +60,29 @@
         border: 1px solid rgba(255,255,255,.2);
         border-radius: $border-radius;
         transition: $transition;
+        white-space: nowrap;
 
         &:hover {
             background: rgba(255,255,255,.1);
             color: $text-white;
             text-decoration: none;
         }
+    }
+
+    // ── Móvil: reduce padding y oculta el badge de rol. El nombre corto
+    // (primer nombre + primer apellido) se conserva ──────────────────
+    @media (max-width: 640px) {
+        padding: 0 $spacing-md;
+
+        &__nombre { font-size: 14px; }
+        &__user   { gap: $spacing-sm; }
+        &__rol    { display: none; }
+    }
+
+    // Pantallas muy angostas: oculta el nombre como último recurso para
+    // que la marca y el botón de salir no se desborden
+    @media (max-width: 400px) {
+        &__nombre-usuario { display: none; }
     }
 }
 
