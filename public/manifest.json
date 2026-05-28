@@ -1,0 +1,23 @@
+{
+    "name": "SIGA-COCIAP",
+    "short_name": "SIGA",
+    "description": "Sistema Integrado de Gestión Académica — Colegio de Aplicación Víctor Valenzuela Guardia",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#1a3a5c",
+    "lang": "es",
+    "icons": [
+        {
+            "src": "favicon.ico",
+            "sizes": "16x16 32x32 48x48",
+            "type": "image/x-icon"
+        },
+        {
+            "src": "assets/img/logo_cociap.png",
+            "sizes": "any",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ]
+}

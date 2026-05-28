@@ -6,6 +6,10 @@
     <title><?= e($titulo ?? 'SIGA-COCIAP') ?> — SIGA-COCIAP</title>
     <meta name="base-url"   content="<?= rtrim(url(''), '/') ?>">
     <meta name="csrf-token" content="<?= \Core\Session::csrfToken() ?>">
+    <meta name="theme-color" content="#1a3a5c">
+    <link rel="icon" type="image/x-icon" href="<?= url('favicon.ico') ?>">
+    <link rel="apple-touch-icon" href="<?= url('assets/img/logo_cociap.png') ?>">
+    <link rel="manifest" href="<?= url('manifest.json') ?>">
     <link rel="stylesheet" href="<?= url('css/app.css') ?>">
 </head>
 <body class="app-body">
