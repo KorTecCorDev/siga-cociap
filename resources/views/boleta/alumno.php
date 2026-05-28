@@ -293,7 +293,7 @@ $mostrarQr         = !$vistaPrevia && !empty($url_boleta);
         <div class="boleta-qr" data-qr-url="<?= e($url_boleta) ?>"></div>
         <div class="boleta-qr-info">
             <p class="boleta-qr-info__titulo">Boleta de notas digital</p>
-            <p class="boleta-qr-info__sub">Escanee el código QR para ver la versión digital</p>
+            <p class="boleta-qr-info__sub">Para visualizar el informe de progeso completo del estudiante, escanee el código QR adjunto.</p>
             <code class="boleta-qr-info__url"><?= e($url_boleta) ?></code>
         </div>
     </div>
