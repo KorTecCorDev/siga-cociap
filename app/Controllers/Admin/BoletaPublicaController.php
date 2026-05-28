@@ -243,6 +243,54 @@ class BoletaPublicaController extends BaseController
         ]);
     }
 
+    /**
+     * GET /admin/boletas-publicas/{periodo_id}/archivar[?seccion_id=N]
+     * Genera PDFs individuales en el navegador (html2pdf.js + JSZip)
+     * agrupados en carpetas por sección dentro de un ZIP descargable.
+     */
+    public function archivar($periodoId): void
+    {
+        $periodoId = (int) $periodoId;
+        $periodo   = $this->getPeriodo($periodoId);
+
+        if (!$periodo) {
+            $this->redirectWithError(url('admin/boletas-publicas'), 'Período no encontrado.');
+        }
+
+        $seccionId   = (int) $this->query('seccion_id', 0) ?: null;
+        $boletas     = $this->model->getPorPeriodo($periodoId, $seccionId);
+        $boletasData = [];
+
+        foreach ($boletas as $b) {
+            $data = $this->buildBoletaData((int) $b['matricula_id'], $periodoId, (int) $periodo['anio_id']);
+            if (!$data) continue;
+
+            $a = $data['alumno'];
+
+            $partes = [
+                mb_strtoupper($a['apellido_paterno']),
+                mb_strtoupper($a['apellido_materno']),
+                mb_strtoupper($a['nombres']),
+                $a['dni'],
+            ];
+            $data['nombre_archivo'] = str_replace(' ', '_', implode('_', $partes));
+            $data['carpeta']        = trim($a['grado_nombre'] . ' ' . $a['seccion_nombre']);
+
+            $data['url_boleta'] = !empty($b['token_acceso'])
+                ? url("boleta/digital/{$b['token_acceso']}")
+                : url("boleta/digital/{$b['matricula_id']}/{$periodoId}");
+
+            $boletasData[] = $data;
+        }
+
+        View::setLayout('print');
+        $this->view('admin/boletas-publicas/archivar', [
+            'titulo'      => 'Archivar boletas — ' . $periodo['nombre_display'],
+            'periodo'     => $periodo,
+            'boletasData' => $boletasData,
+        ]);
+    }
+
     // ── Helpers privados ────────────────────────────────────────
 
     private function getPeriodo(int $periodoId): ?array

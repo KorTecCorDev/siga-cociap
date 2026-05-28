@@ -1316,3 +1316,102 @@ $cond-teal: #2a7a6e;
     background: repeating-conic-gradient(#e5e7eb 0% 25%, #fff 0% 50%) 0 0 / 8px 8px;
     vertical-align: middle;
 }
+
+// ── Archivado de boletas en PDF ───────────────────────────────────
+.archivo-progreso {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #fff;
+    border-bottom: 2px solid $border-color;
+    padding: 12px 20px;
+    margin-bottom: 20px;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    &__icono {
+        font-size: 1.4rem;
+        line-height: 1;
+    }
+
+    &__textos {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    &__detalle {
+        font-size: 0.78rem;
+        color: $text-muted;
+        font-family: monospace;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 60vw;
+    }
+
+    &__contador {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: $text-muted;
+        white-space: nowrap;
+    }
+
+    &__barra-wrap {
+        height: 6px;
+        background: $border-color;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 6px;
+    }
+
+    &__barra {
+        height: 100%;
+        width: 0;
+        background: #2563eb;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
+
+    &__meta {
+        font-size: 0.78rem;
+        color: $text-muted;
+    }
+
+    &--done {
+        border-bottom-color: #16a34a;
+
+        .archivo-progreso__barra {
+            background: #16a34a;
+        }
+    }
+
+    &--error {
+        border-bottom-color: #dc2626;
+
+        .archivo-progreso__barra {
+            background: #dc2626;
+        }
+    }
+}
+
+// Contenedor de boletas fuera del viewport durante el procesamiento JS
+// (position absolute + left negativo para no afectar el scroll pero mantener layout)
+.archivo-items-wrap {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    width: 297mm; // ancho A4 landscape para que html2canvas calcule bien las tablas
+    overflow: hidden;
+}
+
+@media print {
+    .archivo-progreso { display: none; }
+    .archivo-items-wrap { position: static; left: 0; width: auto; overflow: visible; }
+}

@@ -168,6 +168,12 @@ unset($_sec);
                            title="Imprimir códigos de esta sección">
                             🔑 Códigos
                         </a>
+                        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/archivar?seccion_id={$sid}") ?>"
+                           class="btn btn--secondary btn--sm"
+                           target="_blank"
+                           title="Descargar boletas como archivos PDF en un ZIP">
+                            📦 Archivar PDF
+                        </a>
                         <?php endif; ?>
                     </div>
                 </article>

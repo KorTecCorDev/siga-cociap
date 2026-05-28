@@ -124,6 +124,7 @@ $router->post('/admin/boletas-publicas/{periodo_id}/actualizar',     'Admin\Bole
 $router->get( '/admin/boletas-publicas/{periodo_id}/imprimir',       'Admin\BoletaPublicaController@imprimir');
 $router->get( '/admin/boletas-publicas/{periodo_id}/vista-previa',   'Admin\BoletaPublicaController@vistaPrevia');
 $router->get( '/admin/boletas-publicas/{periodo_id}/boletas-alumno', 'Admin\BoletaPublicaController@boletasAlumno');
+$router->get( '/admin/boletas-publicas/{periodo_id}/archivar',       'Admin\BoletaPublicaController@archivar');
 
 // ─── Boleta de calificaciones ────────────────────────────────
 // Token (1 segmento) antes del patrón de 2 segmentos para evitar captura errónea
