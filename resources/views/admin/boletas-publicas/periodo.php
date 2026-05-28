@@ -31,21 +31,12 @@ unset($_sec);
         <p class="page-subtitle"><?= e($periodo['anio']) ?></p>
     </div>
     <div class="btn-group">
-        <?php if ($totalAprobadas > 0): ?>
-        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/vista-previa") ?>"
-           class="btn btn--secondary btn--sm"
-           target="_blank"
-           title="Procesa el periodo completo — puede tardar con muchas boletas">
-            👁 Vista previa de todas
-        </a>
-        <?php endif; ?>
-
         <?php if ($totalGeneradas > 0): ?>
-        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/boletas-alumno") ?>"
+        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/archivar") ?>"
            class="btn btn--secondary btn--sm"
            target="_blank"
-           title="Procesa el periodo completo — puede tardar con muchas boletas">
-            🖨 Imprimir todas
+           title="Descarga todas las boletas del período como archivos PDF en un ZIP (NIVEL/SECCION/APELLIDOS_NOMBRES.pdf)">
+            📦 Archivar todas (PDF)
         </a>
         <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/imprimir") ?>"
            class="btn btn--secondary btn--sm"

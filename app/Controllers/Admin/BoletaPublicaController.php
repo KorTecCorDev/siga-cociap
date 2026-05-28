@@ -267,14 +267,19 @@ class BoletaPublicaController extends BaseController
 
             $a = $data['alumno'];
 
+            // Nombre de archivo: APELLIDOS_NOMBRES (sin DNI, mayúsculas con _)
             $partes = [
                 mb_strtoupper($a['apellido_paterno']),
                 mb_strtoupper($a['apellido_materno']),
                 mb_strtoupper($a['nombres']),
-                $a['dni'],
             ];
             $data['nombre_archivo'] = str_replace(' ', '_', implode('_', $partes));
-            $data['carpeta']        = trim($a['grado_nombre'] . ' ' . $a['seccion_nombre']);
+
+            // Carpeta jerárquica: NIVEL/GRADO_SECCION (JSZip crea subcarpetas con /)
+            $nivel   = mb_strtoupper(str_replace(' ', '_', trim($a['nivel_nombre'])));
+            $grado   = mb_strtoupper(preg_replace('/[°\s.]+/', '', trim($a['grado_nombre'])));
+            $seccion = mb_strtoupper(trim($a['seccion_nombre']));
+            $data['carpeta'] = "{$nivel}/{$grado}_{$seccion}";
 
             $data['url_boleta'] = !empty($b['token_acceso'])
                 ? url("boleta/digital/{$b['token_acceso']}")
@@ -285,9 +290,10 @@ class BoletaPublicaController extends BaseController
 
         View::setLayout('print');
         $this->view('admin/boletas-publicas/archivar', [
-            'titulo'      => 'Archivar boletas — ' . $periodo['nombre_display'],
-            'periodo'     => $periodo,
-            'boletasData' => $boletasData,
+            'titulo'         => 'Archivar boletas — ' . $periodo['nombre_display'],
+            'periodo'        => $periodo,
+            'boletasData'    => $boletasData,
+            'seccionFiltro'  => $seccionId,
         ]);
     }
 

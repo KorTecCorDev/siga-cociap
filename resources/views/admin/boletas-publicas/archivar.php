@@ -18,7 +18,22 @@ if (empty($boletasData)): ?>
 // Agrupar por carpeta (sección) solo para info del encabezado
 $carpetas = array_unique(array_column($boletasData, 'carpeta'));
 sort($carpetas);
-$nombreZip = 'boletas-' . str_replace([' ', '/'], '-', $periodo['nombre_display']) . '-' . $periodo['anio'] . '.zip';
+
+// Nombre del ZIP según si hay filtro de sección o es descarga de todo el período
+$_bim = mb_strtoupper(str_replace(' ', '_', trim($periodo['nombre_display'])));
+if ($seccionFiltro) {
+    // Por sección: NIVEL_GRADO_SECCION_BIMESTRE.zip
+    $_a       = $boletasData[0]['alumno'];
+    $_nivel   = mb_strtoupper(str_replace(' ', '_', trim($_a['nivel_nombre'])));
+    $_grado   = mb_strtoupper(preg_replace('/[°\s.]+/', '', trim($_a['grado_nombre'])));
+    $_seccion = mb_strtoupper(trim($_a['seccion_nombre']));
+    $nombreZip = "{$_nivel}_{$_grado}_{$_seccion}_{$_bim}.zip";
+    unset($_a, $_nivel, $_grado, $_seccion);
+} else {
+    // Todo el período: BIMESTRE_ANIO.zip
+    $nombreZip = "{$_bim}_{$periodo['anio']}.zip";
+}
+unset($_bim);
 ?>
 
 <!-- ── Panel de progreso ─────────────────────────────────── -->
