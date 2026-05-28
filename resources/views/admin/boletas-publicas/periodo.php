@@ -32,12 +32,6 @@ unset($_sec);
     </div>
     <div class="btn-group">
         <?php if ($totalGeneradas > 0): ?>
-        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/archivar") ?>"
-           class="btn btn--secondary btn--sm"
-           target="_blank"
-           title="Descarga todas las boletas del período como archivos PDF en un ZIP (NIVEL/SECCION/APELLIDOS_NOMBRES.pdf)">
-            📦 Archivar todas (PDF)
-        </a>
         <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/imprimir") ?>"
            class="btn btn--secondary btn--sm"
            target="_blank"
@@ -158,12 +152,6 @@ unset($_sec);
                            target="_blank"
                            title="Imprimir códigos de esta sección">
                             🔑 Códigos
-                        </a>
-                        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/archivar?seccion_id={$sid}") ?>"
-                           class="btn btn--secondary btn--sm"
-                           target="_blank"
-                           title="Descargar boletas como archivos PDF en un ZIP">
-                            📦 Archivar PDF
                         </a>
                         <?php endif; ?>
                     </div>
