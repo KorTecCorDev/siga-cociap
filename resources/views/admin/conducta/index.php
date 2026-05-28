@@ -8,6 +8,7 @@
 ?>
 
 <div class="page-header">
+    <a href="<?= url('/') ?>" class="btn btn--secondary btn--sm">← Dashboard</a>
     <div>
         <h1 class="page-title">Calificaciones de Conducta</h1>
         <p class="page-subtitle">
