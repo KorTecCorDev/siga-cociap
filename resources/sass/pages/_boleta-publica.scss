@@ -265,6 +265,79 @@
     letter-spacing: 0.03em;
 }
 
+// ── Acordeones de sección ────────────────────────────────────
+.bp-acordeon {
+    border: 1px solid $border-color;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    overflow: hidden;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        cursor: pointer;
+        background: $bg-secondary;
+        user-select: none;
+        list-style: none; // quita el marcador nativo en Firefox
+
+        &::-webkit-details-marker { display: none; } // quita el triángulo en Chrome/Safari
+
+        &:hover { background: darken($bg-secondary, 3%); }
+    }
+
+    &__chevron {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        border-right: 2px solid $text-muted;
+        border-bottom: 2px solid $text-muted;
+        transform: rotate(-45deg); // apunta a la derecha → cerrado
+        transition: transform 0.2s ease;
+        margin-right: 2px;
+    }
+
+    &[open] &__chevron {
+        transform: rotate(45deg); // apunta hacia abajo → abierto
+    }
+
+    &__titulo {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: $text-primary;
+        flex-shrink: 0;
+    }
+
+    &__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-left: 4px;
+    }
+
+    &__chip {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: #e2e8f0;
+        color: $text-muted;
+        font-weight: 500;
+
+        &--ok   { background: #dcfce7; color: #166534; }
+        &--warn { background: #fef3c7; color: #92400e; }
+    }
+
+    &__cuerpo {
+        padding: 0;
+        border-top: 1px solid $border-color;
+    }
+
+    // La tabla dentro del acordeón pierde los bordes redondeados de la card
+    .tabla-notas-wrapper { border-radius: 0; }
+    .tabla-notas { border-radius: 0; }
+}
+
 .bp-enlace-digital {
     font-size: $font-size-sm;
     color: $brand-mid;

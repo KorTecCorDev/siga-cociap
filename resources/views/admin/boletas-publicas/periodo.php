@@ -22,6 +22,14 @@ foreach ($secciones ?? [] as $_sec) {
     $seccionesPorNivel[$_sec['nivel_nombre']][] = $_sec;
 }
 unset($_sec);
+
+// Agrupar boletas por sección para los acordeones de la tabla
+$boletasPorSeccion = [];
+foreach ($boletas as $_b) {
+    $_key = $_b['grado_nombre'] . ' "' . $_b['seccion_nombre'] . '"';
+    $boletasPorSeccion[$_key][] = $_b;
+}
+unset($_b, $_key);
 ?>
 
 <div class="page-header">
@@ -173,75 +181,93 @@ unset($_sec);
 </div>
 <?php else: ?>
 
-<div class="card">
-    <div class="tabla-notas-wrapper">
-        <table class="tabla-notas">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Estudiante</th>
-                    <th>Sección</th>
-                    <th>Boleta digital</th>
-                    <th class="text-center">Consultas</th>
-                    <th>Última consulta</th>
-                    <th>Generada</th>
-                    <th class="text-center">Estado</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($boletas as $i => $b):
-                $novedades = (int) $b['novedades_count'];
-            ?>
-                <tr class="<?= $novedades > 0 ? 'fila-novedad' : '' ?>">
-                    <td class="text-sm text-muted"><?= $i + 1 ?></td>
-                    <td>
-                        <strong><?= e($b['nombre_completo']) ?></strong>
-                    </td>
-                    <td class="text-sm">
-                        <?= e($b['grado_nombre']) ?> &ldquo;<?= e($b['seccion_nombre']) ?>&rdquo;
-                    </td>
-                    <td>
-                        <?php if (!empty($b['token_acceso'])): ?>
-                        <a href="<?= url("boleta/digital/{$b['token_acceso']}") ?>"
-                           target="_blank"
-                           class="bp-enlace-digital"
-                           title="Abrir boleta digital">
-                            Ver boleta ↗
-                        </a>
-                        <?php else: ?>
-                        <span class="text-muted">Sin token</span>
-                        <?php endif; ?>
-                    </td>
-                    <td class="text-center">
-                        <?php if ($b['veces_consultada'] > 0): ?>
-                        <span class="badge badge--activo"><?= (int) $b['veces_consultada'] ?></span>
-                        <?php else: ?>
-                        <span class="text-muted">—</span>
-                        <?php endif; ?>
-                    </td>
-                    <td class="text-sm text-muted">
-                        <?= $b['ultima_consulta']
-                            ? date('d/m/Y H:i', strtotime($b['ultima_consulta']))
-                            : '—' ?>
-                    </td>
-                    <td class="text-sm text-muted">
-                        <?= date('d/m/Y H:i', strtotime($b['generada_en'])) ?>
-                    </td>
-                    <td class="text-center">
-                        <?php if ($novedades > 0): ?>
-                            <span class="badge badge--warning"
-                                  title="<?= $novedades ?> competencia(s) aprobada(s) desde la generacion">
-                                🔄 +<?= $novedades ?>
-                            </span>
-                        <?php else: ?>
-                            <span class="badge badge--activo">Al día</span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
+<?php foreach ($boletasPorSeccion as $seccionLabel => $estudiantesSeccion):
+    $totalSec      = count($estudiantesSeccion);
+    $consultasSec  = count(array_filter($estudiantesSeccion, fn($b) => (int) $b['veces_consultada'] > 0));
+    $novedadesSec  = count(array_filter($estudiantesSeccion, fn($b) => (int) $b['novedades_count'] > 0));
+?>
+<details class="bp-acordeon">
+    <summary class="bp-acordeon__header">
+        <span class="bp-acordeon__chevron" aria-hidden="true"></span>
+        <span class="bp-acordeon__titulo"><?= e($seccionLabel) ?></span>
+        <div class="bp-acordeon__meta">
+            <span class="bp-acordeon__chip"><?= $totalSec ?> estudiantes</span>
+            <?php if ($consultasSec > 0): ?>
+            <span class="bp-acordeon__chip bp-acordeon__chip--ok"><?= $consultasSec ?> consultadas</span>
+            <?php endif; ?>
+            <?php if ($novedadesSec > 0): ?>
+            <span class="bp-acordeon__chip bp-acordeon__chip--warn"><?= $novedadesSec ?> con novedades</span>
+            <?php endif; ?>
+        </div>
+    </summary>
+
+    <div class="bp-acordeon__cuerpo">
+        <div class="tabla-notas-wrapper">
+            <table class="tabla-notas">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Estudiante</th>
+                        <th>Boleta digital</th>
+                        <th class="text-center">Consultas</th>
+                        <th>Última consulta</th>
+                        <th>Generada</th>
+                        <th class="text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($estudiantesSeccion as $i => $b):
+                    $novedades = (int) $b['novedades_count'];
+                ?>
+                    <tr class="<?= $novedades > 0 ? 'fila-novedad' : '' ?>">
+                        <td class="text-sm text-muted"><?= $i + 1 ?></td>
+                        <td>
+                            <strong><?= e($b['nombre_completo']) ?></strong>
+                        </td>
+                        <td>
+                            <?php if (!empty($b['token_acceso'])): ?>
+                            <a href="<?= url("boleta/digital/{$b['token_acceso']}") ?>"
+                               target="_blank"
+                               class="bp-enlace-digital"
+                               title="Abrir boleta digital">
+                                Ver boleta ↗
+                            </a>
+                            <?php else: ?>
+                            <span class="text-muted">Sin token</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-center">
+                            <?php if ($b['veces_consultada'] > 0): ?>
+                            <span class="badge badge--activo"><?= (int) $b['veces_consultada'] ?></span>
+                            <?php else: ?>
+                            <span class="text-muted">—</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-sm text-muted">
+                            <?= $b['ultima_consulta']
+                                ? date('d/m/Y H:i', strtotime($b['ultima_consulta']))
+                                : '—' ?>
+                        </td>
+                        <td class="text-sm text-muted">
+                            <?= date('d/m/Y H:i', strtotime($b['generada_en'])) ?>
+                        </td>
+                        <td class="text-center">
+                            <?php if ($novedades > 0): ?>
+                                <span class="badge badge--warning"
+                                      title="<?= $novedades ?> competencia(s) aprobada(s) desde la generacion">
+                                    🔄 +<?= $novedades ?>
+                                </span>
+                            <?php else: ?>
+                                <span class="badge badge--activo">Al día</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
+</details>
+<?php endforeach; ?>
 
 <?php endif; ?>
