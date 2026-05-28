@@ -7255,6 +7255,10 @@ body.modal-abierto {
 .buscador-resultados__contador {
   margin: 0 0 4px;
 }
+.buscador-resultados__bimestre {
+  margin: 0 0 8px;
+  font-style: italic;
+}
 
 .buscador-item {
   margin: 0;
@@ -7326,6 +7330,21 @@ body.modal-abierto {
   font-size: 12px;
   font-style: italic;
   color: #94a3b8;
+}
+.buscador-item__puesto {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 50px;
+  background: #fef3e2;
+  color: #e07b1a;
+}
+.buscador-item__puesto--vacio {
+  background: #f8fafc;
+  color: #94a3b8;
+  font-weight: 500;
 }
 
 .buscador-badge {

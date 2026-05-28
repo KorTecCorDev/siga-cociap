@@ -84,7 +84,7 @@
                     mostrarMensaje(data.mensaje || 'No se pudo realizar la búsqueda.', 'error');
                     return;
                 }
-                renderizar(data.resultados || []);
+                renderizar(data.resultados || [], data.bimestre || null);
             })
             .catch(function () {
                 if (idPeticion !== peticionActual) return;
@@ -93,7 +93,7 @@
             });
     }
 
-    function renderizar(filas) {
+    function renderizar(filas, bimestre) {
         resultados.innerHTML = '';
 
         if (filas.length === 0) {
@@ -107,6 +107,14 @@
             ? '1 estudiante encontrado'
             : filas.length + ' estudiantes encontrados';
         resultados.appendChild(contador);
+
+        // Nota global: a qué bimestre corresponden los puestos mostrados
+        if (bimestre) {
+            var nota = document.createElement('p');
+            nota.className = 'buscador-resultados__bimestre text-sm text-muted';
+            nota.textContent = 'Orden de mérito vigente: ' + bimestre;
+            resultados.appendChild(nota);
+        }
 
         filas.forEach(function (f) {
             resultados.appendChild(crearTarjeta(f));
@@ -140,6 +148,12 @@
         dni.textContent = 'DNI ' + (f.dni || '—');
         info.appendChild(dni);
 
+        // Tutor de la sección
+        var tutor = document.createElement('div');
+        tutor.className = 'buscador-item__sub';
+        tutor.textContent = 'Tutor: ' + (f.tutor || 'sin asignar');
+        info.appendChild(tutor);
+
         body.appendChild(info);
 
         // Ubicación académica
@@ -162,6 +176,17 @@
             sinSeccion.textContent = 'Sin sección asignada';
             ubicacion.appendChild(sinSeccion);
         }
+
+        // Puesto en el orden de mérito del bimestre activo (ranking por grado)
+        var puesto = document.createElement('div');
+        if (f.puesto) {
+            puesto.className = 'buscador-item__puesto';
+            puesto.textContent = 'Puesto ' + f.puesto + '.° del grado';
+        } else {
+            puesto.className = 'buscador-item__puesto buscador-item__puesto--vacio';
+            puesto.textContent = 'Sin puesto aún';
+        }
+        ubicacion.appendChild(puesto);
 
         // Badge de estado
         var est = ESTADOS[f.estado] || { texto: f.estado || '—', clase: 'pendiente' };

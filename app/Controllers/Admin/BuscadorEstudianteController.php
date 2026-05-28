@@ -57,8 +57,17 @@ class BuscadorEstudianteController extends BaseController
             return;
         }
 
-        $filas      = $this->model->buscarEnAnioActivo($termino, (int) $anio['id']);
+        $periodo    = $this->model->periodoActivo((int) $anio['id']);
+        $periodoId  = $periodo ? (int) $periodo['id'] : null;
+
+        $filas      = $this->model->buscarEnAnioActivo($termino, (int) $anio['id'], $periodoId);
         $resultados = array_map(function (array $f): array {
+            $tutor = !empty($f['tutor_apellido_paterno'])
+                ? mb_strtoupper($f['tutor_apellido_paterno']) . ' '
+                . mb_strtoupper($f['tutor_apellido_materno']) . ', '
+                . $f['tutor_nombres']
+                : null;
+
             return [
                 'dni'      => $f['dni'],
                 'nombre'   => mb_strtoupper($f['apellido_paterno']) . ' '
@@ -69,6 +78,8 @@ class BuscadorEstudianteController extends BaseController
                 'grado'    => $f['grado_nombre'],
                 'seccion'  => $f['seccion_nombre'],
                 'estado'   => $f['matricula_estado'],
+                'tutor'    => $tutor,
+                'puesto'   => $f['puesto_grado'] !== null ? (int) $f['puesto_grado'] : null,
             ];
         }, $filas);
 
@@ -76,6 +87,7 @@ class BuscadorEstudianteController extends BaseController
             'success'    => true,
             'resultados' => $resultados,
             'anio'       => (int) $anio['anio'],
+            'bimestre'   => $periodo['nombre_display'] ?? null,
             'termino'    => $termino,
         ]);
     }
