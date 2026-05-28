@@ -266,6 +266,8 @@ $c-beca:   #1a5c1a;
     padding-top: 2mm;
     border-top: 0.6pt solid #000;
     font-family: Arial, Helvetica, sans-serif;
+    break-inside: avoid;
+    page-break-inside: avoid;
 
     &__bloque {
         flex: 0 0 30%;

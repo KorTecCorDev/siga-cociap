@@ -130,14 +130,19 @@ $hoy = (new DateTime())->format('d/m/Y');
             </div>
 
             <!-- Tutores: mismo espacio vacío para que la línea quede alineada -->
-            <?php foreach ($tutores as $secNombre => $nombreTutor): ?>
+            <?php foreach ($tutores as $secNombre => $tutor): ?>
+                <?php $rmCargoTutor = match($tutor['sexo'] ?? null) {
+                    'M'     => 'Tutor de Aula',
+                    'F'     => 'Tutora de Aula',
+                    default => 'Tutor(a) de Aula',
+                }; ?>
                 <div class="reporte-footer__bloque">
                     <div class="reporte-footer__espacio-firma"></div>
                     <div class="reporte-footer__linea"></div>
-                    <?php if (!empty($nombreTutor)): ?>
-                        <div class="reporte-footer__nombre"><?= e($nombreTutor) ?></div>
+                    <?php if (!empty($tutor['nombre'])): ?>
+                        <div class="reporte-footer__nombre"><?= e($tutor['nombre']) ?></div>
                     <?php endif; ?>
-                    <div class="reporte-footer__cargo">Tutor(a) de Aula &mdash; Secc. <?= e($secNombre) ?></div>
+                    <div class="reporte-footer__cargo"><?= $rmCargoTutor ?> &mdash; Secc. <?= e($secNombre) ?></div>
                 </div>
             <?php endforeach; ?>
 
@@ -225,10 +230,14 @@ $hoy = (new DateTime())->format('d/m/Y');
                     </table>
                     <div class="reporte-seccion-firma">
                         <div class="reporte-seccion-firma__linea"></div>
-                        <?php if (!empty($tutores[$secNombre])): ?>
-                            <div class="reporte-seccion-firma__nombre"><?= e($tutores[$secNombre]) ?></div>
+                        <?php if (!empty($tutores[$secNombre]['nombre'])): ?>
+                            <div class="reporte-seccion-firma__nombre"><?= e($tutores[$secNombre]['nombre']) ?></div>
                         <?php endif; ?>
-                        <div class="reporte-seccion-firma__cargo">Tutor(a) de Aula &mdash; Sección <?= e($secNombre) ?></div>
+                        <div class="reporte-seccion-firma__cargo"><?= match($tutores[$secNombre]['sexo'] ?? null) {
+                            'M'     => 'Tutor de Aula',
+                            'F'     => 'Tutora de Aula',
+                            default => 'Tutor(a) de Aula',
+                        } ?> &mdash; Sección <?= e($secNombre) ?></div>
                     </div>
                 </div>
             <?php endforeach; ?>
