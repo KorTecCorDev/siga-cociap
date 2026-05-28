@@ -390,8 +390,11 @@ unset($_n, $_c);
         <?php endif; ?>
 
         <?php if (!empty($asistencia)):
-            $aB = $asistencia['bimestre'];
-            $aA = $asistencia['anual'];
+            $aB         = $asistencia['bimestre'];
+            $aA         = $asistencia['anual'];
+            $pActivo    = array_values(array_filter($periodos, fn($p) => $p['id'] == $periodo_activo_id));
+            $numBim     = $pActivo[0]['numero'] ?? 1;
+            $romanoBim  = $romanos[$numBim - 1] ?? 'I';
         ?>
         <section class="bd-asistencia" aria-label="Asistencia">
             <h2 class="bd-asistencia__titulo">Asistencia</h2>
@@ -399,7 +402,7 @@ unset($_n, $_c);
                 <thead>
                     <tr>
                         <th class="bd-asistencia__th-tipo">Tipo</th>
-                        <th class="bd-asistencia__th-num">Bimestre</th>
+                        <th class="bd-asistencia__th-num"><?= $romanoBim ?> Bim.</th>
                         <th class="bd-asistencia__th-num">Acum. anual</th>
                     </tr>
                 </thead>
