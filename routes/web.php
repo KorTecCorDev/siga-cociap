@@ -66,14 +66,20 @@ $router->get( '/admin/usuarios/{id}/editar', 'Admin\UsuarioController@edit');
 $router->post('/admin/usuarios/{id}/editar', 'Admin\UsuarioController@update');
 $router->post('/admin/usuarios/{id}/estado', 'Admin\UsuarioController@toggleEstado');
 
-// ─── Director — Configuración académica ─────────────────────
-$router->get( '/director/anios',                'Director\AnioAcademicoController@index');
-$router->get( '/director/anios/crear',          'Director\AnioAcademicoController@create');
-$router->post('/director/anios/crear',          'Director\AnioAcademicoController@store');
-$router->get( '/director/anios/{id}',           'Director\AnioAcademicoController@show');
-$router->get( '/director/periodos',             'Director\PeriodoController@index');
-$router->post('/director/periodos',             'Director\PeriodoController@store');
-$router->post('/director/periodos/{id}/limite', 'Director\PeriodoController@setLimite');
+// ─── Director — Año académico y bimestres ───────────────────
+// Las rutas literales (crear) van ANTES del patrón {id} para que el router no capture "crear" como parámetro
+$router->get( '/director/anios',                 'Director\AnioAcademicoController@index');
+$router->get( '/director/anios/crear',           'Director\AnioAcademicoController@create');
+$router->post('/director/anios/crear',           'Director\AnioAcademicoController@store');
+$router->post('/director/anios/{id}/activar',    'Director\AnioAcademicoController@activar');
+$router->post('/director/anios/{id}/cerrar',     'Director\AnioAcademicoController@cerrar');
+$router->get( '/director/anios/{id}',            'Director\AnioAcademicoController@show');
+// Bimestres
+$router->post('/director/periodos/{id}/editar',  'Director\PeriodoController@editar');
+$router->post('/director/periodos/{id}/abrir',   'Director\PeriodoController@abrir');
+$router->post('/director/periodos/{id}/cerrar',  'Director\PeriodoController@cerrar');
+$router->post('/director/periodos/{id}/reabrir', 'Director\PeriodoController@reabrir');
+$router->get( '/director/periodos/{id}/stats',   'Director\PeriodoController@stats');
 
 // ─── Secciones y cargas ──────────────────────────────────────
 $router->get( '/director/secciones',          'Director\SeccionController@index');
