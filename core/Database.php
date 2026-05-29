@@ -36,6 +36,7 @@ class Database
                 PDO::ATTR_EMULATE_PREPARES   => false,
                 PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
             ]);
+            self::$instance->exec("SET time_zone = '-05:00'");
         } catch (PDOException $e) {
             // Muestra el error real — cambiar en producción
             throw new \RuntimeException(

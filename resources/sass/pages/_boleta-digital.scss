@@ -639,6 +639,19 @@ $bd-radius-card:     16px;
         @media print { font-size: 7pt; font-weight: 600; }
     }
 
+    &__subarea {
+        display: block;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: $brand-mid;
+        margin-bottom: 3px;
+
+        @media (min-width: 640px) { font-size: 11px; }
+        @media print { font-size: 6pt; margin-bottom: 1pt; }
+    }
+
     &__bimestres {
         display: flex;
         gap: 6px;
@@ -1134,6 +1147,7 @@ $bd-asis-border: #cbd5e1;
 
     &__tabla {
         width: 100%;
+        table-layout: fixed;
         border-collapse: collapse;
         font-size: 13px;
         background: #fff;
@@ -1173,7 +1187,7 @@ $bd-asis-border: #cbd5e1;
     }
 
     &__num {
-        text-align: center;
+        text-align: center !important;
         font-weight: 700;
         font-size: 15px;
         color: $bd-asis-color;

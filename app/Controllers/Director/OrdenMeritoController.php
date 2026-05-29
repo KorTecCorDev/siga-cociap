@@ -236,7 +236,7 @@ class OrdenMeritoController extends BaseController
             }
 
             $persona = $this->calModel->queryOne("
-                SELECT p.apellido_paterno, p.apellido_materno, p.nombres
+                SELECT p.apellido_paterno, p.apellido_materno, p.nombres, p.sexo
                 FROM usuarios u
                 INNER JOIN personas p ON p.id = u.persona_id
                 WHERE u.id = ?
@@ -244,7 +244,10 @@ class OrdenMeritoController extends BaseController
             ", [$tutorId]);
 
             $tutores[$sec['seccion_nombre']] = ($persona && !empty($persona['apellido_paterno']))
-                ? $persona['apellido_paterno'] . ' ' . $persona['apellido_materno'] . ', ' . $persona['nombres']
+                ? [
+                    'nombre' => $persona['apellido_paterno'] . ' ' . $persona['apellido_materno'] . ', ' . $persona['nombres'],
+                    'sexo'   => $persona['sexo'] ?? null,
+                ]
                 : null;
         }
 

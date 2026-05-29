@@ -262,7 +262,12 @@ unset($_n, $_c);
 
                         <!-- Encabezado: nombre + logro anual -->
                         <div class="bd-competencia__header">
-                            <h3 class="bd-competencia__nombre"><?= e($comp['nombre_largo'] ?? $comp['nombre']) ?></h3>
+                            <h3 class="bd-competencia__nombre">
+                                <?php if (!empty($comp['subarea_nombre'])): ?>
+                                    <span class="bd-competencia__subarea"><?= e($comp['subarea_nombre']) ?></span>
+                                <?php endif; ?>
+                                <?= e(!empty($comp['subarea_nombre']) ? ($comp['competencia_texto'] ?? $comp['nombre_largo'] ?? $comp['nombre']) : ($comp['nombre_largo'] ?? $comp['nombre'])) ?>
+                            </h3>
                             <?php if ($esExonerado): ?>
                             <div class="bd-logro bd-logro--exo"
                                  aria-label="Exonerado(a)">
@@ -385,8 +390,11 @@ unset($_n, $_c);
         <?php endif; ?>
 
         <?php if (!empty($asistencia)):
-            $aB = $asistencia['bimestre'];
-            $aA = $asistencia['anual'];
+            $aB         = $asistencia['bimestre'];
+            $aA         = $asistencia['anual'];
+            $pActivo    = array_values(array_filter($periodos, fn($p) => $p['id'] == $periodo_activo_id));
+            $numBim     = $pActivo[0]['numero'] ?? 1;
+            $romanoBim  = $romanos[$numBim - 1] ?? 'I';
         ?>
         <section class="bd-asistencia" aria-label="Asistencia">
             <h2 class="bd-asistencia__titulo">Asistencia</h2>
@@ -394,7 +402,7 @@ unset($_n, $_c);
                 <thead>
                     <tr>
                         <th class="bd-asistencia__th-tipo">Tipo</th>
-                        <th class="bd-asistencia__th-num">Bimestre</th>
+                        <th class="bd-asistencia__th-num"><?= $romanoBim ?> Bim.</th>
                         <th class="bd-asistencia__th-num">Acum. anual</th>
                     </tr>
                 </thead>
