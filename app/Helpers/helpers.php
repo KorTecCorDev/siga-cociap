@@ -168,3 +168,33 @@ function log_error(string $mensaje, array $context = []): void
     }
     error_log($linea . PHP_EOL, 3, STORAGE_PATH . '/logs/siga.log');
 }
+
+/**
+ * Renderiza una página de error genérica y detiene el flujo normal. La usa el
+ * manejador global de errores en producción para no filtrar stack traces ni
+ * errores de base de datos al usuario. Idempotente: nunca imprime dos veces.
+ */
+function render_error_page(int $code = 500): void
+{
+    static $rendered = false;
+    if ($rendered) {
+        return;
+    }
+    $rendered = true;
+
+    // Descarta cualquier salida parcial para que la página de error salga limpia.
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    if (!headers_sent()) {
+        http_response_code($code);
+    }
+
+    $vista = VIEW_PATH . '/shared/500.php';
+    if (is_file($vista)) {
+        require $vista;
+    } else {
+        echo 'Ha ocurrido un error. Intenta de nuevo mas tarde.';
+    }
+}

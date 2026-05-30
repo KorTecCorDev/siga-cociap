@@ -47,6 +47,34 @@ if (config('debug')) {
 } else {
     ini_set('display_errors', '0');
     ini_set('log_errors', '1');
+
+    // ── Blindaje global (solo producción) ───────────────────
+    // Cualquier excepción no capturada o error fatal se registra en el log
+    // y se muestra una página de error genérica, sin filtrar stack traces ni
+    // errores de base de datos. En local (debug) los errores se ven completos.
+    set_exception_handler(function (\Throwable $e): void {
+        log_error('Excepcion no capturada', [
+            'tipo'    => get_class($e),
+            'mensaje' => $e->getMessage(),
+            'donde'   => $e->getFile() . ':' . $e->getLine(),
+        ]);
+        render_error_page();
+    });
+
+    register_shutdown_function(function (): void {
+        $err = error_get_last();
+        if ($err !== null && in_array(
+            $err['type'],
+            [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR],
+            true
+        )) {
+            log_error('Error fatal', [
+                'mensaje' => $err['message'],
+                'donde'   => $err['file'] . ':' . $err['line'],
+            ]);
+            render_error_page();
+        }
+    });
 }
 
 // Aplicar timezone desde config (evita que strtotime interprete fechas como UTC)
