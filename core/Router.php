@@ -75,6 +75,12 @@ class Router
         }
 
         // Ruta no encontrada
+        $this->notFound();
+    }
+
+    /** Renderiza la página 404 con el código de estado correcto. */
+    private function notFound(): void
+    {
         http_response_code(404);
         require VIEW_PATH . '/shared/404.php';
     }
@@ -93,13 +99,25 @@ class Router
             $class = 'App\\Controllers\\' . $class;
         }
 
+        // Módulo aún no implementado (controlador o método inexistente):
+        // mostramos el 404 al usuario en lugar de reventar con un error fatal.
+        // Se registra en el log para no perder visibilidad durante el desarrollo.
         if (!class_exists($class)) {
-            throw new \RuntimeException("Controlador [{$class}] no encontrado.");
+            log_error('Controlador no encontrado (modulo no disponible).', [
+                'controlador' => $class,
+            ]);
+            $this->notFound();
+            return;
         }
 
         $controller = new $class();
         if (!method_exists($controller, $method)) {
-            throw new \RuntimeException("Método [{$method}] no existe en [{$class}].");
+            log_error('Metodo de controlador no encontrado.', [
+                'controlador' => $class,
+                'metodo'      => $method,
+            ]);
+            $this->notFound();
+            return;
         }
 
         call_user_func_array([$controller, $method], $params);
