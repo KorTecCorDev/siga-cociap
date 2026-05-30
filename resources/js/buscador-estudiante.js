@@ -84,7 +84,7 @@
                     mostrarMensaje(data.mensaje || 'No se pudo realizar la búsqueda.', 'error');
                     return;
                 }
-                renderizar(data.resultados || [], data.bimestre || null);
+                renderizar(data.resultados || [], data.bimestre || null, !!data.tieneOrdenMerito);
             })
             .catch(function () {
                 if (idPeticion !== peticionActual) return;
@@ -93,7 +93,7 @@
             });
     }
 
-    function renderizar(filas, bimestre) {
+    function renderizar(filas, bimestre, tieneOrden) {
         resultados.innerHTML = '';
 
         if (filas.length === 0) {
@@ -108,20 +108,21 @@
             : filas.length + ' estudiantes encontrados';
         resultados.appendChild(contador);
 
-        // Nota global: a qué bimestre corresponden los puestos mostrados
-        if (bimestre) {
-            var nota = document.createElement('p');
-            nota.className = 'buscador-resultados__bimestre text-sm text-muted';
-            nota.textContent = 'Orden de mérito vigente: ' + bimestre;
-            resultados.appendChild(nota);
-        }
+        // Nota global: a qué bimestre cerrado corresponden los puestos mostrados.
+        // En el I Bimestre (sin ningún bimestre cerrado) no hay orden vigente.
+        var nota = document.createElement('p');
+        nota.className = 'buscador-resultados__bimestre text-sm text-muted';
+        nota.textContent = (tieneOrden && bimestre)
+            ? 'Orden de mérito vigente: ' + bimestre
+            : 'No hay orden de mérito vigente';
+        resultados.appendChild(nota);
 
         filas.forEach(function (f) {
-            resultados.appendChild(crearTarjeta(f));
+            resultados.appendChild(crearTarjeta(f, tieneOrden));
         });
     }
 
-    function crearTarjeta(f) {
+    function crearTarjeta(f, tieneOrden) {
         var card = document.createElement('div');
         card.className = 'buscador-item card';
 
@@ -177,9 +178,13 @@
             ubicacion.appendChild(sinSeccion);
         }
 
-        // Puesto en el orden de mérito del bimestre activo (ranking por grado)
+        // Puesto en el orden de mérito del último bimestre cerrado (ranking por
+        // grado). En el I Bimestre no hay orden de mérito vigente todavía.
         var puesto = document.createElement('div');
-        if (f.puesto) {
+        if (!tieneOrden) {
+            puesto.className = 'buscador-item__puesto buscador-item__puesto--vacio';
+            puesto.textContent = 'No hay orden de mérito vigente';
+        } else if (f.puesto) {
             puesto.className = 'buscador-item__puesto';
             puesto.textContent = 'Puesto ' + f.puesto + '.° del grado';
         } else {

@@ -57,8 +57,11 @@ class BuscadorEstudianteController extends BaseController
             return;
         }
 
-        $periodo    = $this->model->periodoActivo((int) $anio['id']);
-        $periodoId  = $periodo ? (int) $periodo['id'] : null;
+        // El puesto del orden de mérito corresponde al ULTIMO bimestre cerrado.
+        // Si aún no hay ninguno cerrado (estamos en el I Bimestre), no hay orden
+        // de mérito vigente y no se calcula puesto.
+        $bimestre   = $this->model->ultimoBimestreCerrado((int) $anio['id']);
+        $periodoId  = $bimestre ? (int) $bimestre['id'] : null;
 
         $filas      = $this->model->buscarEnAnioActivo($termino, (int) $anio['id'], $periodoId);
         $resultados = array_map(function (array $f): array {
@@ -84,11 +87,12 @@ class BuscadorEstudianteController extends BaseController
         }, $filas);
 
         $this->json([
-            'success'    => true,
-            'resultados' => $resultados,
-            'anio'       => (int) $anio['anio'],
-            'bimestre'   => $periodo['nombre_display'] ?? null,
-            'termino'    => $termino,
+            'success'          => true,
+            'resultados'       => $resultados,
+            'anio'             => (int) $anio['anio'],
+            'bimestre'         => $bimestre['nombre_display'] ?? null,
+            'tieneOrdenMerito' => $bimestre !== null,
+            'termino'          => $termino,
         ]);
     }
 }

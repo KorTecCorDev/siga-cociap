@@ -31,6 +31,22 @@ class EstudianteModel extends BaseModel
     }
 
     /**
+     * Último bimestre CERRADO del año dado (el de mayor número con
+     * estado = 'cerrado'). Es el orden de mérito vigente para consulta.
+     * NULL si aún no se cerró ningún bimestre (estamos en el I Bimestre).
+     */
+    public function ultimoBimestreCerrado(int $anioId): ?array
+    {
+        return $this->queryOne("
+            SELECT id, numero, nombre_display
+            FROM periodos
+            WHERE anio_id = ? AND estado = 'cerrado'
+            ORDER BY numero DESC
+            LIMIT 1
+        ", [$anioId]);
+    }
+
+    /**
      * Busca estudiantes matriculados en el año activo por DNI o por
      * apellidos/nombres. Devuelve nivel, grado, sección, estado de matrícula
      * y datos personales.
