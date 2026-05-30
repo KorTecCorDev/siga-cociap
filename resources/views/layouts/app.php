@@ -14,6 +14,16 @@
 </head>
 <body class="app-body">
 
+    <!-- Loader de transición entre páginas (barra + overlay con logo) -->
+    <div class="app-loader" id="appLoader" aria-hidden="true">
+        <div class="app-loader__bar"></div>
+        <div class="app-loader__overlay">
+            <img src="<?= url('assets/img/logo_cociap.png') ?>" alt="" class="app-loader__logo">
+            <span class="app-loader__nombre">SIGA-COCIAP</span>
+            <span class="app-loader__spinner"></span>
+        </div>
+    </div>
+
     <!-- Navbar superior -->
     <nav class="navbar">
         <div class="navbar__brand">

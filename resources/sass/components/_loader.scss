@@ -1,0 +1,99 @@
+// ============================================================
+// _loader.scss — Loader de transición entre páginas
+// Combo: barra de progreso superior (inmediata) + overlay con
+// logo (solo si la navegación tarda más que el umbral en JS).
+// Lo controla app.js alternando .is-active y .is-overlay.
+// ============================================================
+
+.app-loader {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 9999;
+    pointer-events: none;   // nunca bloquea clics cuando está oculto
+
+    // ── Barra de progreso superior ───────────────────────────
+    &__bar {
+        position: fixed;
+        top: env(safe-area-inset-top, 0);   // respeta el notch en PWA standalone
+        left: 0;
+        height: 3px;
+        width: 0;
+        background: linear-gradient(90deg, $brand-mid, $brand-accent);
+        box-shadow: 0 0 8px rgba($brand-accent, .6);
+        opacity: 0;
+        // Crece con desaceleración para simular progreso real.
+        transition: width 8s cubic-bezier(.1, .7, .3, 1), opacity .3s ease;
+    }
+
+    // ── Overlay con logo (aparece solo si la espera es larga) ─
+    &__overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: $spacing-lg;
+        background:
+            radial-gradient(circle at 50% 40%,
+                rgba($brand-mid, .96), rgba($brand-dark, .98));
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity .25s ease, visibility .25s ease;
+    }
+
+    &__logo {
+        // Escala fluida: ~80px en móvil chico → tope 128px en desktop/4K.
+        width: clamp(80px, 14vw, 128px);
+        height: auto;
+        filter: drop-shadow(0 6px 18px rgba(0, 0, 0, .35));
+        animation: app-loader-pulso 1.6s ease-in-out infinite;
+    }
+
+    &__nombre {
+        color: $text-white;
+        font-size: $font-size-lg;
+        font-weight: 600;
+        letter-spacing: .08em;
+    }
+
+    &__spinner {
+        width: 34px;
+        height: 34px;
+        border: 3px solid rgba($text-white, .25);
+        border-top-color: $brand-accent;
+        border-radius: 50%;
+        animation: app-loader-girar .6s linear infinite;
+    }
+
+    // ── Estados (los activa app.js) ──────────────────────────
+    &.is-active &__bar {
+        width: 90%;
+        opacity: 1;
+    }
+
+    &.is-overlay &__overlay {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+@keyframes app-loader-girar {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes app-loader-pulso {
+    0%, 100% { transform: scale(1);    opacity: 1;  }
+    50%      { transform: scale(1.06); opacity: .85; }
+}
+
+// Respeta la preferencia de movimiento reducido del sistema.
+@media (prefers-reduced-motion: reduce) {
+    .app-loader__logo,
+    .app-loader__spinner {
+        animation: none;
+    }
+    .app-loader__bar {
+        transition: opacity .2s ease;
+    }
+}

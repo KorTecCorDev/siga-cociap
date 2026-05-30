@@ -69,3 +69,72 @@ document.addEventListener('submit', function(e) {
     btn.disabled = true;
     btn.textContent = 'Guardando…';
 }, true);
+
+// ── Loader de transición entre páginas ───────────────────────
+// Barra superior inmediata + overlay con logo si la navegación
+// tarda más que OVERLAY_DELAY. Pensado para MPA (recarga completa):
+// se muestra al salir de la página y desaparece al cargar la nueva.
+(function() {
+    var loader = document.getElementById('appLoader');
+    if (!loader) return;
+
+    var OVERLAY_DELAY  = 400;    // ms hasta mostrar el overlay con logo
+    var SAFETY_TIMEOUT = 8000;   // ms de seguridad por si no se navega
+    var overlayTimer = null;
+    var safetyTimer  = null;
+    var navegando    = false;
+
+    function iniciar() {
+        if (navegando) return;
+        navegando = true;
+        loader.classList.add('is-active');                 // barra inmediata
+        overlayTimer = setTimeout(function() {
+            loader.classList.add('is-overlay');            // overlay si tarda
+        }, OVERLAY_DELAY);
+        safetyTimer = setTimeout(detener, SAFETY_TIMEOUT); // anti-trabado
+    }
+
+    function detener() {
+        navegando = false;
+        clearTimeout(overlayTimer);
+        clearTimeout(safetyTimer);
+        loader.classList.remove('is-active', 'is-overlay');
+    }
+
+    // ¿Este enlace provoca una navegación real del navegador?
+    function debeNavegar(a) {
+        var href = a.getAttribute('href');
+        if (!href || href.charAt(0) === '#') return false;
+        if (a.hasAttribute('download'))      return false;
+        if (a.hasAttribute('data-no-loader')) return false;
+        var target = a.getAttribute('target');
+        if (target && target !== '_self')    return false;   // _blank, etc.
+        if (/^(mailto:|tel:|javascript:)/i.test(href)) return false;
+        if (a.origin && a.origin !== window.location.origin) return false;
+        if (a.href === window.location.href) return false;   // misma URL
+        // Solo cambia el hash dentro de la misma página → no recarga
+        if (a.pathname === window.location.pathname &&
+            a.search   === window.location.search   &&
+            a.hash !== '') return false;
+        return true;
+    }
+
+    document.addEventListener('click', function(e) {
+        if (e.defaultPrevented) return;
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        var a = e.target.closest('a');
+        if (a && debeNavegar(a)) iniciar();
+    });
+
+    document.addEventListener('submit', function(e) {
+        if (e.defaultPrevented) return;
+        var form = e.target;
+        if (form.hasAttribute('data-no-loader')) return;
+        if ((form.getAttribute('target') || '_self') !== '_self') return;
+        iniciar();
+    });
+
+    // Limpieza: al volver con "atrás" (bfcache) o al ocultar la página.
+    window.addEventListener('pageshow', detener);
+    window.addEventListener('pagehide', detener);
+})();
