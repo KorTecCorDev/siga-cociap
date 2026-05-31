@@ -47,6 +47,14 @@ $docentes = $stats['docentes'] ?? [];
                 <?php require __DIR__ . '/_panel-bimestre.php'; ?>
             </div>
         </div>
+
+        <?php if (!empty($reaperturas)): ?>
+        <div class="card">
+            <div class="card__body">
+                <?php require __DIR__ . '/_reaperturas.php'; ?>
+            </div>
+        </div>
+        <?php endif; ?>
     </aside>
 </div>
 

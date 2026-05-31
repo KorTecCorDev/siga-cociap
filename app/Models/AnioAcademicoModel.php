@@ -208,6 +208,63 @@ class AnioAcademicoModel extends BaseModel
         return $stmt->rowCount();
     }
 
+    /**
+     * Elimina los bloqueos "fantasma" de un periodo: los que no tienen
+     * ninguna calificación detrás. Estos solo pueden provenir del cierre
+     * forzado (bloquearCompetenciasPendientes bloquea TODAS las competencias
+     * del año, tengan notas o no). Al reabrir un bimestre se limpian para
+     * que los docentes recuperen el acceso; los bloqueos con notas reales
+     * (aprobados por el docente) se conservan. Retorna cuántos se eliminaron.
+     */
+    public function eliminarBloqueosSinNotas(int $periodoId): int
+    {
+        $stmt = $this->db->prepare("
+            DELETE bc FROM bloqueos_competencia bc
+            WHERE bc.periodo_id = ?
+              AND NOT EXISTS (
+                  SELECT 1 FROM calificaciones cal
+                  WHERE cal.carga_id       = bc.carga_id
+                    AND cal.competencia_id = bc.competencia_id
+                    AND cal.periodo_id     = bc.periodo_id
+              )
+        ");
+        $stmt->execute([$periodoId]);
+        return $stmt->rowCount();
+    }
+
+    /**
+     * Registra una reapertura de bimestre en la bitácora de auditoría.
+     * El motivo es obligatorio (lo valida el controlador). Guarda también
+     * cuántos bloqueos sin notas se liberaron en esa reapertura.
+     */
+    public function registrarReapertura(
+        int $periodoId,
+        string $motivo,
+        int $usuarioId,
+        int $bloqueosLiberados
+    ): bool {
+        return $this->execute("
+            INSERT INTO reaperturas_periodo
+                (periodo_id, motivo, bloqueos_liberados, reabierto_por)
+            VALUES (?, ?, ?, ?)
+        ", [$periodoId, $motivo, $bloqueosLiberados, $usuarioId]);
+    }
+
+    /** Historial de reaperturas de un bimestre, de la más reciente a la más antigua. */
+    public function getReaperturas(int $periodoId): array
+    {
+        return $this->query("
+            SELECT
+                rp.*,
+                CONCAT(p.apellido_paterno, ' ', p.apellido_materno, ', ', p.nombres) AS reabierto_por_nombre
+            FROM reaperturas_periodo rp
+            INNER JOIN usuarios u ON u.id = rp.reabierto_por
+            INNER JOIN personas p ON p.id = u.persona_id
+            WHERE rp.periodo_id = ?
+            ORDER BY rp.reabierto_en DESC
+        ", [$periodoId]);
+    }
+
     // ── Indicadores de cierre ─────────────────────────────────
 
     /**

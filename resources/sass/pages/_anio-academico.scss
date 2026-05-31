@@ -630,3 +630,87 @@
         color: $text-primary;
     }
 }
+
+// ── Historial de reaperturas (modal de cierre y página de stats) ──
+.reaperturas-historial {
+    // En el modal de cierre va debajo de los indicadores: separador superior.
+    // En su propia card (página de stats) no hace falta, lo anula la card.
+    .stats-cierre + & {
+        margin-top: $spacing-lg;
+        padding-top: $spacing-md;
+        border-top: 2px solid $border-color;
+    }
+
+    &__titulo {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        font-size: $font-size-lg;
+        font-weight: 600;
+        color: $text-primary;
+        margin: 0 0 $spacing-md;
+    }
+
+    &__contador {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 $spacing-xs;
+        font-size: $font-size-sm;
+        font-weight: 700;
+        color: $color-warning;
+        background: $color-warning-bg;
+        border-radius: 999px;
+    }
+}
+
+.reaperturas-list {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.reapertura-item {
+    padding: $spacing-md;
+    background: $bg-secondary;
+    border: 1px solid $border-color;
+    border-left: 4px solid $color-warning;
+    border-radius: $border-radius;
+
+    &__head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: $spacing-sm;
+        margin-bottom: $spacing-xs;
+    }
+
+    &__fecha {
+        font-size: $font-size-sm;
+        font-weight: 700;
+        color: $text-primary;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__autor {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &__motivo {
+        margin: 0;
+        color: $text-primary;
+        white-space: pre-line;
+    }
+
+    &__meta {
+        margin: $spacing-xs 0 0;
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+}

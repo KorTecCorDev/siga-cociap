@@ -130,11 +130,12 @@ $toLocalInput = function (?string $dt): string {
                     Ver indicadores
                 </a>
                 <?php if ($anio['estado'] !== 'cerrado' && !$hayActivo): ?>
-                <form method="POST" action="<?= url('director/periodos/' . $p['id'] . '/reabrir') ?>"
-                      data-confirm="¿Reabrir el <?= e($p['nombre_display']) ?>? Es una acción excepcional; los bloqueos previos se conservan.">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn--sm btn--warning">Reabrir</button>
-                </form>
+                <button type="button" class="btn btn--sm btn--warning"
+                        onclick="abrirModalReabrir(this)"
+                        data-periodo-id="<?= e($p['id']) ?>"
+                        data-nombre="<?= e($p['nombre_display']) ?>">
+                    Reabrir
+                </button>
                 <?php endif; ?>
             <?php endif; ?>
         </div>
@@ -177,6 +178,38 @@ $toLocalInput = function (?string $dt): string {
     </div>
 </div>
 
+<!-- Modal: reabrir bimestre (motivo obligatorio) -->
+<div class="modal-overlay" id="modalReabrir" hidden>
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modalReabrirTitulo">Reabrir bimestre</h2>
+            <button type="button" class="modal-cerrar" data-modal-cerrar="modalReabrir" aria-label="Cerrar">&times;</button>
+        </div>
+        <form method="POST" id="formReabrir">
+            <?= csrf_field() ?>
+            <div class="modal-body">
+                <p class="form-hint">
+                    Reabrir un bimestre es una acción excepcional. Se liberarán las
+                    competencias que el cierre bloqueó automáticamente sin notas; las
+                    aprobadas por los docentes se conservan. Indica el motivo para dejar
+                    constancia de quién y por qué reabre.
+                </p>
+                <div class="form-group">
+                    <label class="form-label" for="motivo">Motivo de la reapertura</label>
+                    <textarea name="motivo" id="motivo" class="form-input" rows="3"
+                              minlength="10" maxlength="500" required
+                              placeholder="Ej.: Correccion de notas de Matematica solicitada por direccion."></textarea>
+                    <p class="form-hint">Mínimo 10 caracteres. Quedará registrado con tu usuario y la fecha.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--secondary" data-modal-cerrar="modalReabrir">Cancelar</button>
+                <button type="submit" class="btn btn--warning">Reabrir bimestre</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <?php if ($periodoCerrado && $statsCierre): ?>
 <!-- Modal: indicadores del cierre (se abre automáticamente tras cerrar) -->
 <div class="modal-overlay" id="modalCierre" data-autoabrir="1" hidden>
@@ -187,6 +220,7 @@ $toLocalInput = function (?string $dt): string {
         </div>
         <div class="modal-body">
             <?php $stats = $statsCierre; require __DIR__ . '/_stats-contenido.php'; ?>
+            <?php $reaperturas = $reaperturasCierre; require __DIR__ . '/_reaperturas.php'; ?>
         </div>
         <div class="modal-footer">
             <a href="<?= url('director/periodos/' . $periodoCerrado['id'] . '/stats') ?>" class="btn btn--secondary">

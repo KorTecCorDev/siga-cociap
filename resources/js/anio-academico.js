@@ -33,7 +33,21 @@
         }
     };
 
-    // Confirmación para formularios de acción (activar/cerrar/abrir/reabrir).
+    /** Abre el modal de reapertura con el motivo obligatorio. */
+    window.abrirModalReabrir = function (btn) {
+        var id     = btn.getAttribute('data-periodo-id');
+        var nombre = btn.getAttribute('data-nombre') || 'bimestre';
+
+        document.getElementById('modalReabrirTitulo').textContent = 'Reabrir ' + nombre;
+        document.getElementById('formReabrir').action = BASE + '/director/periodos/' + id + '/reabrir';
+        document.getElementById('motivo').value = '';
+
+        if (window.Modal) {
+            window.Modal.abrir('modalReabrir');
+        }
+    };
+
+    // Confirmación para formularios de acción (activar/cerrar/abrir).
     document.addEventListener('submit', function (e) {
         var form = e.target;
         if (!form.hasAttribute || !form.hasAttribute('data-confirm')) {

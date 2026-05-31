@@ -149,8 +149,38 @@ class PeriodoController extends BaseController
             $this->redirectWithError($volverUrl, 'Ya hay un bimestre activo en este año. Ciérralo antes de reabrir otro.');
         }
 
-        $this->model->setEstadoPeriodo($id, 'activo');
-        $this->redirectWithSuccess($volverUrl, "{$periodo['nombre_display']} reabierto. Los bloqueos previos se conservan.");
+        // El motivo es obligatorio: reabrir es excepcional y debe quedar auditado.
+        $motivo = trim((string) $this->input('motivo', ''));
+        if (mb_strlen($motivo) < 10) {
+            $this->redirectWithError(
+                $volverUrl,
+                'Debes indicar el motivo de la reapertura (mínimo 10 caracteres).'
+            );
+        }
+        $motivo = mb_substr($motivo, 0, 500);
+
+        $usuarioId = (int) (Session::user()['id'] ?? 0);
+
+        try {
+            $this->model->beginTransaction();
+            $this->model->setEstadoPeriodo($id, 'activo');
+            // Al reabrir, los bloqueos auto-generados por el cierre forzado
+            // (sin notas detrás) congelarían a los docentes. Se eliminan para
+            // que recuperen el acceso; los aprobados con notas se conservan.
+            $liberadas = $this->model->eliminarBloqueosSinNotas($id);
+            // Deja traza del motivo y de cuántos bloqueos se liberaron.
+            $this->model->registrarReapertura($id, $motivo, $usuarioId, $liberadas);
+            $this->model->commit();
+        } catch (\Exception $e) {
+            $this->model->rollback();
+            log_error('Error reabriendo bimestre', ['id' => $id, 'error' => $e->getMessage()]);
+            $this->redirectWithError($volverUrl, 'No se pudo reabrir el bimestre. Intenta de nuevo.');
+        }
+
+        $detalle = $liberadas > 0
+            ? " Se liberaron {$liberadas} competencias sin notas para edición."
+            : ' Los bloqueos con notas aprobadas se conservan.';
+        $this->redirectWithSuccess($volverUrl, "{$periodo['nombre_display']} reabierto.{$detalle}");
     }
 
     // GET /director/periodos/{id}/stats
@@ -164,10 +194,11 @@ class PeriodoController extends BaseController
         }
 
         $this->view('director/anios/stats', [
-            'titulo'  => 'Indicadores — ' . $periodo['nombre_display'] . ' ' . $periodo['anio'],
-            'periodo' => $periodo,
-            'stats'   => $this->model->getStatsCierre($id),
-            'resumen' => $this->model->getResumenBimestre($id),
+            'titulo'      => 'Indicadores — ' . $periodo['nombre_display'] . ' ' . $periodo['anio'],
+            'periodo'     => $periodo,
+            'stats'       => $this->model->getStatsCierre($id),
+            'resumen'     => $this->model->getResumenBimestre($id),
+            'reaperturas' => $this->model->getReaperturas($id),
         ]);
     }
 }

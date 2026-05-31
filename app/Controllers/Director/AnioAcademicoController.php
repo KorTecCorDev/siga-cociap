@@ -83,6 +83,7 @@ class AnioAcademicoController extends BaseController
         $cerradoId  = (int) ($this->query('cerrado', 0));
         $statsCierre = null;
         $periodoCerrado = null;
+        $reaperturasCierre = [];
         if ($cerradoId > 0) {
             foreach ($periodos as $p) {
                 if ((int) $p['id'] === $cerradoId) {
@@ -92,17 +93,19 @@ class AnioAcademicoController extends BaseController
             }
             if ($periodoCerrado) {
                 $statsCierre = $this->model->getStatsCierre($cerradoId);
+                $reaperturasCierre = $this->model->getReaperturas($cerradoId);
             }
         }
 
         $this->view('director/anios/show', [
-            'titulo'         => 'Año académico ' . $anio['anio'],
-            'anio'           => $anio,
-            'periodos'       => $periodos,
-            'page_scripts'   => ['anio-academico'],
-            'cerradoId'      => $cerradoId,
-            'periodoCerrado' => $periodoCerrado,
-            'statsCierre'    => $statsCierre,
+            'titulo'            => 'Año académico ' . $anio['anio'],
+            'anio'              => $anio,
+            'periodos'          => $periodos,
+            'page_scripts'      => ['anio-academico'],
+            'cerradoId'         => $cerradoId,
+            'periodoCerrado'    => $periodoCerrado,
+            'statsCierre'       => $statsCierre,
+            'reaperturasCierre' => $reaperturasCierre,
         ]);
     }
 
