@@ -76,7 +76,28 @@
       "Bash(php -l app/Controllers/Admin/DirectorEbrController.php)",
       "Bash(php -r \"require 'routes/web.php';\")",
       "Bash(php -l core/Throttle.php)",
-      "Bash(php -l app/Controllers/BoletaPublicaController.php)"
+      "Bash(php -l app/Controllers/BoletaPublicaController.php)",
+      "Bash(/c/xampp/mysql/bin/mysql.exe -u root siga_cociap)",
+      "Bash(/c/xampp/php/php.exe -l app/Models/MatriculaModel.php)",
+      "Bash(/c/xampp/php/php.exe -l app/Models/ApoderadoModel.php)",
+      "Bash(/c/xampp/mysql/bin/mysql.exe *)",
+      "Bash(/c/xampp/php/php.exe -l app/Controllers/Matricula/MatriculaController.php)",
+      "Bash(/c/xampp/php/php.exe -l app/Controllers/Matricula/RetornoGradoController.php)",
+      "Bash(./node_modules/.bin/sass --no-source-map resources/sass/app.scss /tmp/_check_app.css)",
+      "Bash(/c/xampp/php/php.exe *)",
+      "Bash(\"C:/xampp/php/php.exe\" -l app/Controllers/Director/PeriodoController.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -l app/Models/AnioAcademicoModel.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -l resources/views/director/anios/show.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -l app/Controllers/Director/AnioAcademicoController.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -l resources/views/director/anios/_reaperturas.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -l resources/views/director/anios/stats.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -l app/Controllers/Docente/CalificacionController.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -l app/Models/CalificacionModel.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -r \"echo file_get_contents\\('app/Controllers/Matricula/RetornoGradoController.php'\\);\")",
+      "Bash(\"C:/xampp/php/php.exe\" -l app/Controllers/Matricula/MatriculaController.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -l resources/views/matriculas/show.php)",
+      "Bash(C:/xampp/php/php.exe -r ' *)",
+      "Bash(C:/xampp/php/php.exe *)"
     ]
   }
 }
