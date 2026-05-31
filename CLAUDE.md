@@ -564,6 +564,123 @@ Todos los bloques de firma (con y sin imagen) tienen un contenedor de **altura f
 - Firmas: Director EBR + 1 tutor por sección del grado (dinámico desde `$tutores`).
 - `$infoConteos` muestra solo el número de áreas (no competencias — varían por docente).
 
+## Módulo de matrículas (sesión 9)
+
+### Propósito
+Registro y gestión integral de matrículas: wizard de 3 pasos (estudiante →
+apoderado → documentos), detalle, activación/desactivación, notas externas
+para traslados de entrada y retorno de grado (caso especial).
+
+### Migración — `database/migrations/012_modulo_matriculas.sql`
+> El spec pedía `009`, pero `009` ya estaba ocupado dos veces
+> (`009_inasistencias`, `009_token_acceso_matriculas`). Se usó el siguiente libre.
+> Es idempotente (MariaDB 10.4 soporta `ADD COLUMN IF NOT EXISTS` y se usan
+> bloques condicionales por `information_schema`).
+
+Cambios sobre el esquema REAL (verificado contra la BD, difiere del spec):
+- **roles:** `secretaria` → renombrado a `secretaria_academica` (nombre/descripcion
+  actualizados); **nuevo** rol `secretaria_administrativa`. Los FK son por `id`,
+  así que renombrar el `codigo` no rompe `usuarios`.
+- **matriculas:** se agregaron `tipo ENUM('continuador','nuevo','trasladado')`
+  (DEFAULT 'continuador' → las 528 filas existentes quedaron como 'continuador'),
+  `serie_recibo VARCHAR(30)`. `anio_id` YA EXISTÍA (no se recreó).
+- **matriculas.estado:** el enum real era
+  `('registrada','pendiente_documentos','observada','aprobada','retirada')`.
+  Se **AMPLIÓ** agregando `'pendiente','activo','desactivado'` que usa este módulo.
+  La demo del I Bimestre sigue en `'aprobada'` (intacta). Mapa conceptual del
+  módulo: nace `pendiente` → `activo` (al aprobar) / `desactivado` (al trasladar).
+- **vinculo_familiar.tipo_vinculo:** el enum real era `('padre','madre','apoderado')`.
+  Se amplió a los **14 tipos** (sin tildes en BD: `tio`,`tia`,…; la vista los
+  muestra con tilde). Conserva el UNIQUE `(estudiante_id, tipo_vinculo)`.
+- **boletas_publicas:** se agregó `activa TINYINT(1) DEFAULT 1` (para 7.3).
+- **matriculas — UNIQUE relajado:** `uq_estudiante_anio (estudiante_id, anio_id)`
+  se reemplazó por un índice NO único `idx_estudiante_anio`. **Por qué:** el
+  retorno de grado exige DOS matrículas del mismo estudiante/año (oficial +
+  operativa). La protección anti-duplicados del flujo normal se mantiene a nivel
+  de aplicación (`MatriculaModel::existeMatricula()` + validación en el controlador).
+
+Tablas nuevas: `documentos_matricula` (UNIQUE matricula+tipo_documento),
+`notas_externas` (UNIQUE matricula+periodo+competencia), `retornos_grado`.
+
+### Modelos
+- **`app/Models/MatriculaModel.php`** — `listar(filtros)`/`contar(filtros)` (con
+  paginación por `limit`/`offset`), `findById`, `existeMatricula`, `crear` (siempre
+  `estado='pendiente'`), `cambiarEstado` (deja traza en `observaciones`; si `activo`
+  setea `aprobado_por`/`fecha_aprobacion`), `sugerirSeccion` (sección con MENOS
+  matrículas activas del grado), `seccionAnioAnterior` (para continuador),
+  `crearEstudianteConPersona` (reutiliza persona/estudiante si el DNI ya existe),
+  documentos (`getDocumentos`, `registrarDocumento` idempotente con ON DUPLICATE),
+  notas externas (`getNotasExternas`, `registrarNotaExterna`), y auxiliares de
+  filtros (`listarAnios`, `listarGrados`, `listarSecciones`).
+- **`app/Models/ApoderadoModel.php`** — `buscarPorDni` (incluye sus vínculos),
+  `findById`, `crear` (persona+apoderado en transacción; reutiliza por DNI),
+  `vincularEstudiante` (idempotente por el UNIQUE), `getHijos(apoderadoId, anioId)`,
+  `contarHijosActivos` (regla máx 3), `getVinculos(estudianteId)`,
+  `desactivarUsuarioDeEstudiante` (apaga el login del apoderado al trasladar).
+
+### Controladores (namespace `Matricula\`)
+- **`MatriculaController`** — `requireRole(['admin','registro_academico',
+  'secretaria_academica','secretaria_administrativa'])`. Métodos: `index`, `create`,
+  `store`, `apoderado`, `storeApoderado`, `documentos`, `storeDocumentos`, `show`,
+  `activar`, `desactivar`, `notasExternas`, `storeNotasExternas`.
+  - `activar`/`desactivar` hacen `requireRole(['admin','registro_academico'])`
+    EXTRA dentro del método (las secretarías NO pueden cambiar estado).
+  - `activar` valida ≥1 apoderado vinculado.
+  - `desactivar` (transacción): `estado='desactivado'` + `tipo='trasladado'`,
+    desactiva el usuario del apoderado y pone `boletas_publicas.activa=0` del
+    periodo activo.
+  - `store` crea estudiante si es nuevo, evita duplicado por año, resuelve sección
+    (sugerida o posteada), serie de recibo OBLIGATORIA, y redirige al paso 2.
+  - Tipos de vínculo y catálogo de documentos viven como constantes del controlador.
+- **`RetornoGradoController`** — `requireRole(['admin','registro_academico',
+  'director_ebr'])`. `create`/`store`. Crea matrícula operativa en grado inferior
+  (`estado='activo'`), inserta en `retornos_grado` y **transfiere las calificaciones**
+  de la oficial a la operativa con `INSERT IGNORE` (preserva competencia/periodo).
+
+### Rutas (`routes/web.php`)
+Las literales (`/matriculas/crear`) y los sub-recursos (`/{id}/apoderado`,
+`/{id}/documentos`, `/{id}/activar`, `/{id}/desactivar`, `/{id}/notas-externas`,
+`/{id}/retorno`) se registran ANTES del patrón genérico `GET /matriculas/{id}`
+(que va al FINAL) para que el router no capture `crear` como `{id}`.
+
+> Las rutas antiguas `/secretaria/matriculas` y `/director/matriculas` apuntaban a
+> controladores que NUNCA existieron (placeholders). Este módulo NO las usa; el
+> dashboard ahora enlaza a `/matriculas`.
+
+### Vistas (`resources/views/matriculas/`, layout `app`)
+`index` (filtros: año/grado/sección/estado/tipo/búsqueda + paginación de 25),
+`crear` (wizard paso 1), `apoderado` (paso 2), `documentos` (paso 3), `show`
+(detalle con cards), `notas-externas`, `retorno`. SASS: `pages/_matriculas.scss`
+(importado en `app.scss`) con `.wizard-steps`, `.matricula-badge`, `.apoderado-card`,
+`.documento-checklist`, `.busqueda-dni`, `.mat-filtros`, `.mat-paginacion`,
+`.form-check`. Reutiliza `.card`, `.info-grid`, `.tabla-notas`, `.form-grid`, `.badge`.
+
+### Integraciones con módulos existentes
+- **7.1 Orden de mérito** (`Director\OrdenMeritoController`): en los métodos de
+  ranking/conteo, `m.estado='aprobada'` pasó a `m.estado IN ('aprobada','activo')`
+  y se EXCLUYE la matrícula oficial de un retorno activo
+  (`m.id NOT IN (SELECT matricula_oficial_id FROM retornos_grado WHERE estado='activo')`).
+  Así el estudiante compite en su grado OPERATIVO. Las queries de descubrimiento de
+  grados (otro espaciado) NO se tocaron.
+- **7.2 Calificaciones** (`Docente\CalificacionController::getAlumnosSeccion`):
+  `m.estado='aprobada'` → `m.estado IN ('aprobada','activo') AND m.tipo != 'trasladado'`.
+  Incluye estudiantes en retorno (operativa = 'activo' en esa sección) y excluye
+  trasladados. **Nota:** el spec tenía una contradicción (regla "trasladado SIEMPRE
+  aparece en calificaciones" vs. 7.2 "excluir trasladado"); se siguió la instrucción
+  explícita 7.2. Sin impacto en la demo (todas las filas son 'aprobada'/'continuador').
+- **7.3 Boletas públicas:** `desactivar()` hace `UPDATE boletas_publicas SET activa=0`
+  del periodo activo (columna `activa` añadida en la migración).
+- **7.4 Dashboard:** la card "Matrículas" ahora apunta a `/matriculas` y es visible
+  para `admin`, `registro_academico`, `secretaria_academica`, `secretaria_administrativa`.
+  `DashboardController` envía a esas secretarías al dashboard (ven sus cards).
+
+### Reglas de negocio aplicadas
+- Toda matrícula nace `pendiente`; solo admin/registro_academico activan/desactivan.
+- Serie de recibo obligatoria siempre. Sección sugerida pero confirmable.
+- Máx 3 apoderados por estudiante; máx 3 estudiantes activos por apoderado/año.
+- Continuador → solo `recibo_pago`; nuevo → todos los documentos.
+- Notas externas solo para `tipo='nuevo'`.
+
 ## Pendientes al 22 de mayo 2026
 - [x] Boleta de calificaciones imprimible A4 ← completado sesión 2
 - [x] Boleta digital mobile-first con QR ← completado sesión 3

@@ -17,8 +17,8 @@ $grupos = [
     'Gestión académica' => [
         ['roles' => ['admin', 'director_general', 'director_ebr', 'registro_academico'], 'url' => 'director/anios',         'icon' => 'calendar.svg',          'titulo' => 'Año académico',        'desc' => 'Periodos, secciones y cargas'],
         ['roles' => ['admin', 'director_general', 'director_ebr', 'registro_academico'], 'url' => 'director/cargas',        'icon' => 'book-bookmark.svg',     'titulo' => 'Cargas académicas',    'desc' => 'Gestión de cargas docentes'],
-        ['roles' => ['admin', 'registro_academico', 'secretaria'],                       'url' => 'secretaria/matriculas', 'icon' => 'folder-2.svg',          'titulo' => 'Matrículas',           'desc' => 'Registro y seguimiento de matrículas'],
-        ['roles' => ['admin', 'registro_academico', 'secretaria', 'director_general', 'director_ebr'], 'url' => 'admin/buscar-estudiante', 'icon' => 'user.svg',          'titulo' => 'Buscar estudiante',    'desc' => 'Consultar nivel, grado y sección por DNI o nombre'],
+        ['roles' => ['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa'], 'url' => 'matriculas',            'icon' => 'folder-2.svg',          'titulo' => 'Matrículas',           'desc' => 'Registro y seguimiento de matrículas'],
+        ['roles' => ['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa', 'director_general', 'director_ebr'], 'url' => 'admin/buscar-estudiante', 'icon' => 'user.svg', 'titulo' => 'Buscar estudiante',    'desc' => 'Consultar nivel, grado y sección por DNI o nombre'],
         ['roles' => ['admin'],                                                           'url' => 'admin/secciones',       'icon' => 'book-bookmark.svg',     'titulo' => 'Secciones y Tutores',  'desc' => 'Asignar tutores por sección'],
     ],
     'Evaluación y reportes' => [

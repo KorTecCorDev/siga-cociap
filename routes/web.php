@@ -102,6 +102,26 @@ $router->post('/secretaria/matriculas/{id}/estado', 'Secretaria\MatriculaControl
 $router->get( '/director/matriculas/{id}/aprobar',  'Director\MatriculaController@aprobar');
 $router->post('/director/matriculas/{id}/aprobar',  'Director\MatriculaController@confirmarAprobacion');
 
+// ─── Módulo de Matrículas ────────────────────────────────────
+// Las rutas literales (crear) van ANTES del patrón {id} para que el router
+// no capture "crear" como parámetro. Lo mismo con los sub-recursos del {id}.
+$router->get( '/matriculas',                     'Matricula\MatriculaController@index');
+$router->get( '/matriculas/crear',               'Matricula\MatriculaController@create');
+$router->post('/matriculas/crear',               'Matricula\MatriculaController@store');
+$router->get( '/matriculas/{id}/apoderado',      'Matricula\MatriculaController@apoderado');
+$router->post('/matriculas/{id}/apoderado',      'Matricula\MatriculaController@storeApoderado');
+$router->get( '/matriculas/{id}/documentos',     'Matricula\MatriculaController@documentos');
+$router->post('/matriculas/{id}/documentos',     'Matricula\MatriculaController@storeDocumentos');
+$router->post('/matriculas/{id}/activar',        'Matricula\MatriculaController@activar');
+$router->post('/matriculas/{id}/desactivar',     'Matricula\MatriculaController@desactivar');
+$router->get( '/matriculas/{id}/notas-externas', 'Matricula\MatriculaController@notasExternas');
+$router->post('/matriculas/{id}/notas-externas', 'Matricula\MatriculaController@storeNotasExternas');
+// Retorno de grado
+$router->get( '/matriculas/{id}/retorno',        'Matricula\RetornoGradoController@create');
+$router->post('/matriculas/{id}/retorno',        'Matricula\RetornoGradoController@store');
+// El detalle {id} va al FINAL para no capturar los sub-recursos anteriores.
+$router->get( '/matriculas/{id}',                'Matricula\MatriculaController@show');
+
 // ─── Calificaciones ──────────────────────────────────────────
 $router->get( '/docente/mis-cargas',                        'Docente\CalificacionController@misCargas');
 $router->get( '/docente/calificaciones/{carga_id}',         'Docente\CalificacionController@formulario');

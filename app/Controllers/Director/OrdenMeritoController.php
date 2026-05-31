@@ -193,7 +193,13 @@ class OrdenMeritoController extends BaseController
             INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE g.id           = ?
               AND cal.periodo_id = ?
-              AND m.estado       = 'aprobada'
+              AND m.estado IN ('aprobada', 'activo')
+              -- Retorno de grado: el estudiante compite en su grado OPERATIVO.
+              -- Se excluye la matrícula oficial (la operativa, en grado inferior,
+              -- entra como 'activo' y rankea con su grado real de asistencia).
+              AND m.id NOT IN (
+                  SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo'
+              )
               AND a.tipo        != 'transversal'
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, p.dni, s.nombre
@@ -273,7 +279,13 @@ class OrdenMeritoController extends BaseController
             INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE g.id           = ?
               AND cal.periodo_id = ?
-              AND m.estado       = 'aprobada'
+              AND m.estado IN ('aprobada', 'activo')
+              -- Retorno de grado: el estudiante compite en su grado OPERATIVO.
+              -- Se excluye la matrícula oficial (la operativa, en grado inferior,
+              -- entra como 'activo' y rankea con su grado real de asistencia).
+              AND m.id NOT IN (
+                  SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo'
+              )
               AND a.tipo        != 'transversal'
         ", [$gradoId, $periodoId]);
 
@@ -320,7 +332,13 @@ class OrdenMeritoController extends BaseController
             INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE g.id           = ?
               AND cal.periodo_id = ?
-              AND m.estado       = 'aprobada'
+              AND m.estado IN ('aprobada', 'activo')
+              -- Retorno de grado: el estudiante compite en su grado OPERATIVO.
+              -- Se excluye la matrícula oficial (la operativa, en grado inferior,
+              -- entra como 'activo' y rankea con su grado real de asistencia).
+              AND m.id NOT IN (
+                  SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo'
+              )
               AND a.tipo        != 'transversal'
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, s.id, s.nombre

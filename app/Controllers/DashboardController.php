@@ -16,9 +16,12 @@ class DashboardController extends BaseController
 
         $rol = Session::user()['rol_codigo'] ?? '';
 
-        // Cada rol tiene su propio panel — el dashboard genérico
-        // es solo para admin y registro académico por ahora
-        $rolesAdmin = ['admin', 'registro_academico'];
+        // Cada rol tiene su propio panel — el dashboard genérico es para
+        // admin, registro académico y las secretarías (que ven sus cards).
+        $rolesAdmin = [
+            'admin', 'registro_academico',
+            'secretaria_academica', 'secretaria_administrativa',
+        ];
 
         if (in_array($rol, $rolesAdmin)) {
             $this->view('dashboard/index', [
@@ -31,7 +34,6 @@ class DashboardController extends BaseController
         $destinos = [
             'director_general' => url('director/anios'),
             'director_ebr'     => url('director/anios'),
-            'secretaria'       => url('secretaria/matriculas'),
             'docente'          => url('docente/mis-cargas'),
             'padre'            => url('padre/inicio'),
         ];

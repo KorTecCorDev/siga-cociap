@@ -1,0 +1,253 @@
+// ============================================================
+// _matriculas.scss — Módulo de matrículas
+// Wizard de pasos, badges, tarjetas de apoderado, checklist de
+// documentos y barra de filtros. Reutiliza .card, .badge,
+// .tabla-notas, .info-grid y .form-grid existentes.
+// ============================================================
+
+// ── Barra de filtros (index) ─────────────────────────────────
+.mat-filtros {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: $spacing-sm $spacing-md;
+    align-items: end;
+
+    &__campo {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    &__label {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        font-weight: 500;
+    }
+
+    &__acciones {
+        display: flex;
+        gap: $spacing-sm;
+        align-items: end;
+    }
+}
+
+// ── Wizard de pasos ──────────────────────────────────────────
+.wizard-steps {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-lg;
+    flex-wrap: wrap;
+
+    &__item {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        color: $text-muted;
+        font-size: $font-size-sm;
+        font-weight: 600;
+    }
+
+    &__num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: $bg-secondary;
+        border: 1.5px solid $border-color;
+        color: $text-muted;
+        font-size: $font-size-sm;
+        flex-shrink: 0;
+    }
+
+    &__sep {
+        width: 28px;
+        height: 1.5px;
+        background: $border-color;
+    }
+
+    // Paso activo
+    &__item--activo {
+        color: $brand-mid;
+        .wizard-steps__num {
+            background: $brand-mid;
+            border-color: $brand-mid;
+            color: $text-white;
+        }
+    }
+
+    // Paso completado
+    &__item--completado {
+        color: $color-success;
+        .wizard-steps__num {
+            background: $color-success;
+            border-color: $color-success;
+            color: $text-white;
+        }
+    }
+}
+
+// ── Badges de estado y tipo de matrícula ─────────────────────
+.matricula-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+
+    &--pendiente,
+    &--registrada,
+    &--pendiente_documentos { background: $color-warning-bg; color: $color-warning; }
+    &--activo,
+    &--aprobada             { background: $color-success-bg; color: $color-success; }
+    &--desactivado,
+    &--retirada             { background: #f1f5f9; color: #64748b; }
+    &--observada            { background: $color-error-bg; color: $color-error; }
+
+    // Tipos
+    &--continuador { background: $color-info-bg; color: $color-info; }
+    &--nuevo       { background: $brand-light; color: $brand-accent; }
+    &--trasladado  { background: #f1f5f9; color: #64748b; }
+}
+
+// ── Búsqueda por DNI (input + botón inline) ──────────────────
+.busqueda-dni {
+    display: flex;
+    gap: $spacing-sm;
+    align-items: stretch;
+    max-width: 420px;
+
+    .form-input { flex: 1; }
+}
+
+// ── Tarjeta de apoderado ─────────────────────────────────────
+.apoderado-card {
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    padding: $spacing-md;
+    margin-bottom: $spacing-sm;
+    background: $bg-white;
+
+    &__head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: $spacing-sm;
+        margin-bottom: $spacing-xs;
+    }
+
+    &__nombre {
+        font-weight: 600;
+        color: $text-primary;
+    }
+
+    &__meta {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &--responsable {
+        border-color: $color-success;
+        box-shadow: inset 3px 0 0 $color-success;
+    }
+}
+
+// ── Checkbox con etiqueta inline ─────────────────────────────
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    font-size: $font-size-base;
+    color: $text-secondary;
+    cursor: pointer;
+    padding: $spacing-sm 0;
+}
+
+// ── Checklist de documentos ──────────────────────────────────
+.documento-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+
+    &__item {
+        display: grid;
+        grid-template-columns: 24px 1fr;
+        gap: $spacing-sm;
+        align-items: start;
+        padding: $spacing-sm 0;
+        border-bottom: 0.5px solid $border-color;
+
+        &:last-child { border-bottom: none; }
+    }
+
+    &__check { margin-top: 3px; }
+
+    &__nombre {
+        font-weight: 500;
+        color: $text-primary;
+        margin-bottom: 4px;
+    }
+}
+
+// ── Tarjetas de detalle (show) ───────────────────────────────
+.mat-detalle-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: $spacing-lg;
+    align-items: start;
+}
+
+// ── Paginación ───────────────────────────────────────────────
+.mat-paginacion {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    margin-top: $spacing-md;
+
+    &__info {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+}
+
+// ── Aviso de retorno de grado ────────────────────────────────
+.retorno-aviso {
+    background: $color-warning-bg;
+    border: 1px solid $color-warning;
+    border-radius: $border-radius;
+    padding: $spacing-md;
+    color: $text-secondary;
+    font-size: $font-size-sm;
+    margin-bottom: $spacing-md;
+}
+
+// ── Checklist de requisitos pendientes para activar ──────────
+.mat-pendientes {
+    padding: $spacing-md;
+    background: $color-warning-bg;
+    border: 1px solid $color-warning;
+    border-radius: $border-radius;
+
+    &__titulo {
+        margin: 0 0 $spacing-xs;
+        font-weight: 600;
+        color: $color-warning;
+    }
+
+    &__list {
+        margin: 0;
+        padding-left: $spacing-lg;
+        color: $text-primary;
+        font-size: $font-size-sm;
+
+        li { margin-bottom: 2px; }
+    }
+}
+
+@media (max-width: 640px) {
+    .mat-filtros { grid-template-columns: 1fr 1fr; }
+    .wizard-steps__sep { width: 14px; }
+}
