@@ -583,7 +583,12 @@ class CalificacionController extends BaseController
             INNER JOIN estudiantes e ON e.id = m.estudiante_id
             INNER JOIN personas p    ON p.id = e.persona_id
             WHERE m.seccion_id = ?
-            AND m.estado     = 'aprobada'
+            -- 'aprobada' (datos vigentes), 'activo' (matrículas operativas de
+            -- retorno de grado) y 'pendiente' (recién creadas, aún sin activar)
+            -- entran a calificaciones; los trasladados no. Una pendiente puede
+            -- recibir notas de inmediato y se vuelve oficial al activarse.
+            AND m.estado IN ('aprobada', 'activo', 'pendiente')
+            AND m.tipo  != 'trasladado'
             ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
         ", [$seccionId]);
     }
