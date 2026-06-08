@@ -169,6 +169,10 @@ $router->get('/boleta/{matricula_id}/{periodo_id}',         'Boleta\BoletaContro
 // ─── Orden de mérito ─────────────────────────────────────────
 $router->get('/director/orden-merito',                          'Director\OrdenMeritoController@index');
 $router->get('/director/orden-merito/{periodo_id}/imprimir',    'Director\OrdenMeritoController@imprimir');
+// Desempate: rutas literales ANTES del patrón genérico {periodo_id} para que el
+// router no capture "desempate" como periodo.
+$router->get('/director/orden-merito/{periodo_id}/desempate/{grado_id}',  'Director\OrdenMeritoController@desempate');
+$router->post('/director/orden-merito/{periodo_id}/desempate/{grado_id}', 'Director\OrdenMeritoController@guardarDesempate');
 $router->get('/director/orden-merito/{periodo_id}',             'Director\OrdenMeritoController@porPeriodo');
 
 // ─── Gestión de bloqueos ─────────────────────────────────────

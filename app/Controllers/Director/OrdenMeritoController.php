@@ -4,7 +4,10 @@ namespace App\Controllers\Director;
 
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
+use App\Models\DesempateMeritoModel;
 use App\Models\DirectorEbrModel;
+use App\Models\OrdenMeritoModel;
+use Core\Session;
 use Core\View;
 
 /**
@@ -13,8 +16,10 @@ use Core\View;
  */
 class OrdenMeritoController extends BaseController
 {
-    private CalificacionModel $calModel;
-    private DirectorEbrModel  $dirModel;
+    private CalificacionModel    $calModel;
+    private DirectorEbrModel     $dirModel;
+    private DesempateMeritoModel $desempateModel;
+    private OrdenMeritoModel     $ordenMeritoModel;
 
     public function __construct()
     {
@@ -22,8 +27,10 @@ class OrdenMeritoController extends BaseController
             'admin', 'registro_academico',
             'director_general', 'director_ebr'
         ]);
-        $this->calModel = new CalificacionModel();
-        $this->dirModel = new DirectorEbrModel();
+        $this->calModel         = new CalificacionModel();
+        $this->dirModel         = new DirectorEbrModel();
+        $this->desempateModel   = new DesempateMeritoModel();
+        $this->ordenMeritoModel = new OrdenMeritoModel();
     }
 
     /**
@@ -155,64 +162,150 @@ class OrdenMeritoController extends BaseController
             ];
         }
 
+        // Si hay algún empate sin resolver, el reporte no es oficializable.
+        $hayPendientes = false;
+        foreach ($ranking as $data) {
+            if ($this->rankingTienePendientes($data['general'])) {
+                $hayPendientes = true;
+                break;
+            }
+            foreach ($data['por_seccion'] as $estudiantes) {
+                if ($this->rankingTienePendientes($estudiantes)) {
+                    $hayPendientes = true;
+                    break 2;
+                }
+            }
+        }
+
         View::setLayout('print');
         $this->view('director/reporte-merito', [
-            'titulo'      => 'Orden de mérito — ' . $periodo['nombre_display'] . ' ' . $periodo['anio'],
-            'periodo'     => $periodo,
-            'ranking'     => $ranking,
-            'institucion' => config('institucion'),
-            'directorEbr' => $this->getDirectorEbr($periodo),
+            'titulo'        => 'Orden de mérito — ' . $periodo['nombre_display'] . ' ' . $periodo['anio'],
+            'periodo'       => $periodo,
+            'ranking'       => $ranking,
+            'institucion'   => config('institucion'),
+            'directorEbr'   => $this->getDirectorEbr($periodo),
+            'hayPendientes' => $hayPendientes,
         ]);
     }
 
     /**
-     * Calcula el ranking de estudiantes de un grado en un periodo.
-     * Excluye competencias transversales del promedio.
+     * GET /director/orden-merito/{periodo_id}/desempate/{grado_id}
+     * Formulario para resolver los empates irreducibles de un grado.
+     */
+    public function desempate(string $periodoId, string $gradoId): void
+    {
+        $this->requireRole(['admin', 'registro_academico']);
+
+        $periodoId = (int) $periodoId;
+        $gradoId   = (int) $gradoId;
+
+        $periodo = $this->calModel->queryOne("
+            SELECT p.*, a.anio
+            FROM periodos p
+            INNER JOIN anios_academicos a ON a.id = p.anio_id
+            WHERE p.id = ?
+        ", [$periodoId]);
+
+        $grado = $this->calModel->queryOne("
+            SELECT g.id, g.numero, g.nombre_display, n.nombre AS nivel_nombre
+            FROM grados g
+            INNER JOIN niveles n ON n.id = g.nivel_id
+            WHERE g.id = ?
+        ", [$gradoId]);
+
+        if (!$periodo || !$grado) {
+            $this->redirectWithError(
+                url('director/orden-merito'),
+                'Periodo o grado no encontrado.'
+            );
+        }
+
+        // Detectar los grupos pendientes a partir del ranking general del grado.
+        $estudiantes = $this->calcularRanking($gradoId, $periodoId);
+        $grupos = [];
+        foreach ($estudiantes as $est) {
+            if (!empty($est['empate_pendiente'])) {
+                $grupos[$est['empate_clave']][] = $est;
+            }
+        }
+
+        $this->view('director/orden-merito-desempate', [
+            'titulo'  => 'Resolver empate — ' . $grado['nombre_display'],
+            'periodo' => $periodo,
+            'grado'   => $grado,
+            'grupos'  => $grupos,
+        ]);
+    }
+
+    /**
+     * POST /director/orden-merito/{periodo_id}/desempate/{grado_id}
+     * Guarda la resolución manual de un empate irreducible (con motivo, auditada).
+     */
+    public function guardarDesempate(string $periodoId, string $gradoId): void
+    {
+        $this->requireRole(['admin', 'registro_academico']);
+        $this->validateCsrf();
+
+        $periodoId = (int) $periodoId;
+        $gradoId   = (int) $gradoId;
+        $destino   = url('director/orden-merito/' . $periodoId);
+
+        $motivo = trim((string) $this->input('motivo', ''));
+        $orden  = $this->input('orden', []); // [matricula_id => posicion]
+
+        if ($motivo === '' || !is_array($orden) || count($orden) < 2) {
+            $this->redirectWithError($destino, 'Falta el motivo o el orden del desempate.');
+        }
+
+        // Validar que las posiciones formen una permutación estricta 1..n (sin repetir).
+        $posiciones = array_map('intval', array_values($orden));
+        sort($posiciones);
+        $esperado = range(1, count($orden));
+        if ($posiciones !== $esperado) {
+            $this->redirectWithError(
+                $destino,
+                'El orden debe asignar posiciones distintas y consecutivas (1, 2, 3...).'
+            );
+        }
+
+        // Ordenar las matrículas por la posición designada.
+        $ordenMatriculas = array_map('intval', array_keys($orden));
+        usort($ordenMatriculas, static fn($a, $b) => (int) $orden[$a] <=> (int) $orden[$b]);
+
+        $usuario = Session::user();
+        try {
+            $this->desempateModel->guardar(
+                $periodoId,
+                $gradoId,
+                $ordenMatriculas,
+                (int) ($usuario['id'] ?? 0),
+                $motivo
+            );
+        } catch (\Exception $e) {
+            $this->redirectWithError($destino, 'No se pudo guardar la resolución del empate.');
+        }
+
+        $this->redirectWithSuccess($destino, 'Empate resuelto y registrado.');
+    }
+
+    /** ¿Alguna fila del ranking tiene un empate sin resolver? */
+    private function rankingTienePendientes(array $estudiantes): bool
+    {
+        foreach ($estudiantes as $est) {
+            if (!empty($est['empate_pendiente'])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Ranking de estudiantes de un grado en un periodo (con cascada de desempate).
+     * Delega en OrdenMeritoModel — fuente única compartida con el buscador.
      */
     private function calcularRanking(int $gradoId, int $periodoId): array
     {
-        $estudiantes = $this->calModel->query("
-            SELECT
-                m.id AS matricula_id,
-                p.apellido_paterno,
-                p.apellido_materno,
-                p.nombres,
-                p.dni,
-                s.nombre AS seccion_nombre,
-                COUNT(cal.nota_numerica)            AS num_competencias,
-                SUM(cal.nota_numerica)             AS total_notas,
-                ROUND(AVG(cal.nota_numerica), 2)   AS promedio_general
-            FROM matriculas m
-            INNER JOIN estudiantes e      ON e.id  = m.estudiante_id
-            INNER JOIN personas p         ON p.id  = e.persona_id
-            INNER JOIN secciones s        ON s.id  = m.seccion_id
-            INNER JOIN grados g           ON g.id  = s.grado_id
-            INNER JOIN calificaciones cal ON cal.matricula_id = m.id
-            INNER JOIN competencias comp  ON comp.id = cal.competencia_id
-            LEFT  JOIN subareas sa        ON sa.id   = comp.subarea_id
-            INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
-            WHERE g.id           = ?
-              AND cal.periodo_id = ?
-              AND m.estado IN ('aprobada', 'activo')
-              -- Retorno de grado: el estudiante compite en su grado OPERATIVO.
-              -- Se excluye la matrícula oficial (la operativa, en grado inferior,
-              -- entra como 'activo' y rankea con su grado real de asistencia).
-              AND m.id NOT IN (
-                  SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo'
-              )
-              AND a.tipo        != 'transversal'
-            GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
-                     p.nombres, p.dni, s.nombre
-            ORDER BY promedio_general DESC
-        ", [$gradoId, $periodoId]);
-
-        // Agregar puesto
-        foreach ($estudiantes as $i => &$est) {
-            $est['puesto'] = $i + 1;
-            $est['media_beca'] = ($i === 0); // puesto 1 = media beca
-        }
-
-        return $estudiantes;
+        return $this->ordenMeritoModel->rankingGrado($gradoId, $periodoId);
     }
 
     /**
@@ -305,58 +398,15 @@ class OrdenMeritoController extends BaseController
         return $this->dirModel->getVigenteEnFecha((int) $periodo['anio_id']);
     }
 
+    /**
+     * Ranking por sección dentro del grado (con cascada de desempate por sección).
+     * Delega en OrdenMeritoModel — fuente única compartida.
+     */
     private function calcularRankingPorSeccion(
         int $gradoId,
         int $periodoId,
         int $limite = 0
     ): array {
-        $filas = $this->calModel->query("
-            SELECT
-                m.id AS matricula_id,
-                p.apellido_paterno,
-                p.apellido_materno,
-                p.nombres,
-                s.id     AS seccion_id,
-                s.nombre AS seccion_nombre,
-                COUNT(cal.nota_numerica)            AS num_competencias,
-                SUM(cal.nota_numerica)             AS total_notas,
-                ROUND(AVG(cal.nota_numerica), 2)   AS promedio_general
-            FROM matriculas m
-            INNER JOIN estudiantes e      ON e.id  = m.estudiante_id
-            INNER JOIN personas p         ON p.id  = e.persona_id
-            INNER JOIN secciones s        ON s.id  = m.seccion_id
-            INNER JOIN grados g           ON g.id  = s.grado_id
-            INNER JOIN calificaciones cal ON cal.matricula_id = m.id
-            INNER JOIN competencias comp  ON comp.id = cal.competencia_id
-            LEFT  JOIN subareas sa        ON sa.id   = comp.subarea_id
-            INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
-            WHERE g.id           = ?
-              AND cal.periodo_id = ?
-              AND m.estado IN ('aprobada', 'activo')
-              -- Retorno de grado: el estudiante compite en su grado OPERATIVO.
-              -- Se excluye la matrícula oficial (la operativa, en grado inferior,
-              -- entra como 'activo' y rankea con su grado real de asistencia).
-              AND m.id NOT IN (
-                  SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo'
-              )
-              AND a.tipo        != 'transversal'
-            GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
-                     p.nombres, s.id, s.nombre
-            ORDER BY s.nombre, promedio_general DESC
-        ", [$gradoId, $periodoId]);
-
-        $secciones = [];
-        foreach ($filas as $fila) {
-            $sec = $fila['seccion_nombre'];
-            if (!isset($secciones[$sec])) {
-                $secciones[$sec] = [];
-            }
-            if ($limite === 0 || count($secciones[$sec]) < $limite) {
-                $fila['puesto'] = count($secciones[$sec]) + 1;
-                $secciones[$sec][] = $fila;
-            }
-        }
-
-        return $secciones;
+        return $this->ordenMeritoModel->rankingPorSeccion($gradoId, $periodoId, $limite);
     }
 }

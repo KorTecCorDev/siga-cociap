@@ -49,6 +49,23 @@
                 </div>
             <?php else: ?>
 
+                <?php
+                $hayPendientes = false;
+                foreach ($data['estudiantes'] as $est) {
+                    if (!empty($est['empate_pendiente'])) { $hayPendientes = true; break; }
+                }
+                ?>
+                <?php if ($hayPendientes): ?>
+                    <div class="alerta-empate">
+                        <span class="alerta-empate__texto">
+                            ⚠ Hay un empate irreducible en este grado. El puesto en disputa
+                            debe resolverlo Registro Académico o Administración.
+                        </span>
+                        <a href="<?= url('director/orden-merito/' . $periodo['id'] . '/desempate/' . $data['grado']['id']) ?>"
+                           class="btn btn--primary btn--sm">Resolver empate</a>
+                    </div>
+                <?php endif; ?>
+
                 <table class="tabla-ranking">
                     <thead>
                         <tr>
@@ -63,7 +80,8 @@
                     </thead>
                     <tbody>
                         <?php foreach ($data['estudiantes'] as $est): ?>
-                            <tr class="<?= $est['media_beca'] ? 'fila-media-beca' : '' ?>">
+                            <?php $pendiente = !empty($est['empate_pendiente']); ?>
+                            <tr class="<?= $est['media_beca'] ? 'fila-media-beca' : '' ?> <?= $pendiente ? 'fila-empate' : '' ?>">
                                 <td class="text-center">
                                     <span class="puesto puesto--<?= $est['puesto'] <= 3 ? $est['puesto'] : 'normal' ?>">
                                         <?= $est['puesto'] ?>°
@@ -87,7 +105,11 @@
                                     <strong><?= sprintf('%05.2f', $est['promedio_general']) ?></strong>
                                 </td>
                                 <td class="text-center">
-                                    <?php if ($est['media_beca']): ?>
+                                    <?php if ($pendiente): ?>
+                                        <span class="badge badge--warning">
+                                            ⚠ Empate por resolver
+                                        </span>
+                                    <?php elseif ($est['media_beca']): ?>
                                         <span class="badge badge--activo">
                                             🏆 Media beca
                                         </span>

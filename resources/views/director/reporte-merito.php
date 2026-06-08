@@ -9,6 +9,13 @@
 $hoy = (new DateTime())->format('d/m/Y');
 ?>
 
+<?php if (!empty($hayPendientes)): ?>
+    <div class="reporte-aviso-pendiente">
+        ⚠ Documento NO oficializable: existen empates sin resolver. Los puestos en disputa
+        son provisionales hasta que Registro Académico o Administración los resuelvan.
+    </div>
+<?php endif; ?>
+
 <?php foreach ($ranking as $data): ?>
     <?php
     $grado         = $data['grado'];

@@ -820,6 +820,40 @@
     td { border-bottom-color: #fde68a !important; }
 }
 
+// ── Empate irreducible (decisión humana pendiente) ───────────
+.fila-empate {
+    background: #fff7ed !important;
+
+    td { border-bottom-color: #fed7aa !important; }
+}
+
+.alerta-empate {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-md;
+    flex-wrap: wrap;
+    margin: $spacing-md 0;
+    padding: $spacing-md;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: $border-radius;
+
+    &__texto {
+        font-size: $font-size-sm;
+        color: #9a3412;
+    }
+}
+
+.input-orden {
+    width: 56px;
+    padding: 6px 8px;
+    text-align: center;
+    font-weight: 700;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+}
+
 .puesto {
     display: inline-flex;
     align-items: center;
