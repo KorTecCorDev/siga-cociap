@@ -76,6 +76,7 @@ $badgeSeveridad = static fn(string $sev): string =>
                     <p class="text-muted">Sin pendientes en este chequeo.</p>
                 </div>
             <?php else: ?>
+                <div class="tabla-responsive">
                 <table class="tabla-ranking">
                     <?php if ($clave === 'empates'): ?>
                         <thead><tr><th>Nivel</th><th>Grado</th><th class="text-center">Grupos en empate</th><th class="text-center">Acción</th></tr></thead>
@@ -135,6 +136,7 @@ $badgeSeveridad = static fn(string $sev): string =>
                         </tbody>
                     <?php endif; ?>
                 </table>
+                </div>
 
                 <?php if (!empty($c['accion_url'])): ?>
                     <div class="card__footer">

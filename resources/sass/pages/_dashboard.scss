@@ -791,6 +791,9 @@
     width: 100%;
     border-collapse: collapse;
     font-size: $font-size-base;
+    // En móvil/tablet la tabla no se aplasta: el wrapper .tabla-responsive hace
+    // scroll horizontal y las columnas Puesto + Apellidos quedan fijas (sticky).
+    min-width: 680px;
 
     th {
         background: $bg-secondary;
@@ -800,6 +803,7 @@
         font-size: $font-size-sm;
         color: $text-secondary;
         border-bottom: 1px solid $border-color;
+        white-space: nowrap;
     }
 
     td {
@@ -812,6 +816,41 @@
     tr:last-child td { border-bottom: none; }
 
     tr:hover td { background: $bg-secondary; }
+
+    // ── Columnas de identidad fijas (sticky) ──────────────────
+    // Mismo patrón que .tabla-resumen: Puesto y Apellidos siempre visibles
+    // mientras se hace scroll horizontal por las métricas.
+    .col-puesto {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        width: 72px;
+        min-width: 72px;
+    }
+
+    .col-nombre {
+        position: sticky;
+        left: 72px;
+        z-index: 2;
+        min-width: 180px;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, .08);
+    }
+
+    thead .col-puesto,
+    thead .col-nombre { background: $bg-secondary; z-index: 3; }
+
+    tbody .col-puesto,
+    tbody .col-nombre { background: $bg-white; }
+
+    // Las filas tintadas conservan su color también en las celdas sticky
+    tr.fila-media-beca .col-puesto,
+    tr.fila-media-beca .col-nombre { background: #fffbeb; }
+
+    tr.fila-empate .col-puesto,
+    tr.fila-empate .col-nombre { background: #fff7ed; }
+
+    tr:hover .col-puesto,
+    tr:hover .col-nombre { background: $bg-secondary; }
 }
 
 .fila-media-beca {
@@ -947,6 +986,7 @@
 // ── Vista resumen competencia ────────────────────────────────
 .tabla-responsive {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     width: 100%;
 }
 

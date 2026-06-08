@@ -75,11 +75,12 @@
                     </div>
                 <?php endif; ?>
 
+                <div class="tabla-responsive">
                 <table class="tabla-ranking">
                     <thead>
                         <tr>
-                            <th class="text-center">Puesto</th>
-                            <th>Apellidos y nombres</th>
+                            <th class="col-puesto text-center">Puesto</th>
+                            <th class="col-nombre">Apellidos y nombres</th>
                             <th class="text-center">Sección</th>
                             <th class="text-center">Comp.</th>
                             <th class="text-center">Total</th>
@@ -91,12 +92,12 @@
                         <?php foreach ($data['estudiantes'] as $est): ?>
                             <?php $pendiente = !empty($est['empate_pendiente']); ?>
                             <tr class="<?= $est['media_beca'] ? 'fila-media-beca' : '' ?> <?= $pendiente ? 'fila-empate' : '' ?>">
-                                <td class="text-center">
+                                <td class="col-puesto text-center">
                                     <span class="puesto puesto--<?= $est['puesto'] <= 3 ? $est['puesto'] : 'normal' ?>">
                                         <?= $est['puesto'] ?>°
                                     </span>
                                 </td>
-                                <td>
+                                <td class="col-nombre">
                                     <?= e($est['apellido_paterno'] . ' ' .
                                         $est['apellido_materno'] . ', ' .
                                         $est['nombres']) ?>
@@ -128,6 +129,7 @@
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                </div>
 
             <?php endif; ?>
         </details>

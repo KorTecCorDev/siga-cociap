@@ -49,11 +49,12 @@
             </div>
 
             <div class="card__body">
+                <div class="tabla-responsive">
                 <table class="tabla-ranking">
                     <thead>
                         <tr>
-                            <th class="text-center">Orden</th>
-                            <th>Apellidos y nombres</th>
+                            <th class="col-puesto text-center">Orden</th>
+                            <th class="col-nombre">Apellidos y nombres</th>
                             <th class="text-center">Sección</th>
                             <th class="text-center">Comp.</th>
                             <th class="text-center">Promedio</th>
@@ -63,14 +64,14 @@
                     <tbody>
                         <?php $i = 1; foreach ($alumnos as $a): ?>
                             <tr>
-                                <td class="text-center">
+                                <td class="col-puesto text-center">
                                     <input type="number"
                                            name="orden[<?= (int) $a['matricula_id'] ?>]"
                                            class="input-orden"
                                            min="1" max="<?= count($alumnos) ?>"
                                            value="<?= $i ?>" required>
                                 </td>
-                                <td>
+                                <td class="col-nombre">
                                     <?= e($a['apellido_paterno'] . ' ' .
                                         $a['apellido_materno'] . ', ' . $a['nombres']) ?>
                                 </td>
@@ -86,6 +87,7 @@
                         <?php $i++; endforeach; ?>
                     </tbody>
                 </table>
+                </div>
 
                 <div class="form-group mt-md">
                     <label class="form-label" for="motivo-<?= e($clave) ?>">

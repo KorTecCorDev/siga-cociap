@@ -70,11 +70,12 @@ $fmtFecha = static function (?string $f): string {
                     · <?= $fmtFecha($res['resuelto_en']) ?>
                 </p>
 
+                <div class="tabla-responsive">
                 <table class="tabla-ranking">
                     <thead>
                         <tr>
-                            <th class="text-center">Orden</th>
-                            <th>Apellidos y nombres</th>
+                            <th class="col-puesto text-center">Orden</th>
+                            <th class="col-nombre">Apellidos y nombres</th>
                             <th class="text-center">Sección</th>
                             <th class="text-center">Comp.</th>
                             <th class="text-center">Promedio</th>
@@ -85,8 +86,8 @@ $fmtFecha = static function (?string $f): string {
                     <tbody>
                         <?php foreach ($res['alumnos'] as $al): ?>
                             <tr>
-                                <td class="text-center"><strong><?= (int) $al['orden_manual'] ?>°</strong></td>
-                                <td>
+                                <td class="col-puesto text-center"><strong><?= (int) $al['orden_manual'] ?>°</strong></td>
+                                <td class="col-nombre">
                                     <?= e($al['apellido_paterno'] . ' ' .
                                         $al['apellido_materno'] . ', ' . $al['nombres']) ?>
                                 </td>
@@ -115,6 +116,7 @@ $fmtFecha = static function (?string $f): string {
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                </div>
 
                 <?php if (!empty($res['comparativo'])): ?>
                     <h3 class="acta-subtitulo">Detalle por competencia</h3>

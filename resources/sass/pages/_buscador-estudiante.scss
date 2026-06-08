@@ -82,13 +82,14 @@
     }
 
     &__hint {
-        display: flex;
-        align-items: center;
-        gap: $spacing-xs;
+        // Flujo de texto normal: el emoji y los <strong> deben quedar dentro de
+        // la misma oración y envolver de forma natural en móvil. Con display:flex
+        // cada <strong> se volvía un item suelto y se rompía la lectura.
         margin: $spacing-sm 0 0;
     }
 
     &__hint-icono {
+        margin-right: $spacing-xs;
         font-size: $font-size-base;
         line-height: 1;
     }
@@ -119,13 +120,18 @@
     margin: 0;
 
     &__body {
-        display: flex;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
         align-items: center;
-        gap: $spacing-md;
+        column-gap: $spacing-md;
+        row-gap: $spacing-sm;
         padding: $spacing-md;
 
-        @media (max-width: 600px) {
-            flex-wrap: wrap;
+        // En móvil/tablet vertical: avatar | info en la fila 1; la ubicación
+        // baja a la fila 2 bajo la info. La grilla la alinea sola (la columna 1
+        // mide el avatar), sin padding "mágico" acoplado al ancho del avatar.
+        @media (max-width: 640px) {
+            grid-template-columns: auto 1fr;
         }
     }
 
@@ -145,7 +151,8 @@
     }
 
     &__info {
-        flex: 1;
+        // min-width:0 permite que los nombres largos se ajusten dentro de la
+        // columna 1fr en vez de desbordar la grilla.
         min-width: 0;
     }
 
@@ -167,13 +174,11 @@
         align-items: flex-end;
         gap: 2px;
         text-align: right;
-        flex-shrink: 0;
 
-        @media (max-width: 600px) {
+        @media (max-width: 640px) {
+            grid-column: 2;          // fila 2, bajo la info — la grilla la alinea
             align-items: flex-start;
             text-align: left;
-            width: 100%;
-            padding-left: 56px;
         }
     }
 
