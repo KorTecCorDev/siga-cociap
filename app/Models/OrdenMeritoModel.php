@@ -46,7 +46,9 @@ class OrdenMeritoModel extends BaseModel
                 AVG(cal.nota_numerica)             AS promedio_exacto,
                 SUM(cal.nota_numerica <= 10)               AS num_c,
                 SUM(cal.nota_numerica BETWEEN 11 AND 13)   AS num_b,
-                SUM(cal.nota_numerica >= 17)               AS num_ad
+                SUM(cal.nota_numerica >= 17)               AS num_ad,
+                SUM(cal.nota_numerica IN (15, 16))         AS num_alto,
+                SUM(cal.nota_numerica = 16)                AS num_16
             FROM matriculas m
             INNER JOIN estudiantes e      ON e.id  = m.estudiante_id
             INNER JOIN personas p         ON p.id  = e.persona_id
@@ -67,6 +69,7 @@ class OrdenMeritoModel extends BaseModel
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, p.dni, s.nombre
             ORDER BY promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,
+                     num_alto DESC, num_16 DESC,
                      p.apellido_paterno, p.apellido_materno, p.nombres
         ", [$gradoId, $periodoId]);
 
@@ -93,7 +96,9 @@ class OrdenMeritoModel extends BaseModel
                 AVG(cal.nota_numerica)             AS promedio_exacto,
                 SUM(cal.nota_numerica <= 10)               AS num_c,
                 SUM(cal.nota_numerica BETWEEN 11 AND 13)   AS num_b,
-                SUM(cal.nota_numerica >= 17)               AS num_ad
+                SUM(cal.nota_numerica >= 17)               AS num_ad,
+                SUM(cal.nota_numerica IN (15, 16))         AS num_alto,
+                SUM(cal.nota_numerica = 16)                AS num_16
             FROM matriculas m
             INNER JOIN estudiantes e      ON e.id  = m.estudiante_id
             INNER JOIN personas p         ON p.id  = e.persona_id
@@ -113,6 +118,7 @@ class OrdenMeritoModel extends BaseModel
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, s.id, s.nombre
             ORDER BY s.nombre, promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,
+                     num_alto DESC, num_16 DESC,
                      p.apellido_paterno, p.apellido_materno, p.nombres
         ", [$gradoId, $periodoId]);
 
@@ -264,12 +270,18 @@ class OrdenMeritoModel extends BaseModel
         );
     }
 
-    /** Tupla de distribución literal (C, B, AD) que identifica un empate irreducible. */
+    /**
+     * Tupla que identifica un empate irreducible. Incluye la distribución literal
+     * (C, B, AD) y los criterios de regularidad alta (cantidad de notas 15-16 y de 16):
+     * dos alumnos solo son irreducibles si coinciden en LOS CINCO conteos.
+     */
     private function tuplaLiteral(array $fila): string
     {
         return (int) $fila['num_c'] . '|'
              . (int) $fila['num_b'] . '|'
-             . (int) $fila['num_ad'];
+             . (int) $fila['num_ad'] . '|'
+             . (int) $fila['num_alto'] . '|'
+             . (int) $fila['num_16'];
     }
 
     /** Anota una fila con el estado de empate sin perder sus datos. */

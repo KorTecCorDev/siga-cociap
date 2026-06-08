@@ -1,0 +1,246 @@
+// ============================================================
+// _desempate-acta.scss — Acta de Resolución de Empates
+//
+// Dos contextos:
+//   · Pantalla (layout app)  → clases .acta-meta / .acta-motivo
+//   · Impresión (layout print, A4 portrait) → clases .acta-doc / .tabla-acta /
+//     .acta-resolucion. Reutiliza .boleta-header, .reporte-titulo y .reporte-footer.
+// ============================================================
+
+// ── Consulta en pantalla ─────────────────────────────────────
+.acta-meta {
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    margin-bottom: $spacing-md;
+}
+
+.acta-subtitulo {
+    font-size: $font-size-base;
+    font-weight: 600;
+    color: $text-primary;
+    margin: $spacing-lg 0 $spacing-xs;
+}
+
+.acta-aclaratoria {
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    margin: 0 0 $spacing-sm;
+
+    &__marca {
+        background: $color-warning-bg;
+        border-bottom: 2px solid $color-warning;
+        padding: 0 4px;
+        font-weight: 600;
+    }
+}
+
+// Cuadro comparativo por competencia (pantalla) — resalta mismo literal/distinto numeral
+.tabla-comparativo {
+    .fila-resaltada td {
+        background: $color-warning-bg;
+    }
+    .fila-resaltada td:first-child {
+        border-left: 3px solid $color-warning;
+        font-weight: 600;
+    }
+}
+
+.acta-motivo {
+    margin-top: $spacing-md;
+    padding: $spacing-md;
+    background: $brand-light;
+    border-left: 3px solid $brand-accent;
+    border-radius: $border-radius-sm;
+
+    &__label {
+        display: block;
+        font-size: $font-size-sm;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        color: $brand-accent;
+        margin-bottom: $spacing-xs;
+    }
+
+    &__texto {
+        margin: 0;
+        color: $text-primary;
+        line-height: $line-height;
+    }
+}
+
+// ── Acta imprimible (A4 portrait) ────────────────────────────
+.acta-doc {
+    font-family: Arial, Helvetica, sans-serif;
+    color: #111;
+
+    &__intro {
+        font-size: 8pt;
+        line-height: 1.4;
+        color: #333;
+        text-align: justify;
+        margin: 2.5mm 0 3.5mm;
+    }
+}
+
+// Tabla de alumnos del grupo empatado — legible en portrait
+.tabla-acta {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 8pt;
+    table-layout: fixed;
+    margin-bottom: 2mm;
+
+    .ta-orden    { width: 12mm; }
+    .ta-seccion  { width: 14mm; }
+    .ta-comp     { width: 14mm; }
+    .ta-promedio { width: 20mm; }
+    .ta-dist     { width: 22mm; }
+    .ta-puesto   { width: 20mm; }
+
+    thead th {
+        background: #efefef;
+        font-weight: bold;
+        font-size: 7pt;
+        text-transform: uppercase;
+        letter-spacing: 0.2pt;
+        color: #333;
+        padding: 1mm;
+        border: 0.4pt solid #999;
+        border-bottom: 1.2pt solid #000;
+        text-align: center;
+        vertical-align: middle;
+
+        &.ta-nombre { text-align: left; padding-left: 1.5mm; }
+    }
+
+    tbody td {
+        padding: 0.8mm 1mm;
+        border: 0.3pt solid #ddd;
+        vertical-align: middle;
+        background: #fff;
+        line-height: 1.25;
+        text-align: center;
+
+        &.ta-nombre { text-align: left; padding-left: 1.5mm; }
+    }
+
+    tbody tr:nth-child(even) td { background: #f8f8f8; }
+}
+
+// Bloque de una resolución (no debe partirse entre páginas)
+.acta-resolucion {
+    margin-bottom: 5mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+
+    &__cab {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 3mm;
+        background: #dce8f0;
+        border: 0.5pt solid #7aa0b8;
+        padding: 1mm 1.5mm;
+        break-after: avoid;
+    }
+
+    &__grado {
+        font-size: 8pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.3pt;
+        color: #1a3a5c;
+    }
+
+    &__resuelto {
+        font-size: 6.5pt;
+        color: #4a6880;
+        font-style: italic;
+        white-space: nowrap;
+    }
+
+    &__motivo {
+        font-size: 8pt;
+        line-height: 1.35;
+        color: #222;
+        text-align: justify;
+        padding: 1.5mm 2mm;
+        background: #fff7ed;
+        border: 0.4pt solid #e3b886;
+        border-left: 2pt solid #c2410c;
+    }
+
+    &__motivo-label {
+        display: inline;
+        font-weight: bold;
+        color: #9a3412;
+        margin-right: 1mm;
+    }
+
+    &__subtitulo {
+        font-size: 7.5pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.3pt;
+        color: #1a3a5c;
+        margin: 2.5mm 0 1mm;
+        break-after: avoid;
+    }
+
+    &__leyenda {
+        font-size: 6.5pt;
+        font-style: italic;
+        color: #555;
+        margin: 0.8mm 0 0;
+    }
+}
+
+// Cuadro comparativo por competencia (impresion)
+.tabla-comp-acta {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 7.5pt;
+    table-layout: fixed;
+    margin-bottom: 1mm;
+
+    .tca-alumno { width: 26mm; text-align: center; }
+
+    thead th {
+        background: #efefef;
+        font-weight: bold;
+        font-size: 6.5pt;
+        text-transform: uppercase;
+        letter-spacing: 0.2pt;
+        color: #333;
+        padding: 0.8mm 1mm;
+        border: 0.4pt solid #999;
+        border-bottom: 1.2pt solid #000;
+        text-align: center;
+        vertical-align: middle;
+
+        &.tca-comp { text-align: left; padding-left: 1.5mm; }
+    }
+
+    tbody td {
+        padding: 0.7mm 1mm;
+        border: 0.3pt solid #ddd;
+        vertical-align: middle;
+        background: #fff;
+        line-height: 1.25;
+        text-align: center;
+
+        &.tca-comp { text-align: left; padding-left: 1.5mm; word-break: break-word; }
+    }
+
+    // Resalta competencias con mismo literal pero distinto numeral
+    .fila-resaltada-acta td {
+        background: #fffbeb;
+    }
+    .fila-resaltada-acta td.tca-comp {
+        border-left: 1.5pt solid #d97706;
+        font-weight: bold;
+    }
+}

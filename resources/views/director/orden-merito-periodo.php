@@ -14,10 +14,18 @@
             <?= e($periodo['nombre_display']) ?> — <?= e($periodo['anio']) ?>
         </p>
     </div>
-    <a href="<?= url('director/orden-merito/' . $periodo['id'] . '/imprimir') ?>"
-       class="btn btn--primary btn--sm" target="_blank">
-        🖨 Imprimir reporte
-    </a>
+    <div class="btn-group">
+        <?php if (!empty($tieneDesempates)): ?>
+            <a href="<?= url('director/orden-merito/' . $periodo['id'] . '/desempates') ?>"
+               class="btn btn--secondary btn--sm">
+                📋 Acta de desempates
+            </a>
+        <?php endif; ?>
+        <a href="<?= url('director/orden-merito/' . $periodo['id'] . '/imprimir') ?>"
+           class="btn btn--primary btn--sm" target="_blank">
+            🖨 Imprimir reporte
+        </a>
+    </div>
 </div>
 
 <?php if (empty($ranking)): ?>
@@ -58,8 +66,9 @@
                 <?php if ($hayPendientes): ?>
                     <div class="alerta-empate">
                         <span class="alerta-empate__texto">
-                            ⚠ Hay un empate irreducible en este grado. El puesto en disputa
-                            debe resolverlo Registro Académico o Administración.
+                            ⚠ Hay un empate irreducible en este grado: ni los criterios de
+                            regularidad alta (notas 15-16 y 16) lo separan. El puesto en disputa
+                            debe resolverlo la Dirección, Registro Académico o Administración.
                         </span>
                         <a href="<?= url('director/orden-merito/' . $periodo['id'] . '/desempate/' . $data['grado']['id']) ?>"
                            class="btn btn--primary btn--sm">Resolver empate</a>

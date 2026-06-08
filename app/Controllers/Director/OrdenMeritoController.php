@@ -106,10 +106,120 @@ class OrdenMeritoController extends BaseController
         }
 
         $this->view('director/orden-merito-periodo', [
-            'titulo'   => 'Orden de mérito — ' . $periodo['nombre_display'],
-            'periodo'  => $periodo,
-            'ranking'  => $ranking,
+            'titulo'          => 'Orden de mérito — ' . $periodo['nombre_display'],
+            'periodo'         => $periodo,
+            'ranking'         => $ranking,
+            'tieneDesempates' => $this->desempateModel->contarPorPeriodo($periodoId) > 0,
         ]);
+    }
+
+    /**
+     * GET /director/orden-merito/{periodo_id}/desempates
+     * Acta de las resoluciones de empate del periodo (pantalla de consulta).
+     * Documenta qué decisión se tomó, quién la tomó y el motivo, para poder
+     * explicarla a docentes y padres de familia.
+     */
+    public function desempates(string $periodoId): void
+    {
+        $periodoId = (int) $periodoId;
+        $data = $this->buildActaData($periodoId);
+
+        if ($data === null) {
+            $this->redirectWithError(
+                url('director/orden-merito'),
+                'Periodo no encontrado.'
+            );
+        }
+
+        $this->view('director/desempates', [
+            'titulo'       => 'Acta de desempates — ' . $data['periodo']['nombre_display'],
+            'periodo'      => $data['periodo'],
+            'resoluciones' => $data['resoluciones'],
+        ]);
+    }
+
+    /**
+     * GET /director/orden-merito/{periodo_id}/desempates/imprimir
+     * Acta imprimible (A4 portrait) con cabecera institucional y firma del
+     * Director EBR vigente: constancia oficial de las resoluciones de empate.
+     */
+    public function desempatesImprimir(string $periodoId): void
+    {
+        $periodoId = (int) $periodoId;
+        $data = $this->buildActaData($periodoId);
+
+        if ($data === null) {
+            $this->redirectWithError(
+                url('director/orden-merito'),
+                'Periodo no encontrado.'
+            );
+        }
+
+        View::setLayout('print');
+        $this->view('director/desempates-acta', [
+            'titulo'       => 'Acta de Resolución de Empates — '
+                . $data['periodo']['nombre_display'] . ' ' . $data['periodo']['anio'],
+            'periodo'      => $data['periodo'],
+            'resoluciones' => $data['resoluciones'],
+            'institucion'  => config('institucion'),
+            'directorEbr'  => $this->getDirectorEbr($data['periodo']),
+        ]);
+    }
+
+    /**
+     * Carga común del acta de desempates: periodo + resoluciones enriquecidas con
+     * las métricas (promedio, distribución AD/B/C, puesto) tomadas de la fuente
+     * única del ranking, para que coincidan exactamente con el orden de mérito.
+     * Retorna null si el periodo no existe.
+     */
+    private function buildActaData(int $periodoId): ?array
+    {
+        $periodo = $this->calModel->queryOne("
+            SELECT p.*, a.anio
+            FROM periodos p
+            INNER JOIN anios_academicos a ON a.id = p.anio_id
+            WHERE p.id = ?
+        ", [$periodoId]);
+
+        if (!$periodo) {
+            return null;
+        }
+
+        $resoluciones = $this->desempateModel->getActaPorPeriodo($periodoId);
+
+        // Mapa matricula_id => métricas, calculado una vez por grado.
+        $rankingCache = [];
+        foreach ($resoluciones as &$res) {
+            $gradoId = (int) $res['grado_id'];
+            if (!isset($rankingCache[$gradoId])) {
+                $mapa = [];
+                foreach ($this->calcularRanking($gradoId, $periodoId) as $fila) {
+                    $mapa[(int) $fila['matricula_id']] = $fila;
+                }
+                $rankingCache[$gradoId] = $mapa;
+            }
+            $mapa = $rankingCache[$gradoId];
+
+            foreach ($res['alumnos'] as &$al) {
+                $r = $mapa[(int) $al['matricula_id']] ?? null;
+                $al['promedio_general'] = $r['promedio_general'] ?? null;
+                $al['num_competencias'] = $r !== null ? (int) $r['num_competencias'] : null;
+                $al['num_ad']           = $r !== null ? (int) $r['num_ad'] : null;
+                $al['num_b']            = $r !== null ? (int) $r['num_b']  : null;
+                $al['num_c']            = $r !== null ? (int) $r['num_c']  : null;
+                $al['puesto_grado']     = $r['puesto'] ?? null;
+            }
+            unset($al);
+
+            // Cuadro comparativo por competencia (numeral + literal) del grupo.
+            $res['comparativo'] = $this->desempateModel->getComparativoCompetencias(
+                array_map(static fn($a) => (int) $a['matricula_id'], $res['alumnos']),
+                $periodoId
+            );
+        }
+        unset($res);
+
+        return ['periodo' => $periodo, 'resoluciones' => $resoluciones];
     }
 
     /**
@@ -194,7 +304,7 @@ class OrdenMeritoController extends BaseController
      */
     public function desempate(string $periodoId, string $gradoId): void
     {
-        $this->requireRole(['admin', 'registro_academico']);
+        $this->requireRole(['admin', 'registro_academico', 'director_general', 'director_ebr']);
 
         $periodoId = (int) $periodoId;
         $gradoId   = (int) $gradoId;
@@ -243,7 +353,7 @@ class OrdenMeritoController extends BaseController
      */
     public function guardarDesempate(string $periodoId, string $gradoId): void
     {
-        $this->requireRole(['admin', 'registro_academico']);
+        $this->requireRole(['admin', 'registro_academico', 'director_general', 'director_ebr']);
         $this->validateCsrf();
 
         $periodoId = (int) $periodoId;

@@ -176,6 +176,9 @@ $router->get('/director/orden-merito/{periodo_id}/imprimir',    'Director\OrdenM
 // router no capture "desempate" como periodo.
 $router->get('/director/orden-merito/{periodo_id}/desempate/{grado_id}',  'Director\OrdenMeritoController@desempate');
 $router->post('/director/orden-merito/{periodo_id}/desempate/{grado_id}', 'Director\OrdenMeritoController@guardarDesempate');
+// Acta de desempates: la mas especifica (/imprimir) antes que la de pantalla.
+$router->get('/director/orden-merito/{periodo_id}/desempates/imprimir', 'Director\OrdenMeritoController@desempatesImprimir');
+$router->get('/director/orden-merito/{periodo_id}/desempates',          'Director\OrdenMeritoController@desempates');
 $router->get('/director/orden-merito/{periodo_id}',             'Director\OrdenMeritoController@porPeriodo');
 
 // ─── Gestión de bloqueos ─────────────────────────────────────

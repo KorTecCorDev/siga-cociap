@@ -179,4 +179,138 @@ class DesempateMeritoModel extends BaseModel
             ORDER BY dm.resuelto_en DESC
         ", [$periodoId]);
     }
+
+    /** Numero de resoluciones de desempate registradas en un periodo. */
+    public function contarPorPeriodo(int $periodoId): int
+    {
+        $row = $this->queryOne(
+            "SELECT COUNT(*) AS n FROM desempates_merito WHERE periodo_id = ?",
+            [$periodoId]
+        );
+        return (int) ($row['n'] ?? 0);
+    }
+
+    /**
+     * Acta de un periodo: cada resolucion con su cabecera (grado, quien la tomo,
+     * fecha, motivo) y el detalle de alumnos en el orden manual designado.
+     * Pensada para el reporte/constancia que explica las decisiones a docentes y padres.
+     *
+     * Retorna [ {id, grado_id, motivo, resuelto_en, resuelto_por_nombre, resuelto_por_sexo,
+     *            grado_nombre, nivel_nombre, alumnos[ {matricula_id, orden_manual,
+     *            apellido_paterno, apellido_materno, nombres, seccion_nombre} ]} ].
+     * Ordenada por nivel y grado. Las metricas (promedio, AD/B/C, puesto) las anexa el
+     * controller desde la fuente unica del ranking, para que coincidan con el orden de merito.
+     */
+    public function getActaPorPeriodo(int $periodoId): array
+    {
+        $resoluciones = $this->query("
+            SELECT
+                dm.id, dm.grado_id, dm.motivo, dm.resuelto_en,
+                g.nombre_display AS grado_nombre,
+                n.nombre         AS nivel_nombre,
+                p.apellido_paterno, p.apellido_materno, p.nombres,
+                p.sexo           AS resuelto_por_sexo
+            FROM desempates_merito dm
+            INNER JOIN usuarios u ON u.id = dm.resuelto_por
+            INNER JOIN personas p ON p.id = u.persona_id
+            INNER JOIN grados   g ON g.id = dm.grado_id
+            INNER JOIN niveles  n ON n.id = g.nivel_id
+            WHERE dm.periodo_id = ?
+            ORDER BY n.id, g.numero, dm.resuelto_en DESC
+        ", [$periodoId]);
+
+        foreach ($resoluciones as &$res) {
+            $res['resuelto_por_nombre'] = trim(
+                $res['apellido_paterno'] . ' ' . $res['apellido_materno'] . ', ' . $res['nombres']
+            );
+            $res['alumnos'] = $this->query("
+                SELECT
+                    dmo.matricula_id, dmo.orden_manual,
+                    p.apellido_paterno, p.apellido_materno, p.nombres,
+                    s.nombre AS seccion_nombre
+                FROM desempates_merito_orden dmo
+                INNER JOIN matriculas  m ON m.id = dmo.matricula_id
+                INNER JOIN estudiantes e ON e.id = m.estudiante_id
+                INNER JOIN personas    p ON p.id = e.persona_id
+                INNER JOIN secciones   s ON s.id = m.seccion_id
+                WHERE dmo.desempate_id = ?
+                ORDER BY dmo.orden_manual
+            ", [(int) $res['id']]);
+        }
+        unset($res);
+
+        return $resoluciones;
+    }
+
+    /**
+     * Cuadro comparativo competencia por competencia para un grupo de matriculas
+     * empatadas. Por cada competencia trae la nota numeral y literal de cada alumno,
+     * y marca `resaltar = true` cuando todos comparten el MISMO literal pero con
+     * DISTINTA nota numeral (la diferencia que la boleta literal oculta — clave para
+     * explicar el desempate a los padres, sobre todo en primaria).
+     *
+     * Replica el camino de enlace del ranking (area/subarea via `competencias`, sin
+     * filtrar por bloqueos y excluyendo transversales) para que estas notas cuadren
+     * exactamente con el promedio que produjo el empate.
+     *
+     * Retorna [ {label, notas[matricula_id=>int|null], literales[matricula_id=>str|null],
+     *            resaltar} ] ordenado por area y competencia.
+     */
+    public function getComparativoCompetencias(array $matriculaIds, int $periodoId): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $matriculaIds)));
+        if (count($ids) < 2) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+
+        $filas = $this->query("
+            SELECT
+                cal.matricula_id,
+                comp.id              AS competencia_id,
+                comp.nombre_completo AS competencia_nombre,
+                cal.nota_numerica,
+                a.nombre             AS area_nombre,
+                sa.nombre            AS subarea_nombre
+            FROM calificaciones cal
+            INNER JOIN competencias comp ON comp.id = cal.competencia_id
+            LEFT  JOIN subareas sa       ON sa.id  = comp.subarea_id
+            INNER JOIN areas a           ON a.id   = COALESCE(sa.area_id, comp.area_id)
+            WHERE cal.matricula_id IN ($ph)
+              AND cal.periodo_id = ?
+              AND a.tipo != 'transversal'
+            ORDER BY a.orden, comp.orden, comp.id
+        ", array_merge($ids, [$periodoId]));
+
+        // Pivote: una fila por competencia, columnas por matricula.
+        $comp = [];
+        foreach ($filas as $f) {
+            $cid = (int) $f['competencia_id'];
+            if (!isset($comp[$cid])) {
+                $curso = !empty($f['subarea_nombre']) ? $f['subarea_nombre'] : $f['area_nombre'];
+                $comp[$cid] = [
+                    'label'     => $curso . ' — ' . $f['competencia_nombre'],
+                    'notas'     => [],
+                    'literales' => [],
+                ];
+            }
+            $nota = $f['nota_numerica'];
+            $comp[$cid]['notas'][(int) $f['matricula_id']]     = $nota !== null ? (int) $nota : null;
+            $comp[$cid]['literales'][(int) $f['matricula_id']] = $nota !== null ? nota_a_literal((int) $nota) : null;
+        }
+
+        // Marca las competencias con mismo literal pero distinto numeral.
+        foreach ($comp as &$c) {
+            $notas     = array_filter($c['notas'],     static fn($n) => $n !== null);
+            $literales = array_filter($c['literales'], static fn($l) => $l !== null);
+            $c['resaltar'] = (
+                count($literales) >= 2
+                && count(array_unique($literales)) === 1
+                && count(array_unique($notas)) > 1
+            );
+        }
+        unset($c);
+
+        return array_values($comp);
+    }
 }
