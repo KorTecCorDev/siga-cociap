@@ -4,10 +4,12 @@ namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
 use App\Models\EstudianteModel;
+use App\Models\OrdenMeritoModel;
 
 class BuscadorEstudianteController extends BaseController
 {
-    private EstudianteModel $model;
+    private EstudianteModel  $model;
+    private OrdenMeritoModel $ordenMeritoModel;
 
     public function __construct()
     {
@@ -18,7 +20,8 @@ class BuscadorEstudianteController extends BaseController
             'director_general',
             'director_ebr',
         ]);
-        $this->model = new EstudianteModel();
+        $this->model            = new EstudianteModel();
+        $this->ordenMeritoModel = new OrdenMeritoModel();
     }
 
     // GET /admin/buscar-estudiante
@@ -63,13 +66,29 @@ class BuscadorEstudianteController extends BaseController
         $bimestre   = $this->model->ultimoBimestreCerrado((int) $anio['id']);
         $periodoId  = $bimestre ? (int) $bimestre['id'] : null;
 
-        $filas      = $this->model->buscarEnAnioActivo($termino, (int) $anio['id'], $periodoId);
-        $resultados = array_map(function (array $f): array {
+        $filas = $this->model->buscarEnAnioActivo($termino, (int) $anio['id']);
+
+        // Puesto del orden de mérito: misma fuente que el ranking oficial
+        // (OrdenMeritoModel, con cascada de desempate y resolución manual).
+        $puestos = [];
+        if ($periodoId !== null && $filas) {
+            $gradoIds = array_filter(array_map(
+                static fn($f) => (int) ($f['grado_id'] ?? 0),
+                $filas
+            ));
+            if ($gradoIds) {
+                $puestos = $this->ordenMeritoModel->puestosPorGrado($gradoIds, $periodoId);
+            }
+        }
+
+        $resultados = array_map(function (array $f) use ($puestos): array {
             $tutor = !empty($f['tutor_apellido_paterno'])
                 ? mb_strtoupper($f['tutor_apellido_paterno']) . ' '
                 . mb_strtoupper($f['tutor_apellido_materno']) . ', '
                 . $f['tutor_nombres']
                 : null;
+
+            $puesto = $puestos[(int) $f['matricula_id']]['puesto'] ?? null;
 
             return [
                 'dni'      => $f['dni'],
@@ -82,7 +101,7 @@ class BuscadorEstudianteController extends BaseController
                 'seccion'  => $f['seccion_nombre'],
                 'estado'   => $f['matricula_estado'],
                 'tutor'    => $tutor,
-                'puesto'   => $f['puesto_grado'] !== null ? (int) $f['puesto_grado'] : null,
+                'puesto'   => $puesto !== null ? (int) $puesto : null,
             ];
         }, $filas);
 
