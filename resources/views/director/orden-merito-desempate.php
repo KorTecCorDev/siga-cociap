@@ -92,7 +92,7 @@
                         Motivo de la decisión <span class="text-danger">*</span>
                     </label>
                     <textarea id="motivo-<?= e($clave) ?>" name="motivo"
-                              class="form-control" rows="2" required
+                              class="form-input" rows="2" required
                               placeholder="Ej.: a igual rendimiento, se prioriza por acuerdo del comité directivo del..."></textarea>
                 </div>
             </div>

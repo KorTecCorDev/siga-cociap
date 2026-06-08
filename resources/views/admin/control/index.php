@@ -19,7 +19,7 @@ $badgeSeveridad = static fn(string $sev): string =>
     <?php if (!empty($periodos)): ?>
         <form method="GET" action="<?= url('admin/control') ?>" class="control-selector">
             <label for="periodo_id" class="form-label">Periodo</label>
-            <select name="periodo_id" id="periodo_id" class="form-control"
+            <select name="periodo_id" id="periodo_id" class="form-select"
                     onchange="this.form.submit()">
                 <?php foreach ($periodos as $p): ?>
                     <option value="<?= (int) $p['id'] ?>"
