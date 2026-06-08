@@ -117,10 +117,7 @@ director_ebr_historial  ← NUEVO (sesión 7)
 7. migrations/006_soft_delete_criterios.sql   ← sesión 7
 8. migrations/007_director_ebr_historial.sql  ← sesión 7
 9. migrations/008_director_ebr_imagenes.sql   ← sesión 7
-10. seeds/001_datos_prueba.sql
-11. seeds/002_completar_sistema.sql
-```
-Los seeds 003 y 004 son solo para desarrollo/testing, no van en producción.
+
 
 ## Seed de demostración para presentación (sesión 4)
 ```
@@ -359,10 +356,17 @@ NUNCA CSS inline en PHP (convención del proyecto).
 - CSRF con `$this->validateCsrf()` en `POST /boleta-publica/consultar`.
 
 ### Reglas especiales SIAGIE (secundaria)
-- **1°-3° sec:** Taller Raz. Matemático → se registra en Ed. Religiosa en SIAGIE
-- **4°-5° sec:** Raz. Matemático → se registra en Arte y Cultura en SIAGIE
-- **Todos los grados:** Ed. Religiosa tiene alias "(Ética y Valores)"
-- **Toda la secundaria:** EPT tiene alias "(Habilidades Pedagógicas)"
+Los talleres propios de COCIAP no son áreas oficiales del MINEDU: sus notas se
+registran en el casillero de un área oficial que cede ese tramo de grados.
+- **Taller de Razonamiento Matemático** → se registra en **Ed. Religiosa (1°-4°)**
+  y en **Arte y Cultura (5°)**.
+- **Taller de Pre Cálculo** (solo 5°) → se registra en **Educación para el Trabajo**.
+- **Áreas oficiales que ceden su casillero** (solo registran sus notas reales en el tramo libre):
+  - **Educación Religiosa:** notas reales solo en **5°** (1°-4° lo ocupa RazMat).
+  - **Arte y Cultura:** notas reales solo en **1°-4°** (5° lo ocupa RazMat).
+  - **Educación para el Trabajo:** notas reales solo en **1°-4°** (5° lo ocupa Pre Cálculo).
+- **Alias:** únicamente **Ed. Religiosa de 5° secundaria** se muestra como "(Ética y Valores)".
+  Ningún otro área lleva alias (EPT ya NO usa "(Habilidades Pedagógicas)").
 
 ## Decisiones de implementación — sesión 6 (boletas públicas)
 - **Sin herencia cruzada**: `BoletaPublicaController` (público) duplica `buildAreasConBimestres()`
@@ -681,30 +685,6 @@ Las literales (`/matriculas/crear`) y los sub-recursos (`/{id}/apoderado`,
 - Continuador → solo `recibo_pago`; nuevo → todos los documentos.
 - Notas externas solo para `tipo='nuevo'`.
 
-## Pendientes al 22 de mayo 2026
-- [x] Boleta de calificaciones imprimible A4 ← completado sesión 2
-- [x] Boleta digital mobile-first con QR ← completado sesión 3
-- [x] Botón "Ver boleta digital" en panel del padre ← completado sesión 3
-- [x] Gestión de usuarios (CRUD admin) ← completado sesión 3
-- [x] Módulo secciones y tutores (modal asignación) ← completado sesión 4
-- [x] Seed de escenarios de boleta para demo ← completado sesión 4
-- [x] Módulo de boletas públicas con código de acceso ← completado sesión 6
-- [x] Soft-delete de criterios con auditoría ← completado sesión 7
-- [x] Módulo Director EBR con historial y firma/sello en documentos ← completado sesión 7
-- [ ] Asignar tutores a secciones de primaria 1°B-6°B (actualmente sin tutor)
-- [ ] Cargas académicas para primaria desde interfaz director (actualmente solo por BD)
-- [ ] Verificar boleta impresa en RICOH MP4054 PCL6 (márgenes, paginación)
-- [ ] Verificar acceso desde red local del colegio
-- [ ] Módulo director: activar/cerrar periodos visualmente
-- [ ] Vista de control: secciones con competencias aún sin bloquear
-- [ ] Cargar datos reales del COCIAP
-- [ ] Video tutorial para docentes
-- [ ] Deploy en servidor del colegio
-
-## Meta actualizada: presentación al comité directivo
-Docentes subieron notas del I Bimestre el 16-17 de mayo 2026.
-Presentación pendiente al comité directivo — seed de demo listo en `database/seeds/003_demo_boletas.sql`.
-
 ## Seguridad y estado REAL de producción (sesión 8 — endurecimiento)
 
 > Esta sección refleja cómo quedó realmente el despliegue y **SUPERSEDE** lo que
@@ -891,110 +871,115 @@ datos a servicios externos.
   — se validan por contenido real (no solo extensión). Ya NO se usa `public/assets/img/firmas/`.
 
 ## Listado de áreas o áreas-curso con sus respectivas subáreas o competencias.
-### Áreas Curriculares y Competencias - Modelo SIAGIE - NIVEL SECUNDARIA
--IMPORTANTE. Un curso puede ser equivalente a un area-curso con varias competencias o una subarea vinculada a una sola competencia.
-
-- Desarrollo Personal, Ciudadanía y Cívica (area-curso)
-  Competencias
-    Construye su identidad
-    Convive y participa democráticamente en la búsqueda del bien común
-- Ciencias Sociales (area)
-  Competencias
-    Construye interpretaciones históricas (subarea -> Historia)
-    Gestiona responsablemente el espacio y el ambiente (subarea -> Geografía)
-    Gestiona responsablemente los recursos económicos (subarea -> Economía)
-- Educación Física (area-curso)
-  Competencias
-    Se desenvuelve de manera autónoma a través de su motricidad
-    Asume una vida saludable
-    Interactúa a través de sus habilidades sociomotrices
-- Arte y Cultura (Razonamiento matemático) (area-curso) ¡RAZONAMIENTO MATEMÁTICO EN CASO DEL CUARTO Y QUINTO GRADO - cualquier sección!
-  Competencias
-    Aprecia de manera crítica manifestaciones artístico-culturales
-    Crea proyectos desde los lenguajes artísticos
-- Comunicación (area)
-  Competencias
-    Se comunica oralmente en su lengua materna (subarea -> Razonamiento Verbal)
-    Lee diversos tipos de textos escritos en su lengua materna (subarea -> Literatura)
-    Escribe diversos tipos de textos en su lengua materna (subarea -> Lenguaje)
-- Inglés (area-curso)
-  Competencias
-    Se comunica oralmente
-    Lee diversos tipos de textos escritos
-    Escribe diversos tipos de textos
-- Matemática (area)
-  Competencias
-    Resuelve problemas de cantidad (subarea -> Aritmética)
-    Resuelve problemas de regularidad, equivalencia y cambio (subarea -> Álgebra)
-    Resuelve problemas de forma, movimiento y localización (subarea -> Geometría)
-    Resuelve problemas de gestión de datos e incertidumbre (subarea -> Trigonometría)
-- Taller de Razonamiento Matemático (area-curso) ¡SOLO DEL PRIMER GRADO AL TERCER GRADO - cualquier sección!
-  Competencias
-  Resuelve problemas de cantidad
-  Resuelve problemas de gestión de datos e incertidumbre
-- Ciencia y Tecnología (area)
-  Competencias
-  Indaga mediante métodos científicos para construir sus conocimientos (subarea -> Química)
-  Explica el mundo físico basándose en conocimientos sobre los seres vivos, materia y energía, biodiversidad, Tierra y Universo (subarea -> Biología)
-  Diseña y construye soluciones tecnológicas para resolver problemas de su entorno (subarea -> Física)
-- Educación Religiosa (area-curso)
-  Competencias
-  Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas
-  Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa
-- Educación para el Trabajo (area-curso)
-  Competencias
-  Gestiona proyectos de emprendimiento económico o social
-- Competencias Transversales (caso especial) - Calificaciones registradas por el tutor
-  Competencias Transversales / No Asociadas a Áreas
-    Competencias
-    Se desenvuelve en entornos virtuales generados por las TIC
-    Gestiona su aprendizaje de manera autónoma
 # Áreas Curriculares y Competencias - Modelo SIAGIE - NIVEL PRIMARIA
 * IMPORTANTE.
   Solo desde el primer grado al tercer grado todas las areas son manejadas por un solo docente (UNIDOCENTE), todas las areas se convierten en area-curso.
   Las compentencias transversales son llenadas solo por el TUTOR de la sección.
 * Personal Social (area-curso)
-  Competencias
-  Construye su identidad
-  Convive y participa democráticamente en la búsqueda del bien común
-  Construye interpretaciones históricas
-  Gestiona responsablemente el espacio y el ambiente
-  Gestiona responsablemente los recursos económicos
+- Competencias
+  1. Construye su identidad
+  2. Convive y participa democráticamente en la búsqueda del bien común.
+  3. Construye interpretaciones históricas.
+  4. Gestiona responsablemente el espacio y el ambiente.
+  5. Gestiona responsablemente los recursos económicos.
 * Educación Física (area-curso)
-  Competencias
-  Se desenvuelve de manera autónoma a través de su motricidad
-  Asume una vida saludable
-  Interactúa a través de sus habilidades sociomotrices
+- Competencias
+  1. Se desenvuelve de manera autónoma a través de su motricidad.
+  2. Asume una vida saludable.
+  3. Interactúa a través de sus habilidades sociomotrices.
 * Arte y Cultura (area-curso)
-  Competencias
+- Competencias
   Aprecia de manera crítica manifestaciones artístico-culturales
   Crea proyectos desde los lenguajes artísticos
 * Comunicación (area)
-  Competencias
-  Se comunica oralmente en su lengua materna (subarea -> Comunicación)
-  Lee diversos tipos de textos escritos en su lengua materna (subarea -> Plan lector)
-  Escribe diversos tipos de textos en su lengua materna (subarea -> Razonamiento verbal)
+- Competencias
+  1. Se comunica oralmente en su lengua materna (subarea -> Gramática-Competencia Lingüística)
+  2. Lee diversos tipos de textos escritos en su lengua materna (subarea -> Plan lector)
+  3. Escribe diversos tipos de textos en su lengua materna (subarea -> Razonamiento verbal)
 * Inglés como lengua extranjera (area-curso)
-  Competencias
-  Se comunica oralmente
-  Lee diversos tipos de textos escritos
-  Escribe diversos tipos de textos
+- Competencias
+  1. Se comunica oralmente en inglés como lengua extranjera.
+  2. Lee diversos tipos de textos escritos en inglés como lengua extranjera.
+  3. Escribe diversos tipos de textos eninglés como lengua extranjera.
 * Matemática (area)
-  Competencias
-  Resuelve problemas de cantidad (subarea -> Aritmética)
-  Resuelve problemas de regularidad, equivalencia y cambio (subarea -> Álgebra)
-  Resuelve problemas de forma, movimiento y localización (subarea -> Geometría)
-  Resuelve problemas de gestión de datos e incertidumbre (subarea -> Razonamiento matemático)
+- Competencias
+  1. Resuelve problemas de cantidad. (subarea -> Aritmética)
+  2. Resuelve problemas de regularidad, equivalencia y cambio. (subarea -> Álgebra)
+  3. Resuelve problemas de forma,movimiento y localización. (subarea -> Geometría)
+  4. Resuelve problemas de gestión de datos e incertidumbre. (subarea -> Razonamiento Matemático)
 * Ciencia y Tecnología (area)
-  Competencias
-  Indaga mediante métodos científicos para construir sus conocimientos (subarea -> Química)
-  Explica el mundo físico basándose en conocimientos sobre los seres vivos, materia y energía, biodiversidad, Tierra y Universo (subarea -> Biología)
-  Diseña y construye soluciones tecnológicas para resolver problemas de su entorno (subarea -> Física)
+- Competencias
+  1. Indaga mediante métodos científicos para construir sus conocimientos. (subarea -> Química)
+  2. Explica el mundo físico basándoseen conocimientos sobre los seresvivos; materia y energía; biodiversidad, Tierra y Universo. (subarea -> Biología)
+  3. Diseña y construye soluciones tecnológicas para resolver problemas de su entorno. (subarea -> Física)
 * Educación Religiosa (area-curso)
-  Competencias
-  Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas
-  Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa
+- Competencias
+  1. Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas.
+  2. Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa.
 * Competencias Transversales (caso especial) - Calificaciones registradas por el tutor
-  Competencias
-  Se desenvuelve en entornos virtuales generados por las TIC
-  Gestiona su aprendizaje de manera autónoma
+- Competencia TIC
+  1. Se desenvuelve en entornos virtuales generados por las TIC
+- Competencia GAMA
+  1. Gestiona su Aprendizaje de manera autónoma
+### Áreas Curriculares y Competencias - Modelo SIAGIE - NIVEL SECUNDARIA
+-IMPORTANTE. Un curso puede ser equivalente a un area-curso con varias competencias o una subarea vinculada a una sola competencia.
+* Desarrollo Personal, Ciudadanía y Cívica (area-curso)
+- Competencias
+    1. Construye su identidad.
+    2. Convive y participa democráticamente en la búsqueda del bien común.
+* Ciencias Sociales (area)
+  Se maneja a Geografía/Economía como una sola subárea con dos competencias en las cargas.
+- Competencias
+    1. Construye interpretaciones históricas. (subarea -> Historia)
+    2. Gestiona responsablemente el espacio y el ambiente. (subarea -> Geografía)
+    3. Gestiona responsablemente los recursos económicos. (subarea -> Economía)
+* Educación Física (area-curso)
+- Competencias
+    1. Se desenvuelve de manera autónoma a través de su motricidad
+    2. Asume una vida saludable
+    3. Interactúa a través de sus habilidades sociomotrices
+* Arte y Cultura (area-curso) (Para SIAGIE: Solo del 1ero al 4to, en el 5to se registran las notas del area-curso de Taller de Razonamiento matemático)
+- Competencias
+    1. Aprecia de manera crítica manifestaciones artístico-culturales
+    2. Crea proyectos desde los lenguajes artísticos
+* Comunicación (area)
+- Competencias
+    1. Se comunica oralmente en su lengua materna. (subarea -> Razonamiento Verbal)
+    2. Lee diversos tipos de textos escritos en su lengua materna. (subarea -> Literatura)
+    3. Escribe diversos tipos de textos en su lengua materna. (subarea -> Lenguaje)
+* Inglés (area-curso)
+- Competencias
+    1. Se comunica oralmente en Inglés.
+    2. Lee diversos tipos de textos escritos en Inglés.
+    3. Escribe diversos tipos de textos en Inglés.
+* Matemática (area)
+- Competencias
+    1. Resuelve problemas de cantidad. (subarea -> Aritmética)
+    2. Resuelve problemas de regularidad, equivalencia y cambio. (subarea -> Álgebra)
+    3. Resuelve problemas de forma, movimiento y localización. (subarea -> Geometría)
+    4. Resuelve problemas de gestión de datos e incertidumbre. (subarea -> Trigonometría)
+* Taller de Razonamiento Matemático (area-curso) (Para SIAGIE: se registran desde el 1er al 4to grado en el area-curso de Educación Religiosa, para 5to se registran las notas en el area-curso de Arte y Cultura)
+- Competencias
+    1. Resuelve problemas de cantidad.
+    2. Resuelve problemas de regularidad, equivalencia y cambio.
+* Taller de Pre Cálculo (area-curso) (Para SIAGIE: las notas se registran en el area-curso de Educación para el trabajo)
+- Competencias
+    1. Resuelve problemas de regularidad, equivalencia y cambio.
+* Ciencia y Tecnología (area)
+- Competencias
+  1. Indaga mediante métodos científicos para construir sus conocimientos (subarea -> Química)
+  2. Explica el mundo físico basándose en conocimientos sobre los seres vivos, materia y energía, biodiversidad, Tierra y Universo (subarea -> Biología)
+  3. Diseña y construye soluciones tecnológicas para resolver problemas de su entorno (subarea -> Física)
+* Educación Religiosa (area-curso) (Para SIAGIE: del 1ero al 4to registra las notas del Taller de Razonamiento Matemático; en 5to registra sus propias notas con el alias "(Ética y Valores)")
+- Competencias
+  1. Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas.
+  2. Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa.
+* Educación para el Trabajo (area-curso) (Para SIAGIE: Desde el 1ero al 4to, en el 5to grado se llenan las notas de Taller de Pre Cálculo)
+- Competencias
+  1. Gestiona proyectos de emprendimiento económico o social.
+* Competencias Transversales (caso especial) - Calificaciones registradas por el tutor
+- Competencias Transversales / No Asociadas a Áreas
+  Competencia TIC
+  1. Se desenvuelve en entornos virtuales generados por las TIC
+  Competencia GAMA
+  1. Gestiona su aprendizaje de manera autónoma
