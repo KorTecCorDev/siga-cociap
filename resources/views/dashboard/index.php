@@ -22,6 +22,7 @@ $grupos = [
         ['roles' => ['admin'],                                                           'url' => 'admin/secciones',       'icon' => 'book-bookmark.svg',     'titulo' => 'Secciones y Tutores',  'desc' => 'Asignar tutores por sección'],
     ],
     'Evaluación y reportes' => [
+        ['roles' => ['admin', 'registro_academico', 'director_general', 'director_ebr'], 'url' => 'admin/control',          'icon' => 'folder-error.svg',      'titulo' => 'Centro de Control',    'desc' => 'Inconsistencias operativas pendientes'],
         ['roles' => ['admin'],                                                           'url' => 'admin/conducta',        'icon' => 'slider-vertical.svg',   'titulo' => 'Conducta',             'desc' => 'Calificaciones de comportamiento por sección'],
         ['roles' => ['admin', 'registro_academico'],                                     'url' => 'admin/asistencia',      'icon' => 'calendar-add.svg',      'titulo' => 'Asistencia',           'desc' => 'Registro de faltas y tardanzas por sección'],
         ['roles' => ['admin', 'director_general', 'director_ebr', 'registro_academico'], 'url' => 'director/bloqueos',     'icon' => 'folder-check.svg',      'titulo' => 'Bloqueos del bimestre','desc' => 'Gestionar permisos de edición de notas'],

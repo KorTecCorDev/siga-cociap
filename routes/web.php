@@ -29,6 +29,9 @@ $router->post('/admin/curriculum/areas/{id}/mover',                'Admin\Curric
 $router->post('/admin/curriculum/subareas/{id}/editar',            'Admin\CurriculumController@guardarSubarea');
 $router->post('/admin/curriculum/competencias/{id}/editar',        'Admin\CurriculumController@guardarCompetencia');
 
+// ─── Admin — Centro de Control Operativo ────────────────────
+$router->get( '/admin/control',               'Admin\ControlOperativoController@index');
+
 // ─── Admin — Secciones y Tutores ────────────────────────────
 $router->get( '/admin/secciones',             'Admin\SeccionController@index');
 $router->post('/admin/secciones/{id}/tutor',  'Admin\SeccionController@asignarTutor');
