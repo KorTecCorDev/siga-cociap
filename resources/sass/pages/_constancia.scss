@@ -1,0 +1,236 @@
+// ============================================================
+// _constancia.scss — Constancia de traslado
+//   · Pantalla (layout app): control de número en el formulario.
+//   · Impresión (layout print, A4 portrait): documento oficial.
+//
+// Estilo: documento administrativo sobrio. Tipografía del proyecto (Inter),
+// sin marcos ni adornos; filetes finos, grises suaves y poco contraste.
+// ============================================================
+
+$cons-ink:   $text-primary;     // #1e293b
+$cons-soft:  $text-secondary;   // #475569
+$cons-faint: $text-muted;       // #94a3b8
+$cons-line:  #d7dee6;           // hairline para impresión
+$cons-name:  $brand-dark;       // azul institucional, uso contenido
+
+// ── Formulario: campo de número de constancia (pantalla) ─────
+.constancia-numero {
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
+
+    &__prefijo,
+    &__sufijo {
+        font-weight: 600;
+        color: $text-secondary;
+        white-space: nowrap;
+    }
+
+    &__input {
+        max-width: 7rem;
+        text-align: center;
+    }
+}
+
+// ── Documento imprimible (A4 portrait, hereda @page de _boleta.scss) ──
+.constancia {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    min-height: 250mm;               // ancla el pie al fondo de la página
+    max-width: 175mm;
+    margin: 0 auto;
+    position: relative;
+    font-family: $font-family;       // Inter
+    color: $cons-ink;
+    font-size: 11pt;
+    line-height: 1.6;
+
+    // ── Lema oficial del año ──
+    .constancia-lema {
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.8pt;
+        font-size: 7pt;
+        font-weight: 500;
+        color: $cons-faint;
+        margin-bottom: 5mm;
+    }
+
+    // ── Membrete (escudo centrado sobre el nombre) ──
+    .constancia-header {
+        text-align: center;
+
+        &__logo img {
+            display: block;
+            width: 18mm;
+            height: auto;
+            margin: 0 auto 2mm;
+        }
+
+        &__rector {
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8pt;
+            color: $cons-faint;
+        }
+
+        &__colegio {
+            font-size: 13.5pt;
+            font-weight: 600;
+            letter-spacing: 0.2pt;
+            line-height: 1.2;
+            color: $cons-name;
+            margin: 1mm 0 0.4mm;
+        }
+
+        &__eslogan {
+            font-size: 8pt;
+            font-style: italic;
+            color: $cons-soft;
+        }
+
+        &__datos {
+            font-size: 7.5pt;
+            color: $cons-soft;
+            margin-top: 0.6mm;
+        }
+    }
+
+    // ── Filete fino que separa el membrete del cuerpo ──
+    .constancia-regla {
+        border: none;
+        border-top: 0.75pt solid $cons-line;
+        height: 0;
+        margin: 4mm 0 6mm;
+    }
+
+    // ── Título ──
+    .constancia-titulo {
+        text-align: center;
+        font-size: 13pt;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.5pt;
+        color: $cons-ink;
+        margin: 0;
+    }
+
+    .constancia-numero-oficial {
+        text-align: center;
+        font-size: 9pt;
+        font-weight: 600;
+        letter-spacing: 0.5pt;
+        color: $cons-soft;
+        margin: 1.5mm 0 8mm;
+    }
+
+    // ── Cuerpo (prosa justificada, estilo oficio) ──
+    .constancia-cuerpo {
+        text-align: justify;
+
+        p { margin: 0 0 3.5mm; }
+
+        strong { font-weight: 600; }
+
+        .constancia-hace-constar {
+            text-align: center;
+            font-weight: 600;
+            letter-spacing: 1pt;
+            font-size: 10.5pt;
+            color: $cons-ink;
+            margin: 1mm 0 3.5mm;
+        }
+
+        .constancia-obs {
+            font-size: 9.5pt;
+            color: $cons-soft;
+        }
+    }
+
+    .constancia-lugar-fecha {
+        text-align: right;
+        font-size: 10.5pt;
+        color: $cons-soft;
+        margin: 6mm 0 16mm;
+    }
+
+    // ── Firma del Director EBR ──
+    // El __espacio tiene altura fija: la firma PNG se ancla al fondo para que
+    // la línea quede al mismo nivel haya o no imagen (patrón de la boleta).
+    .constancia-firma {
+        text-align: center;
+        width: 80mm;
+        margin: 0 auto;
+
+        &__espacio {
+            height: 20mm;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        &__img {
+            max-width: 58mm;
+            max-height: 18mm;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
+        &__linea {
+            border-top: 0.5pt solid $cons-soft;
+            margin: 0 auto 1.2mm;
+        }
+
+        &__nombre {
+            font-size: 10pt;
+            font-weight: 600;
+            color: $cons-ink;
+        }
+
+        &__cargo {
+            font-size: 8pt;
+            letter-spacing: 0.3pt;
+            color: $cons-soft;
+        }
+    }
+
+    // ── Pie institucional + marca SIGA (anclado abajo) ──
+    .constancia-pie {
+        margin-top: auto;
+        padding-top: 3mm;
+        border-top: 0.75pt solid $cons-line;
+        text-align: center;
+
+        &__inst {
+            font-size: 7pt;
+            color: $cons-soft;
+        }
+
+        &__siga {
+            font-size: 6.5pt;
+            letter-spacing: 0.2pt;
+            color: $cons-faint;
+            margin-top: 0.8mm;
+        }
+    }
+
+    // ── Sello "ANULADA" (discreto) ──
+    .constancia-anulada-sello {
+        position: absolute;
+        top: 46%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-20deg);
+        font-size: 50pt;
+        font-weight: 700;
+        letter-spacing: 5pt;
+        color: rgba($color-error, 0.12);
+        border: 3pt solid rgba($color-error, 0.12);
+        border-radius: 4mm;
+        padding: 2mm 8mm;
+        pointer-events: none;
+        z-index: 10;
+    }
+}

@@ -4,7 +4,11 @@
  * @var array $matricula
  * @var array $requeridos   tipo => label
  * @var array $actuales     tipo => fila documentos_matricula
+ * @var array $obligatorios tipos obligatorios para activar (el resto es opcional)
+ * @var array $grupoDni     tipos DNI de apoderado ("al menos uno") o []
  */
+$obligatorios = $obligatorios ?? [];
+$grupoDni     = $grupoDni ?? [];
 $pasos = [1 => 'Estudiante', 2 => 'Apoderado', 3 => 'Documentos'];
 $mid   = (int) $matricula['id'];
 ?>
@@ -45,18 +49,31 @@ $mid   = (int) $matricula['id'];
                 Checklist de documentos
                 <?= $matricula['tipo'] === 'continuador' ? '(continuador: solo recibo)' : '(traslado/nuevo: completo)' ?>
             </p>
+            <?php if (!empty($grupoDni)): ?>
+                <p class="text-sm text-muted">
+                    Para activar se exigen los marcados con <span class="text-danger">*</span>
+                    y al menos uno de los DNI de apoderado. El resto es opcional.
+                </p>
+            <?php endif; ?>
 
             <div class="documento-checklist">
                 <?php foreach ($requeridos as $tipo => $label):
                     $doc = $actuales[$tipo] ?? null;
                     $chk = $doc && (int) $doc['entregado'] === 1;
+                    $esObligatorio = in_array($tipo, $obligatorios, true);
+                    $esGrupoDni    = in_array($tipo, $grupoDni, true);
                 ?>
                 <div class="documento-checklist__item">
                     <div class="documento-checklist__check">
                         <input type="checkbox" name="entregado[<?= e($tipo) ?>]" value="1" <?= $chk ? 'checked' : '' ?>>
                     </div>
                     <div>
-                        <div class="documento-checklist__nombre"><?= e($label) ?></div>
+                        <div class="documento-checklist__nombre">
+                            <?= e($label) ?>
+                            <?php if ($esObligatorio): ?><span class="text-danger">*</span>
+                            <?php elseif ($esGrupoDni): ?><span class="text-muted text-sm">(al menos uno)</span>
+                            <?php else: ?><span class="text-muted text-sm">(opcional)</span><?php endif; ?>
+                        </div>
                         <input type="text" name="observacion[<?= e($tipo) ?>]" class="form-input"
                                placeholder="Observación (opcional)"
                                value="<?= e((string) ($doc['observacion'] ?? '')) ?>">

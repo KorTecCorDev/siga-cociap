@@ -42,7 +42,10 @@ $qs = fn(int $p): string => http_build_query(array_filter([
         <h1 class="page-title">Matrículas</h1>
         <p class="page-subtitle"><?= (int) $total ?> matrícula<?= $total !== 1 ? 's' : '' ?> encontrada<?= $total !== 1 ? 's' : '' ?></p>
     </div>
-    <a href="<?= url('matriculas/crear') ?>" class="btn btn--primary">+ Nueva matrícula</a>
+    <div class="btn-group">
+        <a href="<?= url('traslados') ?>" class="btn btn--secondary">Traslados</a>
+        <a href="<?= url('matriculas/crear') ?>" class="btn btn--primary">+ Nueva matrícula</a>
+    </div>
 </div>
 
 <!-- ── Filtros ─────────────────────────────────────────── -->

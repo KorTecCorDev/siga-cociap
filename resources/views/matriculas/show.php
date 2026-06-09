@@ -6,9 +6,11 @@
  * @var array $notasExternas
  * @var array $tiposVinculo
  * @var array|null $retorno
+ * @var array|null $traslado    última constancia de traslado (o null)
  * @var bool  $puedeGestionar
  * @var array $pendientes  requisitos faltantes para activar (vacío = completa)
  */
+$traslado = $traslado ?? null;
 $pendientes = $pendientes ?? [];
 $mid = (int) $matricula['id'];
 
@@ -137,6 +139,32 @@ $labelDoc = [
     </div>
     <?php endif; ?>
 
+    <!-- Constancia de traslado -->
+    <?php if ($traslado): ?>
+    <div class="card">
+        <div class="card__body">
+            <p class="form-section-title">Constancia de traslado</p>
+            <div class="info-grid">
+                <div class="info-item"><span class="info-item__label">N° de constancia</span><span class="info-item__value"><?= e($traslado['numero_constancia']) ?></span></div>
+                <div class="info-item"><span class="info-item__label">Estado</span>
+                    <span class="info-item__value">
+                        <span class="matricula-badge matricula-badge--<?= $traslado['estado'] === 'anulado' ? 'desactivado' : 'continuador' ?>">
+                            <?= $traslado['estado'] === 'anulado' ? 'Anulada' : 'Vigente' ?>
+                        </span>
+                    </span>
+                </div>
+                <div class="info-item"><span class="info-item__label">IE destino</span><span class="info-item__value"><?= e($traslado['ie_destino_nombre']) ?></span></div>
+                <div class="info-item"><span class="info-item__label">Fecha</span><span class="info-item__value"><?= fecha_es($traslado['fecha_constancia']) ?></span></div>
+            </div>
+            <div class="btn-group">
+                <a href="<?= url('traslados/' . $traslado['id'] . '/imprimir') ?>" target="_blank" rel="noopener"
+                   class="btn btn--secondary btn--sm">Imprimir constancia</a>
+                <a href="<?= url('traslados') ?>" class="btn btn--secondary btn--sm">Ver registro</a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Retorno de grado -->
     <?php if ($retorno): ?>
     <div class="card">
@@ -182,10 +210,11 @@ $labelDoc = [
                     <?php endif; ?>
                 <?php else: ?>
                 <form method="POST" action="<?= url('matriculas/' . $mid . '/desactivar') ?>"
-                      onsubmit="return confirm('¿Desactivar y marcar como trasladada? Se desactivará el acceso del apoderado y sus boletas públicas.')">
+                      onsubmit="return confirm('¿Desactivar esta matrícula? Conserva su tipo, pero se desactivará el acceso del apoderado y sus boletas públicas.')">
                     <?= csrf_field() ?>
-                    <button type="submit" class="btn btn--danger">Desactivar / Trasladar</button>
+                    <button type="submit" class="btn btn--danger">Desactivar</button>
                 </form>
+                <a href="<?= url('matriculas/' . $mid . '/trasladar') ?>" class="btn btn--danger">Trasladar</a>
                 <?php endif; ?>
 
                 <a href="<?= url('matriculas/' . $mid . '/retorno') ?>" class="btn btn--secondary">Retorno de grado</a>

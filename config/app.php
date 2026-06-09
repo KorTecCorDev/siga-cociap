@@ -9,6 +9,27 @@ return [
     'name'            => 'SIGA-COCIAP',
     'nombre_completo' => 'Sistema Integrado de Gestión Académica',
     'institucion'     => 'Colegio de Aplicación "Víctor Valenzuela Guardia"',
+    // Datos institucionales estructurados para membretes de documentos oficiales
+    // (constancia de traslado, etc.). 'institucion' (arriba) se mantiene como
+    // string por compatibilidad con boletas/reportes que ya lo consumen así.
+    // Lo que varía por año (lema "Año de…", correlativo inicial) vive en
+    // anios_academicos, no aquí.
+    'institucion_datos' => [
+        'nombre_oficial'            => 'Colegio de Aplicación "Víctor Valenzuela Guardia"',
+        'eslogan'                   => 'Colegio de ciencias con Valores',
+        'propietario'               => 'UNASAM',
+        'ente_rector'               => 'MINEDU · DRE Áncash · UGEL Huaraz',
+        'ugel'                      => 'UGEL Huaraz',
+        'codigo_modular_primaria'   => '17191525-0',
+        'codigo_modular_secundaria' => '1310044-0',
+        'codigo_local'              => '912206',
+        'resoluciones'              => 'R.D. N° 00372-2002 · R.D. N° 05713-2015',
+        'direccion'                 => 'Jr. Julián de Morales N° 573',
+        'ubicacion'                 => 'Huaraz · Huaraz · Áncash',
+        'telefonos'                 => '976 671 341 · 934 224 103',
+        'sufijo_constancia'         => 'CAVVG-DA',
+        'lugar'                     => 'Huaraz',
+    ],
     'version'         => '1.0.0',
     // debug activo SOLO en entornos locales/privados (XAMPP, LAN). En cualquier
     // host publico (produccion o Host inyectado) queda en false → nunca expone

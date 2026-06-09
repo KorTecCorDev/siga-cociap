@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\MatriculaModel;
 use App\Models\ApoderadoModel;
 use App\Models\EstudianteModel;
+use App\Models\TrasladoModel;
 use Core\Session;
 
 /**
@@ -24,6 +25,7 @@ class MatriculaController extends BaseController
     private MatriculaModel $model;
     private ApoderadoModel $apoderados;
     private EstudianteModel $estudiantes;
+    private TrasladoModel $traslados;
 
     /** Tipos de vínculo disponibles: valor BD => etiqueta mostrada. */
     private const TIPOS_VINCULO = [
@@ -58,6 +60,18 @@ class MatriculaController extends BaseController
         'recibo_pago' => 'Recibo de pago',
     ];
 
+    /**
+     * Documentos OBLIGATORIOS para activar una matrícula 'nuevo'. El resto de
+     * DOCS_NUEVO es ideal pero opcional. Adicionalmente se exige al menos UNO
+     * del grupo DOCS_DNI_APODERADO.
+     */
+    private const DOCS_OBLIGATORIOS_NUEVO = [
+        'recibo_pago', 'certificado_estudios', 'boleta_siagie',
+        'ficha_matricula_siagie', 'dni_estudiante',
+    ];
+    /** Grupo "al menos uno": basta cualquiera de estos DNI de apoderado. */
+    private const DOCS_DNI_APODERADO = ['dni_padre', 'dni_madre', 'dni_apoderado'];
+
     public function __construct()
     {
         $this->requireRole([
@@ -67,6 +81,13 @@ class MatriculaController extends BaseController
         $this->model       = new MatriculaModel();
         $this->apoderados  = new ApoderadoModel();
         $this->estudiantes = new EstudianteModel();
+        $this->traslados   = new TrasladoModel();
+    }
+
+    /** Catálogo de tipos de vínculo (para reutilizar desde otros módulos). */
+    public static function tiposVinculo(): array
+    {
+        return self::TIPOS_VINCULO;
     }
 
     // ── GET /matriculas ──────────────────────────────────────────
@@ -354,12 +375,19 @@ class MatriculaController extends BaseController
             $actuales[$d['tipo_documento']] = $d;
         }
 
+        // Marcado de obligatoriedad para activar (el resto es opcional/ideal).
+        $obligatorios = $matricula['tipo'] === 'nuevo'
+            ? self::DOCS_OBLIGATORIOS_NUEVO
+            : array_keys(self::DOCS_CONTINUADOR);
+
         $this->view('matriculas/documentos', [
-            'titulo'     => 'Matrícula — Documentos',
-            'paso'       => 3,
-            'matricula'  => $matricula,
-            'requeridos' => $requeridos,
-            'actuales'   => $actuales,
+            'titulo'       => 'Matrícula — Documentos',
+            'paso'         => 3,
+            'matricula'    => $matricula,
+            'requeridos'   => $requeridos,
+            'actuales'     => $actuales,
+            'obligatorios' => $obligatorios,
+            'grupoDni'     => $matricula['tipo'] === 'nuevo' ? self::DOCS_DNI_APODERADO : [],
         ]);
     }
 
@@ -429,6 +457,7 @@ class MatriculaController extends BaseController
             'notasExternas'=> $this->model->getNotasExternas((int) $id),
             'tiposVinculo' => self::TIPOS_VINCULO,
             'retorno'      => $retorno,
+            'traslado'     => $this->traslados->getUltimaPorMatricula((int) $id),
             'puedeGestionar' => has_role(['admin', 'registro_academico']),
             'pendientes'   => $this->pendientesParaActivar($matricula),
         ]);
@@ -455,15 +484,36 @@ class MatriculaController extends BaseController
             $faltan[] = 'Registrar la serie del recibo';
         }
 
-        // 3) Todos los documentos requeridos, entregados.
-        $requeridos = $matricula['tipo'] === 'nuevo' ? self::DOCS_NUEVO : self::DOCS_CONTINUADOR;
+        // 3) Documentos obligatorios entregados. No se exige TODA la lista de
+        //    DOCS_NUEVO (el resto es ideal pero opcional): solo el subconjunto
+        //    obligatorio + al menos un DNI de apoderado del grupo flexible.
         $entregados = [];
         foreach ($this->model->getDocumentos($id) as $d) {
             $entregados[$d['tipo_documento']] = (int) $d['entregado'] === 1;
         }
-        foreach ($requeridos as $tipo => $label) {
-            if (empty($entregados[$tipo])) {
-                $faltan[] = 'Documento: ' . $label;
+
+        if ($matricula['tipo'] === 'nuevo') {
+            foreach (self::DOCS_OBLIGATORIOS_NUEVO as $tipo) {
+                if (empty($entregados[$tipo])) {
+                    $faltan[] = 'Documento: ' . self::DOCS_NUEVO[$tipo];
+                }
+            }
+            // Grupo "al menos uno": DNI del padre, de la madre o del apoderado.
+            $tieneDniApoderado = false;
+            foreach (self::DOCS_DNI_APODERADO as $tipo) {
+                if (!empty($entregados[$tipo])) {
+                    $tieneDniApoderado = true;
+                    break;
+                }
+            }
+            if (!$tieneDniApoderado) {
+                $faltan[] = 'Documento: DNI del padre, de la madre o del apoderado (al menos uno)';
+            }
+        } else {
+            foreach (self::DOCS_CONTINUADOR as $tipo => $label) {
+                if (empty($entregados[$tipo])) {
+                    $faltan[] = 'Documento: ' . $label;
+                }
             }
         }
 
@@ -505,6 +555,9 @@ class MatriculaController extends BaseController
     }
 
     // ── POST /matriculas/{id}/desactivar ─────────────────────────
+    // Baja administrativa: apaga la matrícula PERO conserva su tipo
+    // (continuador/nuevo). Reversible al reactivar. El traslado de salida (con
+    // constancia + tipo='trasladado') vive en TrasladoController.
     public function desactivar(string $id): void
     {
         $this->validateCsrf();
@@ -514,21 +567,11 @@ class MatriculaController extends BaseController
 
         $this->model->beginTransaction();
         try {
-            // Desactivar matrícula + marcarla como trasladada, preservando el
-            // origen real (continuador/nuevo) en `tipo_anterior` para que
-            // reactivar sea 100% reversible. Si ya estaba 'trasladado' no se
-            // pisa el respaldo previo.
+            // estado=desactivado conservando el tipo; apaga login del apoderado
+            // y códigos de boleta pública del periodo activo.
             $this->model->cambiarEstado((int) $id, 'desactivado', $usuarioId);
-            $cambios = ['tipo' => 'trasladado'];
-            if (($matricula['tipo'] ?? '') !== 'trasladado') {
-                $cambios['tipo_anterior'] = $matricula['tipo'];
-            }
-            $this->model->update((int) $id, $cambios);
-
-            // Desactivar el usuario (login) del apoderado, si existe.
             $this->apoderados->desactivarUsuarioDeEstudiante((int) $matricula['estudiante_id']);
 
-            // Desactivar códigos de boleta pública del periodo activo.
             $periodo = $this->estudiantes->periodoActivo((int) $matricula['anio_id']);
             if ($periodo) {
                 $this->model->execute(
@@ -544,8 +587,7 @@ class MatriculaController extends BaseController
             $this->redirectWithError(url('matriculas/' . $id), 'No se pudo desactivar la matrícula.');
         }
 
-        $this->redirectWithSuccess(url('matriculas/' . $id),
-            'Matrícula desactivada y marcada como trasladada.');
+        $this->redirectWithSuccess(url('matriculas/' . $id), 'Matrícula desactivada.');
     }
 
     // ── GET /matriculas/{id}/notas-externas ──────────────────────

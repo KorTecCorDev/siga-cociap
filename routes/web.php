@@ -117,6 +117,9 @@ $router->get( '/matriculas/{id}/documentos',     'Matricula\MatriculaController@
 $router->post('/matriculas/{id}/documentos',     'Matricula\MatriculaController@storeDocumentos');
 $router->post('/matriculas/{id}/activar',        'Matricula\MatriculaController@activar');
 $router->post('/matriculas/{id}/desactivar',     'Matricula\MatriculaController@desactivar');
+// Traslado de salida (constancia oficial): formulario + registro.
+$router->get( '/matriculas/{id}/trasladar',      'Matricula\TrasladoController@form');
+$router->post('/matriculas/{id}/trasladar',      'Matricula\TrasladoController@store');
 $router->get( '/matriculas/{id}/notas-externas', 'Matricula\MatriculaController@notasExternas');
 $router->post('/matriculas/{id}/notas-externas', 'Matricula\MatriculaController@storeNotasExternas');
 // Retorno de grado
@@ -124,6 +127,11 @@ $router->get( '/matriculas/{id}/retorno',        'Matricula\RetornoGradoControll
 $router->post('/matriculas/{id}/retorno',        'Matricula\RetornoGradoController@store');
 // El detalle {id} va al FINAL para no capturar los sub-recursos anteriores.
 $router->get( '/matriculas/{id}',                'Matricula\MatriculaController@show');
+
+// ─── Constancias de traslado (registro oficial) ──────────────
+$router->get( '/traslados',                'Matricula\TrasladoController@index');
+$router->get( '/traslados/{id}/imprimir',  'Matricula\TrasladoController@imprimir');
+$router->post('/traslados/{id}/anular',    'Matricula\TrasladoController@anular');
 
 // ─── Calificaciones ──────────────────────────────────────────
 $router->get( '/docente/mis-cargas',                        'Docente\CalificacionController@misCargas');
