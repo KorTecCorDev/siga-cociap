@@ -12,10 +12,10 @@
 
 // Etiquetas legibles de estado.
 $labelEstado = fn(string $e): string => match($e) {
-    'pendiente'          => 'Pendiente',
-    'activo', 'aprobada' => 'Activo',
-    'desactivado'        => 'Desactivado',
-    default              => ucfirst($e),
+    'pendiente'   => 'Pendiente',
+    'aprobada'    => 'Aprobado',
+    'desactivado' => 'Desactivado',
+    default       => ucfirst($e),
 };
 $labelTipo = fn(string $t): string => match($t) {
     'continuador' => 'Continuador',
@@ -92,7 +92,7 @@ $qs = fn(int $p): string => http_build_query(array_filter([
                     <label class="mat-filtros__label" for="estado">Estado</label>
                     <select id="estado" name="estado" class="form-input">
                         <option value="">Todos</option>
-                        <?php foreach (['pendiente' => 'Pendiente', 'activo' => 'Activo', 'desactivado' => 'Desactivado'] as $val => $lab): ?>
+                        <?php foreach (['pendiente' => 'Pendiente', 'aprobada' => 'Aprobado', 'desactivado' => 'Desactivado'] as $val => $lab): ?>
                             <option value="<?= $val ?>" <?= ($filtros['estado'] ?? '') === $val ? 'selected' : '' ?>><?= $lab ?></option>
                         <?php endforeach; ?>
                     </select>
@@ -159,6 +159,9 @@ $qs = fn(int $p): string => http_build_query(array_filter([
                     </td>
                     <td class="text-center">
                         <span class="matricula-badge matricula-badge--<?= e($m['estado']) ?>"><?= $labelEstado($m['estado']) ?></span>
+                        <?php if (!empty($m['motivo_estado'])): ?>
+                        <span class="matricula-motivo"><?= e($m['motivo_estado']) ?></span>
+                        <?php endif; ?>
                     </td>
                     <td class="text-sm"><?= e($m['apoderado_responsable'] ?? '—') ?></td>
                     <td class="text-sm text-muted"><?= $m['fecha_registro'] ? fecha_es($m['fecha_registro']) : '—' ?></td>

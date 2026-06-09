@@ -441,9 +441,10 @@ class CalificacionModel extends BaseModel
                 SELECT seccion_id FROM cargas_academicas WHERE id = ?
             )
             -- Mismo criterio que getAlumnosSeccion: incluye 'pendiente' (recién
-            -- creadas) y 'activo' (retorno de grado), excluye trasladados. Así el
-            -- resumen y la validación de bloqueo cuadran con la grilla de ingreso.
-            AND m.estado IN ('aprobada', 'activo', 'pendiente')
+            -- creadas) y 'aprobada' (vigentes, incl. retorno de grado), excluye
+            -- trasladados. Así el resumen y la validación de bloqueo cuadran con
+            -- la grilla de ingreso.
+            AND m.estado IN ('aprobada', 'pendiente')
             AND m.tipo  != 'trasladado'
             ORDER BY p.apellido_paterno, p.apellido_materno
         ", [$cargaId, $competenciaId, $periodoId, $cargaId]);

@@ -97,7 +97,7 @@ class RetornoGradoController extends BaseController
 
         $this->model->beginTransaction();
         try {
-            // 1) Matrícula operativa en el grado inferior (estado 'activo' para
+            // 1) Matrícula operativa en el grado inferior (estado 'aprobada' para
             //    que el estudiante figure en calificaciones y ranking operativo).
             $operativaId = $this->model->create([
                 'estudiante_id'  => (int) $oficial['estudiante_id'],
@@ -105,7 +105,7 @@ class RetornoGradoController extends BaseController
                 'anio_id'        => (int) $oficial['anio_id'],
                 'tipo'           => 'continuador',
                 'serie_recibo'   => $oficial['serie_recibo'] ?? null,
-                'estado'         => 'activo',
+                'estado'         => 'aprobada',
                 'fecha_registro' => date('Y-m-d'),
                 'registrado_por' => $usuarioId,
             ]);

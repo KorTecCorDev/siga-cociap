@@ -420,13 +420,14 @@ class MatriculaController extends BaseController
             );
         }
 
-        // Mantener el estado correcto: una matrícula 'activo' que quedó
-        // incompleta (p.ej. se desmarcó un documento) vuelve a 'pendiente'.
-        // Las legacy/demo en 'aprobada' no se tocan.
+        // Mantener el estado correcto: una matrícula 'aprobada' que quedó
+        // incompleta (p.ej. se desmarcó un documento) vuelve a 'pendiente'
+        // anotando los requisitos faltantes como motivo visible.
         $actual = $this->requireMatricula((int) $id);
-        if ($actual['estado'] === 'activo'
-            && !empty($this->pendientesParaActivar($actual))) {
-            $this->model->cambiarEstado((int) $id, 'pendiente', $usuarioId);
+        $faltan = $this->pendientesParaActivar($actual);
+        if ($actual['estado'] === 'aprobada' && !empty($faltan)) {
+            $this->model->cambiarEstado((int) $id, 'pendiente', $usuarioId,
+                'Faltan requisitos: ' . implode('; ', $faltan));
             $this->redirectWithSuccess(url('matriculas/' . $id),
                 'Documentos actualizados. La matrícula volvió a PENDIENTE porque aún faltan requisitos.');
         }
@@ -535,7 +536,9 @@ class MatriculaController extends BaseController
                 . implode('; ', $faltan) . '.');
         }
 
-        $this->model->cambiarEstado((int) $id, 'activo', (int) (Session::user()['id'] ?? 0));
+        // Activar = estado 'aprobada' (único estado vigente). El motivo se limpia
+        // (null) porque ya no hay pendientes que reportar.
+        $this->model->cambiarEstado((int) $id, 'aprobada', (int) (Session::user()['id'] ?? 0), null);
 
         // Si la matrícula venía de una desactivación quedó marcada 'trasladado'.
         // Al reactivar se restaura el ORIGEN real preservado en `tipo_anterior`
@@ -565,11 +568,19 @@ class MatriculaController extends BaseController
         $matricula = $this->requireMatricula((int) $id);
         $usuarioId = (int) (Session::user()['id'] ?? 0);
 
+        // El motivo de la desactivación es OBLIGATORIO (queda visible junto al
+        // estado). Sin él no se procesa la baja.
+        $motivo = trim((string) $this->input('motivo'));
+        if ($motivo === '') {
+            $this->redirectWithError(url('matriculas/' . $id),
+                'Debes indicar el motivo de la desactivación.');
+        }
+
         $this->model->beginTransaction();
         try {
             // estado=desactivado conservando el tipo; apaga login del apoderado
             // y códigos de boleta pública del periodo activo.
-            $this->model->cambiarEstado((int) $id, 'desactivado', $usuarioId);
+            $this->model->cambiarEstado((int) $id, 'desactivado', $usuarioId, $motivo);
             $this->apoderados->desactivarUsuarioDeEstudiante((int) $matricula['estudiante_id']);
 
             $periodo = $this->estudiantes->periodoActivo((int) $matricula['anio_id']);

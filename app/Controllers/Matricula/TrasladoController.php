@@ -48,7 +48,7 @@ class TrasladoController extends BaseController
         $matricula = $this->requireMatricula((int) $matriculaId);
 
         // Solo se traslada una matrícula vigente (activa).
-        if (!in_array($matricula['estado'], ['activo', 'aprobada'], true)) {
+        if ($matricula['estado'] !== 'aprobada') {
             $this->redirectWithError(url('matriculas/' . $matriculaId),
                 'Solo se puede trasladar una matrícula activa.');
         }
@@ -97,7 +97,7 @@ class TrasladoController extends BaseController
         $usuarioId = (int) (Session::user()['id'] ?? 0);
         $id        = (int) $matriculaId;
 
-        if (!in_array($matricula['estado'], ['activo', 'aprobada'], true)) {
+        if ($matricula['estado'] !== 'aprobada') {
             $this->redirectWithError(url('matriculas/' . $id),
                 'Solo se puede trasladar una matrícula activa.');
         }
@@ -175,7 +175,8 @@ class TrasladoController extends BaseController
             // Baja por traslado: estado=desactivado + tipo=trasladado (preserva el
             // origen en tipo_anterior para reversibilidad), apaga login del
             // apoderado y códigos de boleta pública del periodo activo.
-            $this->matriculas->cambiarEstado($id, 'desactivado', $usuarioId);
+            $this->matriculas->cambiarEstado($id, 'desactivado', $usuarioId,
+                'Traslado de salida: ' . (TrasladoModel::MOTIVOS[$motivo] ?? $motivo));
             $cambios = ['tipo' => 'trasladado'];
             if (($matricula['tipo'] ?? '') !== 'trasladado') {
                 $cambios['tipo_anterior'] = $matricula['tipo'];

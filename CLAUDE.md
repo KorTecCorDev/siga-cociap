@@ -685,6 +685,51 @@ Las literales (`/matriculas/crear`) y los sub-recursos (`/{id}/apoderado`,
 - Continuador → solo `recibo_pago`; nuevo → todos los documentos.
 - Notas externas solo para `tipo='nuevo'`.
 
+## Consolidación de estados de matrícula (IMPLEMENTADO)
+
+> Antes el enum tenía `'aprobada'` y `'activo'` como SINÓNIMOS de "matrícula
+> vigente" (bug latente: el módulo activaba a `'activo'`, pero boleta, boleta
+> pública, asistencia, conducta, panel del padre, año académico y parte de orden
+> de mérito filtraban solo por `'aprobada'` → un alumno `'activo'` quedaba
+> INVISIBLE). Se eliminó `'activo'`; la activación pasa a `'aprobada'`.
+
+### Estados finales: SOLO TRES
+| Estado | Significado | Reglas |
+|--------|-------------|--------|
+| `aprobada` ("Aprobado") | Estudiante correctamente matriculado, sin pendientes | Cuenta para TODO (boleta, orden de mérito, notas) |
+| `pendiente` | Documentos/observaciones pendientes | Matrícula incompleta; el motivo lista los faltantes |
+| `desactivado` | No matriculado por algún motivo (**motivo obligatorio**) | Apaga login del apoderado; SIN orden de mérito; SIN boleta |
+
+El motivo visible vive en `matriculas.motivo_estado` (**TEXT**); `observaciones`
+queda como traza de auditoría histórica. Se muestra junto al badge en `index` y `show`.
+
+### Migración — `017_estados_matricula_consolidacion.sql`
+> El plan original pedía `013`, pero `013`–`016` ya estaban ocupados (reaperturas,
+> limpieza_estados, desempates, traslados). Se usó `017`. Idempotente.
+- `ADD COLUMN IF NOT EXISTS motivo_estado TEXT NULL AFTER estado`.
+- `UPDATE matriculas SET estado='aprobada' WHERE estado='activo'` (0 filas, sin pérdida).
+- `MODIFY estado ENUM('pendiente','aprobada','desactivado') NOT NULL DEFAULT 'pendiente'`.
+
+### Cambios de código
+- **`MatriculaModel::cambiarEstado($id, $estado, $usuarioId, ?string $motivo = null)`**:
+  guarda `motivo_estado` (`null` lo limpia); traza en `observaciones`; setea
+  `aprobado_por`/`fecha_aprobacion` cuando el estado es `'aprobada'`. `listar()`
+  ahora selecciona `m.motivo_estado` (`findById` ya usa `m.*`).
+- **`MatriculaController`**: `activar()` → `'aprobada'` + motivo `null`;
+  `desactivar()` → **motivo OBLIGATORIO** desde el POST (rechaza vacío) y lo pasa a
+  `cambiarEstado`; el caso de re-pendiente anota los requisitos faltantes como motivo.
+- **`'activo'` eliminado** de todas las queries de matrícula: `MatriculaModel`
+  (sugerirSeccion), `ApoderadoModel`, `CalificacionModel`, `OrdenMeritoModel`,
+  `ControlOperativoModel`, `OrdenMeritoController`, `Docente\CalificacionController`,
+  `RetornoGradoController` (la operativa nace `'aprobada'`), `TrasladoController`
+  (valida `=== 'aprobada'` y pasa el motivo del traslado a la baja).
+  > OJO: `retornos_grado.estado='activo'`, `periodos.estado IN('activo','cerrado')`,
+  > `anios/usuarios/areas.estado='activo'` son OTRAS columnas — NO se tocaron.
+- **Vistas** `matriculas/index.php` y `show.php`: label `'aprobada' => 'Aprobado'`,
+  filtro de estado actualizado, `<textarea name="motivo" required>` en el form de
+  desactivar, y `.matricula-motivo` bajo el badge. SASS en `_matriculas.scss`
+  (`.matricula-motivo`, `.mat-desactivar-form`; enum de badges reducido a 3 estados).
+
 ## Seguridad y estado REAL de producción (sesión 8 — endurecimiento)
 
 > Esta sección refleja cómo quedó realmente el despliegue y **SUPERSEDE** lo que

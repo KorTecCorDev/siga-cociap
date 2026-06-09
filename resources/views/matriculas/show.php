@@ -15,12 +15,12 @@ $pendientes = $pendientes ?? [];
 $mid = (int) $matricula['id'];
 
 $labelEstado = fn(string $e): string => match($e) {
-    'pendiente'          => 'Pendiente',
-    'activo', 'aprobada' => 'Activo',
-    'desactivado'        => 'Desactivado',
-    default              => ucfirst($e),
+    'pendiente'   => 'Pendiente',
+    'aprobada'    => 'Aprobado',
+    'desactivado' => 'Desactivado',
+    default       => ucfirst($e),
 };
-$esActivo = in_array($matricula['estado'], ['activo', 'aprobada'], true);
+$esActivo = $matricula['estado'] === 'aprobada';
 $labelDoc = [
     'recibo_pago' => 'Recibo de pago', 'certificado_estudios' => 'Certificado de estudios',
     'boleta_siagie' => 'Boleta SIAGIE', 'ficha_matricula_siagie' => 'Ficha de matrícula SIAGIE',
@@ -36,6 +36,9 @@ $labelDoc = [
         <p class="page-subtitle">
             <span class="matricula-badge matricula-badge--<?= e($matricula['estado']) ?>"><?= $labelEstado($matricula['estado']) ?></span>
             <span class="matricula-badge matricula-badge--<?= e($matricula['tipo']) ?>"><?= ucfirst(e($matricula['tipo'])) ?></span>
+            <?php if (!empty($matricula['motivo_estado'])): ?>
+            <span class="matricula-motivo">Motivo: <?= e($matricula['motivo_estado']) ?></span>
+            <?php endif; ?>
         </p>
     </div>
 </div>
@@ -186,7 +189,7 @@ $labelDoc = [
     <div class="card__body">
         <p class="form-section-title">Acciones</p>
         <div class="btn-group">
-            <?php if (in_array($matricula['estado'], ['aprobada', 'activo'], true)): ?>
+            <?php if ($esActivo): ?>
                 <a href="<?= url('boleta/digital/' . $mid . '/1') ?>" class="btn btn--secondary">Ver boleta</a>
             <?php endif; ?>
 
@@ -210,8 +213,12 @@ $labelDoc = [
                     <?php endif; ?>
                 <?php else: ?>
                 <form method="POST" action="<?= url('matriculas/' . $mid . '/desactivar') ?>"
+                      class="mat-desactivar-form"
                       onsubmit="return confirm('¿Desactivar esta matrícula? Conserva su tipo, pero se desactivará el acceso del apoderado y sus boletas públicas.')">
                     <?= csrf_field() ?>
+                    <label class="form-label" for="motivo_desactivar">Motivo de la desactivación <span class="text-danger">*</span></label>
+                    <textarea id="motivo_desactivar" name="motivo" class="form-control" rows="2"
+                              required placeholder="Indica por qué se desactiva la matrícula"></textarea>
                     <button type="submit" class="btn btn--danger">Desactivar</button>
                 </form>
                 <a href="<?= url('matriculas/' . $mid . '/trasladar') ?>" class="btn btn--danger">Trasladar</a>

@@ -97,7 +97,7 @@ class ControlOperativoModel extends BaseModel
             LEFT  JOIN subareas sa        ON sa.id   = comp.subarea_id
             INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE cal.periodo_id = ?
-              AND m.estado IN ('aprobada', 'activo')
+              AND m.estado = 'aprobada'
               AND m.id NOT IN (
                   SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo'
               )

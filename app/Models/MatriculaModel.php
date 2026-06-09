@@ -74,6 +74,7 @@ class MatriculaModel extends BaseModel
             SELECT
                 m.id,
                 m.estado,
+                m.motivo_estado,
                 m.tipo,
                 m.serie_recibo,
                 m.fecha_registro,
@@ -190,27 +191,34 @@ class MatriculaModel extends BaseModel
     }
 
     /**
-     * Cambia el estado de una matrícula y deja traza en observaciones.
-     * El control de roles (solo registro_academico/admin para 'activo')
-     * se hace en el controlador.
+     * Cambia el estado de una matrícula. Guarda el motivo VISIBLE en
+     * `motivo_estado` (lo que se muestra junto al badge) y deja además traza
+     * histórica en `observaciones`. El control de roles (solo
+     * registro_academico/admin para activar/desactivar) se hace en el controlador.
+     *
+     * @param ?string $motivo Motivo visible del estado. NULL lo limpia (p.ej. al
+     *                        aprobar). Obligatorio en 'desactivado' (lo exige el
+     *                        controlador, no este método).
      */
-    public function cambiarEstado(int $id, string $estado, int $usuarioId): bool
+    public function cambiarEstado(int $id, string $estado, int $usuarioId, ?string $motivo = null): bool
     {
         $traza = sprintf(
-            "[%s] estado → %s por usuario #%d",
+            "[%s] estado → %s por usuario #%d%s",
             date('Y-m-d H:i'),
             $estado,
-            $usuarioId
+            $usuarioId,
+            $motivo !== null && $motivo !== '' ? ' — ' . $motivo : ''
         );
 
         $sql = "UPDATE matriculas
                 SET estado = ?,
+                    motivo_estado = ?,
                     observaciones = TRIM(CONCAT(COALESCE(observaciones,''), '\n', ?))";
 
-        $params = [$estado, $traza];
+        $params = [$estado, ($motivo !== '' ? $motivo : null), $traza];
 
-        // Si pasa a 'activo' registra aprobador y fecha de aprobación.
-        if ($estado === 'activo') {
+        // Si pasa a 'aprobada' registra aprobador y fecha de aprobación.
+        if ($estado === 'aprobada') {
             $sql .= ", aprobado_por = ?, fecha_aprobacion = CURDATE()";
             $params[] = $usuarioId;
         }
@@ -237,7 +245,7 @@ class MatriculaModel extends BaseModel
             FROM secciones s
             LEFT JOIN matriculas m
                 ON m.seccion_id = s.id
-               AND m.estado IN ('activo','aprobada','pendiente')
+               AND m.estado IN ('aprobada','pendiente')
             WHERE s.grado_id = ? AND s.anio_id = ?
             GROUP BY s.id, s.nombre
             ORDER BY total ASC, s.nombre ASC

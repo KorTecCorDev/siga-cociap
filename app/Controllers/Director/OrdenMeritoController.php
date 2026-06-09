@@ -482,10 +482,10 @@ class OrdenMeritoController extends BaseController
             INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE g.id           = ?
               AND cal.periodo_id = ?
-              AND m.estado IN ('aprobada', 'activo')
+              AND m.estado = 'aprobada'
               -- Retorno de grado: el estudiante compite en su grado OPERATIVO.
               -- Se excluye la matrícula oficial (la operativa, en grado inferior,
-              -- entra como 'activo' y rankea con su grado real de asistencia).
+              -- entra como 'aprobada' y rankea con su grado real de asistencia).
               AND m.id NOT IN (
                   SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo'
               )

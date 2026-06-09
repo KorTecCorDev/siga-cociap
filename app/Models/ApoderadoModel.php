@@ -202,7 +202,7 @@ class ApoderadoModel extends BaseModel
             INNER JOIN matriculas m
                 ON m.estudiante_id = vf.estudiante_id AND m.anio_id = ?
             WHERE vf.apoderado_id = ?
-              AND m.estado IN ('activo','aprobada','pendiente')
+              AND m.estado IN ('aprobada','pendiente')
         ", [$anioId, $apoderadoId]);
         return (int) ($r['total'] ?? 0);
     }
