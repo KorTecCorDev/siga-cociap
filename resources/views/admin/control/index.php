@@ -13,6 +13,7 @@ $badgeSeveridad = static fn(string $sev): string =>
 
 <div class="page-header">
     <div>
+        <a href="<?= url('/') ?>" class="btn btn--secondary btn--sm">← Dashboard</a>
         <h1 class="page-title">Centro de Control</h1>
         <p class="page-subtitle">Inconsistencias operativas pendientes de corregir</p>
     </div>
