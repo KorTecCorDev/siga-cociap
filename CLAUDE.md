@@ -119,6 +119,7 @@ director_ebr_historial  ← NUEVO (sesión 7)
 9. migrations/008_director_ebr_imagenes.sql   ← sesión 7
    (… 009-017 según database/migrations/)
 10. migrations/018_criterios_descripcion.sql  ← criterios: descripción opcional
+11. migrations/019_transversales_docente.sql  ← transversales por docente + cierre del tutor
 
 
 ## Seed de demostración para presentación (sesión 4)
@@ -542,6 +543,72 @@ registran en el casillero de un área oficial que cede ese tramo de grados.
   (`.criterio-desc`). Queries actualizadas en `CalificacionModel` (resumen y padre).
 - **SASS:** todo en `pages/_dashboard.scss` (OJO: `components/_dashboard.scss` NO está
   importado en `app.scss` — es código muerto, no agregar estilos ahí).
+
+## Transversales por docente + cierre del tutor (10/06/2026)
+
+> Desde el II Bimestre las competencias transversales (TIC/GAMA) las registra
+> CADA docente en su propia carga. La carga transversal del tutor quedó
+> DESACTIVADA (sus datos B1 siguen legibles). El tutor solo agrega conclusiones
+> y cierra el bimestre desde `/docente/tutoria`.
+
+### Migración `019_transversales_docente.sql`
+- Tabla `conclusiones_transversales` (UNIQUE matricula+competencia+periodo) —
+  conclusión del TUTOR, independiente de las cargas.
+- Tabla `cierres_transversales` (seccion+periodo; vigente = `anulado_en IS NULL`;
+  anulación con `anulado_por`/`motivo_anulacion`).
+- Sellado retroactivo B1: cierre por cada sección cuya carga transversal del tutor
+  quedó totalmente bloqueada (20 de 23 secciones; las otras 3 no tenían transversales).
+- Migra las conclusiones B1 del tutor (33) a la tabla nueva.
+- Desactiva las cargas transversales (`estado='inactiva'`).
+
+### Registro por docente (Variante 1 de bloqueo)
+- `formulario()` añade a cada carga la sección "Competencias Transversales"
+  (`CriterioModel::getCompetenciasTransversalesConCriterios`) — mismo mecanismo
+  de criterios/notas; flag `es_transversal` en la vista
+  (`.competencia-card--transversal`, separador `.transversales-separador`).
+- **`bloquear()` — Variante 1:** al bloquear la ÚLTIMA competencia propia valida
+  que TIC/GAMA estén completas (mensaje claro con el detalle) y bloquea TODO
+  junto en transacción. Las transversales NO se bloquean individualmente (400).
+  Exonerados de la carga quedan excluidos (mismo tratamiento que el área).
+- En el resumen de una transversal: sin botón aprobar ni textareas de conclusión
+  ("La registra el tutor al cierre del bimestre").
+
+### Agregación y boletas — REGLA ÚNICA
+- `CalificacionModel::getBoletaAlumno()` EXCLUYE las filas crudas transversales
+  (por el área de la COMPETENCIA, no de la carga) y agrega al final
+  `getTransversalesAgregadas()`: **promedio de promedios por carga bloqueada**
+  (cubre B1 = carga del tutor y B2+ = cargas de docentes), SOLO si existe
+  cierre vigente. Conclusión desde `conclusiones_transversales`.
+- Cubre automáticamente los 4 consumidores: boleta imprimible, digital,
+  pública (admin y sin login) y `/padre/notas`.
+- Orden de mérito y estadísticas siguen excluyendo transversales (filtran por
+  el área de la competencia — las filas por docente no contaminan el ranking).
+
+### Vista del tutor (`Docente\TutoriaController`)
+- Rutas: `GET /docente/tutoria[/{periodo_id}]`,
+  `POST /docente/tutoria/{periodo_id}/conclusion`, `POST .../cerrar`.
+- Card "Tutoría" DESTACADA en `/docente/mis-cargas` (`.tutoria-card`, 3 estados:
+  `⏳ Bloqueadas X de Y` / `✍ Disponible con N conclusiones pendientes` /
+  `✅ Cerrado el {fecha}`). Solo tutores del año activo (`secciones.tutor_id`).
+- Panel: selector de bimestre, tabla de promedios agregados TIC/GAMA, textarea
+  de conclusión SOLO donde el literal la exige (B/C primaria, C secundaria).
+- `cerrar` valida en servidor: todas las cargas activas bloqueadas + 0
+  conclusiones obligatorias pendientes. JS: `resources/js/tutoria.js`.
+
+### Integración con reaperturas
+- `BloqueoController::desbloquear`: al desbloquear una competencia propia
+  LIBERA también las TIC/GAMA de esa carga (invariante Variante 1) y ANULA el
+  cierre vigente de la sección con traza. Se repite el ciclo re-bloqueo→re-cierre.
+- `PeriodoController::reabrir`: anula los cierres vigentes de las secciones
+  afectadas por bloqueos fantasma liberados (identificadas ANTES del DELETE).
+- `SeccionModel::asignarTutor` YA NO crea/reactiva la carga transversal.
+
+### Modelo `TransversalModel`
+`getCompetencias(nivel)`, `getCierreVigente`, `cerrar`, `anularCierreVigente`,
+`getPromediosMatricula/Seccion`, `getConclusiones*`, `guardarConclusion`,
+`estadoCargasSeccion` (solo competencias PROPIAS de cargas activas),
+`conclusionesObligatoriasPendientes`, `seccionesConBloqueosSinNotas`,
+`anularCierresDeSecciones`, `getSeccionDelTutor`.
 
 ## Módulo Director EBR — historial de cargo (sesión 7)
 

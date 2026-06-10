@@ -68,10 +68,12 @@ class SeccionModel extends BaseModel
 
     /**
      * Asigna (o quita) el tutor de una sección.
-     * Gestiona automáticamente la carga transversal en la misma transacción:
-     *  - Primera asignación  → INSERT carga transversal activa
-     *  - Cambio de tutor     → UPDATE docente_id de la carga existente
-     *  - Quitar tutor (null) → marca la carga como inactiva
+     *
+     * Desde la migración 019 las transversales (TIC/GAMA) las registra cada
+     * docente en su propia carga y el tutor solo agrega conclusiones y cierra
+     * el bimestre desde /docente/tutoria — por eso YA NO se crea ni reactiva
+     * la carga transversal del tutor. Si quedara una activa de un flujo
+     * anterior, se desactiva aquí para mantener el invariante.
      */
     public function asignarTutor(int $seccionId, ?int $tutorId): void
     {
@@ -88,48 +90,20 @@ class SeccionModel extends BaseModel
                 throw new \RuntimeException('Sección no encontrada.');
             }
 
-            $areaTransversal = $this->queryOne("
-                SELECT id FROM areas
-                WHERE nivel_id = ? AND tipo = 'transversal'
-                LIMIT 1
-            ", [(int) $seccion['nivel_id']]);
-
-            if (!$areaTransversal) {
-                throw new \RuntimeException('No existe área transversal para este nivel.');
-            }
-
-            $areaId = (int) $areaTransversal['id'];
-
             $this->execute(
                 "UPDATE secciones SET tutor_id = ? WHERE id = ?",
                 [$tutorId, $seccionId]
             );
 
-            $cargaExistente = $this->queryOne("
-                SELECT id FROM cargas_academicas
-                WHERE seccion_id = ? AND area_id = ? AND anio_id = ?
-                LIMIT 1
-            ", [$seccionId, $areaId, (int) $seccion['anio_id']]);
-
-            if ($tutorId === null) {
-                if ($cargaExistente) {
-                    $this->execute(
-                        "UPDATE cargas_academicas SET estado = 'inactiva' WHERE id = ?",
-                        [(int) $cargaExistente['id']]
-                    );
-                }
-            } elseif ($cargaExistente) {
-                $this->execute(
-                    "UPDATE cargas_academicas SET docente_id = ?, estado = 'activa' WHERE id = ?",
-                    [$tutorId, (int) $cargaExistente['id']]
-                );
-            } else {
-                $this->execute("
-                    INSERT INTO cargas_academicas
-                        (docente_id, seccion_id, anio_id, area_id, horas_semanales, estado)
-                    VALUES (?, ?, ?, ?, 0, 'activa')
-                ", [$tutorId, $seccionId, (int) $seccion['anio_id'], $areaId]);
-            }
+            // Garantiza que ninguna carga transversal de tutor quede activa.
+            $this->execute("
+                UPDATE cargas_academicas ca
+                INNER JOIN areas a ON a.id = ca.area_id AND a.tipo = 'transversal'
+                SET ca.estado = 'inactiva'
+                WHERE ca.seccion_id = ?
+                  AND ca.anio_id    = ?
+                  AND ca.estado     = 'activa'
+            ", [$seccionId, (int) $seccion['anio_id']]);
 
             $this->commit();
         } catch (\Exception $e) {

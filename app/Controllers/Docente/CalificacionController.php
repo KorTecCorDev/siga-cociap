@@ -7,6 +7,7 @@ use App\Models\CalificacionModel;
 use App\Models\CriterioModel;
 use App\Models\ExoneracionModel;
 use App\Models\OmisionCriterioModel;
+use App\Models\TransversalModel;
 use Core\Session;
 
 /**
@@ -24,6 +25,7 @@ class CalificacionController extends BaseController
     private CriterioModel        $critModel;
     private OmisionCriterioModel $omisionModel;
     private ExoneracionModel     $exoModel;
+    private TransversalModel     $transModel;
 
     public function __construct()
     {
@@ -32,6 +34,7 @@ class CalificacionController extends BaseController
         $this->critModel   = new CriterioModel();
         $this->omisionModel = new OmisionCriterioModel();
         $this->exoModel    = new ExoneracionModel();
+        $this->transModel  = new TransversalModel();
     }
     
     private function getBloqueos(int $cargaId, int $periodoId): array
@@ -57,10 +60,37 @@ class CalificacionController extends BaseController
         $periodo = $this->getPeriodoActivo();
         $cargas  = $this->getCargas($user['id'], $periodo ? (int) $periodo['id'] : 0);
 
+        // Card de Tutoría (solo tutores del año activo): 3 estados —
+        // bloqueadas X de Y / disponible con N conclusiones pendientes /
+        // cerrado el {fecha}.
+        $tutoria = null;
+        $seccionTutor = $this->transModel->getSeccionDelTutor((int) $user['id']);
+        if ($seccionTutor && $periodo) {
+            $sid    = (int) $seccionTutor['id'];
+            $pid    = (int) $periodo['id'];
+            $estado = $this->transModel->estadoCargasSeccion($sid, $pid);
+            $cierre = $this->transModel->getCierreVigente($sid, $pid);
+            $listo  = $estado['total'] > 0 && $estado['bloqueadas'] >= $estado['total'];
+
+            $tutoria = [
+                'seccion'     => $seccionTutor,
+                'total'       => $estado['total'],
+                'bloqueadas'  => $estado['bloqueadas'],
+                'cierre'      => $cierre,
+                'listo'       => $listo,
+                'pendientes'  => ($listo && !$cierre)
+                    ? $this->transModel->conclusionesObligatoriasPendientes(
+                        $sid, $pid, $seccionTutor['nivel_codigo']
+                      )
+                    : 0,
+            ];
+        }
+
         $this->view('docente/mis-cargas', [
             'titulo'  => 'Mis cargas académicas',
             'cargas'  => $cargas,
             'periodo' => $periodo,
+            'tutoria' => $tutoria,
         ]);
     }
 
@@ -98,6 +128,17 @@ class CalificacionController extends BaseController
             $cargaId,
             $periodo['id']
         );
+
+        // Competencias transversales (TIC/GAMA): cada docente las registra
+        // en su propia carga con el mismo mecanismo de criterios y notas.
+        // Se bloquean junto con la última competencia propia (Variante 1).
+        $transversales = $this->critModel->getCompetenciasTransversalesConCriterios(
+            $cargaId,
+            $periodo['id'],
+            (int) $carga['nivel_id']
+        );
+        $competencias = array_merge($competencias, $transversales);
+
         $alumnos         = $this->getAlumnosSeccion($carga['seccion_id']);
         $notasExistentes = $this->getNotasExistentes($cargaId, $periodo['id']);
         $bloqueos        = $this->getBloqueos($cargaId, $periodo['id']);
@@ -577,6 +618,7 @@ class CalificacionController extends BaseController
                 s.nombre          AS seccion_nombre,
                 s.es_unidocente,
                 g.nombre_display  AS grado_nombre,
+                n.id              AS nivel_id,
                 n.nombre          AS nivel_nombre,
                 n.codigo          AS nivel_codigo,
                 n.escala_boleta,
@@ -672,9 +714,14 @@ class CalificacionController extends BaseController
             );
         }
 
-        // Obtener competencia
+        // Obtener competencia (con flag de transversal: su conclusión y
+        // bloqueo no se gestionan desde este resumen sino vía tutor/Variante 1)
         $competencia = $this->calModel->queryOne("
-            SELECT * FROM competencias WHERE id = ?
+            SELECT c.*,
+                   (a.tipo = 'transversal') AS es_transversal
+            FROM competencias c
+            LEFT JOIN areas a ON a.id = c.area_id
+            WHERE c.id = ?
         ", [$competenciaId]);
 
         // Verificar si está bloqueada
@@ -769,6 +816,11 @@ class CalificacionController extends BaseController
     /**
      * POST /docente/calificaciones/{carga_id}/bloquear/{competencia_id}
      * Aprueba y bloquea una competencia.
+     *
+     * Variante 1 de transversales: al bloquear la ÚLTIMA competencia propia
+     * del área se valida que TIC/GAMA tengan notas completas en esta carga
+     * y se bloquea todo junto en una sola acción. Las transversales no se
+     * bloquean de forma individual.
      */
     public function bloquear(string $cargaId, string $competenciaId): void
     {
@@ -783,50 +835,178 @@ class CalificacionController extends BaseController
             $this->json(['success' => false, 'mensaje' => 'Sin periodo activo.'], 400);
         }
 
-        $resumen = $this->calModel->getResumenCompetencia(
-            $cargaId, $competenciaId, $periodo['id']
-        );
-
-        // Bypass: docente confirma que la competencia no fue trabajada en el bimestre.
-        // Solo válido cuando efectivamente no existen criterios ni calificaciones.
-        $sinCriterios     = empty($resumen['criterios']);
         $confirmaSinNotas = !empty($this->input('sin_calificaciones'));
 
-        if (!($sinCriterios && $confirmaSinNotas)) {
-            // Los alumnos con promedio null son válidos si:
-            //   a) tienen al menos una omision registrada (ausencia justificada), o
-            //   b) están exonerados de esta área/subárea.
-            $matriculasConOmision = $this->omisionModel->getMatriculasConOmisionEnCompetencia(
-                $cargaId, $competenciaId, $periodo['id']
-            );
-            $exonerados = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
+        $carga = $this->calModel->queryOne("
+            SELECT ca.id, a.tipo AS area_tipo, n.id AS nivel_id
+            FROM cargas_academicas ca
+            INNER JOIN secciones s ON s.id = ca.seccion_id
+            INNER JOIN grados g    ON g.id = s.grado_id
+            INNER JOIN niveles n   ON n.id = g.nivel_id
+            LEFT  JOIN subareas sa ON sa.id = ca.subarea_id
+            LEFT  JOIN areas a     ON a.id  = COALESCE(ca.area_id, sa.area_id)
+            WHERE ca.id = ?
+        ", [$cargaId]);
 
-            $sinNota = array_filter(
-                $resumen['alumnos'],
-                fn($a) => $a['promedio'] === null
-                    && !in_array((int) $a['matricula_id'], $matriculasConOmision, true)
-                    && !in_array((int) $a['matricula_id'], $exonerados, true)
-            );
+        if (!$carga) {
+            $this->json(['success' => false, 'mensaje' => 'Carga no encontrada.'], 404);
+        }
 
-            if (!empty($sinNota)) {
-                $this->json([
-                    'success' => false,
-                    'mensaje' => 'Hay ' . count($sinNota) . ' alumno(s) sin nota ni motivo de omisión registrado.',
-                ], 400);
+        // Carga transversal heredada del tutor (B1): comportamiento clásico.
+        if ($carga['area_tipo'] === 'transversal') {
+            $error = $this->errorBloqueoCompetencia(
+                $cargaId, $competenciaId, $periodo, $confirmaSinNotas
+            );
+            if ($error !== null) {
+                $this->json(['success' => false, 'mensaje' => $error], 400);
+            }
+            $ok = $this->calModel->bloquearCompetencia(
+                $cargaId, $competenciaId, $periodo['id'], $user['id']
+            );
+            $this->json([
+                'success' => $ok,
+                'mensaje' => $ok ? 'Competencia aprobada y bloqueada correctamente.'
+                                 : 'Error al bloquear.',
+            ]);
+        }
+
+        $transversalIds = array_map(
+            static fn($c) => (int) $c['id'],
+            $this->transModel->getCompetencias((int) $carga['nivel_id'])
+        );
+
+        if (in_array($competenciaId, $transversalIds, true)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Las Competencias Transversales se aprueban automáticamente '
+                    . 'al bloquear la última competencia propia del área.',
+            ], 400);
+        }
+
+        // Validar la competencia propia que se quiere bloquear.
+        $error = $this->errorBloqueoCompetencia(
+            $cargaId, $competenciaId, $periodo, $confirmaSinNotas
+        );
+        if ($error !== null) {
+            $this->json(['success' => false, 'mensaje' => $error], 400);
+        }
+
+        // ¿Con esta quedan bloqueadas TODAS las competencias propias?
+        $propias = array_map(static fn($c) => (int) $c['competencia_id'], $this->calModel->query("
+            SELECT comp.id AS competencia_id
+            FROM competencias comp
+            INNER JOIN cargas_academicas ca ON (
+                (ca.subarea_id IS NOT NULL AND comp.subarea_id = ca.subarea_id)
+                OR
+                (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL AND comp.area_id = ca.area_id)
+            )
+            WHERE ca.id = ?
+        ", [$cargaId]));
+
+        $bloqueadas      = $this->getBloqueos($cargaId, (int) $periodo['id']);
+        $propiasFaltan   = array_diff($propias, array_map('intval', $bloqueadas), [$competenciaId]);
+        $esUltimaPropia  = empty($propiasFaltan);
+
+        if (!$esUltimaPropia) {
+            $ok = $this->calModel->bloquearCompetencia(
+                $cargaId, $competenciaId, $periodo['id'], $user['id']
+            );
+            $this->json([
+                'success' => $ok,
+                'mensaje' => $ok ? 'Competencia aprobada y bloqueada correctamente.'
+                                 : 'Error al bloquear.',
+            ]);
+        }
+
+        // Última propia: TIC/GAMA deben estar completas para cerrar todo junto.
+        $etiquetas = [];
+        foreach ($this->transModel->getCompetencias((int) $carga['nivel_id']) as $trans) {
+            $tid = (int) $trans['id'];
+            if ($this->calModel->competenciaBloqueada($cargaId, $tid, $periodo['id'])) {
+                continue;
+            }
+            $errTrans = $this->errorBloqueoCompetencia($cargaId, $tid, $periodo, false);
+            if ($errTrans !== null) {
+                $etiquetas[] = ($trans['nombre_corto'] ?? 'Transversal') . ': ' . $errTrans;
             }
         }
 
-        $ok = $this->calModel->bloquearCompetencia(
-            $cargaId, $competenciaId, $periodo['id'], $user['id']
-        );
+        if (!empty($etiquetas)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Esta es la última competencia del área: para aprobarla, '
+                    . 'las Competencias Transversales deben estar completas. '
+                    . 'Pendiente — ' . implode(' · ', $etiquetas),
+            ], 400);
+        }
+
+        // Bloquear la propia + las transversales en una sola acción.
+        $this->calModel->beginTransaction();
+        try {
+            $this->calModel->bloquearCompetencia(
+                $cargaId, $competenciaId, $periodo['id'], $user['id']
+            );
+            foreach ($transversalIds as $tid) {
+                $this->calModel->bloquearCompetencia(
+                    $cargaId, $tid, $periodo['id'], $user['id']
+                );
+            }
+            $this->calModel->commit();
+        } catch (\Exception $e) {
+            $this->calModel->rollback();
+            log_error('Error al bloquear competencia con transversales', [
+                'carga_id' => $cargaId, 'competencia_id' => $competenciaId,
+                'error'    => $e->getMessage(),
+            ]);
+            $this->json(['success' => false, 'mensaje' => 'Error al bloquear.'], 500);
+        }
 
         $this->json([
-            'success' => $ok,
-            'mensaje' => $ok
-                ? 'Competencia aprobada y bloqueada correctamente.'
-                : 'Error al bloquear.',
+            'success' => true,
+            'mensaje' => 'Competencia aprobada. Las Competencias Transversales (TIC/GAMA) '
+                . 'se aprobaron y bloquearon junto con ella.',
         ]);
     }
 
-    
+    /**
+     * Valida si una competencia puede bloquearse. Retorna NULL si está lista
+     * o el mensaje de error. Alumnos sin promedio son válidos solo si tienen
+     * omisión registrada o están exonerados de la carga.
+     */
+    private function errorBloqueoCompetencia(
+        int $cargaId,
+        int $competenciaId,
+        array $periodo,
+        bool $confirmaSinNotas
+    ): ?string {
+        $resumen = $this->calModel->getResumenCompetencia(
+            $cargaId, $competenciaId, (int) $periodo['id']
+        );
+
+        $sinCriterios = empty($resumen['criterios']);
+        if ($sinCriterios && $confirmaSinNotas) {
+            return null;
+        }
+        if ($sinCriterios) {
+            return 'sin criterios ni notas registradas.';
+        }
+
+        $matriculasConOmision = $this->omisionModel->getMatriculasConOmisionEnCompetencia(
+            $cargaId, $competenciaId, (int) $periodo['id']
+        );
+        $exonerados = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
+
+        $sinNota = array_filter(
+            $resumen['alumnos'],
+            fn($a) => $a['promedio'] === null
+                && !in_array((int) $a['matricula_id'], $matriculasConOmision, true)
+                && !in_array((int) $a['matricula_id'], $exonerados, true)
+        );
+
+        if (!empty($sinNota)) {
+            return 'Hay ' . count($sinNota) . ' alumno(s) sin nota ni motivo de omisión registrado.';
+        }
+
+        return null;
+    }
 }

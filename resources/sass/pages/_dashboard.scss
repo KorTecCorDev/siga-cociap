@@ -626,6 +626,165 @@
     }
 }
 
+// ── Card de Tutoría (mis-cargas) ─────────────────────────────
+// Resaltada por encima de las cards de carga: borde de acento,
+// gradiente sutil y estrella. 3 estados: progreso / disponible / cerrado.
+.tutoria-card {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+    padding: $spacing-md $spacing-lg;
+    border: 2px solid $color-info;
+    border-radius: $border-radius-lg;
+    background: linear-gradient(135deg, $color-info-bg, $bg-white 70%);
+    box-shadow: 0 2px 10px rgba($color-info, 0.18);
+    text-decoration: none;
+    transition: box-shadow 150ms ease, transform 150ms ease;
+
+    &:hover {
+        box-shadow: 0 4px 16px rgba($color-info, 0.28);
+        transform: translateY(-1px);
+    }
+
+    &__icono {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: $color-info;
+        color: #fff;
+        font-size: $font-size-lg;
+    }
+
+    &__cuerpo {
+        flex: 1;
+        min-width: 0;
+    }
+
+    &__titulo {
+        margin: 0 0 2px;
+        font-size: $font-size-lg;
+        font-weight: 700;
+        color: $text-primary;
+    }
+
+    &__desc {
+        margin: 0;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+    }
+
+    &__estado {
+        flex-shrink: 0;
+        font-size: $font-size-sm;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 100px;
+        white-space: nowrap;
+    }
+
+    &--progreso   &__estado { background: $color-warning-bg; color: darken($color-warning, 8%); }
+    &--disponible &__estado { background: $color-info-bg;    color: $color-info; }
+    &--cerrado {
+        border-color: $color-success;
+        background: linear-gradient(135deg, $color-success-bg, $bg-white 70%);
+        box-shadow: 0 2px 10px rgba($color-success, 0.16);
+
+        .tutoria-card__icono   { background: $color-success; }
+        .tutoria-card__estado  { background: $color-success-bg; color: darken($color-success, 8%); }
+    }
+
+    @media (max-width: 640px) {
+        flex-wrap: wrap;
+
+        &__estado { width: 100%; text-align: center; }
+    }
+}
+
+// ── Panel de tutoría ─────────────────────────────────────────
+.tutoria-bimestres {
+    display: flex;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-lg;
+    flex-wrap: wrap;
+
+    &__item {
+        padding: 6px 16px;
+        border: 1px solid $border-color;
+        border-radius: 100px;
+        font-size: $font-size-sm;
+        font-weight: 500;
+        color: $text-secondary;
+        text-decoration: none;
+        background: $bg-white;
+        transition: all 150ms ease;
+
+        &:hover { border-color: $color-info; color: $color-info; }
+
+        &--activo {
+            background: $color-info;
+            border-color: $color-info;
+            color: #fff;
+
+            &:hover { color: #fff; }
+        }
+    }
+}
+
+.tutoria-conclusion {
+    margin-bottom: $spacing-sm;
+
+    &__label {
+        display: block;
+        font-size: $font-size-sm;
+        font-weight: 600;
+        color: $text-secondary;
+        margin-bottom: 2px;
+
+        .obligatorio { margin-left: 4px; }
+    }
+
+    .textarea-conclusion-transversal {
+        width: 100%;
+        min-width: 240px;
+        font-size: $font-size-sm;
+        resize: vertical;
+    }
+}
+
+.tutoria-tabla .col-conclusion { min-width: 280px; }
+
+// ── Separador y card de transversales (vista de carga) ──────
+.transversales-separador {
+    margin: $spacing-xl 0 $spacing-md;
+    padding: $spacing-md $spacing-lg;
+    border-left: 4px solid $color-info;
+    background: $color-info-bg;
+    border-radius: $border-radius;
+
+    &__titulo {
+        margin: 0 0 4px;
+        font-size: $font-size-lg;
+        font-weight: 700;
+        color: darken($color-info, 10%);
+    }
+
+    &__desc {
+        margin: 0;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        line-height: 1.5;
+    }
+}
+
+.competencia-card--transversal {
+    border-left: 4px solid $color-info;
+}
+
 // ── Page header ──────────────────────────────────────────────
 .page-header {
     display: flex;

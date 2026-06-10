@@ -190,4 +190,68 @@ class CriterioModel extends BaseModel
 
         return $competencias;
     }
+
+    /**
+     * Competencias TRANSVERSALES (TIC/GAMA) del nivel con los criterios de
+     * ESTA carga — misma estructura que getCompetenciasConCriterios para que
+     * la vista del docente las renderice con el mismo mecanismo.
+     */
+    public function getCompetenciasTransversalesConCriterios(
+        int $cargaId,
+        int $periodoId,
+        int $nivelId
+    ): array {
+        $competencias = $this->query("
+            SELECT
+                c.id,
+                c.nombre_completo,
+                c.nombre_corto,
+                c.codigo_minedu,
+                c.orden,
+                ROUND(
+                    (
+                        SELECT AVG(cc.nota)
+                        FROM calificaciones_criterio cc
+                        INNER JOIN criterios cr ON cr.id = cc.criterio_id
+                        WHERE cr.carga_id       = ?
+                        AND cr.competencia_id = c.id
+                        AND cr.periodo_id     = ?
+                        AND cr.eliminado_en   IS NULL
+                    ), 0
+                ) AS promedio_actual,
+                (
+                    SELECT COUNT(DISTINCT cc.matricula_id)
+                    FROM calificaciones_criterio cc
+                    INNER JOIN criterios cr ON cr.id = cc.criterio_id
+                    WHERE cr.carga_id       = ?
+                    AND cr.competencia_id = c.id
+                    AND cr.periodo_id     = ?
+                    AND cr.eliminado_en   IS NULL
+                ) AS alumnos_calificados,
+                NULL AS conclusion_descriptiva
+            FROM competencias c
+            INNER JOIN areas a ON a.id = c.area_id
+            WHERE a.tipo     = 'transversal'
+              AND a.nivel_id = ?
+            ORDER BY c.orden
+        ", [
+            $cargaId, $periodoId,
+            $cargaId, $periodoId,
+            $nivelId
+        ]);
+
+        foreach ($competencias as &$competencia) {
+            $competencia['es_transversal'] = true;
+            $competencia['criterios'] = $this->getCriterios(
+                $cargaId,
+                $competencia['id'],
+                $periodoId
+            );
+            $competencia['literal_actual'] = $competencia['promedio_actual'] !== null
+                ? nota_a_literal((int) $competencia['promedio_actual'])
+                : null;
+        }
+
+        return $competencias;
+    }
 }
