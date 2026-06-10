@@ -583,12 +583,14 @@ class CalificacionController extends BaseController
             INNER JOIN estudiantes e ON e.id = m.estudiante_id
             INNER JOIN personas p    ON p.id = e.persona_id
             WHERE m.seccion_id = ?
-            -- 'aprobada' (datos vigentes, incl. matrículas operativas de retorno
-            -- de grado) y 'pendiente' (recién creadas, aún sin aprobar) entran a
-            -- calificaciones; los trasladados no. Una pendiente puede recibir
-            -- notas de inmediato y se vuelve oficial al aprobarse.
-            AND m.estado IN ('aprobada', 'pendiente')
-            AND m.tipo  != 'trasladado'
+            -- Regla del proyecto: el docente tiene a disposición a TODOS los
+            -- estudiantes matriculados de la sección (aprobada, pendiente e
+            -- incluso desactivado por baja administrativa, p. ej. deuda: el
+            -- alumno sigue asistiendo mientras regulariza). El ÚNICO excluido es
+            -- el TRASLADO DE SALIDA (tipo='trasladado'): ese sí abandonó el
+            -- colegio y no debe calificarse. Un traslado siempre es desactivado,
+            -- así que basta filtrar por tipo.
+            AND m.tipo != 'trasladado'
             ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
         ", [$seccionId]);
     }
