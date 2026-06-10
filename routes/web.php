@@ -207,3 +207,9 @@ $router->post(
     '/docente/calificaciones/{carga_id}/conclusion/{competencia_id}',
     'Docente\CalificacionController@guardarConclusionAlumno'
 );
+
+// ─── Tutoría — transversales y cierre del tutor ──────────────
+$router->get( '/docente/tutoria',                          'Docente\TutoriaController@index');
+$router->post('/docente/tutoria/{periodo_id}/conclusion',  'Docente\TutoriaController@guardarConclusion');
+$router->post('/docente/tutoria/{periodo_id}/cerrar',      'Docente\TutoriaController@cerrar');
+$router->get( '/docente/tutoria/{periodo_id}',             'Docente\TutoriaController@index');

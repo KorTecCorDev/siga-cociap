@@ -90,10 +90,27 @@
         </div>
     <?php endif; ?>
 
+    <?php $separadorTransversal = false; ?>
     <?php foreach ($competencias as $competencia): ?>
-        <?php $compBloqueada = in_array($competencia['id'], $bloqueos ?? []); ?>
+        <?php
+        $compBloqueada  = in_array($competencia['id'], $bloqueos ?? []);
+        $esTransversal  = !empty($competencia['es_transversal']);
 
-        <div class="competencia-card" id="comp-<?= $competencia['id'] ?>">
+        if ($esTransversal && !$separadorTransversal) {
+            $separadorTransversal = true; ?>
+            <div class="transversales-separador">
+                <h2 class="transversales-separador__titulo">Competencias Transversales</h2>
+                <p class="transversales-separador__desc">
+                    TIC y GAMA se registran en cada carga igual que tus competencias
+                    (criterios y notas) y se aprueban automáticamente al bloquear la
+                    última competencia propia del área. Las conclusiones descriptivas
+                    las registra el tutor de la sección al cierre del bimestre.
+                </p>
+            </div>
+        <?php } ?>
+
+        <div class="competencia-card<?= $esTransversal ? ' competencia-card--transversal' : '' ?>"
+             id="comp-<?= $competencia['id'] ?>">
 
             <!-- Encabezado -->
             <div class="competencia-card__header">
@@ -101,6 +118,9 @@
                     <span class="competencia-card__codigo">
                         <?= e($competencia['codigo_minedu'] ?? '') ?>
                     </span>
+                    <?php if ($esTransversal): ?>
+                        <span class="badge badge--info">Transversal</span>
+                    <?php endif; ?>
                     <h3 class="competencia-card__nombre">
                         <?= e($competencia['nombre_completo']) ?>
                     </h3>

@@ -8,7 +8,8 @@
  * @var bool  $bloqueada
  */
 
-$nivelCodigo = $carga['nivel_codigo'];
+$nivelCodigo   = $carga['nivel_codigo'];
+$esTransversal = !empty($competencia['es_transversal']);
 ?>
 
 <div class="page-header">
@@ -19,7 +20,8 @@ $nivelCodigo = $carga['nivel_codigo'];
             <?php
             // Subárea → mostrar nombre de la subárea
             // Área-curso → mostrar nombre completo de la competencia
-            $titulo = $carga['area_tipo'] === 'con_subareas'
+            // Transversal → siempre el nombre de la competencia (TIC/GAMA)
+            $titulo = (!$esTransversal && $carga['area_tipo'] === 'con_subareas')
                 ? ($carga['nombre_display'] ?? $carga['area_nombre'])
                 : $competencia['nombre_completo'];
 
@@ -72,6 +74,12 @@ $nivelCodigo = $carga['nivel_codigo'];
                     Esta competencia fue bloqueada sin calificaciones registradas
                     (no se trabajó en el <?= e($periodo['nombre_display']) ?>).
                 </p>
+            <?php elseif ($esTransversal): ?>
+                <div class="flash flash--warning">
+                    Aún no registras criterios ni notas para esta competencia transversal.
+                    Las transversales (TIC/GAMA) son obligatorias: agrégalas desde la
+                    página de la carga antes de bloquear la última competencia del área.
+                </div>
             <?php else: ?>
                 <div class="flash flash--warning">
                     No se registraron criterios ni calificaciones para esta competencia
@@ -191,7 +199,11 @@ $nivelCodigo = $carga['nivel_codigo'];
 
                             <!-- Conclusión descriptiva -->
                             <td class="col-conclusion">
-                                <?php if ($esExonerado): ?>
+                                <?php if ($esTransversal): ?>
+                                    <span class="text-muted text-sm">
+                                        La registra el tutor al cierre del bimestre
+                                    </span>
+                                <?php elseif ($esExonerado): ?>
                                     <span class="text-muted text-sm">Exonerado(a) — no aplica</span>
                                 <?php elseif (!$bloqueada && $promedio !== null): ?>
                                     <div class="conclusion-alumno">
@@ -226,7 +238,15 @@ $nivelCodigo = $carga['nivel_codigo'];
         </div>
 
         <!-- Botones de acción -->
-        <?php if (!$bloqueada): ?>
+        <?php if ($esTransversal): ?>
+            <div class="resumen-footer">
+                <span class="text-muted text-sm">
+                    Esta competencia transversal se aprueba y bloquea automáticamente
+                    al bloquear la última competencia propia del área.
+                    Las conclusiones descriptivas las registra el tutor de la sección.
+                </span>
+            </div>
+        <?php elseif (!$bloqueada): ?>
             <div class="resumen-footer">
                 <button class="btn btn--primary" id="btn-guardar-conclusiones">
                     💾 Guardar conclusiones

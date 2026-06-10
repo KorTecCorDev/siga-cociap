@@ -224,6 +224,11 @@ class CalificacionModel extends BaseModel
 
     /**
      * Obtiene la boleta completa de un alumno en un periodo.
+     *
+     * Las competencias TRANSVERSALES (TIC/GAMA) no salen de las filas crudas
+     * (desde B2 cada docente registra las suyas → habría duplicados): se
+     * agregan al final como promedio de promedios por carga bloqueada, y
+     * SOLO si existe el cierre vigente del tutor para la sección + periodo.
      */
     public function getBoletaAlumno(
         int $matriculaId,
@@ -254,6 +259,13 @@ class CalificacionModel extends BaseModel
             LEFT  JOIN areas a                 ON a.id   = COALESCE(ca.area_id, sa.area_id)
             WHERE cal.matricula_id = ?
               AND cal.periodo_id   = ?
+              -- La transversalidad se decide por el área de la COMPETENCIA
+              -- (no de la carga): cubre tanto la carga del tutor (B1) como
+              -- las filas TIC/GAMA registradas en cargas de docentes (B2+).
+              AND NOT EXISTS (
+                  SELECT 1 FROM areas at2
+                  WHERE at2.id = comp.area_id AND at2.tipo = 'transversal'
+              )
             ORDER BY a.orden, comp.orden
         ", [$matriculaId, $periodoId]);
 
@@ -280,8 +292,74 @@ class CalificacionModel extends BaseModel
                 $periodoId
             ]);
         }
+        unset($nota);
 
-        return $notas;
+        return array_merge(
+            $notas,
+            $this->getTransversalesAgregadas($matriculaId, $periodoId)
+        );
+    }
+
+    /**
+     * Filas TIC/GAMA agregadas para la boleta: promedio de promedios por
+     * carga bloqueada, condicionado al cierre vigente del tutor. La
+     * conclusión sale de conclusiones_transversales (la registra el tutor).
+     */
+    private function getTransversalesAgregadas(int $matriculaId, int $periodoId): array
+    {
+        $cierre = $this->queryOne("
+            SELECT ct.id
+            FROM cierres_transversales ct
+            INNER JOIN matriculas m ON m.seccion_id = ct.seccion_id
+            WHERE m.id          = ?
+              AND ct.periodo_id = ?
+              AND ct.anulado_en IS NULL
+            LIMIT 1
+        ", [$matriculaId, $periodoId]);
+
+        if (!$cierre) {
+            return [];
+        }
+
+        $filas = $this->query("
+            SELECT
+                ROUND(AVG(cal.nota_numerica)) AS nota_numerica,
+                ct.conclusion                 AS conclusion_descriptiva,
+                comp.id                       AS competencia_id,
+                comp.nombre_completo          AS competencia_nombre,
+                comp.nombre_corto,
+                comp.codigo_minedu,
+                a.id                          AS area_id,
+                a.nombre                      AS area_nombre,
+                a.nombre_boleta,
+                a.alias_boleta,
+                a.tipo                        AS area_tipo,
+                NULL                          AS subarea_nombre,
+                NULL                          AS carga_id
+            FROM calificaciones cal
+            INNER JOIN bloqueos_competencia bc
+                ON  bc.carga_id       = cal.carga_id
+                AND bc.competencia_id = cal.competencia_id
+                AND bc.periodo_id     = cal.periodo_id
+            INNER JOIN competencias comp ON comp.id = cal.competencia_id
+            INNER JOIN areas a           ON a.id = comp.area_id AND a.tipo = 'transversal'
+            LEFT  JOIN conclusiones_transversales ct
+                ON  ct.matricula_id   = cal.matricula_id
+                AND ct.competencia_id = cal.competencia_id
+                AND ct.periodo_id     = cal.periodo_id
+            WHERE cal.matricula_id = ?
+              AND cal.periodo_id   = ?
+            GROUP BY comp.id, comp.nombre_completo, comp.nombre_corto,
+                     comp.codigo_minedu, a.id, a.nombre, a.nombre_boleta,
+                     a.alias_boleta, a.tipo, ct.conclusion
+            ORDER BY comp.orden
+        ", [$matriculaId, $periodoId]);
+
+        foreach ($filas as &$f) {
+            $f['criterios'] = [];
+        }
+
+        return $filas;
     }
 
     // ─── Bloqueos de competencia ─────────────────────────────────

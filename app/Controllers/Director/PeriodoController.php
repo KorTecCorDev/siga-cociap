@@ -167,7 +167,19 @@ class PeriodoController extends BaseController
             // Al reabrir, los bloqueos auto-generados por el cierre forzado
             // (sin notas detrás) congelarían a los docentes. Se eliminan para
             // que recuperen el acceso; los aprobados con notas se conservan.
+            // Las secciones afectadas pierden su cierre transversal vigente
+            // (con traza) — se identifican ANTES de borrar los bloqueos.
+            $transModel         = new \App\Models\TransversalModel();
+            $seccionesAfectadas = $transModel->seccionesConBloqueosSinNotas($id);
             $liberadas = $this->model->eliminarBloqueosSinNotas($id);
+            if ($liberadas > 0 && !empty($seccionesAfectadas)) {
+                $transModel->anularCierresDeSecciones(
+                    $seccionesAfectadas,
+                    $id,
+                    $usuarioId,
+                    'Reapertura del bimestre: ' . $motivo
+                );
+            }
             // Deja traza del motivo y de cuántos bloqueos se liberaron.
             $this->model->registrarReapertura($id, $motivo, $usuarioId, $liberadas);
             $this->model->commit();

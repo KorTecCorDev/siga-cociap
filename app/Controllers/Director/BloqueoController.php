@@ -4,16 +4,19 @@ namespace App\Controllers\Director;
 
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
+use App\Models\TransversalModel;
 use Core\Session;
 
 class BloqueoController extends BaseController
 {
     private CalificacionModel $calModel;
+    private TransversalModel  $transModel;
 
     public function __construct()
     {
         $this->requireRole(['admin', 'director_general', 'director_ebr']);
-        $this->calModel = new CalificacionModel();
+        $this->calModel   = new CalificacionModel();
+        $this->transModel = new TransversalModel();
     }
 
     /**
@@ -158,27 +161,65 @@ class BloqueoController extends BaseController
     /**
      * POST /director/bloqueos/{id}/desbloquear
      * Elimina el bloqueo para que el docente pueda editar las notas.
+     *
+     * Reapertura de carga: invariante de la Variante 1 — las transversales
+     * de la carga están bloqueadas solo cuando TODAS las propias lo están.
+     * Al desbloquear una propia se liberan también las TIC/GAMA de la carga
+     * (se re-bloquean juntas al aprobar de nuevo la última) y se ANULA el
+     * cierre transversal vigente de la sección con traza de quién/por qué.
      */
     public function desbloquear(string $id): void
     {
         $this->validateCsrf();
-        $id = (int) $id;
+        $id   = (int) $id;
+        $user = Session::user();
 
         $bloqueo = $this->calModel->queryOne("
-            SELECT id, periodo_id FROM bloqueos_competencia WHERE id = ?
+            SELECT bc.id, bc.periodo_id, bc.carga_id, bc.competencia_id,
+                   ca.seccion_id,
+                   comp.nombre_corto AS competencia_nombre,
+                   (at2.tipo = 'transversal') AS es_transversal
+            FROM bloqueos_competencia bc
+            INNER JOIN cargas_academicas ca ON ca.id  = bc.carga_id
+            INNER JOIN competencias comp    ON comp.id = bc.competencia_id
+            LEFT  JOIN areas at2            ON at2.id  = comp.area_id
+            WHERE bc.id = ?
         ", [$id]);
 
         if (!$bloqueo) {
             $this->redirectWithError(url('director/bloqueos'), 'Bloqueo no encontrado.');
         }
 
-        $periodoId = $bloqueo['periodo_id'];
+        $periodoId = (int) $bloqueo['periodo_id'];
+        $cargaId   = (int) $bloqueo['carga_id'];
         $ok        = $this->calModel->desbloquearCompetencia($id);
 
         if ($ok) {
+            // Liberar también las transversales de la carga (si la propia
+            // desbloqueada no era ya una transversal).
+            if (empty($bloqueo['es_transversal'])) {
+                $this->calModel->execute("
+                    DELETE bc FROM bloqueos_competencia bc
+                    INNER JOIN competencias comp ON comp.id = bc.competencia_id
+                    INNER JOIN areas a           ON a.id = comp.area_id AND a.tipo = 'transversal'
+                    WHERE bc.carga_id   = ?
+                      AND bc.periodo_id = ?
+                ", [$cargaId, $periodoId]);
+            }
+
+            // Anular el cierre transversal vigente de la sección.
+            $this->transModel->anularCierreVigente(
+                (int) $bloqueo['seccion_id'],
+                $periodoId,
+                (int) $user['id'],
+                'Desbloqueo de la competencia "' . ($bloqueo['competencia_nombre'] ?? $bloqueo['competencia_id'])
+                    . '" (carga ' . $cargaId . ') por el director.'
+            );
+
             $this->redirectWithSuccess(
                 url("director/bloqueos?periodo_id={$periodoId}"),
-                'Competencia desbloqueada. El docente puede volver a editar las notas.'
+                'Competencia desbloqueada. El docente puede volver a editar las notas. '
+                . 'Si la sección tenía cierre transversal, quedó anulado hasta repetir el ciclo.'
             );
         }
 
