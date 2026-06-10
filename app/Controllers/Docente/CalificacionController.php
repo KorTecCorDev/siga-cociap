@@ -17,6 +17,9 @@ use Core\Session;
 
 class CalificacionController extends BaseController
 {
+    /** Longitud máxima del nombre de un criterio; el detalle va en `descripcion` */
+    public const CRITERIO_NOMBRE_MAX = 100;
+
     private CalificacionModel    $calModel;
     private CriterioModel        $critModel;
     private OmisionCriterioModel $omisionModel;
@@ -297,6 +300,7 @@ class CalificacionController extends BaseController
         $cargaId       = (int) $this->input('carga_id');
         $competenciaId = (int) $this->input('competencia_id');
         $nombre        = trim($this->input('nombre', ''));
+        $descripcion   = trim($this->input('descripcion', ''));
         $periodo       = $this->getPeriodoActivo();
 
         if (empty($nombre) || !$periodo) {
@@ -304,6 +308,15 @@ class CalificacionController extends BaseController
                 'success' => false,
                 'mensaje' => 'Datos incompletos.',
             ], 400);
+        }
+
+        if (mb_strlen($nombre) > self::CRITERIO_NOMBRE_MAX) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'El nombre del criterio no puede superar los '
+                    . self::CRITERIO_NOMBRE_MAX . ' caracteres (tiene '
+                    . mb_strlen($nombre) . '). Usa el campo descripción para el detalle.',
+            ], 422);
         }
 
         if ($this->calModel->periodoEstaBloqueado($periodo['id'])) {
@@ -317,14 +330,16 @@ class CalificacionController extends BaseController
             $cargaId,
             $competenciaId,
             $periodo['id'],
-            $nombre
+            $nombre,
+            $descripcion !== '' ? $descripcion : null
         );
 
         $this->json([
-            'success' => true,
-            'id'      => $id,
-            'nombre'  => $nombre,
-            'mensaje' => 'Criterio creado.',
+            'success'     => true,
+            'id'          => $id,
+            'nombre'      => $nombre,
+            'descripcion' => $descripcion,
+            'mensaje'     => 'Criterio creado.',
         ]);
     }
 
@@ -335,11 +350,21 @@ class CalificacionController extends BaseController
     public function renombrarCriterio(string $id): void
     {
         $this->validateCsrf();
-        $id     = (int) $id;
-        $nombre = trim($this->input('nombre', ''));
+        $id          = (int) $id;
+        $nombre      = trim($this->input('nombre', ''));
+        $descripcion = trim($this->input('descripcion', ''));
 
         if (empty($nombre)) {
             $this->json(['success' => false, 'mensaje' => 'El nombre no puede estar vacío.'], 400);
+        }
+
+        if (mb_strlen($nombre) > self::CRITERIO_NOMBRE_MAX) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'El nombre del criterio no puede superar los '
+                    . self::CRITERIO_NOMBRE_MAX . ' caracteres (tiene '
+                    . mb_strlen($nombre) . '). Usa el campo descripción para el detalle.',
+            ], 422);
         }
 
         $criterio = $this->critModel->queryOne(
@@ -355,9 +380,14 @@ class CalificacionController extends BaseController
             $this->json(['success' => false, 'mensaje' => 'Periodo bloqueado.'], 403);
         }
 
-        $this->critModel->renombrar($id, $nombre);
+        $this->critModel->renombrar($id, $nombre, $descripcion !== '' ? $descripcion : null);
 
-        $this->json(['success' => true, 'nombre' => $nombre, 'mensaje' => 'Criterio actualizado.']);
+        $this->json([
+            'success'     => true,
+            'nombre'      => $nombre,
+            'descripcion' => $descripcion,
+            'mensaje'     => 'Criterio actualizado.',
+        ]);
     }
 
     /**

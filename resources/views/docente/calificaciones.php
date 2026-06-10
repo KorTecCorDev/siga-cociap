@@ -146,9 +146,16 @@
                                 <div class="criterio-bloque__header">
                                     <div class="criterio-bloque__titulo">
                                         <span class="criterio-bloque__caret"></span>
-                                        <h4 class="criterio-bloque__nombre">
-                                            <?= e($criterio['nombre']) ?>
-                                        </h4>
+                                        <div class="criterio-bloque__identidad">
+                                            <h4 class="criterio-bloque__nombre">
+                                                <?= e($criterio['nombre']) ?>
+                                            </h4>
+                                            <?php if (!empty($criterio['descripcion'])): ?>
+                                                <p class="criterio-bloque__descripcion">
+                                                    <?= e($criterio['descripcion']) ?>
+                                                </p>
+                                            <?php endif; ?>
+                                        </div>
                                         <span class="criterio-bloque__progreso<?= $completoCrit ? ' criterio-bloque__progreso--completo' : '' ?>"
                                               title="Alumnos con nota guardada">
                                             <?= $calificadosCrit ?> de <?= $totalAlumnos ?>
@@ -158,7 +165,8 @@
                                         <div class="criterio-bloque__acciones">
                                             <button
                                                 class="btn btn--secondary btn--sm btn-renombrar-criterio"
-                                                data-criterio-id="<?= $criterio['id'] ?>">
+                                                data-criterio-id="<?= $criterio['id'] ?>"
+                                                data-descripcion="<?= e($criterio['descripcion'] ?? '') ?>">
                                                 Editar
                                             </button>
                                             <button
@@ -248,18 +256,27 @@
                     <!-- Agregar criterio — solo si no está bloqueado -->
                     <?php if (!$bloqueado): ?>
                         <div class="agregar-criterio">
-                            <input
-                                type="text"
-                                class="form-input input-nuevo-criterio"
-                                placeholder="Ej: Examen escrito, Trabajo grupal..."
-                                maxlength="120"
-                            >
-                            <button
-                                class="btn btn--primary btn-agregar-criterio"
-                                data-carga-id="<?= $carga['id'] ?>"
-                                data-competencia-id="<?= $competencia['id'] ?>">
-                                + Agregar criterio
-                            </button>
+                            <div class="agregar-criterio__fila">
+                                <div class="agregar-criterio__campo">
+                                    <input
+                                        type="text"
+                                        class="form-input input-nuevo-criterio"
+                                        placeholder="Ej: Examen escrito, Trabajo grupal..."
+                                        maxlength="100"
+                                    >
+                                    <span class="contador-chars" data-contador-de="nombre">0/100</span>
+                                </div>
+                                <button
+                                    class="btn btn--primary btn-agregar-criterio"
+                                    data-carga-id="<?= $carga['id'] ?>"
+                                    data-competencia-id="<?= $competencia['id'] ?>">
+                                    + Agregar criterio
+                                </button>
+                            </div>
+                            <textarea
+                                class="form-input input-nuevo-criterio-desc"
+                                placeholder="Descripción del criterio (opcional)"
+                                rows="2"></textarea>
                         </div>
                     <?php endif; ?>
 
