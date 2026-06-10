@@ -87,7 +87,7 @@ class ControlOperativoModel extends BaseModel
                 AVG(cal.nota_numerica)                    AS promedio_exacto,
                 SUM(cal.nota_numerica <= 10)              AS num_c,
                 SUM(cal.nota_numerica BETWEEN 11 AND 13)  AS num_b,
-                SUM(cal.nota_numerica >= 17)              AS num_ad
+                SUM(cal.nota_numerica >= " . NOTA_MIN_AD . ")              AS num_ad
             FROM matriculas m
             INNER JOIN secciones s        ON s.id  = m.seccion_id
             INNER JOIN grados g           ON g.id  = s.grado_id

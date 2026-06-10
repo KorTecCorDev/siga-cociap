@@ -170,6 +170,17 @@ por seeds aplicados con FOREIGN_KEY_CHECKS=0. No afecta datos reales
 
 ## Escala de calificaciones
 - **Notas:** siempre numéricas 00-20 en BD
+- **Umbrales literales (actualizados 10/06/2026):** AD: 18-20 · A: 14-17 · B: 11-13 · C: 00-10.
+  Definidos como PUNTO ÚNICO DE VERDAD en `app/Helpers/helpers.php`:
+  constantes `NOTA_MIN_AD` (18), `NOTA_MIN_A` (14), `NOTA_MIN_B` (11).
+  - Conversión PHP: SIEMPRE via `nota_a_literal()` (los modelos delegan, no duplican el match).
+  - Queries SQL: interpolan las constantes (`OrdenMeritoModel` x2, `ControlOperativoModel`,
+    `AnioAcademicoModel`). NUNCA hardcodear el umbral en una query nueva.
+  - Leyendas de boletas: `escala_rangos()` genera los rangos de texto.
+  - El cambio es retroactivo automático: la BD solo guarda `nota_numerica`; el literal
+    se calcula al vuelo (B1: 717 notas de 17 pasaron de AD a A).
+  - Los desempates `num_alto IN (15,16)` y `num_16` del orden de mérito NO se tocaron
+    (decisión del colegio pendiente sobre regenerar el ranking B1).
 - **Primaria:** boleta solo muestra literal (AD/A/B/C)
 - **Secundaria:** boleta muestra numeral + literal
 - **Conclusión descriptiva:**

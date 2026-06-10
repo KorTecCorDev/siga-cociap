@@ -320,10 +320,10 @@ class AnioAcademicoModel extends BaseModel
                 n.id     AS nivel_id,
                 n.nombre AS nivel_nombre,
                 n.codigo AS nivel_codigo,
-                SUM(cal.nota_numerica >= 17)                              AS ad,
-                SUM(cal.nota_numerica >= 14 AND cal.nota_numerica < 17)   AS a,
-                SUM(cal.nota_numerica >= 11 AND cal.nota_numerica < 14)   AS b,
-                SUM(cal.nota_numerica < 11)                               AS c,
+                SUM(cal.nota_numerica >= " . NOTA_MIN_AD . ")                              AS ad,
+                SUM(cal.nota_numerica >= " . NOTA_MIN_A . " AND cal.nota_numerica < " . NOTA_MIN_AD . ")   AS a,
+                SUM(cal.nota_numerica >= " . NOTA_MIN_B . " AND cal.nota_numerica < " . NOTA_MIN_A . ")   AS b,
+                SUM(cal.nota_numerica < " . NOTA_MIN_B . ")                               AS c,
                 COUNT(*)                                                  AS total_calif
             FROM calificaciones cal
             INNER JOIN matriculas m      ON m.id    = cal.matricula_id

@@ -175,17 +175,9 @@ class CriterioModel extends BaseModel
             );
 
             // Calcular literal del promedio
-            if ($competencia['promedio_actual'] !== null) {
-                $nota = (int) $competencia['promedio_actual'];
-                $competencia['literal_actual'] = match(true) {
-                    $nota >= 17 => 'AD',
-                    $nota >= 14 => 'A',
-                    $nota >= 11 => 'B',
-                    default     => 'C',
-                };
-            } else {
-                $competencia['literal_actual'] = null;
-            }
+            $competencia['literal_actual'] = $competencia['promedio_actual'] !== null
+                ? nota_a_literal((int) $competencia['promedio_actual'])
+                : null;
         }
 
         return $competencias;

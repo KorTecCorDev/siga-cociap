@@ -123,24 +123,25 @@ unset($_n, $_c);
     </section>
 
     <!-- ── LEYENDA DE ESCALA ─────────────────────────────────── -->
+    <?php $rangos = escala_rangos(); ?>
     <div class="bd-legend" aria-label="Escala de calificaciones">
         <span class="bd-legend__title">Escala:</span>
         <div class="bd-legend__items">
             <span class="bd-legend__item bd-legend__item--ad">
                 <strong>AD</strong>
-                <span class="bd-legend__desc">Logro destacado (17–20)</span>
+                <span class="bd-legend__desc">Logro destacado (<?= $rangos['AD'] ?>)</span>
             </span>
             <span class="bd-legend__item bd-legend__item--a">
                 <strong>A</strong>
-                <span class="bd-legend__desc">Logro esperado (14–16)</span>
+                <span class="bd-legend__desc">Logro esperado (<?= $rangos['A'] ?>)</span>
             </span>
             <span class="bd-legend__item bd-legend__item--b">
                 <strong>B</strong>
-                <span class="bd-legend__desc">En proceso (11–13)</span>
+                <span class="bd-legend__desc">En proceso (<?= $rangos['B'] ?>)</span>
             </span>
             <span class="bd-legend__item bd-legend__item--c">
                 <strong>C</strong>
-                <span class="bd-legend__desc">En inicio (00–10)</span>
+                <span class="bd-legend__desc">En inicio (<?= $rangos['C'] ?>)</span>
             </span>
         </div>
     </div>
