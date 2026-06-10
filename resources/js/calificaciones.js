@@ -389,15 +389,45 @@ function abrirModalOmisiones(alumnos, onConfirmar) {
     };
 }
 
+// ── Contador de caracteres del nombre de criterio ────────────
+// Pinta "67/100" junto al campo y marca --excedido cuando supera el límite.
+const CRITERIO_NOMBRE_MAX = 100;
+
+function vincularContador(input, contador) {
+    const actualizar = () => {
+        const len = input.value.trim().length;
+        contador.textContent = `${len}/${CRITERIO_NOMBRE_MAX}`;
+        contador.classList.toggle('contador-chars--excedido', len > CRITERIO_NOMBRE_MAX);
+    };
+    input.addEventListener('input', actualizar);
+    actualizar();
+}
+
+document.querySelectorAll('.agregar-criterio').forEach(bloque => {
+    const input    = bloque.querySelector('.input-nuevo-criterio');
+    const contador = bloque.querySelector('.contador-chars');
+    if (input && contador) vincularContador(input, contador);
+});
+
 // ── Agregar criterio ─────────────────────────────────────────
 document.querySelectorAll('.btn-agregar-criterio').forEach(btn => {
     btn.addEventListener('click', async () => {
         const cargaId       = btn.dataset.cargaId;
         const competenciaId = btn.dataset.competenciaId;
-        const input         = btn.previousElementSibling;
+        const bloque        = btn.closest('.agregar-criterio');
+        const input         = bloque.querySelector('.input-nuevo-criterio');
+        const inputDesc     = bloque.querySelector('.input-nuevo-criterio-desc');
         const nombre        = input.value.trim();
+        const descripcion   = inputDesc ? inputDesc.value.trim() : '';
 
         if (!nombre) {
+            input.focus();
+            return;
+        }
+
+        if (nombre.length > CRITERIO_NOMBRE_MAX) {
+            alert(`El nombre supera los ${CRITERIO_NOMBRE_MAX} caracteres. ` +
+                  `Usa el campo de descripción para el detalle.`);
             input.focus();
             return;
         }
@@ -410,6 +440,7 @@ document.querySelectorAll('.btn-agregar-criterio').forEach(btn => {
             formData.append('carga_id',      cargaId);
             formData.append('competencia_id',competenciaId);
             formData.append('nombre',        nombre);
+            formData.append('descripcion',   descripcion);
 
             const res = await fetch(`${BASE}/docente/criterios/crear`,
                 { method: 'POST', body: formData }
@@ -430,20 +461,35 @@ document.querySelectorAll('.btn-agregar-criterio').forEach(btn => {
     });
 });
 
-// ── Renombrar criterio ───────────────────────────────────────
+// ── Editar criterio (nombre + descripción) ───────────────────
+// El input de nombre lleva contador en vivo. Si el nombre actual supera
+// los 100 caracteres (criterios antiguos de hasta 120), aparece el botón
+// "Mover a descripción": traslada el texto íntegro a la descripción y
+// deja el nombre listo para escribir uno corto.
 document.querySelectorAll('.btn-renombrar-criterio').forEach(btn => {
     btn.addEventListener('click', () => {
         const criterioId = btn.dataset.criterioId;
         const bloque     = document.getElementById(`criterio-${criterioId}`);
+        const identidad  = bloque.querySelector('.criterio-bloque__identidad');
         const h4         = bloque.querySelector('.criterio-bloque__nombre');
         const acciones   = bloque.querySelector('.criterio-bloque__acciones');
         const nombreActual = h4.textContent.trim();
+        const descActual   = btn.dataset.descripcion ?? '';
 
         const input = document.createElement('input');
         input.type      = 'text';
         input.value     = nombreActual;
-        input.maxLength = 120;
         input.className = 'form-input criterio-nombre-input';
+
+        const contador = document.createElement('span');
+        contador.className = 'contador-chars';
+        vincularContador(input, contador);
+
+        const textareaDesc = document.createElement('textarea');
+        textareaDesc.value       = descActual;
+        textareaDesc.rows        = 2;
+        textareaDesc.placeholder = 'Descripción del criterio (opcional)';
+        textareaDesc.className   = 'form-input criterio-desc-input';
 
         const btnGuardar = document.createElement('button');
         btnGuardar.type      = 'button';
@@ -455,26 +501,61 @@ document.querySelectorAll('.btn-renombrar-criterio').forEach(btn => {
         btnCancelar.textContent = 'Cancelar';
         btnCancelar.className = 'btn btn--secondary btn--sm';
 
+        const filaNombre = document.createElement('div');
+        filaNombre.className = 'criterio-nombre-editar__fila';
+        filaNombre.append(input, contador, btnGuardar, btnCancelar);
+
         const wrapper = document.createElement('div');
         wrapper.className = 'criterio-nombre-editar';
-        wrapper.append(input, btnGuardar, btnCancelar);
+        wrapper.append(filaNombre);
+
+        // Criterio antiguo con nombre > 100: ofrecer traslado con un clic
+        if (nombreActual.length > CRITERIO_NOMBRE_MAX) {
+            const btnMover = document.createElement('button');
+            btnMover.type        = 'button';
+            btnMover.textContent = '↓ Mover a descripción';
+            btnMover.title       = 'Pasa este texto a la descripción y deja el nombre libre';
+            btnMover.className   = 'btn btn--secondary btn--sm btn-mover-descripcion';
+            btnMover.addEventListener('click', () => {
+                textareaDesc.value = textareaDesc.value.trim()
+                    ? textareaDesc.value.trim() + '\n' + input.value.trim()
+                    : input.value.trim();
+                input.value = '';
+                input.dispatchEvent(new Event('input'));
+                btnMover.remove();
+                input.focus();
+            });
+            filaNombre.insertBefore(btnMover, btnGuardar);
+        }
+
+        wrapper.append(textareaDesc);
 
         h4.hidden       = true;
+        const pDesc = identidad.querySelector('.criterio-bloque__descripcion');
+        if (pDesc) pDesc.hidden = true;
         acciones.hidden = true;
-        h4.parentElement.append(wrapper);
+        identidad.append(wrapper);
         input.focus();
         input.select();
 
         const cancelar = () => {
             h4.hidden       = false;
+            if (pDesc) pDesc.hidden = false;
             acciones.hidden = false;
             wrapper.remove();
         };
 
         const guardar = async () => {
-            const nuevo = input.value.trim();
+            const nuevo     = input.value.trim();
+            const nuevaDesc = textareaDesc.value.trim();
             if (!nuevo) { input.focus(); return; }
-            if (nuevo === nombreActual) { cancelar(); return; }
+            if (nuevo.length > CRITERIO_NOMBRE_MAX) {
+                alert(`El nombre supera los ${CRITERIO_NOMBRE_MAX} caracteres. ` +
+                      `Usa la descripción para el detalle.`);
+                input.focus();
+                return;
+            }
+            if (nuevo === nombreActual && nuevaDesc === descActual) { cancelar(); return; }
 
             btnGuardar.disabled = btnCancelar.disabled = true;
 
@@ -482,6 +563,7 @@ document.querySelectorAll('.btn-renombrar-criterio').forEach(btn => {
                 const formData = new FormData();
                 formData.append('_csrf_token', CSRF);
                 formData.append('nombre',      nuevo);
+                formData.append('descripcion', nuevaDesc);
 
                 const res  = await fetch(
                     `${BASE}/docente/criterios/${criterioId}/renombrar`,
@@ -491,6 +573,22 @@ document.querySelectorAll('.btn-renombrar-criterio').forEach(btn => {
 
                 if (data.success) {
                     h4.textContent = data.nombre;
+                    btn.dataset.descripcion = data.descripcion ?? '';
+
+                    // Actualizar / crear / quitar la línea de descripción visible
+                    let p = identidad.querySelector('.criterio-bloque__descripcion');
+                    if (data.descripcion) {
+                        if (!p) {
+                            p = document.createElement('p');
+                            p.className = 'criterio-bloque__descripcion';
+                            identidad.insertBefore(p, wrapper);
+                        }
+                        p.textContent = data.descripcion;
+                        p.hidden = false;
+                    } else if (p) {
+                        p.remove();
+                    }
+
                     const btnEliminar = acciones.querySelector('.btn-eliminar-criterio');
                     if (btnEliminar) btnEliminar.dataset.nombre = data.nombre;
                     cancelar();
@@ -508,6 +606,9 @@ document.querySelectorAll('.btn-renombrar-criterio').forEach(btn => {
         btnCancelar.addEventListener('click', cancelar);
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter')  { e.preventDefault(); guardar(); }
+            if (e.key === 'Escape') { cancelar(); }
+        });
+        textareaDesc.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') { cancelar(); }
         });
     });

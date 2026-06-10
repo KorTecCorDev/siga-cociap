@@ -96,9 +96,14 @@ $nivelCodigo = $carga['nivel_codigo'];
                     <tr>
                         <th class="col-num">N°</th>
                         <th class="col-nombre">Apellidos y nombres</th>
-                        <!-- Criterios con tooltip -->
+                        <!-- Criterios con tooltip (nombre completo + descripción) -->
                         <?php foreach ($criterios as $criterio): ?>
-                            <th class="col-criterio text-center" title="<?= e($criterio['nombre']) ?>">
+                            <?php
+                            $tooltipCriterio = $criterio['nombre']
+                                . (!empty($criterio['descripcion'])
+                                    ? "\n\n" . $criterio['descripcion'] : '');
+                            ?>
+                            <th class="col-criterio text-center" title="<?= e($tooltipCriterio) ?>">
                                 <span class="criterio-header">
                                     <?= e(mb_strlen($criterio['nombre']) > 15
                                         ? mb_substr($criterio['nombre'], 0, 15) . '...'

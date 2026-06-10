@@ -36,7 +36,8 @@ class CriterioModel extends BaseModel
         int $cargaId,
         int $competenciaId,
         int $periodoId,
-        string $nombre
+        string $nombre,
+        ?string $descripcion = null
     ): int {
         $ultimo = $this->queryOne("
             SELECT MAX(orden) AS ultimo
@@ -54,6 +55,8 @@ class CriterioModel extends BaseModel
             'competencia_id' => $competenciaId,
             'periodo_id'     => $periodoId,
             'nombre'         => trim($nombre),
+            'descripcion'    => ($descripcion !== null && trim($descripcion) !== '')
+                ? trim($descripcion) : null,
             'orden'          => $orden,
         ]);
     }
@@ -73,13 +76,18 @@ class CriterioModel extends BaseModel
     }
 
     /**
-     * Cambia el nombre de un criterio. Siempre permitido, incluso con calificaciones.
+     * Cambia el nombre y la descripción de un criterio.
+     * Siempre permitido, incluso con calificaciones.
+     * Descripción vacía o null la limpia (NULL en BD).
      */
-    public function renombrar(int $id, string $nombre): bool
+    public function renombrar(int $id, string $nombre, ?string $descripcion = null): bool
     {
+        $desc = ($descripcion !== null && trim($descripcion) !== '')
+            ? trim($descripcion) : null;
+
         return $this->execute(
-            "UPDATE criterios SET nombre = ? WHERE id = ?",
-            [trim($nombre), $id]
+            "UPDATE criterios SET nombre = ?, descripcion = ? WHERE id = ?",
+            [trim($nombre), $desc, $id]
         );
     }
 

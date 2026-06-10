@@ -97,7 +97,14 @@
                             <tbody>
                                 <?php foreach ($comp['criterios'] as $criterio): ?>
                                     <tr>
-                                        <td><?= e($criterio['criterio_nombre']) ?></td>
+                                        <td>
+                                            <?= e($criterio['criterio_nombre']) ?>
+                                            <?php if (!empty($criterio['criterio_descripcion'])): ?>
+                                                <span class="criterio-desc">
+                                                    <?= e($criterio['criterio_descripcion']) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td class="text-center">
                                             <?= $criterio['nota'] !== null ? fmt_nota((int)$criterio['nota']) : '—' ?>
                                         </td>

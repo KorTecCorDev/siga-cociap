@@ -260,7 +260,8 @@ class CalificacionModel extends BaseModel
         foreach ($notas as &$nota) {
             $nota['criterios'] = $this->query("
                 SELECT
-                    cr.nombre AS criterio_nombre,
+                    cr.nombre      AS criterio_nombre,
+                    cr.descripcion AS criterio_descripcion,
                     cr.orden,
                     cc.nota
                 FROM criterios cr
@@ -399,7 +400,7 @@ class CalificacionModel extends BaseModel
     ): array {
         // Obtener criterios activos (excluye eliminados)
         $criterios = $this->query("
-            SELECT id, nombre, orden
+            SELECT id, nombre, descripcion, orden
             FROM criterios
             WHERE carga_id       = ?
             AND competencia_id = ?

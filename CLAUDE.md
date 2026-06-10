@@ -117,6 +117,8 @@ director_ebr_historial  ← NUEVO (sesión 7)
 7. migrations/006_soft_delete_criterios.sql   ← sesión 7
 8. migrations/007_director_ebr_historial.sql  ← sesión 7
 9. migrations/008_director_ebr_imagenes.sql   ← sesión 7
+   (… 009-017 según database/migrations/)
+10. migrations/018_criterios_descripcion.sql  ← criterios: descripción opcional
 
 
 ## Seed de demostración para presentación (sesión 4)
@@ -521,6 +523,25 @@ registran en el casillero de un área oficial que cede ese tramo de grados.
 - **`CriterioModel::eliminarConAuditoria(int $id, int $eliminadoPor): bool`** — método de borrado.
 - **JS:** si el criterio tiene calificaciones, muestra confirm con advertencia y recarga la
   página tras el borrado para reflejar el promedio recalculado.
+
+## Criterios — nombre máx 100 + descripción opcional (10/06/2026)
+- **Migración:** `018_criterios_descripcion.sql` — `ADD COLUMN IF NOT EXISTS descripcion TEXT NULL`.
+  La columna `nombre` sigue siendo VARCHAR(120): los 143 nombres existentes >100 quedan intactos.
+- **Validación servidor:** `CalificacionController::CRITERIO_NOMBRE_MAX = 100`. `crearCriterio`
+  y `renombrarCriterio` responden 422 con mensaje claro si el nombre excede — NUNCA truncar.
+  Ambos endpoints aceptan `descripcion` opcional (vacía → NULL).
+- **`CriterioModel::crear()`/`renombrar()`** reciben `?string $descripcion = null`.
+- **UI docente** (`calificaciones.php` + `calificaciones.js`):
+  - Contador en vivo `67/100` (`.contador-chars`, `--excedido` en rojo) en crear y editar.
+  - Campo descripción opcional (textarea) en crear y editar.
+  - Editor de criterio: si el nombre actual supera 100 (criterio antiguo), botón
+    "↓ Mover a descripción" traslada el texto íntegro con un clic.
+  - La descripción se muestra bajo el nombre (`.criterio-bloque__descripcion`).
+- **Lectura:** resumen del docente → tooltip del `<th>` = nombre completo + descripción;
+  vista del padre (`padre/notas.php`) → descripción como línea muted bajo el criterio
+  (`.criterio-desc`). Queries actualizadas en `CalificacionModel` (resumen y padre).
+- **SASS:** todo en `pages/_dashboard.scss` (OJO: `components/_dashboard.scss` NO está
+  importado en `app.scss` — es código muerto, no agregar estilos ahí).
 
 ## Módulo Director EBR — historial de cargo (sesión 7)
 

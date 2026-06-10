@@ -408,6 +408,19 @@
         transition: color 200ms ease;
     }
 
+    // Contenedor de nombre + descripción (columna dentro del título flex)
+    &__identidad {
+        flex: 1;
+        min-width: 0;
+    }
+
+    &__descripcion {
+        margin: 2px 0 0;
+        font-size: $font-size-sm;
+        color: $text-muted;
+        line-height: 1.4;
+    }
+
     // Animación de apertura/cierre con CSS grid
     &__content {
         display: grid;
@@ -534,12 +547,82 @@
 // ── Agregar criterio ─────────────────────────────────────────
 .agregar-criterio {
     display: flex;
+    flex-direction: column;
     gap: $spacing-sm;
     margin-top: $spacing-md;
-    align-items: center;
 
-    .form-input {
+    &__fila {
+        display: flex;
+        gap: $spacing-sm;
+        align-items: center;
+    }
+
+    &__campo {
+        position: relative;
         flex: 1;
+        min-width: 0;
+
+        .form-input {
+            width: 100%;
+            padding-right: 64px; // espacio para el contador superpuesto
+        }
+    }
+
+    .input-nuevo-criterio-desc {
+        resize: vertical;
+        font-size: $font-size-sm;
+    }
+}
+
+// ── Contador de caracteres (67/100) ──────────────────────────
+.contador-chars {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: $text-muted;
+    white-space: nowrap;
+
+    // Dentro del campo de nuevo criterio va superpuesto a la derecha
+    .agregar-criterio__campo & {
+        position: absolute;
+        right: $spacing-sm;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
+
+    &--excedido {
+        color: $color-error;
+        font-weight: 600;
+    }
+}
+
+// ── Editor de criterio (nombre + descripción) ────────────────
+.criterio-nombre-editar {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+    flex: 1;
+    min-width: 0;
+    margin-top: $spacing-sm;
+
+    &__fila {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        flex-wrap: wrap;
+
+        .criterio-nombre-input {
+            flex: 1;
+            min-width: 180px;
+            padding: 4px $spacing-sm;
+            font-size: $font-size-base;
+            font-weight: 500;
+        }
+    }
+
+    .criterio-desc-input {
+        resize: vertical;
+        font-size: $font-size-sm;
     }
 }
 
@@ -699,6 +782,15 @@
         padding: 6px $spacing-md;
         border-bottom: 0.5px solid $border-color;
         color: $text-primary;
+    }
+
+    // Descripción del criterio bajo su nombre (vista del padre)
+    .criterio-desc {
+        display: block;
+        margin-top: 2px;
+        font-size: $font-size-sm;
+        color: $text-muted;
+        line-height: 1.4;
     }
 }
 
