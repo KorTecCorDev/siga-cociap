@@ -201,6 +201,7 @@ class BoletaPublicaModel extends BaseModel
             INNER JOIN grados g      ON g.id   = s.grado_id
             INNER JOIN niveles n     ON n.id   = g.nivel_id
             WHERE bp.periodo_id = ?
+              AND m.estado <> 'desactivado'
               {$whereSeccion}
             ORDER BY n.id, g.numero, s.nombre, per.apellido_paterno, per.apellido_materno, per.nombres
         ", $params);
@@ -304,13 +305,23 @@ class BoletaPublicaModel extends BaseModel
     /**
      * Busca por código; si existe incrementa el contador de consultas.
      * Retorna el registro completo (matricula_id + periodo_id para getBoletaAlumno).
+     *
+     * El estado de la matrícula es la fuente de verdad: una matrícula
+     * 'desactivado' (baja administrativa o traslado) NO debe exponer su boleta
+     * pública aunque el código impreso siga circulando. Se valida también
+     * bp.activa por consistencia con el flag que escriben desactivar()/traslado.
      */
     public function getPorCodigo(string $codigo): ?array
     {
-        $registro = $this->queryOne(
-            "SELECT * FROM boletas_publicas WHERE codigo_acceso = ? LIMIT 1",
-            [$codigo]
-        );
+        $registro = $this->queryOne("
+            SELECT bp.*
+            FROM boletas_publicas bp
+            INNER JOIN matriculas m ON m.id = bp.matricula_id
+            WHERE bp.codigo_acceso = ?
+              AND bp.activa = 1
+              AND m.estado <> 'desactivado'
+            LIMIT 1
+        ", [$codigo]);
 
         if (!$registro) return null;
 

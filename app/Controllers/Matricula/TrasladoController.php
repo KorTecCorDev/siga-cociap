@@ -174,7 +174,7 @@ class TrasladoController extends BaseController
 
             // Baja por traslado: estado=desactivado + tipo=trasladado (preserva el
             // origen en tipo_anterior para reversibilidad), apaga login del
-            // apoderado y códigos de boleta pública del periodo activo.
+            // apoderado y TODAS las boletas públicas de la matrícula.
             $this->matriculas->cambiarEstado($id, 'desactivado', $usuarioId,
                 'Traslado de salida: ' . (TrasladoModel::MOTIVOS[$motivo] ?? $motivo));
             $cambios = ['tipo' => 'trasladado'];
@@ -185,13 +185,10 @@ class TrasladoController extends BaseController
 
             $this->apoderados->desactivarUsuarioDeEstudiante((int) $matricula['estudiante_id']);
 
-            $periodo = $this->estudiantes->periodoActivo($anioId);
-            if ($periodo) {
-                $this->matriculas->execute(
-                    "UPDATE boletas_publicas SET activa = 0 WHERE matricula_id = ? AND periodo_id = ?",
-                    [$id, (int) $periodo['id']]
-                );
-            }
+            $this->matriculas->execute(
+                "UPDATE boletas_publicas SET activa = 0 WHERE matricula_id = ?",
+                [$id]
+            );
 
             $this->matriculas->commit();
         } catch (\Exception $e) {

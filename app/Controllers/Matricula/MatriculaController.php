@@ -540,6 +540,13 @@ class MatriculaController extends BaseController
         // (null) porque ya no hay pendientes que reportar.
         $this->model->cambiarEstado((int) $id, 'aprobada', (int) (Session::user()['id'] ?? 0), null);
 
+        // Reactivar las boletas públicas que se apagaron al desactivar/trasladar,
+        // para que la matrícula reactivada vuelva a exponer su boleta.
+        $this->model->execute(
+            "UPDATE boletas_publicas SET activa = 1 WHERE matricula_id = ?",
+            [(int) $id]
+        );
+
         // Si la matrícula venía de una desactivación quedó marcada 'trasladado'.
         // Al reactivar se restaura el ORIGEN real preservado en `tipo_anterior`
         // (reversibilidad 100%), de modo que vuelva a su tipo nuevo/continuador
@@ -583,13 +590,14 @@ class MatriculaController extends BaseController
             $this->model->cambiarEstado((int) $id, 'desactivado', $usuarioId, $motivo);
             $this->apoderados->desactivarUsuarioDeEstudiante((int) $matricula['estudiante_id']);
 
-            $periodo = $this->estudiantes->periodoActivo((int) $matricula['anio_id']);
-            if ($periodo) {
-                $this->model->execute(
-                    "UPDATE boletas_publicas SET activa = 0 WHERE matricula_id = ? AND periodo_id = ?",
-                    [(int) $id, (int) $periodo['id']]
-                );
-            }
+            // Apaga las boletas públicas de TODOS los periodos de la matrícula,
+            // no solo el activo: un alumno desactivado no debe exponer ninguna
+            // boleta (la baja puede ocurrir en un bimestre posterior al de la
+            // boleta ya generada e impresa).
+            $this->model->execute(
+                "UPDATE boletas_publicas SET activa = 0 WHERE matricula_id = ?",
+                [(int) $id]
+            );
 
             $this->model->commit();
         } catch (\Exception $e) {

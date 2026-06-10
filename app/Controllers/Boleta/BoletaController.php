@@ -330,8 +330,11 @@ class BoletaController extends BaseController
      */
     private function resolveToken(string $token): array
     {
+        // Una matrícula 'desactivado' (baja o traslado) no expone su boleta por
+        // token aunque el QR impreso siga circulando: se trata como inexistente.
         $matricula = $this->calModel->queryOne(
-            "SELECT id, anio_id FROM matriculas WHERE token_acceso = ? LIMIT 1",
+            "SELECT id, anio_id FROM matriculas
+             WHERE token_acceso = ? AND estado <> 'desactivado' LIMIT 1",
             [$token]
         );
 
