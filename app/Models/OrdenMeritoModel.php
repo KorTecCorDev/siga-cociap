@@ -46,7 +46,7 @@ class OrdenMeritoModel extends BaseModel
                 AVG(cal.nota_numerica)             AS promedio_exacto,
                 SUM(cal.nota_numerica <= 10)               AS num_c,
                 SUM(cal.nota_numerica BETWEEN 11 AND 13)   AS num_b,
-                SUM(cal.nota_numerica >= 17)               AS num_ad,
+                SUM(cal.nota_numerica >= " . NOTA_MIN_AD . ")               AS num_ad,
                 SUM(cal.nota_numerica IN (15, 16))         AS num_alto,
                 SUM(cal.nota_numerica = 16)                AS num_16
             FROM matriculas m
@@ -96,7 +96,7 @@ class OrdenMeritoModel extends BaseModel
                 AVG(cal.nota_numerica)             AS promedio_exacto,
                 SUM(cal.nota_numerica <= 10)               AS num_c,
                 SUM(cal.nota_numerica BETWEEN 11 AND 13)   AS num_b,
-                SUM(cal.nota_numerica >= 17)               AS num_ad,
+                SUM(cal.nota_numerica >= " . NOTA_MIN_AD . ")               AS num_ad,
                 SUM(cal.nota_numerica IN (15, 16))         AS num_alto,
                 SUM(cal.nota_numerica = 16)                AS num_16
             FROM matriculas m

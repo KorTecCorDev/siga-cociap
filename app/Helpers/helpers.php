@@ -94,24 +94,35 @@ function fmt_nota(int|null $nota): string
     return sprintf('%02d', $nota);
 }
 
-/** Convierte nota numérica (0-20) a literal según nivel */
+/**
+ * Umbrales de la escala literal — PUNTO ÚNICO DE VERDAD.
+ * AD: 18-20 · A: 14-17 · B: 11-13 · C: 00-10.
+ * Toda conversión (PHP o SQL interpolado) debe salir de estas constantes.
+ */
+const NOTA_MIN_AD = 18;
+const NOTA_MIN_A  = 14;
+const NOTA_MIN_B  = 11;
+
+/** Convierte nota numérica (0-20) a literal. Misma escala en ambos niveles. */
 function nota_a_literal(int $nota, string $nivel = 'secundaria'): string
 {
-    if ($nivel === 'primaria') {
-        return match(true) {
-            $nota >= 17 => 'AD',
-            $nota >= 14 => 'A',
-            $nota >= 11 => 'B',
-            default     => 'C',
-        };
-    }
-    // Secundaria: misma escala pero se muestra junto al numeral
     return match(true) {
-        $nota >= 17 => 'AD',
-        $nota >= 14 => 'A',
-        $nota >= 11 => 'B',
-        default     => 'C',
+        $nota >= NOTA_MIN_AD => 'AD',
+        $nota >= NOTA_MIN_A  => 'A',
+        $nota >= NOTA_MIN_B  => 'B',
+        default              => 'C',
     };
+}
+
+/** Rangos numéricos de cada literal para leyendas (presentación) */
+function escala_rangos(): array
+{
+    return [
+        'AD' => sprintf('%02d–20', NOTA_MIN_AD),
+        'A'  => sprintf('%02d–%02d', NOTA_MIN_A, NOTA_MIN_AD - 1),
+        'B'  => sprintf('%02d–%02d', NOTA_MIN_B, NOTA_MIN_A - 1),
+        'C'  => sprintf('00–%02d', NOTA_MIN_B - 1),
+    ];
 }
 
 /** Descripción completa de la escala literal */

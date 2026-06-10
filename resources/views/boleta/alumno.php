@@ -114,15 +114,16 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
 </section>
 
 <!-- ── Leyenda de escala ─────────────────────────────────────── -->
+<?php $rangos = escala_rangos(); ?>
 <div class="boleta-leyenda">
     <span class="boleta-leyenda__titulo">Escala:</span>
-    <span class="boleta-leyenda__item boleta-leyenda__item--ad"><strong>AD</strong> Logro destacado (17&ndash;20)</span>
+    <span class="boleta-leyenda__item boleta-leyenda__item--ad"><strong>AD</strong> Logro destacado (<?= $rangos['AD'] ?>)</span>
     <span class="boleta-leyenda__sep">&middot;</span>
-    <span class="boleta-leyenda__item boleta-leyenda__item--a"><strong>A</strong> Logro esperado (14&ndash;16)</span>
+    <span class="boleta-leyenda__item boleta-leyenda__item--a"><strong>A</strong> Logro esperado (<?= $rangos['A'] ?>)</span>
     <span class="boleta-leyenda__sep">&middot;</span>
-    <span class="boleta-leyenda__item boleta-leyenda__item--b"><strong>B</strong> En proceso (11&ndash;13)</span>
+    <span class="boleta-leyenda__item boleta-leyenda__item--b"><strong>B</strong> En proceso (<?= $rangos['B'] ?>)</span>
     <span class="boleta-leyenda__sep">&middot;</span>
-    <span class="boleta-leyenda__item boleta-leyenda__item--c"><strong>C</strong> En inicio (00&ndash;10)</span>
+    <span class="boleta-leyenda__item boleta-leyenda__item--c"><strong>C</strong> En inicio (<?= $rangos['C'] ?>)</span>
     <span class="boleta-leyenda__sep">&middot;</span>
     <span class="boleta-leyenda__item"><em>La conclusión descriptiva orienta las acciones de mejora.</em></span>
 </div>

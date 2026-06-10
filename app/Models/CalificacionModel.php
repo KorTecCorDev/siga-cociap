@@ -188,12 +188,7 @@ class CalificacionModel extends BaseModel
      */
     public static function toLiteral(int $nota): string
     {
-        return match(true) {
-            $nota >= 17 => 'AD',
-            $nota >= 14 => 'A',
-            $nota >= 11 => 'B',
-            default     => 'C',
-        };
+        return nota_a_literal($nota);
     }
 
     /**
@@ -464,17 +459,9 @@ class CalificacionModel extends BaseModel
             }
 
             // Calcular literal del promedio
-            if ($alumno['promedio'] !== null) {
-                $p = (int) $alumno['promedio'];
-                $alumno['literal'] = match(true) {
-                    $p >= 17 => 'AD',
-                    $p >= 14 => 'A',
-                    $p >= 11 => 'B',
-                    default  => 'C',
-                };
-            } else {
-                $alumno['literal'] = null;
-            }
+            $alumno['literal'] = $alumno['promedio'] !== null
+                ? nota_a_literal((int) $alumno['promedio'])
+                : null;
         }
 
         return [
