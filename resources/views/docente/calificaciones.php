@@ -96,6 +96,20 @@
         $compBloqueada  = in_array($competencia['id'], $bloqueos ?? []);
         $esTransversal  = !empty($competencia['es_transversal']);
 
+        // Estado inicial del card transversal: verde si ya tiene notas
+        // guardadas en alguno de sus criterios (sin parpadeo al cargar; el JS
+        // mantiene el color en vivo al editar/guardar). Espeja --con-notas del
+        // criterio al card completo, solo para transversales.
+        $transConNotas = false;
+        if ($esTransversal) {
+            foreach ($competencia['criterios'] ?? [] as $cr) {
+                if (!empty($notasExistentes[$cr['id']])) {
+                    $transConNotas = true;
+                    break;
+                }
+            }
+        }
+
         if ($esTransversal && !$separadorTransversal) {
             $separadorTransversal = true; ?>
             <div class="transversales-separador">
@@ -109,7 +123,7 @@
             </div>
         <?php } ?>
 
-        <div class="competencia-card<?= $esTransversal ? ' competencia-card--transversal' : '' ?>"
+        <div class="competencia-card<?= $esTransversal ? ' competencia-card--transversal' : '' ?><?= $transConNotas ? ' competencia-card--con-notas' : '' ?>"
              id="comp-<?= $competencia['id'] ?>">
 
             <!-- Encabezado -->

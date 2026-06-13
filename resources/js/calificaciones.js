@@ -71,6 +71,22 @@ function recalcularCambiosForm(form) {
     const hayCambios = Array.from(form.querySelectorAll('.input-nota'))
         .some(notaActualDifiereDeInicial);
     info.contenedor.classList.toggle(`${info.prefijo}--con-cambios`, hayCambios);
+    actualizarCardTransversal(form);
+}
+
+// En la vista de calificaciones completa las transversales se muestran como
+// .competencia-card--transversal con sus criterios dentro. Propagamos al card
+// entero el color de sus criterios: ambar si alguno tiene cambios sin guardar,
+// verde si alguno tiene notas guardadas. El ambar gana al verde (mismo lenguaje
+// que .criterio-bloque). Solo aplica a las transversales; en academicas el
+// closest no encuentra el card y la funcion es un no-op.
+function actualizarCardTransversal(el) {
+    const card = el.closest('.competencia-card--transversal');
+    if (!card) return;
+    const hayCambios = !!card.querySelector('.criterio-bloque--con-cambios');
+    const hayNotas   = !!card.querySelector('.criterio-bloque--con-notas');
+    card.classList.toggle('competencia-card--con-cambios', hayCambios);
+    card.classList.toggle('competencia-card--con-notas', hayNotas);
 }
 
 // ── Pegado masivo desde Excel / portapapeles ─────────────────
