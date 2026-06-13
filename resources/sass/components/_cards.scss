@@ -92,6 +92,7 @@ details.card {
     &--success { background: $color-success-bg; color: $color-success; }
     &--error   { background: $color-error-bg;   color: $color-error;   }
     &--warning { background: $color-warning-bg; color: $color-warning; }
+    &--info    { background: $color-info-bg;    color: $color-info;    }
 }
 
 // ── Empty state ──────────────────────────────────────────────

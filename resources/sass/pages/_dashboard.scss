@@ -777,6 +777,37 @@
         .obligatorio { margin-left: 4px; }
     }
 
+    // Enlace para desplegar una conclusión opcional colapsada.
+    &__toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        width: 100%;
+        text-align: left;
+        background: none;
+        border: 1px dashed $border-color;
+        border-radius: $border-radius;
+        color: $text-muted;
+        font-size: $font-size-sm;
+        padding: 4px 8px;
+        cursor: pointer;
+        transition: $transition;
+
+        &:hover {
+            border-color: $brand-accent;
+            color: $brand-accent;
+            background: $brand-light;
+        }
+
+        // Estado abierto: borde solido en color de marca para indicar que el
+        // textarea esta visible y el siguiente clic lo oculta.
+        &[aria-expanded="true"] {
+            border-style: solid;
+            border-color: $brand-accent;
+            color: $brand-accent;
+        }
+    }
+
     .textarea-conclusion-transversal {
         width: 100%;
         min-width: 240px;
@@ -785,7 +816,16 @@
     }
 }
 
-.tutoria-tabla .col-conclusion { min-width: 280px; }
+// La cabecera con el nombre de la competencia (TIC/GAMA) puede ser larga
+// ("Entornos virtuales / TIC"). Los <th> de .tabla-resumen heredan
+// white-space: nowrap, lo que forzaba la columna a una sola linea y desbordaba
+// la tabla. Aqui permitimos que envuelva en un ancho comodo y centrado.
+.tutoria-tabla thead th.th-competencia {
+    white-space: normal;
+    min-width: 110px;
+    line-height: 1.25;
+    vertical-align: middle;
+}
 
 // ── Separador y card de transversales (vista de carga) ──────
 .transversales-separador {
@@ -812,6 +852,14 @@
 
 .competencia-card--transversal {
     border-left: 4px solid $color-info;
+
+    // El estado iluminado (verde con notas / ambar con cambios) conserva la
+    // identidad azul a la izquierda. La doble clase gana en especificidad al
+    // border-color del modificador, asi solo se sobrescribe el lado izquierdo.
+    &.competencia-card--con-notas,
+    &.competencia-card--con-cambios {
+        border-left-color: $color-info;
+    }
 }
 
 // ── Page header ──────────────────────────────────────────────

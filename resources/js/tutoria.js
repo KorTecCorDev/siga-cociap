@@ -59,6 +59,24 @@ async function guardarConclusionesTransversales(periodoId) {
     return errores === 0;
 }
 
+// Opción 1: las conclusiones opcionales vacías nacen colapsadas tras un enlace.
+// El enlace funciona como toggle: muestra el textarea (y lo enfoca) o lo vuelve
+// a ocultar. El texto del botón alterna entre "agregar" y "ocultar".
+document.querySelectorAll('.tutoria-conclusion__toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const ta    = document.getElementById(btn.dataset.target);
+        const campo = ta?.closest('.tutoria-conclusion__campo');
+        if (!campo) return;
+        const mostrar = campo.hidden;            // estaba oculto → mostrar
+        campo.hidden  = !mostrar;
+        btn.setAttribute('aria-expanded', mostrar ? 'true' : 'false');
+        if (btn.dataset.labelAbrir && btn.dataset.labelCerrar) {
+            btn.textContent = mostrar ? btn.dataset.labelCerrar : btn.dataset.labelAbrir;
+        }
+        if (mostrar) ta?.focus();
+    });
+});
+
 document.getElementById('btn-guardar-conclusiones-trans')
     ?.addEventListener('click', async (e) => {
         const btn = e.currentTarget;

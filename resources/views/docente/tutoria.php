@@ -91,8 +91,10 @@ $pid      = (int) $periodoSel['id'];
     </div>
 <?php else: ?>
     <div class="flash flash--info">
-        Todas las cargas de la sección están aprobadas. Revisa los promedios,
-        registra las conclusiones obligatorias y cierra el bimestre transversal.
+        Todas las cargas de la sección están aprobadas. Revisa los promedios y
+        registra las conclusiones descriptivas: puedes escribir una para cualquier
+        alumno; las marcadas como requeridas (primaria: B y C · secundaria: C)
+        son obligatorias para cerrar el bimestre transversal.
     </div>
 <?php endif; ?>
 
@@ -111,16 +113,24 @@ $pid      = (int) $periodoSel['id'];
         <table class="tabla-resumen tutoria-tabla">
             <thead>
                 <tr>
-                    <th class="col-num">N°</th>
-                    <th class="col-nombre">Apellidos y nombres</th>
+                    <th class="col-num"<?= $esPrim ? '' : ' rowspan="2"' ?>>N°</th>
+                    <th class="col-nombre"<?= $esPrim ? '' : ' rowspan="2"' ?>>Apellidos y nombres</th>
                     <?php foreach ($competencias as $comp): ?>
-                        <th class="text-center" colspan="<?= $esPrim ? 1 : 2 ?>"
-                            title="<?= e($comp['nombre_completo']) ?>">
+                        <th class="th-competencia text-center"
+                            <?= $esPrim ? '' : 'colspan="2" ' ?>title="<?= e($comp['nombre_completo']) ?>">
                             <?= e($comp['nombre_corto'] ?? $comp['codigo_minedu']) ?>
                         </th>
                     <?php endforeach; ?>
-                    <th class="col-conclusion">Conclusiones descriptivas</th>
+                    <th class="col-conclusion"<?= $esPrim ? '' : ' rowspan="2"' ?>>Conclusiones descriptivas</th>
                 </tr>
+                <?php if (!$esPrim): ?>
+                    <tr>
+                        <?php foreach ($competencias as $comp): ?>
+                            <th class="col-numeral text-center">Numeral</th>
+                            <th class="col-literal text-center">Literal</th>
+                        <?php endforeach; ?>
+                    </tr>
+                <?php endif; ?>
             </thead>
             <tbody>
                 <?php foreach ($alumnos as $i => $alumno): ?>
@@ -140,11 +150,11 @@ $pid      = (int) $periodoSel['id'];
                             $literal = $nota !== null ? nota_a_literal((int) $nota, $nivel) : null;
                             ?>
                             <?php if (!$esPrim): ?>
-                                <td class="text-center">
+                                <td class="col-numeral text-center">
                                     <?= $nota !== null ? fmt_nota((int) $nota) : '—' ?>
                                 </td>
                             <?php endif; ?>
-                            <td class="text-center">
+                            <td class="col-literal text-center">
                                 <?php if ($literal !== null): ?>
                                     <span class="nota-literal nota-literal--<?= strtolower($literal) ?>">
                                         <?= $literal ?>
@@ -156,48 +166,64 @@ $pid      = (int) $periodoSel['id'];
                         <?php endforeach; ?>
 
                         <td class="col-conclusion">
+                            <?php $algunTexto = false; ?>
                             <?php foreach ($competencias as $comp): ?>
                                 <?php
-                                $cid        = (int) $comp['id'];
-                                $nota       = $promedios[$matId][$cid] ?? null;
-                                $literal    = $nota !== null ? nota_a_literal((int) $nota, $nivel) : null;
+                                $cid         = (int) $comp['id'];
+                                $nota        = $promedios[$matId][$cid] ?? null;
+                                $literal     = $nota !== null ? nota_a_literal((int) $nota, $nivel) : null;
                                 $obligatoria = $literal !== null
                                     && conclusion_es_obligatoria($literal, $nivel);
-                                $texto = $conclusiones[$matId][$cid] ?? '';
+                                $texto       = $conclusiones[$matId][$cid] ?? '';
+                                $nombreComp  = $comp['nombre_corto'] ?? ($comp['codigo_minedu'] ?? '');
+                                if ($texto !== '') { $algunTexto = true; }
                                 ?>
-                                <?php if ($obligatoria && !$cerrado): ?>
-                                    <div class="tutoria-conclusion">
-                                        <label class="tutoria-conclusion__label">
-                                            <?= e($comp['nombre_corto'] ?? '') ?>
-                                            <small class="obligatorio">* Requerida (<?= $literal ?>)</small>
-                                        </label>
-                                        <textarea
-                                            class="form-input textarea-conclusion-transversal"
-                                            rows="2"
-                                            maxlength="500"
-                                            data-matricula-id="<?= $matId ?>"
-                                            data-competencia-id="<?= $cid ?>"
-                                            data-obligatorio="1"
-                                            placeholder="* Obligatoria"><?= e($texto) ?></textarea>
+                                <?php if (!$cerrado): ?>
+                                    <?php // El tutor puede registrar conclusión a CUALQUIER alumno.
+                                          // Obligatorias (B/C prim, C sec) y opcionales CON texto se
+                                          // muestran abiertas. Las opcionales vacías se colapsan tras un
+                                          // enlace para no saturar la tabla; el JS las despliega al clic. ?>
+                                    <?php
+                                    $concluId  = 'concl-' . $matId . '-' . $cid;
+                                    $colapsada = !$obligatoria && $texto === '';
+                                    ?>
+                                    <div class="tutoria-conclusion<?= $colapsada ? ' tutoria-conclusion--colapsada' : '' ?>">
+                                        <?php if ($colapsada): ?>
+                                            <button type="button" class="tutoria-conclusion__toggle"
+                                                    data-target="<?= $concluId ?>"
+                                                    aria-expanded="false"
+                                                    data-label-abrir="✎ <?= e($nombreComp) ?>: agregar conclusión"
+                                                    data-label-cerrar="✕ <?= e($nombreComp) ?>: ocultar conclusión">✎ <?= e($nombreComp) ?>: agregar conclusión</button>
+                                        <?php endif; ?>
+                                        <div class="tutoria-conclusion__campo"<?= $colapsada ? ' hidden' : '' ?>>
+                                            <label class="tutoria-conclusion__label" for="<?= $concluId ?>">
+                                                <?= e($nombreComp) ?>
+                                                <?php if ($obligatoria): ?>
+                                                    <small class="obligatorio">* Requerida (<?= $literal ?>)</small>
+                                                <?php else: ?>
+                                                    <small class="text-muted">(opcional)</small>
+                                                <?php endif; ?>
+                                            </label>
+                                            <textarea
+                                                id="<?= $concluId ?>"
+                                                class="form-input textarea-conclusion-transversal"
+                                                rows="2"
+                                                maxlength="500"
+                                                data-matricula-id="<?= $matId ?>"
+                                                data-competencia-id="<?= $cid ?>"
+                                                data-obligatorio="<?= $obligatoria ? '1' : '0' ?>"
+                                                placeholder="<?= $obligatoria ? '* Obligatoria' : 'Conclusión opcional' ?>"><?= e($texto) ?></textarea>
+                                        </div>
                                     </div>
                                 <?php elseif ($texto !== ''): ?>
                                     <p class="conclusion-texto">
-                                        <strong><?= e($comp['nombre_corto'] ?? '') ?>:</strong>
+                                        <strong><?= e($nombreComp) ?>:</strong>
                                         <?= e($texto) ?>
                                     </p>
                                 <?php endif; ?>
                             <?php endforeach; ?>
-                            <?php
-                            $algunaOblig = false;
-                            foreach ($competencias as $comp) {
-                                $n = $promedios[$matId][(int) $comp['id']] ?? null;
-                                if ($n !== null && conclusion_es_obligatoria(nota_a_literal((int) $n, $nivel), $nivel)) {
-                                    $algunaOblig = true;
-                                    break;
-                                }
-                            }
-                            if (!$algunaOblig && empty(array_filter($conclusiones[$matId] ?? []))): ?>
-                                <span class="text-muted text-sm">— no requerida</span>
+                            <?php if ($cerrado && !$algunTexto): ?>
+                                <span class="text-muted text-sm">— sin conclusión</span>
                             <?php endif; ?>
                         </td>
                     </tr>
