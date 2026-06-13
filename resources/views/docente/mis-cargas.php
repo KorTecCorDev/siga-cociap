@@ -84,6 +84,23 @@
         }
         return ['badge--warning', 'Pendiente'];
     };
+
+    // Distintivo de transversales (TIC/GAMA) de la carga: completas cuando
+    // todas estan bloqueadas; en progreso si ya tienen criterios; pendiente
+    // si aun no se inician. Devuelve [modificador, texto].
+    $transBadge = function (array $c): array {
+        $total      = (int) ($c['total_transversales']        ?? 0);
+        $bloqueadas = (int) ($c['transversales_bloqueadas']   ?? 0);
+        $criterios  = (int) ($c['transversales_con_criterios'] ?? 0);
+
+        if ($total > 0 && $bloqueadas >= $total) {
+            return ['completo', '⚡ TIC/GAMA · Completas ✓'];
+        }
+        if ($criterios > 0) {
+            return ['progreso', '⚡ TIC/GAMA · En progreso'];
+        }
+        return ['pendiente', '⚡ TIC/GAMA · Pendiente'];
+    };
     ?>
 
     <?php foreach ($agrupadas as $grupo => $secciones): ?>
@@ -150,6 +167,11 @@
                                                     </div>
                                                 </div>
 
+                                                <?php [$trClase, $trTexto] = $transBadge($carga); ?>
+                                                <span class="carga-transversal carga-transversal--<?= $trClase ?>">
+                                                    <?= $trTexto ?>
+                                                </span>
+
                                             </a>
                                         <?php endforeach; ?>
                                     </div>
@@ -196,6 +218,11 @@
                                             </span>
                                         </div>
                                     </div>
+
+                                    <?php [$trClase, $trTexto] = $transBadge($carga); ?>
+                                    <span class="carga-transversal carga-transversal--<?= $trClase ?>">
+                                        <?= $trTexto ?>
+                                    </span>
 
                                 </a>
 

@@ -615,7 +615,37 @@ class CalificacionController extends BaseController
                              OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL
                                  AND comp4.area_id = ca.area_id)
                       )
-                ) AS competencias_con_criterios
+                ) AS competencias_con_criterios,
+                -- Distintivo de transversales: las TIC/GAMA de la carga viven en
+                -- el area transversal del nivel (n.id). Se bloquean junto a la
+                -- ultima competencia propia (Variante 1). 3 estados en la vista:
+                -- bloqueadas==total -> completas; con_criterios>0 -> en progreso.
+                (
+                    SELECT COUNT(*)
+                    FROM competencias compt
+                    INNER JOIN areas at2 ON at2.id = compt.area_id
+                    WHERE at2.tipo     = 'transversal'
+                      AND at2.nivel_id = n.id
+                ) AS total_transversales,
+                (
+                    SELECT COUNT(*)
+                    FROM bloqueos_competencia bct
+                    INNER JOIN competencias compt ON compt.id = bct.competencia_id
+                    INNER JOIN areas at2 ON at2.id = compt.area_id AND at2.tipo = 'transversal'
+                    WHERE bct.carga_id   = ca.id
+                      AND bct.periodo_id = ?
+                      AND at2.nivel_id   = n.id
+                ) AS transversales_bloqueadas,
+                (
+                    SELECT COUNT(DISTINCT crt.competencia_id)
+                    FROM criterios crt
+                    INNER JOIN competencias compt ON compt.id = crt.competencia_id
+                    INNER JOIN areas at2 ON at2.id = compt.area_id AND at2.tipo = 'transversal'
+                    WHERE crt.carga_id     = ca.id
+                      AND crt.periodo_id   = ?
+                      AND crt.eliminado_en IS NULL
+                      AND at2.nivel_id     = n.id
+                ) AS transversales_con_criterios
             FROM cargas_academicas ca
             INNER JOIN secciones s  ON s.id  = ca.seccion_id
             INNER JOIN grados g     ON g.id  = s.grado_id
@@ -625,7 +655,7 @@ class CalificacionController extends BaseController
             WHERE ca.docente_id = ?
               AND ca.estado     = 'activa'
             ORDER BY n.id, g.numero, s.nombre, a.orden
-        ", [$periodoId, $periodoId, $docenteId]);
+        ", [$periodoId, $periodoId, $periodoId, $periodoId, $docenteId]);
     }
 
     private function validarCargaDocente(int $cargaId): ?array
