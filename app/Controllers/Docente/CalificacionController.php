@@ -584,11 +584,23 @@ class CalificacionController extends BaseController
                             AND comp2.area_id = ca.area_id)
                     )
                 ) AS total_competencias,
+                -- Avance defensivo: numerador y denominador recorren el MISMO
+                -- universo (las competencias PROPIAS de la carga, vía su predicado
+                -- subarea/area). Para una carga normal excluye los bloqueos
+                -- transversales TIC/GAMA (Variante 1, mismo carga_id); para una
+                -- carga transversal (B1 reactivada) sus propias TIC/GAMA SÍ cuentan.
                 (
                     SELECT COUNT(*)
                     FROM bloqueos_competencia bc2
                     WHERE bc2.carga_id   = ca.id
                       AND bc2.periodo_id = ?
+                      AND bc2.competencia_id IN (
+                          SELECT comp3.id
+                          FROM competencias comp3
+                          WHERE (ca.subarea_id IS NOT NULL AND comp3.subarea_id = ca.subarea_id)
+                             OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL
+                                 AND comp3.area_id = ca.area_id)
+                      )
                 ) AS competencias_bloqueadas,
                 (
                     SELECT COUNT(DISTINCT cr2.competencia_id)
@@ -596,6 +608,13 @@ class CalificacionController extends BaseController
                     WHERE cr2.carga_id     = ca.id
                       AND cr2.periodo_id   = ?
                       AND cr2.eliminado_en IS NULL
+                      AND cr2.competencia_id IN (
+                          SELECT comp4.id
+                          FROM competencias comp4
+                          WHERE (ca.subarea_id IS NOT NULL AND comp4.subarea_id = ca.subarea_id)
+                             OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL
+                                 AND comp4.area_id = ca.area_id)
+                      )
                 ) AS competencias_con_criterios
             FROM cargas_academicas ca
             INNER JOIN secciones s  ON s.id  = ca.seccion_id
