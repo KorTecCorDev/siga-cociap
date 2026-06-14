@@ -777,36 +777,10 @@
         .obligatorio { margin-left: 4px; }
     }
 
-    // Enlace para desplegar una conclusión opcional colapsada.
-    &__toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        width: 100%;
-        text-align: left;
-        background: none;
-        border: 1px dashed $border-color;
-        border-radius: $border-radius;
-        color: $text-muted;
-        font-size: $font-size-sm;
-        padding: 4px 8px;
-        cursor: pointer;
-        transition: $transition;
-
-        &:hover {
-            border-color: $brand-accent;
-            color: $brand-accent;
-            background: $brand-light;
-        }
-
-        // Estado abierto: borde solido en color de marca para indicar que el
-        // textarea esta visible y el siguiente clic lo oculta.
-        &[aria-expanded="true"] {
-            border-style: solid;
-            border-color: $brand-accent;
-            color: $brand-accent;
-        }
-    }
+    // El toggle para desplegar una conclusión opcional usa el botón estándar
+    // del proyecto (.btn btn--secondary btn--sm; pasa a --primary al abrir via
+    // JS). Solo lo separamos del campo siguiente.
+    &__toggle { margin-bottom: $spacing-xs; }
 
     .textarea-conclusion-transversal {
         width: 100%;

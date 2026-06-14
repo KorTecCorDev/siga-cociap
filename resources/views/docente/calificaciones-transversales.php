@@ -12,7 +12,7 @@
 ?>
 
 <div class="page-header">
-    <a href="<?= url('docente/mis-cargas') ?>" class="btn btn--secondary btn--sm">← Volver</a>
+    <a href="<?= url('docente/inicio') ?>" class="btn btn--secondary btn--sm">← Volver</a>
     <div>
         <h1 class="page-title">Competencias Transversales</h1>
         <p class="page-subtitle">

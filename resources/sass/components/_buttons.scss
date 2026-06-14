@@ -15,6 +15,11 @@
     transition: $transition;
     text-decoration: none;
 
+    &:disabled {
+        opacity: .5;
+        cursor: not-allowed;
+    }
+
     &--primary {
         background: $brand-accent;
         color: $text-white;
@@ -49,4 +54,37 @@
     align-items: center;
     gap: $spacing-sm;
     flex-wrap: wrap;
+}
+
+// Icono SVG monocromo dentro de un botón. Se pinta con el color del texto
+// (currentColor) usando el SVG como máscara, así combina con cualquier variante
+// (--primary blanco, --secondary oscuro, etc.). Ruta relativa al CSS compilado
+// en public/css/ (misma convención que las fuentes).
+.btn-icon {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    flex-shrink: 0;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+            mask-position: center;
+    -webkit-mask-size: contain;
+            mask-size: contain;
+
+    &--save {
+        -webkit-mask-image: url('../assets/icons/save_logo.svg');
+                mask-image: url('../assets/icons/save_logo.svg');
+    }
+
+    &--upload {
+        -webkit-mask-image: url('../assets/icons/upload_minimal.svg');
+                mask-image: url('../assets/icons/upload_minimal.svg');
+    }
+
+    &--print {
+        -webkit-mask-image: url('../assets/icons/printer.svg');
+                mask-image: url('../assets/icons/printer.svg');
+    }
 }

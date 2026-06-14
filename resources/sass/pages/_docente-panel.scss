@@ -1,0 +1,204 @@
+// pages/_docente-panel.scss — Dashboard del docente + nómina de matriculados
+
+// ── KPIs ─────────────────────────────────────────────────────
+.dpanel-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+}
+
+.dpanel-kpi {
+    background: $bg-white;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-lg;
+    padding: $spacing-md $spacing-lg;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    &__num {
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $text-primary;
+        line-height: 1.1;
+
+        &--completo, &--ok    { color: $color-success; }
+        &--parcial,  &--warn  { color: $color-warning; }
+        &--err                { color: $color-error; }
+        &--vacio,    &--muted { color: $text-muted; }
+    }
+
+    &__label {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+}
+
+// ── Grilla de cards/paneles ──────────────────────────────────
+.dpanel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+    align-items: start;
+}
+
+.dpanel-card {
+    display: block;
+    text-decoration: none;
+    color: $text-primary;
+    padding: $spacing-lg;
+    transition: $transition;
+
+    &:hover {
+        box-shadow: $shadow-md;
+        transform: translateY(-2px);
+        text-decoration: none;
+        color: $text-primary;
+    }
+
+    &__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-sm;
+        margin-bottom: $spacing-sm;
+    }
+
+    &__sub {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin: $spacing-sm 0 0;
+    }
+
+    &__link {
+        display: inline-block;
+        margin-top: $spacing-sm;
+        color: $brand-accent;
+        font-weight: 600;
+        font-size: $font-size-sm;
+    }
+
+    &--tutoria { border-left: 4px solid $color-info; }
+}
+
+// ── Panel de pendientes ──────────────────────────────────────
+.dpanel-pend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+
+    &__item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-sm;
+        padding: $spacing-sm 0;
+        border-bottom: 0.5px solid $border-color;
+
+        &:last-child { border-bottom: none; }
+
+        a {
+            text-decoration: none;
+            color: $text-primary;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+    }
+
+    &__nombre { font-weight: 600; }
+    &__sec    { font-size: $font-size-sm; color: $text-muted; }
+}
+
+// ── Horario semanal ──────────────────────────────────────────
+.dpanel-horario {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
+
+    &__titulo {
+        font-size: $font-size-sm;
+        font-weight: 700;
+        color: $brand-accent;
+        margin: 0 0 4px;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+    }
+
+    &__bloque {
+        display: flex;
+        gap: $spacing-sm;
+        align-items: baseline;
+        padding: 4px 0;
+        font-size: $font-size-sm;
+        border-bottom: 0.5px dashed $border-color;
+
+        &:last-child { border-bottom: none; }
+    }
+
+    &__hora { font-weight: 600; min-width: 92px; color: $text-secondary; }
+    &__area { flex: 1; }
+    &__sec  { color: $text-muted; }
+}
+
+// ── Nómina (pantalla) ────────────────────────────────────────
+// Selector de sección + botón imprimir en una fila.
+.nomina-imprimir {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    flex-wrap: wrap;
+    margin-top: $spacing-xs;
+
+    select { flex: 1 1 280px; min-width: 0; }
+    .btn   { flex: 0 0 auto; }
+}
+
+// Botón Imprimir sin sección elegida: visualmente inactivo y sin clic.
+.btn.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: default;
+}
+
+// ── Nómina (impresión A4) ────────────────────────────────────
+.nomina-print {
+    padding: $spacing-sm;
+
+    &__head {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+        margin-bottom: $spacing-md;
+        border-bottom: 2px solid #000;
+        padding-bottom: $spacing-sm;
+    }
+
+    &__logo { width: 64px; height: auto; }
+
+    &__titulo {
+        h1 { font-size: 16px; margin: 0; }
+        p  { margin: 2px 0; font-size: 12px; }
+    }
+
+    &__sec { font-weight: 600; }
+
+    &__tabla {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+
+        th, td {
+            border: 1px solid #000;
+            padding: 4px 6px;
+            text-align: left;
+        }
+        th { background: #eee; }
+    }
+
+    &__num { width: 36px; text-align: center; }
+}

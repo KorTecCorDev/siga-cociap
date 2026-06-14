@@ -1,7 +1,7 @@
 <?php /** @var array $auth_user */ ?>
 
 <div class="welcome">
-    <h1>Bienvenido, <?= e($auth_user['nombres']) ?> </h1>
+    <h1>Bienvenido, <?= e(nombre_corto($auth_user['nombres'] ?? '', $auth_user['apellido_paterno'] ?? '')) ?> </h1>
     <p>Panel de <?= e($auth_user['rol_nombre']) ?> · SIGA-COCIAP <?= date('Y') ?></p>
 </div>
 

@@ -21,7 +21,7 @@ $pid      = (int) $periodoSel['id'];
 ?>
 
 <div class="page-header">
-    <a href="<?= url('docente/mis-cargas') ?>"
+    <a href="<?= url('docente/inicio') ?>"
        class="btn btn--secondary btn--sm">← Volver</a>
     <div>
         <h1 class="page-title">Tutoría — Competencias Transversales</h1>
@@ -106,7 +106,7 @@ $pid      = (int) $periodoSel['id'];
 <div class="card mb-lg">
     <div class="card__header">
         <h2 class="card__title">
-            Promedios transversales — <?= e($periodoSel['nombre_display']) ?>
+            Promedios C. Transversales — <?= e($periodoSel['nombre_display']) ?>
         </h2>
     </div>
     <div class="tabla-notas-wrapper">
@@ -189,7 +189,8 @@ $pid      = (int) $periodoSel['id'];
                                     ?>
                                     <div class="tutoria-conclusion<?= $colapsada ? ' tutoria-conclusion--colapsada' : '' ?>">
                                         <?php if ($colapsada): ?>
-                                            <button type="button" class="tutoria-conclusion__toggle"
+                                            <button type="button"
+                                                    class="btn btn--secondary btn--sm tutoria-conclusion__toggle"
                                                     data-target="<?= $concluId ?>"
                                                     aria-expanded="false"
                                                     data-label-abrir="✎ <?= e($nombreComp) ?>: agregar conclusión"
@@ -236,11 +237,14 @@ $pid      = (int) $periodoSel['id'];
         <div class="resumen-footer tutoria-footer">
             <button class="btn btn--primary" id="btn-guardar-conclusiones-trans"
                     data-periodo-id="<?= $pid ?>">
-                💾 Guardar conclusiones
+                <span class="btn-icon btn-icon--save" aria-hidden="true"></span>
+                Guardar conclusiones
             </button>
             <button class="btn btn--success" id="btn-cerrar-transversal"
-                    data-periodo-id="<?= $pid ?>">
-                🔒 Cerrar bimestre transversal
+                    data-periodo-id="<?= $pid ?>" disabled
+                    title="Primero guarda las conclusiones">
+                <span class="btn-icon btn-icon--upload" aria-hidden="true"></span>
+                Aprobar y Bloquear
             </button>
             <span id="tutoria-status"></span>
         </div>

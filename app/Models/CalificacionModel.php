@@ -471,6 +471,7 @@ class CalificacionModel extends BaseModel
         ", [$periodoId, $periodoId, $periodoId]);
     }
 
+
     public function getResumenCompetencia(
         int $cargaId,
         int $competenciaId,

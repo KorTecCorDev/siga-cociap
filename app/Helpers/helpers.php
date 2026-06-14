@@ -38,6 +38,18 @@ function fechaLima(?string $dt, string $formato = 'd/m/Y H:i'): string
     return (new DateTime($dt))->format($formato);
 }
 
+/**
+ * Nombre corto para mostrar en la interfaz (saludo, navbar): primer nombre +
+ * apellido paterno. SOLO presentación del usuario en pantalla — NUNCA usar en
+ * listas oficiales, firmas, reportes impresos ni boletas (esos requieren el
+ * nombre completo legal).
+ */
+function nombre_corto(?string $nombres, ?string $apellidoPaterno = ''): string
+{
+    $primerNombre = explode(' ', trim($nombres ?? ''))[0];
+    return trim($primerNombre . ' ' . trim($apellidoPaterno ?? ''));
+}
+
 /** Escapa HTML para prevenir XSS */
 function e(string $value): string
 {

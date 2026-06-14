@@ -34,7 +34,7 @@ class DashboardController extends BaseController
         $destinos = [
             'director_general' => url('director/anios'),
             'director_ebr'     => url('director/anios'),
-            'docente'          => url('docente/mis-cargas'),
+            'docente'          => url('docente/inicio'),
             'padre'            => url('padre/inicio'),
         ];
 

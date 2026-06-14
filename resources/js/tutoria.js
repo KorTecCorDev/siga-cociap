@@ -70,6 +70,9 @@ document.querySelectorAll('.tutoria-conclusion__toggle').forEach(btn => {
         const mostrar = campo.hidden;            // estaba oculto → mostrar
         campo.hidden  = !mostrar;
         btn.setAttribute('aria-expanded', mostrar ? 'true' : 'false');
+        // Color estandar del proyecto: cerrado = secundario, abierto = primario.
+        btn.classList.toggle('btn--primary',   mostrar);
+        btn.classList.toggle('btn--secondary', !mostrar);
         if (btn.dataset.labelAbrir && btn.dataset.labelCerrar) {
             btn.textContent = mostrar ? btn.dataset.labelCerrar : btn.dataset.labelAbrir;
         }
@@ -77,13 +80,33 @@ document.querySelectorAll('.tutoria-conclusion__toggle').forEach(btn => {
     });
 });
 
+// Gate: "Aprobar y Bloquear" solo se habilita tras guardar las conclusiones.
+// Nace deshabilitado (en la vista) y se reactiva al guardar; si luego se edita
+// una conclusión, se vuelve a deshabilitar hasta guardar de nuevo.
+function habilitarAprobar(habilitar) {
+    const btn = document.getElementById('btn-cerrar-transversal');
+    if (!btn) return;
+    btn.disabled = !habilitar;
+    if (habilitar) {
+        btn.removeAttribute('title');
+    } else {
+        btn.title = 'Primero guarda las conclusiones';
+    }
+}
+
 document.getElementById('btn-guardar-conclusiones-trans')
     ?.addEventListener('click', async (e) => {
         const btn = e.currentTarget;
         btn.disabled = true;
-        await guardarConclusionesTransversales(btn.dataset.periodoId);
+        const ok = await guardarConclusionesTransversales(btn.dataset.periodoId);
         btn.disabled = false;
+        if (ok) habilitarAprobar(true);
     });
+
+// Cualquier edición posterior invalida el guardado: re-deshabilita Aprobar.
+document.querySelectorAll('.textarea-conclusion-transversal').forEach(ta => {
+    ta.addEventListener('input', () => habilitarAprobar(false));
+});
 
 document.getElementById('btn-cerrar-transversal')
     ?.addEventListener('click', async (e) => {

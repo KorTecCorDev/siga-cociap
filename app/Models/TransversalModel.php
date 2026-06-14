@@ -85,6 +85,41 @@ class TransversalModel extends BaseModel
         return $stmt->rowCount() > 0;
     }
 
+    /**
+     * Resumen del estado transversal por sección, para el panel del director.
+     * Cada sección con tutor del año del periodo, con su cierre vigente si lo
+     * hay. El estado REAL de las transversales lo gobierna el cierre (lo que
+     * habilita TIC/GAMA en la boleta), NO la carga transversal heredada (que
+     * quedó inactiva en la migración 019); por eso se evalúa por sección.
+     */
+    public function getResumenSeccionesPorPeriodo(int $periodoId): array
+    {
+        return $this->query("
+            SELECT s.id              AS seccion_id,
+                   s.nombre          AS seccion_nombre,
+                   g.numero          AS grado_numero,
+                   g.nombre_display  AS grado_nombre,
+                   n.id              AS nivel_id,
+                   n.nombre          AS nivel_nombre,
+                   n.codigo          AS nivel_codigo,
+                   CONCAT(pu.apellido_paterno, ', ', pu.nombres) AS tutor_nombre,
+                   ct.id             AS cierre_id,
+                   ct.cerrado_en
+            FROM secciones s
+            INNER JOIN grados g    ON g.id  = s.grado_id
+            INNER JOIN niveles n   ON n.id  = g.nivel_id
+            INNER JOIN usuarios u  ON u.id  = s.tutor_id
+            INNER JOIN personas pu ON pu.id = u.persona_id
+            LEFT JOIN cierres_transversales ct
+                ON  ct.seccion_id = s.id
+                AND ct.periodo_id = ?
+                AND ct.anulado_en IS NULL
+            WHERE s.anio_id   = (SELECT anio_id FROM periodos WHERE id = ?)
+              AND s.tutor_id IS NOT NULL
+            ORDER BY n.id, g.numero, s.nombre
+        ", [$periodoId, $periodoId]);
+    }
+
     // ── Agregación de promedios ──────────────────────────────────
 
     /**

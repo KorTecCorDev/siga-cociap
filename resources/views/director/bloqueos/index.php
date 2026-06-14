@@ -451,3 +451,71 @@ $_oS  = round(25 - $_pB - $_pP, 2);
         <p>Selecciona un periodo para ver el estado de los bloqueos.</p>
     </div>
 <?php endif; ?>
+
+<?php if ($periodo && !empty($transversales)): ?>
+    <p class="bloqueos-nivel-titulo">Competencias Transversales (TIC/GAMA) &mdash; cierre del tutor</p>
+    <div class="card mb-md">
+        <div class="card__body">
+            <p class="text-sm text-muted mb-sm">
+                El estado lo gobierna el <strong>cierre del tutor</strong> (es lo que habilita
+                TIC/GAMA en la boleta), no la carga heredada. <em>Desbloquear</em> anula el cierre
+                vigente; <em>Bloquear</em> lo cierra (requiere todas las cargas bloqueadas y las
+                conclusiones obligatorias completas).
+            </p>
+            <table class="tabla-ranking tabla-bloqueos">
+                <thead>
+                    <tr>
+                        <th>Secci&oacute;n</th>
+                        <th>Tutor(a)</th>
+                        <th>Estado</th>
+                        <th>Bloqueado el</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($transversales as $st): ?>
+                    <tr class="<?= $st['cerrada'] ? '' : 'fila-pendiente' ?>">
+                        <td class="text-sm">
+                            <?= e($st['grado_nombre']) ?> &mdash; <?= e($st['seccion_nombre']) ?>
+                            <br><span class="text-muted"><?= e($st['nivel_nombre']) ?></span>
+                        </td>
+                        <td class="text-sm"><?= e($st['tutor_nombre']) ?></td>
+                        <td>
+                            <?php if ($st['cerrada']): ?>
+                                <span class="badge badge--activo">&#10003; Bloqueada</span>
+                            <?php else: ?>
+                                <span class="badge badge--warning">Pendiente</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-muted text-sm">
+                            <?= ($st['cerrada'] && $st['cerrado_en'])
+                                ? date('d/m/Y H:i', strtotime($st['cerrado_en']))
+                                : '—'
+                            ?>
+                        </td>
+                        <td>
+                            <?php if ($st['cerrada']): ?>
+                                <form method="POST"
+                                      action="<?= url('director/bloqueos/transversal/' . $st['seccion_id'] . '/reabrir') ?>"
+                                      onsubmit="return confirm('Desbloquear las transversales de esta seccion? El tutor debera volver a cerrar.')">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
+                                    <button type="submit" class="btn btn--danger btn--sm">Desbloquear</button>
+                                </form>
+                            <?php else: ?>
+                                <form method="POST"
+                                      action="<?= url('director/bloqueos/transversal/' . $st['seccion_id'] . '/cerrar') ?>"
+                                      onsubmit="return confirm('Bloquear las transversales de esta seccion?')">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
+                                    <button type="submit" class="btn btn--secondary btn--sm">Bloquear</button>
+                                </form>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+<?php endif; ?>

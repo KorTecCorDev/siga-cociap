@@ -7,6 +7,7 @@
 ?>
 
 <div class="page-header">
+    <a href="<?= url('docente/inicio') ?>" class="btn btn--secondary btn--sm">← Volver</a>
     <h1 class="page-title">Mis cargas académicas</h1>
     <?php if ($periodo): ?>
         <span class="badge badge--activo">
@@ -23,12 +24,12 @@
     // 3 estados de la card: cerrado / disponible / en progreso
     if ($tutoria['cierre']) {
         $estadoClase = 'cerrado';
-        $estadoTexto = '✅ Cerrado el ' . fechaLima($tutoria['cierre']['cerrado_en'], 'd/m/Y');
+        $estadoTexto = 'Cerrado el ' . fechaLima($tutoria['cierre']['cerrado_en'], 'd/m/Y');
     } elseif ($tutoria['listo']) {
         $estadoClase = 'disponible';
         $estadoTexto = $tutoria['pendientes'] > 0
-            ? '✍ Disponible — ' . $tutoria['pendientes'] . ' conclusión(es) pendiente(s)'
-            : '✍ Disponible para cerrar';
+            ? 'Disponible — ' . $tutoria['pendientes'] . ' conclusión(es) pendiente(s)'
+            : 'Disponible para cerrar';
     } else {
         $estadoClase = 'progreso';
         $estadoTexto = '⏳ Bloqueadas ' . $tutoria['bloqueadas'] . ' de ' . $tutoria['total'];
@@ -94,12 +95,12 @@
         $criterios  = (int) ($c['transversales_con_criterios'] ?? 0);
 
         if ($total > 0 && $bloqueadas >= $total) {
-            return ['completo', '⚡ TIC/GAMA · Completas ✓'];
+            return ['completo', 'Transversales · Completas ✓'];
         }
         if ($criterios > 0) {
-            return ['progreso', '⚡ TIC/GAMA · En progreso'];
+            return ['progreso', 'Transversales · En progreso'];
         }
-        return ['pendiente', '⚡ TIC/GAMA · Pendiente'];
+        return ['pendiente', 'Transversales · Pendiente'];
     };
     ?>
 

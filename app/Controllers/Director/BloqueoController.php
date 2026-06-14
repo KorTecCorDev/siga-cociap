@@ -141,12 +141,27 @@ class BloqueoController extends BaseController
             }
         }
 
+        // Estado transversal por sección (TIC/GAMA del tutor) — bloque aparte,
+        // manejable (cerrar/reabrir) sin afectar las estadísticas académicas.
+        // El estado lo gobierna el CIERRE de la sección, no la carga transversal
+        // heredada (inactiva). 'lista' = todas las cargas propias bloqueadas.
+        $transversales = [];
+        if ($periodoId && $periodo) {
+            foreach ($this->transModel->getResumenSeccionesPorPeriodo($periodoId) as $s) {
+                // Mismos estados que las competencias académicas: Bloqueada (cierre
+                // vigente) o Pendiente. La validación de readiness vive en cerrarTransversal.
+                $s['cerrada']    = $s['cierre_id'] !== null;
+                $transversales[] = $s;
+            }
+        }
+
         $this->view('director/bloqueos/index', [
             'titulo'             => 'Gestión de bloqueos',
             'periodos'           => $periodos,
             'periodoId'          => $periodoId,
             'periodo'            => $periodo,
             'competencias'       => $competencias,
+            'transversales'      => $transversales,
             'stats'              => $stats,
             'statsDocentes'      => $statsDocentes   ?? [],
             'topCriticos'        => $topCriticos     ?? [],
@@ -261,5 +276,95 @@ class BloqueoController extends BaseController
             url("director/bloqueos?periodo_id={$periodoId}"),
             'No se pudo bloquear la competencia.'
         );
+    }
+
+    /**
+     * POST /director/bloqueos/transversal/{seccion_id}/cerrar
+     * Cierra (aprueba) las competencias transversales de la sección. Igual que
+     * el tutor: valida que todas las cargas estén bloqueadas y que no falten
+     * conclusiones obligatorias. El cierre es lo que habilita TIC/GAMA en la boleta.
+     */
+    public function cerrarTransversal(string $seccionId): void
+    {
+        $this->validateCsrf();
+        $seccionId = (int) $seccionId;
+        $periodoId = (int) $this->input('periodo_id');
+        $user      = Session::user();
+
+        if (!$periodoId) {
+            $this->redirectWithError(url('director/bloqueos'), 'Periodo no especificado.');
+        }
+        $back = url("director/bloqueos?periodo_id={$periodoId}");
+
+        $sec = $this->calModel->queryOne("
+            SELECT n.codigo AS nivel_codigo
+            FROM secciones s
+            INNER JOIN grados g  ON g.id = s.grado_id
+            INNER JOIN niveles n ON n.id = g.nivel_id
+            WHERE s.id = ?
+        ", [$seccionId]);
+        if (!$sec) {
+            $this->redirectWithError($back, 'Sección no encontrada.');
+        }
+
+        if ($this->transModel->getCierreVigente($seccionId, $periodoId)) {
+            $this->redirectWithError($back, 'Las transversales de esta sección ya están cerradas.');
+        }
+
+        $estado = $this->transModel->estadoCargasSeccion($seccionId, $periodoId);
+        if ($estado['total'] === 0 || $estado['bloqueadas'] < $estado['total']) {
+            $this->redirectWithError(
+                $back,
+                'No se puede cerrar: faltan cargas por bloquear ('
+                . $estado['bloqueadas'] . ' de ' . $estado['total'] . ').'
+            );
+        }
+
+        $pendientes = $this->transModel->conclusionesObligatoriasPendientes(
+            $seccionId, $periodoId, $sec['nivel_codigo']
+        );
+        if ($pendientes > 0) {
+            $this->redirectWithError(
+                $back,
+                'No se puede cerrar: faltan ' . $pendientes . ' conclusión(es) obligatoria(s).'
+            );
+        }
+
+        $ok = $this->transModel->cerrar($seccionId, $periodoId, (int) $user['id']);
+        if ($ok) {
+            $this->redirectWithSuccess($back,
+                'Competencias transversales cerradas. TIC/GAMA ya aparecen en las boletas de la sección.');
+        }
+        $this->redirectWithError($back, 'No se pudo cerrar las competencias transversales.');
+    }
+
+    /**
+     * POST /director/bloqueos/transversal/{seccion_id}/reabrir
+     * Anula el cierre transversal vigente de la sección (las TIC/GAMA dejan de
+     * aparecer en la boleta hasta que el tutor vuelva a cerrar). No toca los
+     * bloqueos por docente: solo reabre la aprobación del tutor.
+     */
+    public function reabrirTransversal(string $seccionId): void
+    {
+        $this->validateCsrf();
+        $seccionId = (int) $seccionId;
+        $periodoId = (int) $this->input('periodo_id');
+        $user      = Session::user();
+
+        if (!$periodoId) {
+            $this->redirectWithError(url('director/bloqueos'), 'Periodo no especificado.');
+        }
+        $back = url("director/bloqueos?periodo_id={$periodoId}");
+
+        $ok = $this->transModel->anularCierreVigente(
+            $seccionId, $periodoId, (int) $user['id'],
+            'Reapertura del cierre transversal por el director desde el panel de bloqueos.'
+        );
+
+        if ($ok) {
+            $this->redirectWithSuccess($back,
+                'Cierre transversal anulado. El tutor puede editar las conclusiones y volver a cerrar.');
+        }
+        $this->redirectWithError($back, 'No había un cierre transversal vigente para anular.');
     }
 }

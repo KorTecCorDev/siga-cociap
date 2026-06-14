@@ -37,7 +37,7 @@
                 <?= e($auth_user['rol_nombre'] ?? '') ?>
             </span>
             <span class="navbar__nombre-usuario">
-                <?= e(explode(' ', trim($auth_user['nombres'] ?? ''))[0] . ' ' . ($auth_user['apellido_paterno'] ?? '')) ?>
+                <?= e(nombre_corto($auth_user['nombres'] ?? '', $auth_user['apellido_paterno'] ?? '')) ?>
             </span>
             <a href="<?= url('logout') ?>" class="navbar__logout">
                 Cerrar sesión

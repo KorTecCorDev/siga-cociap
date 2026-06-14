@@ -133,6 +133,11 @@ $router->get( '/traslados',                'Matricula\TrasladoController@index')
 $router->get( '/traslados/{id}/imprimir',  'Matricula\TrasladoController@imprimir');
 $router->post('/traslados/{id}/anular',    'Matricula\TrasladoController@anular');
 
+// ─── Docente — Panel / Nómina ────────────────────────────────
+$router->get( '/docente/inicio',                       'Docente\PanelController@index');
+$router->get( '/docente/nomina',                       'Docente\PanelController@nomina');
+$router->get( '/docente/nomina/{seccion_id}/imprimir', 'Docente\PanelController@nominaImprimir');
+
 // ─── Calificaciones ──────────────────────────────────────────
 $router->get( '/docente/mis-cargas',                        'Docente\CalificacionController@misCargas');
 $router->get( '/docente/calificaciones/{carga_id}',         'Docente\CalificacionController@formulario');
@@ -192,6 +197,8 @@ $router->get('/director/orden-merito/{periodo_id}',             'Director\OrdenM
 // ─── Gestión de bloqueos ─────────────────────────────────────
 $router->get( '/director/bloqueos',                     'Director\BloqueoController@index');
 $router->post('/director/bloqueos/bloquear',             'Director\BloqueoController@bloquear');
+$router->post('/director/bloqueos/transversal/{seccion_id}/cerrar',  'Director\BloqueoController@cerrarTransversal');
+$router->post('/director/bloqueos/transversal/{seccion_id}/reabrir', 'Director\BloqueoController@reabrirTransversal');
 $router->post('/director/bloqueos/{id}/desbloquear',     'Director\BloqueoController@desbloquear');
 
 // ─── Resumen y bloqueo de competencia ────────────────────────
