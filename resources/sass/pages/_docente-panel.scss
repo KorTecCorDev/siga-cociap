@@ -335,6 +335,12 @@
 
 .horario-celda {
     height: 30px;
+    // Color por grupo seccion+materia, inyectado con la custom property --hbg
+    // desde la vista (tono unico por angulo aureo, sin repeticion).
+    background: var(--hbg, transparent);
+    color: #1a1a1a;
+    -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
 
     // Materia resaltada; sección un escalón debajo pero bien legible.
     &__area {
@@ -398,28 +404,8 @@
     height: 12px;
     border: 1px solid #555;
     vertical-align: middle;
-}
-
-// Paleta determinista por sección+materia (1..10): colores categóricos bien
-// diferenciados entre sí, con texto oscuro legible y buen rendimiento al imprimir.
-$horario-colores: (
-    1:  #9ecae1, // azul
-    2:  #fdae6b, // naranja
-    3:  #a1d99b, // verde
-    4:  #f4a3c8, // rosa
-    5:  #c4b2e0, // morado
-    6:  #ffe699, // amarillo
-    7:  #8fd9d0, // turquesa
-    8:  #f0a08c, // coral
-    9:  #cfe08a, // lima
-    10: #d2c2a8, // arena
-);
-
-@each $i, $c in $horario-colores {
-    .horario-color--#{$i} {
-        background: $c !important;
-        color: #1a1a1a;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
+    // Mismo color del grupo (custom property --hbg desde la vista).
+    background: var(--hbg, #fff);
+    -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
 }

@@ -47,7 +47,7 @@ $nivelAbrev = ['prim' => 'PRI', 'sec' => 'SEC'];
                     <?php foreach (array_keys($dias) as $diaKey): ?>
                         <?php $celda = $matriz[$clave][$diaKey] ?? null; ?>
                         <?php if ($celda): ?>
-                            <td class="horario-celda horario-color--<?= (int) $celda['color'] ?>">
+                            <td class="horario-celda" style="--hbg: <?= e($celda['color']) ?>">
                                 <span class="horario-celda__area"><?= e($celda['area']) ?></span>
                                 <span class="horario-celda__sec">
                                     <?= e($celda['seccion']) ?>
@@ -104,7 +104,7 @@ $nivelAbrev = ['prim' => 'PRI', 'sec' => 'SEC'];
                     <?php foreach ($leyenda as $n => $l): ?>
                         <tr>
                             <td class="horario-leyenda__num"><?= $n + 1 ?></td>
-                            <td><span class="horario-swatch horario-color--<?= (int) $l['color'] ?>"></span></td>
+                            <td><span class="horario-swatch" style="--hbg: <?= e($l['color']) ?>"></span></td>
                             <td class="horario-leyenda__num"><?= e($nivelAbrev[$l['nivel']] ?? '') ?></td>
                             <td><?= e($l['seccion']) ?></td>
                             <td><?= e(implode(', ', $l['areas'])) ?></td>

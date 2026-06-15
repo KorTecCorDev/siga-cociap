@@ -62,10 +62,19 @@ class PanelController extends BaseController
                         ? 'Sin criterios'
                         : 'Faltan ' . max(0, $total - $bloq) . ' de ' . $total,
                     'critico' => ($bloq === 0 && $crit === 0),
+                    'faltan'  => max(0, $total - $bloq),
                 ];
             }
         }
         $avance = $sumTotal > 0 ? (int) round($sumBloq / $sumTotal * 100) : 0;
+
+        // Prioridad: primero lo más crítico (cargas sin criterios, sin iniciar),
+        // luego las que tienen más competencias por bloquear. usort es estable
+        // en PHP 8.2, así que en empate se conserva el orden por nivel/grado.
+        usort($pendientes, static function (array $a, array $b): int {
+            return [(int) $b['critico'], $b['faltan']]
+               <=> [(int) $a['critico'], $a['faltan']];
+        });
 
         // Días para el cierre (limite_notas)
         $diasCierre = null;
@@ -286,12 +295,16 @@ class PanelController extends BaseController
                     $b['seccion_nombre'], $b['area']];
         });
 
-        // Asignar color en el orden ya definido y armar la leyenda.
+        // Asignar color en el orden ya definido y armar la leyenda. El tono se
+        // calcula con el angulo aureo (137.508 deg): cada grupo seccion+materia
+        // recibe un color claramente distinto y SIN repetir, sea cual sea la
+        // cantidad de grupos del docente. Saturacion/luminosidad fijas para
+        // mantener fondos claros legibles con texto oscuro.
         $colorPorGrupo = [];
         $leyenda       = [];
-        $totalColores  = 10;
         foreach ($grupos as $i => $g) {
-            $color = ($i % $totalColores) + 1;
+            $hue   = (int) round(fmod($i * 137.508, 360));
+            $color = "hsl({$hue}, 70%, 82%)";
             $colorPorGrupo[$g['key']] = $color;
             $leyenda[] = [
                 'color'   => $color,
@@ -383,7 +396,13 @@ class PanelController extends BaseController
         ", [$docenteId]);
     }
 
-    /** Resumen de cada carga: total/bloqueadas/con-criterios (solo propias). */
+    /**
+     * Resumen de cada carga: total/bloqueadas/con-criterios. El total y las
+     * bloqueadas incluyen las competencias transversales TIC/GAMA del nivel
+     * (cada docente las registra en su carga): una carga queda pendiente hasta
+     * bloquear sus oficiales Y sus transversales. `con_criterios` se mide solo
+     * sobre las oficiales (gobierna el aviso "Sin criterios").
+     */
     private function getCargasResumen(int $docenteId, int $periodoId): array
     {
         return $this->calModel->query("
@@ -394,18 +413,19 @@ class PanelController extends BaseController
                    CASE WHEN s.es_unidocente = 1 THEN a.nombre
                         ELSE COALESCE(sa.nombre, a.nombre) END AS nombre_display,
                    (
-                       SELECT COUNT(DISTINCT c2.id) FROM competencias c2
-                       WHERE (ca.subarea_id IS NOT NULL AND c2.subarea_id = ca.subarea_id)
-                          OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL AND c2.area_id = ca.area_id)
+                       (
+                           SELECT COUNT(DISTINCT c2.id) FROM competencias c2
+                           WHERE (ca.subarea_id IS NOT NULL AND c2.subarea_id = ca.subarea_id)
+                              OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL AND c2.area_id = ca.area_id)
+                       ) + (
+                           SELECT COUNT(*) FROM competencias ct
+                           INNER JOIN areas at2 ON at2.id = ct.area_id
+                           WHERE at2.tipo = 'transversal' AND at2.nivel_id = n.id
+                       )
                    ) AS total_comp,
                    (
                        SELECT COUNT(*) FROM bloqueos_competencia bc
                        WHERE bc.carga_id = ca.id AND bc.periodo_id = ?
-                         AND bc.competencia_id IN (
-                             SELECT c3.id FROM competencias c3
-                             WHERE (ca.subarea_id IS NOT NULL AND c3.subarea_id = ca.subarea_id)
-                                OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL AND c3.area_id = ca.area_id)
-                         )
                    ) AS bloq,
                    (
                        SELECT COUNT(DISTINCT cr.competencia_id) FROM criterios cr
