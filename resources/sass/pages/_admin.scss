@@ -138,6 +138,29 @@ tr.fila-separador-nivel td {
 }
 
 // ── Donut chart — estado de bloqueos ─────────────────────────
+.bloqueos-cierre-accion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-lg;
+    border-left: 4px solid #d97706;
+
+    @media (max-width: 640px) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: $spacing-md;
+    }
+
+    &__texto { flex: 1; }
+
+    &__titulo {
+        font-weight: 600;
+        margin-bottom: $spacing-xs;
+    }
+
+    form { flex-shrink: 0; }
+}
+
 .bloqueos-donut {
     display: flex;
     align-items: center;

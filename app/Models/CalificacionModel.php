@@ -394,8 +394,8 @@ class CalificacionModel extends BaseModel
     ): bool {
         return $this->execute("
             INSERT IGNORE INTO bloqueos_competencia
-                (carga_id, competencia_id, periodo_id, bloqueado_por)
-            VALUES (?, ?, ?, ?)
+                (carga_id, competencia_id, periodo_id, bloqueado_por, origen)
+            VALUES (?, ?, ?, ?, 'docente')
         ", [$cargaId, $competenciaId, $periodoId, $usuarioId]);
     }
 
@@ -426,6 +426,7 @@ class CalificacionModel extends BaseModel
                 ca.id                AS carga_id,
                 comp.id              AS competencia_id,
                 bc.id                AS bloqueo_id,
+                bc.origen            AS bloqueo_origen,
                 bc.bloqueado_en,
                 comp.nombre_completo AS competencia_nombre,
                 a.nombre             AS area_nombre,

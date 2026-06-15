@@ -198,6 +198,7 @@ $router->get('/director/orden-merito/{periodo_id}',             'Director\OrdenM
 // ─── Gestión de bloqueos ─────────────────────────────────────
 $router->get( '/director/bloqueos',                     'Director\BloqueoController@index');
 $router->post('/director/bloqueos/bloquear',             'Director\BloqueoController@bloquear');
+$router->post('/director/bloqueos/limpiar-cierre',       'Director\BloqueoController@limpiarBloqueosCierre');
 $router->post('/director/bloqueos/transversal/{seccion_id}/cerrar',  'Director\BloqueoController@cerrarTransversal');
 $router->post('/director/bloqueos/transversal/{seccion_id}/reabrir', 'Director\BloqueoController@reabrirTransversal');
 $router->post('/director/bloqueos/{id}/desbloquear',     'Director\BloqueoController@desbloquear');

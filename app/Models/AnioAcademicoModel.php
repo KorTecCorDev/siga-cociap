@@ -193,8 +193,8 @@ class AnioAcademicoModel extends BaseModel
     {
         $stmt = $this->db->prepare("
             INSERT IGNORE INTO bloqueos_competencia
-                (carga_id, competencia_id, periodo_id, bloqueado_por)
-            SELECT ca.id, comp.id, ?, ?
+                (carga_id, competencia_id, periodo_id, bloqueado_por, origen)
+            SELECT ca.id, comp.id, ?, ?, 'cierre'
             FROM cargas_academicas ca
             INNER JOIN competencias comp ON (
                 (ca.subarea_id IS NOT NULL AND comp.subarea_id = ca.subarea_id)
@@ -209,24 +209,19 @@ class AnioAcademicoModel extends BaseModel
     }
 
     /**
-     * Elimina los bloqueos "fantasma" de un periodo: los que no tienen
-     * ninguna calificación detrás. Estos solo pueden provenir del cierre
-     * forzado (bloquearCompetenciasPendientes bloquea TODAS las competencias
-     * del año, tengan notas o no). Al reabrir un bimestre se limpian para
-     * que los docentes recuperen el acceso; los bloqueos con notas reales
-     * (aprobados por el docente) se conservan. Retorna cuántos se eliminaron.
+     * Elimina los bloqueos del CIERRE FORZADO de un periodo (origen='cierre'):
+     * las competencias que el docente nunca aprobó y que el cierre del bimestre
+     * bloqueó automáticamente. Se invoca SOLO de forma manual desde el panel de
+     * bloqueos (NO al reabrir). Los bloqueos del docente (origen='docente'),
+     * incluidas las competencias finalizadas-vacías, se conservan siempre.
+     * Retorna cuántos se eliminaron.
      */
-    public function eliminarBloqueosSinNotas(int $periodoId): int
+    public function eliminarBloqueosDeCierre(int $periodoId): int
     {
         $stmt = $this->db->prepare("
-            DELETE bc FROM bloqueos_competencia bc
-            WHERE bc.periodo_id = ?
-              AND NOT EXISTS (
-                  SELECT 1 FROM calificaciones cal
-                  WHERE cal.carga_id       = bc.carga_id
-                    AND cal.competencia_id = bc.competencia_id
-                    AND cal.periodo_id     = bc.periodo_id
-              )
+            DELETE FROM bloqueos_competencia
+            WHERE periodo_id = ?
+              AND origen     = 'cierre'
         ");
         $stmt->execute([$periodoId]);
         return $stmt->rowCount();

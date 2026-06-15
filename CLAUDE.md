@@ -120,6 +120,7 @@ director_ebr_historial  ← NUEVO (sesión 7)
    (… 009-017 según database/migrations/)
 10. migrations/018_criterios_descripcion.sql  ← criterios: descripción opcional
 11. migrations/019_transversales_docente.sql  ← transversales por docente + cierre del tutor
+12. migrations/020_bloqueos_origen.sql        ← origen del bloqueo (docente/cierre)
 
 
 ## Seed de demostración para presentación (sesión 4)
@@ -596,19 +597,55 @@ registran en el casillero de un área oficial que cede ese tramo de grados.
   conclusiones obligatorias pendientes. JS: `resources/js/tutoria.js`.
 
 ### Integración con reaperturas
-- `BloqueoController::desbloquear`: al desbloquear una competencia propia
-  LIBERA también las TIC/GAMA de esa carga (invariante Variante 1) y ANULA el
-  cierre vigente de la sección con traza. Se repite el ciclo re-bloqueo→re-cierre.
-- `PeriodoController::reabrir`: anula los cierres vigentes de las secciones
-  afectadas por bloqueos fantasma liberados (identificadas ANTES del DELETE).
+- `BloqueoController::desbloquear`: al desbloquear una competencia propia LIBERA
+  en cascada las TIC/GAMA de esa misma carga (`TransversalModel::liberarTransversalesDeCarga`,
+  competencias en área `tipo='transversal'`) y ANULA el cierre vigente de la
+  sección con traza — todo en una transacción. Las transversales se registran
+  bajo la carga del docente pero NO aparecen como filas en el panel; sin la
+  cascada quedaban bloqueadas e inalcanzables. Se repite el ciclo re-bloqueo→re-cierre.
+- `PeriodoController::reabrir`: YA NO libera bloqueos ni anula cierres
+  automáticamente (ver "Origen del bloqueo" abajo). Solo reactiva el periodo y
+  deja traza del motivo. La liberación de los bloqueos del cierre forzado es
+  MANUAL desde el panel (`BloqueoController::limpiarBloqueosCierre`), que sí
+  anula los cierres transversales de las secciones afectadas con traza.
 - `SeccionModel::asignarTutor` YA NO crea/reactiva la carga transversal.
 
 ### Modelo `TransversalModel`
 `getCompetencias(nivel)`, `getCierreVigente`, `cerrar`, `anularCierreVigente`,
 `getPromediosMatricula/Seccion`, `getConclusiones*`, `guardarConclusion`,
 `estadoCargasSeccion` (solo competencias PROPIAS de cargas activas),
-`conclusionesObligatoriasPendientes`, `seccionesConBloqueosSinNotas`,
-`anularCierresDeSecciones`, `getSeccionDelTutor`.
+`conclusionesObligatoriasPendientes`, `seccionesConBloqueosDeCierre`,
+`liberarTransversalesDeCarga`, `anularCierresDeSecciones`, `getSeccionDelTutor`.
+
+## Origen del bloqueo y reapertura quirúrgica (15/06/2026)
+
+> **Bug corregido:** al cerrar B1 se bloquean TODAS las competencias de cargas
+> activas (con o sin notas). Antes, al reabrir un bimestre, `reabrir()` borraba
+> TODO bloqueo sin notas — incluidas las competencias finalizadas-vacías
+> intencionalmente (casilleros cedidos SIAGIE / áreas no usadas) → se
+> "rehabilitaban". Ahora reabrir NO borra nada; la liberación es manual y
+> distingue el origen del bloqueo.
+
+### Migración `020_bloqueos_origen.sql`
+- `bloqueos_competencia.origen ENUM('docente','cierre') NOT NULL DEFAULT 'docente'`.
+- Backfill por el DEFAULT: TODAS las filas existentes (incl. I Bimestre) → `'docente'`.
+- A futuro solo el cierre forzado escribe `'cierre'`.
+
+### Quién escribe cada origen
+- `AnioAcademicoModel::bloquearCompetenciasPendientes` (cierre forzado) → `'cierre'`.
+- `CalificacionModel::bloquearCompetencia` (aprobación del docente Variante 1 y
+  bloqueo manual del director) → `'docente'`.
+
+### Comportamiento
+- `PeriodoController::reabrir`: solo reactiva el periodo + traza (no toca bloqueos).
+- `BloqueoController::limpiarBloqueosCierre` (`POST /director/bloqueos/limpiar-cierre`):
+  botón MANUAL en el panel de bloqueos. Borra `origen='cierre'` del periodo
+  (requiere el bimestre `activo`/reabierto), anula los cierres transversales de
+  las secciones afectadas con traza. Los `origen='docente'` (incl. finalizadas
+  sin notas) NUNCA se tocan.
+- `AnioAcademicoModel::eliminarBloqueosDeCierre` reemplaza a `eliminarBloqueosSinNotas`.
+- El panel muestra el conteo `stats['cierre_forzado']` y etiqueta "por cierre
+  forzado" en cada fila bloqueada por el cierre.
 
 ## Módulo Director EBR — historial de cargo (sesión 7)
 

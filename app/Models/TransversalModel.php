@@ -355,6 +355,29 @@ class TransversalModel extends BaseModel
     }
 
     /**
+     * Libera (elimina) los bloqueos de las competencias TRANSVERSALES (TIC/GAMA)
+     * de una carga en un periodo. Las transversales se registran bajo la misma
+     * carga del docente pero viven en un área tipo='transversal', así que NO
+     * aparecen como filas en el panel de bloqueos. Al desbloquear una competencia
+     * propia se liberan en cascada para que el docente pueda volver a editarlas
+     * (invariante: la carga se reabre completa, incluidas sus TIC/GAMA).
+     * Retorna cuántas se liberaron.
+     */
+    public function liberarTransversalesDeCarga(int $cargaId, int $periodoId): int
+    {
+        $stmt = $this->db->prepare("
+            DELETE bc FROM bloqueos_competencia bc
+            INNER JOIN competencias comp ON comp.id = bc.competencia_id
+            INNER JOIN areas a           ON a.id   = comp.area_id
+            WHERE bc.carga_id   = ?
+              AND bc.periodo_id = ?
+              AND a.tipo        = 'transversal'
+        ");
+        $stmt->execute([$cargaId, $periodoId]);
+        return $stmt->rowCount();
+    }
+
+    /**
      * Anula los cierres vigentes del periodo cuyas secciones aparecen en
      * la lista (usado al reabrir un bimestre). Retorna cuántos anuló.
      */
@@ -374,22 +397,18 @@ class TransversalModel extends BaseModel
     }
 
     /**
-     * Secciones del periodo con bloqueos "fantasma" (sin calificaciones
-     * detrás) — son las que se verán afectadas al reabrir el bimestre.
+     * Secciones del periodo con bloqueos del CIERRE FORZADO (origen='cierre')
+     * — son las que se verán afectadas al liberar esos bloqueos de forma manual
+     * desde el panel. Su cierre transversal vigente debe anularse con traza.
      */
-    public function seccionesConBloqueosSinNotas(int $periodoId): array
+    public function seccionesConBloqueosDeCierre(int $periodoId): array
     {
         $filas = $this->query("
             SELECT DISTINCT ca.seccion_id
             FROM bloqueos_competencia bc
             INNER JOIN cargas_academicas ca ON ca.id = bc.carga_id
             WHERE bc.periodo_id = ?
-              AND NOT EXISTS (
-                  SELECT 1 FROM calificaciones cal
-                  WHERE cal.carga_id       = bc.carga_id
-                    AND cal.competencia_id = bc.competencia_id
-                    AND cal.periodo_id     = bc.periodo_id
-              )
+              AND bc.origen     = 'cierre'
         ", [$periodoId]);
 
         return array_map(static fn($f) => (int) $f['seccion_id'], $filas);

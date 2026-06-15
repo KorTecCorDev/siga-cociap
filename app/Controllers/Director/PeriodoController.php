@@ -164,24 +164,12 @@ class PeriodoController extends BaseController
         try {
             $this->model->beginTransaction();
             $this->model->setEstadoPeriodo($id, 'activo');
-            // Al reabrir, los bloqueos auto-generados por el cierre forzado
-            // (sin notas detrás) congelarían a los docentes. Se eliminan para
-            // que recuperen el acceso; los aprobados con notas se conservan.
-            // Las secciones afectadas pierden su cierre transversal vigente
-            // (con traza) — se identifican ANTES de borrar los bloqueos.
-            $transModel         = new \App\Models\TransversalModel();
-            $seccionesAfectadas = $transModel->seccionesConBloqueosSinNotas($id);
-            $liberadas = $this->model->eliminarBloqueosSinNotas($id);
-            if ($liberadas > 0 && !empty($seccionesAfectadas)) {
-                $transModel->anularCierresDeSecciones(
-                    $seccionesAfectadas,
-                    $id,
-                    $usuarioId,
-                    'Reapertura del bimestre: ' . $motivo
-                );
-            }
-            // Deja traza del motivo y de cuántos bloqueos se liberaron.
-            $this->model->registrarReapertura($id, $motivo, $usuarioId, $liberadas);
+            // Reabrir NO libera bloqueos automáticamente: las competencias
+            // finalizadas-vacías (origen='docente', aprobadas sin notas) deben
+            // permanecer bloqueadas. Para liberar los bloqueos del cierre forzado
+            // (origen='cierre') el director usa el botón manual del panel de
+            // bloqueos. Solo se deja traza del motivo de la reapertura.
+            $this->model->registrarReapertura($id, $motivo, $usuarioId, 0);
             $this->model->commit();
         } catch (\Exception $e) {
             $this->model->rollback();
@@ -189,10 +177,11 @@ class PeriodoController extends BaseController
             $this->redirectWithError($volverUrl, 'No se pudo reabrir el bimestre. Intenta de nuevo.');
         }
 
-        $detalle = $liberadas > 0
-            ? " Se liberaron {$liberadas} competencias sin notas para edición."
-            : ' Los bloqueos con notas aprobadas se conservan.';
-        $this->redirectWithSuccess($volverUrl, "{$periodo['nombre_display']} reabierto.{$detalle}");
+        $this->redirectWithSuccess(
+            $volverUrl,
+            "{$periodo['nombre_display']} reabierto. Los bloqueos se conservan; "
+            . 'usa el panel de bloqueos para liberar los del cierre forzado si hace falta.'
+        );
     }
 
     // GET /director/periodos/{id}/stats

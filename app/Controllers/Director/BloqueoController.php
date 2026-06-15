@@ -36,7 +36,7 @@ class BloqueoController extends BaseController
         $periodoId    = (int) ($this->query('periodo_id') ?? 0);
         $competencias = [];
         $periodo      = null;
-        $stats        = ['total' => 0, 'bloqueadas' => 0, 'pendientes' => 0, 'sin_criterios' => 0];
+        $stats        = ['total' => 0, 'bloqueadas' => 0, 'pendientes' => 0, 'sin_criterios' => 0, 'cierre_forzado' => 0];
 
         if ($periodoId) {
             $periodo = $this->calModel->queryOne("
@@ -52,6 +52,7 @@ class BloqueoController extends BaseController
                 $stats['bloqueadas']    = count(array_filter($competencias, fn($c) => $c['bloqueo_id'] !== null));
                 $stats['sin_criterios'] = count(array_filter($competencias, fn($c) => $c['bloqueo_id'] === null && (int)$c['num_criterios'] === 0));
                 $stats['pendientes']    = $stats['total'] - $stats['bloqueadas'] - $stats['sin_criterios'];
+                $stats['cierre_forzado'] = count(array_filter($competencias, fn($c) => ($c['bloqueo_origen'] ?? null) === 'cierre'));
 
                 // Agrupar por docente y calcular conteos
                 $statsDocentes = [];
@@ -205,9 +206,23 @@ class BloqueoController extends BaseController
 
         $periodoId = (int) $bloqueo['periodo_id'];
         $cargaId   = (int) $bloqueo['carga_id'];
-        $ok        = $this->calModel->desbloquearCompetencia($id);
+        $back      = url("director/bloqueos?periodo_id={$periodoId}");
 
-        if ($ok) {
+        $transLiberadas = 0;
+        try {
+            $this->calModel->beginTransaction();
+
+            $ok = $this->calModel->desbloquearCompetencia($id);
+            if (!$ok) {
+                $this->calModel->rollback();
+                $this->redirectWithError($back, 'No se pudo desbloquear la competencia.');
+            }
+
+            // Cascada: liberar las transversales (TIC/GAMA) de la misma carga.
+            // Se registran bajo este carga_id pero no aparecen en el panel (área
+            // tipo='transversal'), así que quedarían bloqueadas e inalcanzables.
+            $transLiberadas = $this->transModel->liberarTransversalesDeCarga($cargaId, $periodoId);
+
             // Anular el cierre transversal vigente de la sección.
             $this->transModel->anularCierreVigente(
                 (int) $bloqueo['seccion_id'],
@@ -217,17 +232,85 @@ class BloqueoController extends BaseController
                     . '" (carga ' . $cargaId . ') por el director.'
             );
 
-            $this->redirectWithSuccess(
-                url("director/bloqueos?periodo_id={$periodoId}"),
-                'Competencia desbloqueada. El docente puede volver a editar las notas. '
-                . 'Si la sección tenía cierre transversal, quedó anulado hasta repetir el ciclo.'
+            $this->calModel->commit();
+        } catch (\Exception $e) {
+            $this->calModel->rollback();
+            log_error('Error desbloqueando competencia', ['id' => $id, 'error' => $e->getMessage()]);
+            $this->redirectWithError($back, 'No se pudo desbloquear la competencia.');
+        }
+
+        $mensaje = 'Competencia desbloqueada. El docente puede volver a editar las notas. '
+                 . 'Si la sección tenía cierre transversal, quedó anulado hasta repetir el ciclo.';
+        if ($transLiberadas > 0) {
+            $mensaje .= ' Se liberaron también ' . $transLiberadas
+                      . ' competencia(s) transversal(es) (TIC/GAMA) de la carga.';
+        }
+        $this->redirectWithSuccess($back, $mensaje);
+    }
+
+    /**
+     * POST /director/bloqueos/limpiar-cierre
+     * Libera de forma MANUAL todos los bloqueos del cierre forzado
+     * (origen='cierre') del periodo: las competencias que el docente nunca
+     * aprobó y que el cierre del bimestre bloqueó automáticamente. Los bloqueos
+     * del docente (origen='docente', incluidas las finalizadas-vacías) se
+     * conservan. Requiere el bimestre reabierto (estado 'activo'). Anula los
+     * cierres transversales de las secciones afectadas con traza.
+     */
+    public function limpiarBloqueosCierre(): void
+    {
+        $this->validateCsrf();
+
+        $periodoId = (int) $this->input('periodo_id');
+        $user      = Session::user();
+
+        if (!$periodoId) {
+            $this->redirectWithError(url('director/bloqueos'), 'Periodo no especificado.');
+        }
+        $back = url("director/bloqueos?periodo_id={$periodoId}");
+
+        $periodo = $this->calModel->queryOne("
+            SELECT id, estado, nombre_display FROM periodos WHERE id = ?
+        ", [$periodoId]);
+        if (!$periodo) {
+            $this->redirectWithError(url('director/bloqueos'), 'Bimestre no encontrado.');
+        }
+        if ($periodo['estado'] !== 'activo') {
+            $this->redirectWithError(
+                $back,
+                'Solo se pueden liberar los bloqueos del cierre forzado con el bimestre reabierto (activo). Reábrelo primero.'
             );
         }
 
-        $this->redirectWithError(
-            url("director/bloqueos?periodo_id={$periodoId}"),
-            'No se pudo desbloquear la competencia.'
-        );
+        $anioModel = new \App\Models\AnioAcademicoModel();
+        $liberadas = 0;
+        try {
+            $anioModel->beginTransaction();
+            // Identificar secciones afectadas ANTES de borrar (para anular su cierre transversal).
+            $seccionesAfectadas = $this->transModel->seccionesConBloqueosDeCierre($periodoId);
+            $liberadas = $anioModel->eliminarBloqueosDeCierre($periodoId);
+            if ($liberadas > 0 && !empty($seccionesAfectadas)) {
+                $this->transModel->anularCierresDeSecciones(
+                    $seccionesAfectadas,
+                    $periodoId,
+                    (int) $user['id'],
+                    'Liberación manual de bloqueos del cierre forzado por el director.'
+                );
+            }
+            $anioModel->commit();
+        } catch (\Exception $e) {
+            $anioModel->rollback();
+            log_error('Error liberando bloqueos del cierre', ['periodo' => $periodoId, 'error' => $e->getMessage()]);
+            $this->redirectWithError($back, 'No se pudieron liberar los bloqueos del cierre forzado.');
+        }
+
+        if ($liberadas > 0) {
+            $this->redirectWithSuccess(
+                $back,
+                "Se liberaron {$liberadas} competencia(s) del cierre forzado. Los docentes pueden volver a editarlas."
+            );
+        }
+        $this->redirectWithError($back, 'No había bloqueos del cierre forzado para liberar en este periodo.');
     }
 
     /**

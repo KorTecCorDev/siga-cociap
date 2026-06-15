@@ -153,6 +153,30 @@ $_oS  = round(25 - $_pB - $_pP, 2);
     </div>
 </div>
 
+<?php if (($periodo['estado'] ?? '') === 'activo' && $stats['cierre_forzado'] > 0): ?>
+<div class="card mb-md bloqueos-cierre-accion">
+    <div class="bloqueos-cierre-accion__texto">
+        <p class="bloqueos-cierre-accion__titulo">
+            <?= $stats['cierre_forzado'] ?> competencia(s) bloqueadas por el cierre forzado
+        </p>
+        <p class="text-sm text-muted">
+            Son competencias que el docente no aprobo y que el cierre del bimestre bloqueo
+            automaticamente. Liberarlas permite que los docentes vuelvan a editarlas. Las
+            competencias aprobadas por el docente (incluidas las finalizadas sin notas) NO se tocan.
+        </p>
+    </div>
+    <form method="POST"
+          action="<?= url('director/bloqueos/limpiar-cierre') ?>"
+          onsubmit="return confirm('Liberar <?= $stats['cierre_forzado'] ?> competencia(s) del cierre forzado? Esta accion no afecta los bloqueos aprobados por el docente.')">
+        <?= csrf_field() ?>
+        <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
+        <button type="submit" class="btn btn--danger">
+            Liberar bloqueos del cierre forzado
+        </button>
+    </form>
+</div>
+<?php endif; ?>
+
 
 <?php if ($periodoId && $periodo): ?>
 <div class="bloqueos-lateral mb-md">
@@ -396,6 +420,9 @@ $_oS  = round(25 - $_pB - $_pP, 2);
                                 <span class="badge badge--warning">Pendiente</span>
                             <?php else: ?>
                                 <span class="badge badge--error">Sin criterios</span>
+                            <?php endif; ?>
+                            <?php if ($bloqueada && ($fila['bloqueo_origen'] ?? '') === 'cierre'): ?>
+                                <br><span class="text-sm text-muted">por cierre forzado</span>
                             <?php endif; ?>
                         </td>
 
