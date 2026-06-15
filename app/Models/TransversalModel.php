@@ -271,8 +271,10 @@ class TransversalModel extends BaseModel
 
     /**
      * Avance de bloqueo de las cargas ACTIVAS de la sección en un periodo.
-     * Solo cuenta competencias PROPIAS de cada carga (las transversales se
-     * bloquean junto con la última propia — invariante de la Variante 1).
+     * Cuenta las competencias PROPIAS de cada carga MÁS las transversales
+     * TIC/GAMA del nivel: cada docente las registra en su propia carga y las
+     * aprueba por separado, así que el tutor solo puede cerrar cuando TODAS
+     * —propias y transversales— están bloqueadas.
      * Retorna ['total' => N, 'bloqueadas' => M, 'cargas' => detalle[]].
      */
     public function estadoCargasSeccion(int $seccionId, int $periodoId): array
@@ -288,21 +290,27 @@ class TransversalModel extends BaseModel
                     WHERE (ca.subarea_id IS NOT NULL AND c2.subarea_id = ca.subarea_id)
                        OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL
                            AND c2.area_id = ca.area_id)
+                ) + (
+                    SELECT COUNT(*)
+                    FROM competencias ct
+                    INNER JOIN areas at2 ON at2.id = ct.area_id
+                    WHERE at2.tipo     = 'transversal'
+                      AND at2.nivel_id = nv.id
                 ) AS total_comp,
                 (
                     SELECT COUNT(*)
                     FROM bloqueos_competencia bc
-                    INNER JOIN competencias c3 ON c3.id = bc.competencia_id
-                    LEFT  JOIN areas a3        ON a3.id = c3.area_id
                     WHERE bc.carga_id   = ca.id
                       AND bc.periodo_id = ?
-                      AND (a3.tipo IS NULL OR a3.tipo != 'transversal')
                 ) AS comp_bloqueadas
             FROM cargas_academicas ca
-            LEFT JOIN subareas sa ON sa.id = ca.subarea_id
-            LEFT JOIN areas a     ON a.id  = COALESCE(ca.area_id, sa.area_id)
-            LEFT JOIN usuarios u  ON u.id  = ca.docente_id
-            LEFT JOIN personas pu ON pu.id = u.persona_id
+            INNER JOIN secciones s ON s.id  = ca.seccion_id
+            INNER JOIN grados g    ON g.id  = s.grado_id
+            INNER JOIN niveles nv  ON nv.id = g.nivel_id
+            LEFT  JOIN subareas sa ON sa.id = ca.subarea_id
+            LEFT  JOIN areas a     ON a.id  = COALESCE(ca.area_id, sa.area_id)
+            LEFT  JOIN usuarios u  ON u.id  = ca.docente_id
+            LEFT  JOIN personas pu ON pu.id = u.persona_id
             WHERE ca.seccion_id = ?
               AND ca.estado     = 'activa'
               AND (a.tipo IS NULL OR a.tipo != 'transversal')

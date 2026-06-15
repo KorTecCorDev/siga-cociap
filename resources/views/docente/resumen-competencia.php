@@ -74,12 +74,6 @@ $esTransversal = !empty($competencia['es_transversal']);
                     Esta competencia fue bloqueada sin calificaciones registradas
                     (no se trabajó en el <?= e($periodo['nombre_display']) ?>).
                 </p>
-            <?php elseif ($esTransversal): ?>
-                <div class="flash flash--warning">
-                    Aún no registras criterios ni notas para esta competencia transversal.
-                    Las transversales (TIC/GAMA) son obligatorias: agrégalas desde la
-                    página de la carga antes de bloquear la última competencia del área.
-                </div>
             <?php else: ?>
                 <div class="flash flash--warning">
                     No se registraron criterios ni calificaciones para esta competencia
@@ -90,7 +84,8 @@ $esTransversal = !empty($competencia['es_transversal']);
                     <button class="btn btn--success" id="btn-confirmar-sin-notas"
                             data-carga-id="<?= $carga['id'] ?>"
                             data-competencia-id="<?= $competencia['id'] ?>">
-                        ✅ Confirmar: no se trabajó este bimestre
+                        <span class="btn-icon btn-icon--upload" aria-hidden="true"></span>
+                        Confirmar: no se trabajó este bimestre
                     </button>
                     <span id="resumen-status"></span>
                 </div>
@@ -238,25 +233,27 @@ $esTransversal = !empty($competencia['es_transversal']);
         </div>
 
         <!-- Botones de acción -->
-        <?php if ($esTransversal): ?>
+        <?php if (!$bloqueada): ?>
+            <?php if ($esTransversal): ?>
+                <p class="text-muted text-sm mb-sm">
+                    Las conclusiones descriptivas de las competencias transversales
+                    las registra el tutor de la sección al cierre del bimestre.
+                </p>
+            <?php endif; ?>
             <div class="resumen-footer">
-                <span class="text-muted text-sm">
-                    Esta competencia transversal se aprueba y bloquea automáticamente
-                    al bloquear la última competencia propia del área.
-                    Las conclusiones descriptivas las registra el tutor de la sección.
-                </span>
-            </div>
-        <?php elseif (!$bloqueada): ?>
-            <div class="resumen-footer">
-                <button class="btn btn--primary" id="btn-guardar-conclusiones">
-                    💾 Guardar conclusiones
-                </button>
+                <?php if (!$esTransversal): ?>
+                    <button class="btn btn--primary" id="btn-guardar-conclusiones">
+                        <span class="btn-icon btn-icon--save" aria-hidden="true"></span>
+                        Guardar conclusiones
+                    </button>
+                <?php endif; ?>
                 <button class="btn btn--success btn--aprobar"
                         id="btn-aprobar-bloquear"
                         data-carga-id="<?= $carga['id'] ?>"
                         data-competencia-id="<?= $competencia['id'] ?>"
-                        disabled>
-                    ✅ Aprobar y bloquear
+                        <?= $esTransversal ? '' : 'disabled' ?>>
+                    <span class="btn-icon btn-icon--upload" aria-hidden="true"></span>
+                    Aprobar y bloquear
                 </button>
                 <span id="resumen-status"></span>
             </div>

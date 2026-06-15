@@ -159,7 +159,16 @@ $avEstado = $avance >= 100 ? 'completo' : ($avance > 0 ? 'parcial' : 'vacio');
 
     <!-- Mi horario -->
     <div class="card dpanel-panel">
-        <div class="card__header"><h2 class="card__title">Mi horario</h2></div>
+        <div class="card__header dpanel-panel__head">
+            <h2 class="card__title">Mi horario</h2>
+            <?php if (!empty($horario)): ?>
+                <a href="<?= url('docente/horario/imprimir') ?>" target="_blank" rel="noopener"
+                   class="btn btn--secondary btn--sm">
+                    <span class="btn-icon btn-icon--print" aria-hidden="true"></span>
+                    Imprimir
+                </a>
+            <?php endif; ?>
+        </div>
         <div class="card__body">
             <?php if (empty($horario)): ?>
                 <p class="empty-state">Sin horario registrado.</p>

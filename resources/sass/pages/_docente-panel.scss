@@ -187,6 +187,15 @@
 
     &__sec { font-weight: 600; }
 
+    &__meta {
+        display: flex;
+        justify-content: space-between;
+        gap: $spacing-md;
+        flex-wrap: wrap;
+        font-size: 12px;
+        margin-bottom: $spacing-sm;
+    }
+
     &__tabla {
         width: 100%;
         border-collapse: collapse;
@@ -198,7 +207,219 @@
             text-align: left;
         }
         th { background: #eee; }
+        tr { page-break-inside: avoid; }
     }
 
     &__num { width: 36px; text-align: center; }
+
+    // Pie: solo el sello del Director EBR, anclado a la derecha.
+    &__footer {
+        margin-top: $spacing-xl;
+        display: flex;
+        justify-content: flex-end;
+        page-break-inside: avoid;
+    }
+
+    &__sello-bloque {
+        text-align: center;
+        min-width: 220px;
+    }
+
+    &__sello {
+        display: block;
+        max-width: 180px;
+        max-height: 110px;
+        object-fit: contain;
+        margin: 0 auto;
+    }
+}
+
+// Cabecera de panel con accion a la derecha (ej. "Mi horario" + Imprimir).
+.dpanel-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-md;
+    flex-wrap: wrap;
+}
+
+// ── Horario (impresión A4 horizontal) ────────────────────────
+// Página propia en landscape para no alterar el @page portrait global.
+@page horario-landscape {
+    size: A4 landscape;
+    margin: 8mm;
+}
+
+// Todo el documento se compacta para garantizar UNA sola hoja A4 horizontal.
+.horario-print {
+    page: horario-landscape;
+    padding: 0;
+    // Fuerza la impresión de los fondos de color de las celdas/leyenda.
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+
+    &__head {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        margin-bottom: 5px;
+        border-bottom: 1.5px solid #000;
+        padding-bottom: 5px;
+    }
+
+    &__logo { width: 46px; height: auto; }
+
+    &__titulo {
+        h1 { font-size: 14px; margin: 0; }
+        p  { margin: 1px 0; font-size: 10px; }
+    }
+
+    &__doc { font-weight: 600; }
+
+    &__meta { font-size: 10px; margin-bottom: 5px; }
+
+    &__tabla {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 10px;
+
+        th, td {
+            border: 1px solid #000;
+            padding: 2px 4px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        thead th { background: #eee; }
+        tr { page-break-inside: avoid; }
+    }
+
+    &__hora-col {
+        width: 56px;
+        background: #eee;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    // Pie: sello del Director EBR, a la derecha de las referencias.
+    &__footer {
+        display: flex;
+        justify-content: flex-end;
+        page-break-inside: avoid;
+    }
+
+    &__sello-bloque {
+        text-align: center;
+        min-width: 160px;
+    }
+
+    &__sello {
+        display: block;
+        max-width: 130px;
+        max-height: 62px;
+        object-fit: contain;
+        margin: 0 auto;
+    }
+}
+
+// Banda inferior: referencias (izquierda) + sello (derecha) en una sola fila
+// para aprovechar el ancho del landscape y no empujar a una segunda hoja.
+.horario-bottom {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: $spacing-lg;
+    margin-top: 6px;
+    page-break-inside: avoid;
+}
+
+.horario-celda {
+    height: 30px;
+
+    // Materia resaltada; sección un escalón debajo pero bien legible.
+    &__area {
+        display: block;
+        font-weight: 700;
+        font-size: 10px;
+        line-height: 1.15;
+    }
+    &__sec  {
+        display: block;
+        margin-top: 1px;
+        font-size: 9px;
+        font-weight: 600;
+        color: #333;
+    }
+    &__nivel {
+        font-weight: 700;
+        letter-spacing: .3px;
+    }
+    &--vacia { background: #fff; }
+}
+
+// Bloque de referencias: bloques horarios + cargas/secciones + niveles.
+.horario-refs {
+    display: flex;
+    gap: $spacing-lg;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    page-break-inside: avoid;
+}
+
+// Tablas-resumen (bloques horarios y cargas/secciones).
+.horario-leyenda {
+    page-break-inside: avoid;
+
+    &__titulo { font-size: 11px; margin: 0 0 2px; }
+
+    &__tabla {
+        border-collapse: collapse;
+        font-size: 10px;
+
+        th, td {
+            border: 1px solid #000;
+            padding: 2px 6px;
+            text-align: left;
+        }
+        th { background: #eee; }
+    }
+
+    &__num { width: 30px; text-align: center; }
+
+    &__total td {
+        font-weight: 700;
+        background: #f0f0f0;
+    }
+}
+
+.horario-swatch {
+    display: inline-block;
+    width: 24px;
+    height: 12px;
+    border: 1px solid #555;
+    vertical-align: middle;
+}
+
+// Paleta determinista por sección+materia (1..10): colores categóricos bien
+// diferenciados entre sí, con texto oscuro legible y buen rendimiento al imprimir.
+$horario-colores: (
+    1:  #9ecae1, // azul
+    2:  #fdae6b, // naranja
+    3:  #a1d99b, // verde
+    4:  #f4a3c8, // rosa
+    5:  #c4b2e0, // morado
+    6:  #ffe699, // amarillo
+    7:  #8fd9d0, // turquesa
+    8:  #f0a08c, // coral
+    9:  #cfe08a, // lima
+    10: #d2c2a8, // arena
+);
+
+@each $i, $c in $horario-colores {
+    .horario-color--#{$i} {
+        background: $c !important;
+        color: #1a1a1a;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }

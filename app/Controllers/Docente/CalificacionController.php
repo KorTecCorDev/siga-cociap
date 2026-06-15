@@ -864,12 +864,12 @@ class CalificacionController extends BaseController
 
     /**
      * POST /docente/calificaciones/{carga_id}/bloquear/{competencia_id}
-     * Aprueba y bloquea una competencia.
+     * Aprueba y bloquea UNA competencia de forma independiente.
      *
-     * Variante 1 de transversales: al bloquear la ÚLTIMA competencia propia
-     * del área se valida que TIC/GAMA tengan notas completas en esta carga
-     * y se bloquea todo junto en una sola acción. Las transversales no se
-     * bloquean de forma individual.
+     * Desde el II Bimestre cada competencia —incluidas las transversales
+     * TIC/GAMA registradas en la propia carga— se aprueba y bloquea por
+     * separado, con el mismo mecanismo y las mismas validaciones. Ya no
+     * existe el empaquetado de la "última competencia propia".
      */
     public function bloquear(string $cargaId, string $competenciaId): void
     {
@@ -886,53 +886,7 @@ class CalificacionController extends BaseController
 
         $confirmaSinNotas = !empty($this->input('sin_calificaciones'));
 
-        $carga = $this->calModel->queryOne("
-            SELECT ca.id, a.tipo AS area_tipo, n.id AS nivel_id
-            FROM cargas_academicas ca
-            INNER JOIN secciones s ON s.id = ca.seccion_id
-            INNER JOIN grados g    ON g.id = s.grado_id
-            INNER JOIN niveles n   ON n.id = g.nivel_id
-            LEFT  JOIN subareas sa ON sa.id = ca.subarea_id
-            LEFT  JOIN areas a     ON a.id  = COALESCE(ca.area_id, sa.area_id)
-            WHERE ca.id = ?
-        ", [$cargaId]);
-
-        if (!$carga) {
-            $this->json(['success' => false, 'mensaje' => 'Carga no encontrada.'], 404);
-        }
-
-        // Carga transversal heredada del tutor (B1): comportamiento clásico.
-        if ($carga['area_tipo'] === 'transversal') {
-            $error = $this->errorBloqueoCompetencia(
-                $cargaId, $competenciaId, $periodo, $confirmaSinNotas
-            );
-            if ($error !== null) {
-                $this->json(['success' => false, 'mensaje' => $error], 400);
-            }
-            $ok = $this->calModel->bloquearCompetencia(
-                $cargaId, $competenciaId, $periodo['id'], $user['id']
-            );
-            $this->json([
-                'success' => $ok,
-                'mensaje' => $ok ? 'Competencia aprobada y bloqueada correctamente.'
-                                 : 'Error al bloquear.',
-            ]);
-        }
-
-        $transversalIds = array_map(
-            static fn($c) => (int) $c['id'],
-            $this->transModel->getCompetencias((int) $carga['nivel_id'])
-        );
-
-        if (in_array($competenciaId, $transversalIds, true)) {
-            $this->json([
-                'success' => false,
-                'mensaje' => 'Las Competencias Transversales se aprueban automáticamente '
-                    . 'al bloquear la última competencia propia del área.',
-            ], 400);
-        }
-
-        // Validar la competencia propia que se quiere bloquear.
+        // Validar la competencia que se quiere bloquear (propia o transversal).
         $error = $this->errorBloqueoCompetencia(
             $cargaId, $competenciaId, $periodo, $confirmaSinNotas
         );
@@ -940,80 +894,14 @@ class CalificacionController extends BaseController
             $this->json(['success' => false, 'mensaje' => $error], 400);
         }
 
-        // ¿Con esta quedan bloqueadas TODAS las competencias propias?
-        $propias = array_map(static fn($c) => (int) $c['competencia_id'], $this->calModel->query("
-            SELECT comp.id AS competencia_id
-            FROM competencias comp
-            INNER JOIN cargas_academicas ca ON (
-                (ca.subarea_id IS NOT NULL AND comp.subarea_id = ca.subarea_id)
-                OR
-                (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL AND comp.area_id = ca.area_id)
-            )
-            WHERE ca.id = ?
-        ", [$cargaId]));
-
-        $bloqueadas      = $this->getBloqueos($cargaId, (int) $periodo['id']);
-        $propiasFaltan   = array_diff($propias, array_map('intval', $bloqueadas), [$competenciaId]);
-        $esUltimaPropia  = empty($propiasFaltan);
-
-        if (!$esUltimaPropia) {
-            $ok = $this->calModel->bloquearCompetencia(
-                $cargaId, $competenciaId, $periodo['id'], $user['id']
-            );
-            $this->json([
-                'success' => $ok,
-                'mensaje' => $ok ? 'Competencia aprobada y bloqueada correctamente.'
-                                 : 'Error al bloquear.',
-            ]);
-        }
-
-        // Última propia: TIC/GAMA deben estar completas para cerrar todo junto.
-        $etiquetas = [];
-        foreach ($this->transModel->getCompetencias((int) $carga['nivel_id']) as $trans) {
-            $tid = (int) $trans['id'];
-            if ($this->calModel->competenciaBloqueada($cargaId, $tid, $periodo['id'])) {
-                continue;
-            }
-            $errTrans = $this->errorBloqueoCompetencia($cargaId, $tid, $periodo, false);
-            if ($errTrans !== null) {
-                $etiquetas[] = ($trans['nombre_corto'] ?? 'Transversal') . ': ' . $errTrans;
-            }
-        }
-
-        if (!empty($etiquetas)) {
-            $this->json([
-                'success' => false,
-                'mensaje' => 'Esta es la última competencia del área: para aprobarla, '
-                    . 'las Competencias Transversales deben estar completas. '
-                    . 'Pendiente — ' . implode(' · ', $etiquetas),
-            ], 400);
-        }
-
-        // Bloquear la propia + las transversales en una sola acción.
-        $this->calModel->beginTransaction();
-        try {
-            $this->calModel->bloquearCompetencia(
-                $cargaId, $competenciaId, $periodo['id'], $user['id']
-            );
-            foreach ($transversalIds as $tid) {
-                $this->calModel->bloquearCompetencia(
-                    $cargaId, $tid, $periodo['id'], $user['id']
-                );
-            }
-            $this->calModel->commit();
-        } catch (\Exception $e) {
-            $this->calModel->rollback();
-            log_error('Error al bloquear competencia con transversales', [
-                'carga_id' => $cargaId, 'competencia_id' => $competenciaId,
-                'error'    => $e->getMessage(),
-            ]);
-            $this->json(['success' => false, 'mensaje' => 'Error al bloquear.'], 500);
-        }
+        $ok = $this->calModel->bloquearCompetencia(
+            $cargaId, $competenciaId, $periodo['id'], $user['id']
+        );
 
         $this->json([
-            'success' => true,
-            'mensaje' => 'Competencia aprobada. Las Competencias Transversales (TIC/GAMA) '
-                . 'se aprobaron y bloquearon junto con ella.',
+            'success' => $ok,
+            'mensaje' => $ok ? 'Competencia aprobada y bloqueada correctamente.'
+                             : 'Error al bloquear.',
         ]);
     }
 

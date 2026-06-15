@@ -159,7 +159,7 @@ class AuthController extends BaseController
             'director_general'  => url('director/anios'),
             'director_ebr'      => url('director/anios'),
             'secretaria'        => url('secretaria/matriculas'),
-            'docente'           => url('docente/mis-cargas'),
+            'docente'           => url('docente/inicio'),
             'padre'             => url('padre/inicio'),
         ];
 

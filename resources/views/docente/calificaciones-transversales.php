@@ -4,7 +4,7 @@
  * @var array $periodo
  * @var array $competencias      [{ id, codigo_minedu, nombre_completo, orden }]
  * @var array $criteriosPorComp  [competencia_id => criterio_id]
- * @var array $alumnos           [{ matricula_id, dni, nombre_completo }]
+ * @var array $alumnos           [{ matricula_id, nombre_completo }]
  * @var array $notasExistentes   [criterio_id][matricula_id] => nota
  * @var array $bloqueos          [competencia_id, ...]
  * @var bool  $bloqueado
@@ -93,7 +93,6 @@
                         <tr>
                             <th class="col-num">N°</th>
                             <th class="col-nombre">Apellidos y nombres</th>
-                            <th>DNI</th>
                             <th class="text-center">Nota (0–20)</th>
                         </tr>
                     </thead>
@@ -102,7 +101,6 @@
                         <tr>
                             <td class="col-num"><?= $i + 1 ?></td>
                             <td class="col-nombre"><?= e($alumno['nombre_completo']) ?></td>
-                            <td><?= e($alumno['dni']) ?></td>
                             <td class="text-center">
                                 <?php $valorInicial = isset($notasExistentes[$criterioId][$alumno['matricula_id']])
                                     ? fmt_nota((int)$notasExistentes[$criterioId][$alumno['matricula_id']])

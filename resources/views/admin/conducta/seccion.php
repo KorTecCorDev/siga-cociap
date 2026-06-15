@@ -2,7 +2,7 @@
 /**
  * @var array  $seccion      { id, grado_nombre, seccion_nombre, nivel_nombre }
  * @var array  $periodos     [{ id, numero, nombre_display, editable }]
- * @var array  $estudiantes  [{ matricula_id, nombre_completo, dni, conducta[periodo_id] }]
+ * @var array  $estudiantes  [{ matricula_id, nombre_completo, conducta[periodo_id] }]
  * @var array  $literales    ['AD','A','B','C']
  */
 
@@ -53,7 +53,6 @@ $titulos = [
             <tr>
                 <th class="col-num">N°</th>
                 <th class="col-nombre">Apellidos y Nombres</th>
-                <th class="conducta-th-dni">DNI</th>
                 <?php foreach ($periodos as $p): ?>
                     <th class="conducta-th-periodo">
                         <?= e($p['nombre_display']) ?>
@@ -66,7 +65,6 @@ $titulos = [
                 <tr>
                     <td class="col-num"><?= $i + 1 ?></td>
                     <td class="col-nombre"><?= e($est['nombre_completo']) ?></td>
-                    <td class="conducta-td-dni"><?= e($est['dni']) ?></td>
                     <?php foreach ($periodos as $p):
                         $val = $est['conducta'][$p['id']] ?? '';
                     ?>

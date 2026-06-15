@@ -177,11 +177,11 @@ class BloqueoController extends BaseController
      * POST /director/bloqueos/{id}/desbloquear
      * Elimina el bloqueo para que el docente pueda editar las notas.
      *
-     * Reapertura de carga: invariante de la Variante 1 — las transversales
-     * de la carga están bloqueadas solo cuando TODAS las propias lo están.
-     * Al desbloquear una propia se liberan también las TIC/GAMA de la carga
-     * (se re-bloquean juntas al aprobar de nuevo la última) y se ANULA el
-     * cierre transversal vigente de la sección con traza de quién/por qué.
+     * Reapertura de carga: cada competencia —incluidas las transversales
+     * TIC/GAMA— se bloquea y desbloquea de forma independiente, así que solo
+     * se libera la competencia indicada. Si la sección tenía cierre transversal
+     * vigente se ANULA con traza de quién/por qué (la nota agregada TIC/GAMA de
+     * la boleta depende del cierre, no de cada bloqueo individual).
      */
     public function desbloquear(string $id): void
     {
@@ -192,12 +192,10 @@ class BloqueoController extends BaseController
         $bloqueo = $this->calModel->queryOne("
             SELECT bc.id, bc.periodo_id, bc.carga_id, bc.competencia_id,
                    ca.seccion_id,
-                   comp.nombre_corto AS competencia_nombre,
-                   (at2.tipo = 'transversal') AS es_transversal
+                   comp.nombre_corto AS competencia_nombre
             FROM bloqueos_competencia bc
             INNER JOIN cargas_academicas ca ON ca.id  = bc.carga_id
             INNER JOIN competencias comp    ON comp.id = bc.competencia_id
-            LEFT  JOIN areas at2            ON at2.id  = comp.area_id
             WHERE bc.id = ?
         ", [$id]);
 
@@ -210,18 +208,6 @@ class BloqueoController extends BaseController
         $ok        = $this->calModel->desbloquearCompetencia($id);
 
         if ($ok) {
-            // Liberar también las transversales de la carga (si la propia
-            // desbloqueada no era ya una transversal).
-            if (empty($bloqueo['es_transversal'])) {
-                $this->calModel->execute("
-                    DELETE bc FROM bloqueos_competencia bc
-                    INNER JOIN competencias comp ON comp.id = bc.competencia_id
-                    INNER JOIN areas a           ON a.id = comp.area_id AND a.tipo = 'transversal'
-                    WHERE bc.carga_id   = ?
-                      AND bc.periodo_id = ?
-                ", [$cargaId, $periodoId]);
-            }
-
             // Anular el cierre transversal vigente de la sección.
             $this->transModel->anularCierreVigente(
                 (int) $bloqueo['seccion_id'],

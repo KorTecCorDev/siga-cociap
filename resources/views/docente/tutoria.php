@@ -52,41 +52,33 @@ $pid      = (int) $periodoSel['id'];
         TIC y GAMA ya aparecen en las boletas de la sección.
     </div>
 <?php elseif (!$listo): ?>
+    <?php
+    // Solo el avance agregado de la sección — NO se expone el detalle por carga
+    // ni el nombre de otros docentes (información sensible).
+    $pct = $estadoCargas['total'] > 0
+        ? round($estadoCargas['bloqueadas'] / $estadoCargas['total'] * 100, 2)
+        : 0;
+    ?>
     <div class="flash flash--warning">
-        ⏳ Aún no puedes cerrar:
-        <strong><?= (int) $estadoCargas['bloqueadas'] ?> de <?= (int) $estadoCargas['total'] ?></strong>
-        competencias de la sección están aprobadas/bloqueadas.
-        El cierre se habilita cuando todos los docentes aprueban sus cargas.
+        ⏳ Aún no puedes cerrar. El cierre se habilita cuando todos los docentes
+        de la sección aprueban sus cargas.
     </div>
 
     <div class="card mb-lg">
         <div class="card__header">
-            <h2 class="card__title">Avance por carga de la sección</h2>
+            <h2 class="card__title">Avance de aprobación de la sección</h2>
         </div>
         <div class="card__body">
-            <table class="tabla-notas tutoria-avance">
-                <thead>
-                    <tr>
-                        <th>Curso / Subárea</th>
-                        <th>Docente</th>
-                        <th class="text-center">Competencias aprobadas</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($estadoCargas['cargas'] as $c): ?>
-                        <?php $completa = (int) $c['comp_bloqueadas'] >= (int) $c['total_comp']; ?>
-                        <tr>
-                            <td><?= e($c['nombre_display'] ?? '—') ?></td>
-                            <td><?= e($c['docente_nombre'] ?? '—') ?></td>
-                            <td class="text-center">
-                                <span class="badge <?= $completa ? 'badge--activo' : 'badge--warning' ?>">
-                                    <?= (int) $c['comp_bloqueadas'] ?>/<?= (int) $c['total_comp'] ?>
-                                </span>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+            <div class="carga-progreso">
+                <div class="carga-progreso__track">
+                    <div class="carga-progreso__fill carga-progreso__fill--parcial"
+                         style="--pct: <?= $pct ?>%"></div>
+                </div>
+                <div class="carga-progreso__meta">
+                    <span>Competencias aprobadas en la sección</span>
+                    <span class="carga-progreso__valor carga-progreso__valor--parcial"><?= number_format($pct, 2) ?>%</span>
+                </div>
+            </div>
         </div>
     </div>
 <?php else: ?>

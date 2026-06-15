@@ -116,9 +116,9 @@
                 <h2 class="transversales-separador__titulo">Competencias Transversales</h2>
                 <p class="transversales-separador__desc">
                     TIC y GAMA se registran en cada carga igual que tus competencias
-                    (criterios y notas) y se aprueban automáticamente al bloquear la
-                    última competencia propia del área. Las conclusiones descriptivas
-                    las registra el tutor de la sección al cierre del bimestre.
+                    (criterios y notas) y se aprueban y bloquean por separado, desde el
+                    resumen de cada una. Las conclusiones descriptivas las registra el
+                    tutor de la sección al cierre del bimestre.
                 </p>
             </div>
         <?php } ?>
@@ -145,7 +145,8 @@
                     <?php endif; ?>
                     <a href="<?= url('docente/calificaciones/' . $carga['id'] . '/resumen/' . $competencia['id']) ?>"
                        class="btn btn--secondary btn--sm">
-                        📊 Ver resumen
+                        <span class="btn-icon btn-icon--view" aria-hidden="true"></span>
+                        Ver resumen
                     </a>
                 </div>
             </div>
@@ -227,7 +228,6 @@
                                                 <tr>
                                                     <th class="col-num">N°</th>
                                                     <th class="col-nombre">Apellidos y nombres</th>
-                                                    <th>DNI</th>
                                                     <th class="text-center">Nota (0-20)</th>
                                                 </tr>
                                             </thead>
@@ -240,7 +240,6 @@
                                                     <tr class="<?= $esExonerado ? 'fila-exonerado' : '' ?>">
                                                         <td class="col-num"><?= $i + 1 ?></td>
                                                         <td class="col-nombre"><?= e($alumno['nombre_completo']) ?></td>
-                                                        <td><?= e($alumno['dni']) ?></td>
                                                         <td class="text-center">
                                                             <?php if ($esExonerado): ?>
                                                                 <span class="exo-badge"

@@ -4,6 +4,7 @@ namespace App\Controllers\Docente;
 
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
+use App\Models\DirectorEbrModel;
 use App\Models\TransversalModel;
 use Core\Session;
 use Core\View;
@@ -178,10 +179,16 @@ class PanelController extends BaseController
         $seccion = $this->calModel->queryOne("
             SELECT s.id, s.nombre AS seccion_nombre,
                    g.numero AS grado_numero, g.nombre_display AS grado_nombre,
-                   n.id AS nivel_id, n.nombre AS nivel_nombre
+                   n.id AS nivel_id, n.nombre AS nivel_nombre,
+                   tp.sexo AS tutor_sexo,
+                   CASE WHEN tp.id IS NULL THEN ''
+                        ELSE CONCAT(tp.apellido_paterno, ' ', tp.apellido_materno, ', ', tp.nombres)
+                   END AS tutor_nombre
             FROM secciones s
             INNER JOIN grados g  ON g.id = s.grado_id
             INNER JOIN niveles n ON n.id = g.nivel_id
+            LEFT  JOIN usuarios tu ON tu.id = s.tutor_id
+            LEFT  JOIN personas tp ON tp.id = tu.persona_id
             WHERE s.id = ?
         ", [$seccionId]);
 
@@ -192,15 +199,165 @@ class PanelController extends BaseController
 
         $alumnos = $this->getMatriculados($niveles, $seccionId);
 
+        // Sello del Director EBR vigente del año académico activo (solo el sello).
+        $anio        = $this->getAnioActivo();
+        $directorEbr = $anio
+            ? (new DirectorEbrModel())->getVigenteEnFecha((int) $anio['id'])
+            : null;
+
         View::setLayout('print');
         $this->view('docente/nomina-imprimir', [
-            'titulo'  => 'Nómina ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
-            'seccion' => $seccion,
-            'alumnos' => $alumnos,
+            'titulo'      => 'Nómina ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
+            'seccion'     => $seccion,
+            'alumnos'     => $alumnos,
+            'directorEbr' => $directorEbr,
+            'anio'        => $anio,
+        ]);
+    }
+
+    /**
+     * GET /docente/horario/imprimir — horario semanal del docente en tabla de
+     * doble entrada (días en columnas, franjas horarias en filas). Una hoja
+     * A4 horizontal, con color por carga y leyenda al final. Layout: print.
+     */
+    public function horarioImprimir(): void
+    {
+        $user     = Session::user();
+        $did      = (int) $user['id'];
+        $sesiones = $this->getHorario($did);
+
+        if (empty($sesiones)) {
+            $this->redirectWithError(
+                url('docente/inicio'),
+                'No tienes horario registrado para imprimir.'
+            );
+        }
+
+        // Días fijos lunes-viernes (la BD no maneja fin de semana).
+        $dias = [
+            'lunes'     => 'Lunes',
+            'martes'    => 'Martes',
+            'miercoles' => 'Miércoles',
+            'jueves'    => 'Jueves',
+            'viernes'   => 'Viernes',
+        ];
+
+        // Franjas horarias distintas (clave compartida entre días) ordenadas.
+        $inicioPorFranja = [];
+        foreach ($sesiones as $s) {
+            $clave = $s['hora_inicio'] . '|' . $s['hora_fin'];
+            $inicioPorFranja[$clave] = $s['hora_inicio'];
+        }
+        asort($inicioPorFranja);
+        $franjas = array_keys($inicioPorFranja);
+
+        // Color por SECCIÓN + MATERIA: la misma materia dictada en una misma
+        // sección comparte color aunque esté repartida en más de una carga o en
+        // varios bloques (p. ej. Trigonometría en dos cargas distintas de la
+        // misma sección). Primero se agrupan y ORDENAN por grado (primaria
+        // 1°-6°, luego secundaria 1°-5°, sección y materia); el color se asigna
+        // en ese orden para que la leyenda quede correlativa.
+        $grupos     = [];
+        $totalHoras = 0;
+        foreach ($sesiones as $s) {
+            $key = $s['seccion_id'] . '|' . $s['area_nombre'];
+            if (!isset($grupos[$key])) {
+                $grupos[$key] = [
+                    'key'            => $key,
+                    'nivel_codigo'   => $s['nivel_codigo'],
+                    'grado_numero'   => (int) $s['grado_numero'],
+                    'seccion_nombre' => $s['seccion_nombre'],
+                    'seccion'        => $s['grado_nombre'] . ' ' . $s['seccion_nombre'],
+                    'area'           => $s['area_nombre'],
+                    'horas'          => 0,
+                ];
+            }
+            // Cada bloque dictado = una hora pedagógica.
+            $grupos[$key]['horas']++;
+            $totalHoras++;
+        }
+
+        // Orden: primaria antes que secundaria, luego grado 1→N, sección y materia.
+        $nivelOrden = ['prim' => 0, 'sec' => 1];
+        usort($grupos, function ($a, $b) use ($nivelOrden) {
+            return [$nivelOrden[$a['nivel_codigo']] ?? 9, $a['grado_numero'],
+                    $a['seccion_nombre'], $a['area']]
+               <=> [$nivelOrden[$b['nivel_codigo']] ?? 9, $b['grado_numero'],
+                    $b['seccion_nombre'], $b['area']];
+        });
+
+        // Asignar color en el orden ya definido y armar la leyenda.
+        $colorPorGrupo = [];
+        $leyenda       = [];
+        $totalColores  = 10;
+        foreach ($grupos as $i => $g) {
+            $color = ($i % $totalColores) + 1;
+            $colorPorGrupo[$g['key']] = $color;
+            $leyenda[] = [
+                'color'   => $color,
+                'nivel'   => $g['nivel_codigo'],
+                'seccion' => $g['seccion'],
+                'areas'   => [$g['area']],
+                'horas'   => $g['horas'],
+            ];
+        }
+
+        // Matriz de la tabla: color por grupo (sección + materia).
+        $matriz = [];
+        foreach ($sesiones as $s) {
+            $key   = $s['seccion_id'] . '|' . $s['area_nombre'];
+            $clave = $s['hora_inicio'] . '|' . $s['hora_fin'];
+            $matriz[$clave][$s['dia_semana']] = [
+                'area'    => $s['area_nombre'],
+                'seccion' => $s['grado_nombre'] . ' ' . $s['seccion_nombre'],
+                'nivel'   => $s['nivel_codigo'],
+                'color'   => $colorPorGrupo[$key],
+            ];
+        }
+
+        // Descripción de cada franja: "Nª hora" → rango horario almacenado.
+        $bloques = [];
+        foreach ($franjas as $clave) {
+            [$ini, $fin] = explode('|', $clave);
+            $bloques[]   = ['inicio' => $ini, 'fin' => $fin];
+        }
+
+        // Documento → nombre legal completo del docente (no el nombre corto).
+        $docente = trim(
+            ($user['apellido_paterno'] ?? '') . ' ' .
+            ($user['apellido_materno'] ?? '') . ', ' .
+            ($user['nombres'] ?? '')
+        );
+
+        // Sello del Director EBR vigente del año académico activo.
+        $anio        = $this->getAnioActivo();
+        $directorEbr = $anio
+            ? (new DirectorEbrModel())->getVigenteEnFecha((int) $anio['id'])
+            : null;
+
+        View::setLayout('print');
+        $this->view('docente/horario-imprimir', [
+            'titulo'      => 'Horario — ' . $docente,
+            'docente'     => $docente,
+            'anio'        => $anio,
+            'dias'        => $dias,
+            'franjas'     => $franjas,
+            'matriz'      => $matriz,
+            'bloques'     => $bloques,
+            'leyenda'     => array_values($leyenda),
+            'totalHoras'  => $totalHoras,
+            'directorEbr' => $directorEbr,
         ]);
     }
 
     // ── Privados ─────────────────────────────────────────────────
+
+    private function getAnioActivo(): ?array
+    {
+        return $this->calModel->queryOne("
+            SELECT id, anio FROM anios_academicos WHERE estado = 'activo' LIMIT 1
+        ");
+    }
 
     private function getPeriodoActivo(): ?array
     {
@@ -351,7 +508,10 @@ class PanelController extends BaseController
     {
         return $this->calModel->query("
             SELECT bh.dia_semana, bh.numero_bloque, bh.hora_inicio, bh.hora_fin,
-                   g.nombre_display AS grado_nombre, s.nombre AS seccion_nombre,
+                   s.id AS seccion_id,
+                   g.nombre_display AS grado_nombre, g.numero AS grado_numero,
+                   n.codigo AS nivel_codigo,
+                   s.nombre AS seccion_nombre,
                    CASE WHEN s.es_unidocente = 1 THEN a.nombre
                         ELSE COALESCE(sa.nombre, a.nombre) END AS area_nombre
             FROM sesiones_horario sh
@@ -359,6 +519,7 @@ class PanelController extends BaseController
             INNER JOIN cargas_academicas ca ON ca.id = sh.carga_id AND ca.estado = 'activa'
             INNER JOIN secciones s ON s.id = sh.seccion_id
             INNER JOIN grados g    ON g.id = s.grado_id
+            INNER JOIN niveles n   ON n.id = g.nivel_id
             LEFT  JOIN subareas sa ON sa.id = ca.subarea_id
             LEFT  JOIN areas a     ON a.id  = COALESCE(ca.area_id, sa.area_id)
             WHERE sh.docente_id = ?

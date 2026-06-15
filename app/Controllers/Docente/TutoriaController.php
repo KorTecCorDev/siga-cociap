@@ -44,10 +44,12 @@ class TutoriaController extends BaseController
             );
         }
 
+        // Solo bimestres cerrados y el activo; nunca los pendientes.
         $periodos = $this->calModel->query("
             SELECT p.id, p.numero, p.nombre_display, p.estado
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id AND a.estado = 'activo'
+            WHERE p.estado IN ('cerrado', 'activo')
             ORDER BY p.numero
         ");
 

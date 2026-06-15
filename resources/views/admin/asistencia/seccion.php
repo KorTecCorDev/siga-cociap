@@ -2,7 +2,7 @@
 /**
  * @var array       $seccion         { id, grado_nombre, seccion_nombre, nivel_nombre }
  * @var array|null  $periodoActivo   { id, nombre_display, ... }
- * @var array       $estudiantes     [{ matricula_id, dni, nombre_completo, incidencias{...} }]
+ * @var array       $estudiantes     [{ matricula_id, nombre_completo, incidencias{...} }]
  * @var int         $topeMax         valor máximo por contador (espejo del backend)
  */
 
@@ -42,7 +42,6 @@ $csrfToken = \Core\Session::csrfToken();
             <tr>
                 <th class="col-num">N°</th>
                 <th class="col-nombre">Apellidos y Nombres</th>
-                <th class="asistencia-th-dni">DNI</th>
                 <th class="asistencia-th-contador" title="Faltas">F</th>
                 <th class="asistencia-th-contador" title="Faltas justificadas">FJ</th>
                 <th class="asistencia-th-contador" title="Tardanzas">T</th>
@@ -60,7 +59,6 @@ $csrfToken = \Core\Session::csrfToken();
                     data-csrf="<?= e($csrfToken) ?>">
                     <td class="col-num"><?= $i + 1 ?></td>
                     <td class="col-nombre"><?= e($est['nombre_completo']) ?></td>
-                    <td class="asistencia-td-dni"><?= e($est['dni']) ?></td>
 
                     <?php foreach (['faltas', 'faltas_justificadas', 'tardanzas', 'tardanzas_justificadas'] as $campo):
                         $val = (int) $inc[$campo];

@@ -30,6 +30,12 @@
         vertical-align: middle;
     }
 
+    // El centrado por columna debe ganar al text-align:left por defecto del th
+    // (este selector tiene más especificidad). Mantiene encabezado e inputs
+    // alineados al centro, p. ej. la columna "Nota (0-20)".
+    th.text-center,
+    td.text-center { text-align: center; }
+
     tr:hover td { background: $bg-secondary; }
     tr:last-child td { border-bottom: none; }
 

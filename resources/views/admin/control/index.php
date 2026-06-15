@@ -124,12 +124,11 @@ $badgeSeveridad = static fn(string $sev): string =>
                         </tbody>
 
                     <?php else: /* matriculas */ ?>
-                        <thead><tr><th>Estudiante</th><th class="text-center">DNI</th><th>Grado / Sección</th><th class="text-center">Estado</th></tr></thead>
+                        <thead><tr><th>Estudiante</th><th>Grado / Sección</th><th class="text-center">Estado</th></tr></thead>
                         <tbody>
                         <?php foreach ($c['items'] as $it): ?>
                             <tr>
                                 <td><?= e($it['apellido_paterno'] . ' ' . $it['apellido_materno'] . ', ' . $it['nombres']) ?></td>
-                                <td class="text-center"><?= e($it['dni']) ?></td>
                                 <td><?= e($it['grado_nombre'] . ' ' . $it['seccion_nombre']) ?></td>
                                 <td class="text-center"><span class="badge badge--warning"><?= e($it['estado']) ?></span></td>
                             </tr>

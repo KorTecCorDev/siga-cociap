@@ -137,6 +137,7 @@ $router->post('/traslados/{id}/anular',    'Matricula\TrasladoController@anular'
 $router->get( '/docente/inicio',                       'Docente\PanelController@index');
 $router->get( '/docente/nomina',                       'Docente\PanelController@nomina');
 $router->get( '/docente/nomina/{seccion_id}/imprimir', 'Docente\PanelController@nominaImprimir');
+$router->get( '/docente/horario/imprimir',             'Docente\PanelController@horarioImprimir');
 
 // ─── Calificaciones ──────────────────────────────────────────
 $router->get( '/docente/mis-cargas',                        'Docente\CalificacionController@misCargas');
