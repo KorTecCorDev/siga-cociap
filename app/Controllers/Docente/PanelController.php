@@ -5,6 +5,8 @@ namespace App\Controllers\Docente;
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
 use App\Models\DirectorEbrModel;
+use App\Models\EstudianteModel;
+use App\Models\OrdenMeritoModel;
 use App\Models\TransversalModel;
 use Core\Session;
 use Core\View;
@@ -148,6 +150,28 @@ class PanelController extends BaseController
 
         $alumnos = $this->getMatriculados($niveles);
 
+        // Orden de mérito: puesto del ULTIMO bimestre cerrado del año activo
+        // (misma fuente que el ranking oficial). Si no hay bimestre cerrado aún
+        // —p. ej. en el I Bimestre— no hay puesto vigente.
+        $estModel  = new EstudianteModel();
+        $anio      = $estModel->anioActivo();
+        $bimestre  = $anio ? $estModel->ultimoBimestreCerrado((int) $anio['id']) : null;
+        $puestos   = [];
+        if ($bimestre && $alumnos) {
+            $gradoIds = array_filter(array_map(
+                static fn($a) => (int) ($a['grado_id'] ?? 0),
+                $alumnos
+            ));
+            if ($gradoIds) {
+                $puestos = (new OrdenMeritoModel())
+                    ->puestosPorGrado($gradoIds, (int) $bimestre['id']);
+            }
+        }
+        foreach ($alumnos as &$a) {
+            $a['puesto'] = $puestos[(int) $a['matricula_id']]['puesto'] ?? null;
+        }
+        unset($a);
+
         // Lista de secciones (para el selector de impresión), única y ordenada.
         $secciones = [];
         foreach ($alumnos as $a) {
@@ -165,11 +189,13 @@ class PanelController extends BaseController
         }
 
         $this->view('docente/nomina', [
-            'titulo'       => 'Nómina de matriculados',
-            'alumnos'      => $alumnos,
-            'secciones'    => array_values($secciones),
-            'total'        => count($alumnos),
-            'page_scripts' => ['nomina'],
+            'titulo'           => 'Nómina de matriculados',
+            'alumnos'          => $alumnos,
+            'secciones'        => array_values($secciones),
+            'total'            => count($alumnos),
+            'tieneOrdenMerito' => $bimestre !== null,
+            'bimestre'         => $bimestre['nombre_display'] ?? null,
+            'page_scripts'     => ['nomina'],
         ]);
     }
 
@@ -493,20 +519,28 @@ class PanelController extends BaseController
             SELECT m.id AS matricula_id,
                    p.apellido_paterno, p.apellido_materno, p.nombres,
                    s.id AS seccion_id, s.nombre AS seccion_nombre,
-                   g.numero AS grado_numero, g.nombre_display AS grado_nombre,
+                   g.id AS grado_id, g.numero AS grado_numero, g.nombre_display AS grado_nombre,
                    n.id AS nivel_id, n.nombre AS nivel_nombre,
                    TRIM(CONCAT(
                        COALESCE(ap.apellido_paterno, ''), ' ',
                        COALESCE(ap.apellido_materno, ''), ' ',
                        COALESCE(ap.nombres, '')
                    )) AS apoderado_nombre,
-                   ap.telefono AS apoderado_telefono
+                   ap.telefono AS apoderado_telefono,
+                   tp.sexo AS tutor_sexo,
+                   TRIM(CONCAT(
+                       COALESCE(tp.apellido_paterno, ''), ' ',
+                       COALESCE(tp.apellido_materno, ''), ' ',
+                       COALESCE(tp.nombres, '')
+                   )) AS tutor_nombre
             FROM matriculas m
             INNER JOIN estudiantes e ON e.id = m.estudiante_id
             INNER JOIN personas p    ON p.id = e.persona_id
             INNER JOIN secciones s   ON s.id = m.seccion_id
             INNER JOIN grados g      ON g.id = s.grado_id
             INNER JOIN niveles n     ON n.id = g.nivel_id
+            LEFT  JOIN usuarios tu   ON tu.id = s.tutor_id
+            LEFT  JOIN personas tp   ON tp.id = tu.persona_id
             LEFT JOIN vinculo_familiar vf
                 ON  vf.estudiante_id = e.id
                 AND vf.es_responsable = 1
@@ -544,7 +578,7 @@ class PanelController extends BaseController
             LEFT  JOIN areas a     ON a.id  = COALESCE(ca.area_id, sa.area_id)
             WHERE sh.docente_id = ?
             ORDER BY FIELD(bh.dia_semana,'lunes','martes','miercoles','jueves','viernes'),
-                     bh.numero_bloque
+                     bh.hora_inicio, bh.hora_fin
         ", [$docenteId]);
     }
 }

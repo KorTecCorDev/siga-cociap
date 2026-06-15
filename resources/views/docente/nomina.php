@@ -2,9 +2,11 @@
 /**
  * Nómina de matriculados — buscador en vivo + impresión por sección.
  * Sin DNI: dato sensible de consulta restringida.
- * @var array $alumnos    filas planas (matriculados aprobados)
- * @var array $secciones  [{seccion_id, nivel_nombre, grado_nombre, seccion_nombre, n}]
- * @var int   $total
+ * @var array  $alumnos          filas planas (matriculados aprobados)
+ * @var array  $secciones        [{seccion_id, nivel_nombre, grado_nombre, seccion_nombre, n}]
+ * @var int    $total
+ * @var bool   $tieneOrdenMerito si hay un bimestre cerrado con ranking vigente
+ * @var ?string $bimestre        nombre del bimestre del orden de mérito vigente
  */
 ?>
 
@@ -50,34 +52,49 @@
                placeholder="Buscar estudiante por apellidos o nombres…" autocomplete="off">
         <p class="text-sm text-muted" id="nomina-hint">Escribe para buscar entre <?= $total ?> estudiantes.</p>
         <p class="text-sm text-muted" id="nomina-sin-resultados" hidden>Sin coincidencias.</p>
+        <p class="text-sm text-muted">
+            <?= $tieneOrdenMerito
+                ? 'Orden de mérito vigente: ' . e($bimestre)
+                : 'Aún no hay orden de mérito vigente (ningún bimestre cerrado).' ?>
+        </p>
     </div>
 </div>
 
 <!-- Resultados (ocultos hasta buscar) -->
-<div class="tabla-notas-wrapper" id="nomina-resultados" hidden>
-    <table class="tabla-resumen nomina-tabla">
-        <thead>
-            <tr>
-                <th class="col-num">N°</th>
-                <th>Apellidos y nombres</th>
-                <th>Grado y sección</th>
-                <th>Apoderado responsable</th>
-                <th>Celular</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($alumnos as $a): ?>
-                <?php $nombre = $a['apellido_paterno'] . ' ' . $a['apellido_materno'] . ', ' . $a['nombres']; ?>
-                <tr class="nomina-fila" data-buscar="<?= e(mb_strtolower($nombre)) ?>" hidden>
-                    <td class="col-num nomina-num"></td>
-                    <td><?= e($nombre) ?></td>
-                    <td><?= e($a['grado_nombre'] . ' ' . $a['seccion_nombre']) ?></td>
-                    <td><?= $a['apoderado_nombre'] !== '' ? e($a['apoderado_nombre']) : '<span class="text-muted">—</span>' ?></td>
-                    <td><?= $a['apoderado_telefono'] ? e($a['apoderado_telefono']) : '<span class="text-muted">—</span>' ?></td>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+<div class="buscador-resultados" id="nomina-resultados" hidden>
+    <?php foreach ($alumnos as $a): ?>
+        <?php
+        $nombre  = $a['apellido_paterno'] . ' ' . $a['apellido_materno'] . ', ' . $a['nombres'];
+        $inicial = mb_strtoupper(mb_substr($a['apellido_paterno'] ?: $a['nombres'], 0, 1));
+        $tutorLabel = match ($a['tutor_sexo'] ?? null) {
+            'M'     => 'Tutor',
+            'F'     => 'Tutora',
+            default => 'Tutor(a)',
+        };
+        ?>
+        <div class="buscador-item card nomina-fila" data-buscar="<?= e(mb_strtolower($nombre)) ?>" hidden>
+            <div class="buscador-item__body">
+                <div class="buscador-item__avatar"><?= e($inicial) ?></div>
+                <div class="buscador-item__info">
+                    <div class="buscador-item__nombre"><?= e($nombre) ?></div>
+                    <div class="buscador-item__sub"><?= $tutorLabel ?>: <?= $a['tutor_nombre'] !== '' ? e($a['tutor_nombre']) : 'sin asignar' ?></div>
+                    <div class="buscador-item__sub">Apoderado: <?= $a['apoderado_nombre'] !== '' ? e($a['apoderado_nombre']) : '—' ?></div>
+                    <div class="buscador-item__sub">Cel: <?= $a['apoderado_telefono'] ? e($a['apoderado_telefono']) : '—' ?></div>
+                </div>
+                <div class="buscador-item__ubicacion">
+                    <div class="buscador-item__lugar"><?= e($a['grado_nombre'] . ' ' . $a['seccion_nombre']) ?></div>
+                    <div class="buscador-item__nivel"><?= e($a['nivel_nombre']) ?></div>
+                    <?php if (!$tieneOrdenMerito): ?>
+                        <div class="buscador-item__puesto buscador-item__puesto--vacio">Sin orden de mérito</div>
+                    <?php elseif ($a['puesto'] !== null): ?>
+                        <div class="buscador-item__puesto">Puesto <?= (int) $a['puesto'] ?>.° del grado</div>
+                    <?php else: ?>
+                        <div class="buscador-item__puesto buscador-item__puesto--vacio">Sin puesto aún</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    <?php endforeach; ?>
 </div>
 
 <?php endif; ?>
