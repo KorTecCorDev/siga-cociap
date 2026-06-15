@@ -802,18 +802,20 @@
 }
 
 // ── Separador y card de transversales (vista de carga) ──────
+// Encabezados de seccion (academicas vs transversales): mismo componente,
+// distinto acento. El acento NUNCA usa colores de estado (gris/ambar/verde):
+// academicas = azul marino de marca; transversales = celeste info.
+.academicas-separador,
 .transversales-separador {
     margin: $spacing-xl 0 $spacing-md;
     padding: $spacing-md $spacing-lg;
-    border-left: 4px solid $color-info;
-    background: $color-info-bg;
+    border-left: 4px solid;          // color por cada variante
     border-radius: $border-radius;
 
     &__titulo {
         margin: 0 0 4px;
         font-size: $font-size-lg;
         font-weight: 700;
-        color: darken($color-info, 10%);
     }
 
     &__desc {
@@ -824,12 +826,37 @@
     }
 }
 
+.academicas-separador {
+    border-left-color: $brand-dark;
+    background: rgba($brand-dark, .06);
+
+    &__titulo { color: $brand-dark; }
+}
+
+.transversales-separador {
+    border-left-color: $color-info;
+    background: $color-info-bg;
+
+    &__titulo { color: darken($color-info, 10%); }
+}
+
+// Acento de categoria en el borde izquierdo de la card: academicas = azul
+// marino de marca; transversales = celeste info. Es identidad de CATEGORIA y se
+// conserva en todos los estados; el resto del borde/fondo sigue comunicando
+// ESTADO (gris/ambar/verde). La doble clase gana en especificidad al
+// border-color del estado, asi solo se sobrescribe el lado izquierdo.
+.competencia-card--academica {
+    border-left: 4px solid $brand-dark;
+
+    &.competencia-card--con-notas,
+    &.competencia-card--con-cambios {
+        border-left-color: $brand-dark;
+    }
+}
+
 .competencia-card--transversal {
     border-left: 4px solid $color-info;
 
-    // El estado iluminado (verde con notas / ambar con cambios) conserva la
-    // identidad azul a la izquierda. La doble clase gana en especificidad al
-    // border-color del modificador, asi solo se sobrescribe el lado izquierdo.
     &.competencia-card--con-notas,
     &.competencia-card--con-cambios {
         border-left-color: $color-info;

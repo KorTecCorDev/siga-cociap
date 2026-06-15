@@ -28,6 +28,7 @@ class UsuarioModel extends BaseModel
                 p.apellido_paterno,
                 p.apellido_materno,
                 p.correo,
+                p.sexo,
                 r.id        AS rol_id,
                 r.nombre    AS rol_nombre,
                 r.codigo    AS rol_codigo

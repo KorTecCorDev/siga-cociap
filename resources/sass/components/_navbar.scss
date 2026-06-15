@@ -52,6 +52,36 @@
         color: rgba(255,255,255,.85);
     }
 
+    // Icono del usuario (a la izquierda del nombre). SVG monocromo pintado con
+    // el color del texto via mascara: admin / masculino / femenino.
+    &__user-icon {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        margin-right: 6px;
+        vertical-align: middle;
+        background-color: currentColor;
+        -webkit-mask-repeat: no-repeat;
+                mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+                mask-position: center;
+        -webkit-mask-size: contain;
+                mask-size: contain;
+
+        &--male {
+            -webkit-mask-image: url('../assets/icons/male-user.svg');
+                    mask-image: url('../assets/icons/male-user.svg');
+        }
+        &--female {
+            -webkit-mask-image: url('../assets/icons/female-user.svg');
+                    mask-image: url('../assets/icons/female-user.svg');
+        }
+        &--admin {
+            -webkit-mask-image: url('../assets/icons/admin-logo.svg');
+                    mask-image: url('../assets/icons/admin-logo.svg');
+        }
+    }
+
     &__logout {
         font-size: 12px;
         color: lighten($brand-accent, 20%);

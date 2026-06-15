@@ -90,7 +90,7 @@
         </div>
     <?php endif; ?>
 
-    <?php $separadorTransversal = false; ?>
+    <?php $separadorAcademico = false; $separadorTransversal = false; ?>
     <?php foreach ($competencias as $competencia): ?>
         <?php
         $compBloqueada  = in_array($competencia['id'], $bloqueos ?? []);
@@ -110,6 +110,17 @@
             }
         }
 
+        if (!$esTransversal && !$separadorAcademico) {
+            $separadorAcademico = true; ?>
+            <div class="academicas-separador">
+                <h2 class="academicas-separador__titulo">Competencias del área</h2>
+                <p class="academicas-separador__desc">
+                    Las competencias oficiales del área. Registra sus criterios y notas,
+                    y aprueba cada una para bloquearla.
+                </p>
+            </div>
+        <?php }
+
         if ($esTransversal && !$separadorTransversal) {
             $separadorTransversal = true; ?>
             <div class="transversales-separador">
@@ -123,7 +134,7 @@
             </div>
         <?php } ?>
 
-        <div class="competencia-card<?= $esTransversal ? ' competencia-card--transversal' : '' ?><?= $transConNotas ? ' competencia-card--con-notas' : '' ?>"
+        <div class="competencia-card<?= $esTransversal ? ' competencia-card--transversal' : ' competencia-card--academica' ?><?= $transConNotas ? ' competencia-card--con-notas' : '' ?>"
              id="comp-<?= $competencia['id'] ?>">
 
             <!-- Encabezado -->

@@ -122,6 +122,7 @@ class AuthController extends BaseController
             'rol_nombre'      => $usuario['rol_nombre'],
             'rol_codigo'      => $usuario['rol_codigo'],
             'correo'          => $usuario['correo'],
+            'sexo'            => $usuario['sexo'] ?? null,
         ]);
         Session::set('auth_token', $token);
         Session::set('_last_activity', time());

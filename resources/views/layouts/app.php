@@ -36,7 +36,15 @@
             <span class="navbar__rol">
                 <?= e($auth_user['rol_nombre'] ?? '') ?>
             </span>
+            <?php
+            // Icono del usuario logueado: admin sin importar genero; si no,
+            // por sexo (M/F). Fallback a masculino si el sexo no esta en sesion.
+            $iconoUsuario = ($auth_user['rol_codigo'] ?? '') === 'admin'
+                ? 'admin'
+                : (($auth_user['sexo'] ?? '') === 'F' ? 'female' : 'male');
+            ?>
             <span class="navbar__nombre-usuario">
+                <span class="navbar__user-icon navbar__user-icon--<?= $iconoUsuario ?>" aria-hidden="true"></span>
                 <?= e(nombre_corto($auth_user['nombres'] ?? '', $auth_user['apellido_paterno'] ?? '')) ?>
             </span>
             <a href="<?= url('logout') ?>" class="navbar__logout">
