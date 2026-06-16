@@ -708,6 +708,9 @@
     }
 
     &__estado {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         flex-shrink: 0;
         font-size: $font-size-sm;
         font-weight: 600;
@@ -730,7 +733,7 @@
     @media (max-width: 640px) {
         flex-wrap: wrap;
 
-        &__estado { width: 100%; text-align: center; }
+        &__estado { width: 100%; justify-content: center; }
     }
 }
 

@@ -32,7 +32,7 @@
             : 'Disponible para cerrar';
     } else {
         $estadoClase = 'progreso';
-        $estadoTexto = '⏳ Bloqueadas ' . $tutoria['bloqueadas'] . ' de ' . $tutoria['total'];
+        $estadoTexto = 'Bloqueadas ' . $tutoria['bloqueadas'] . ' de ' . $tutoria['total'];
     }
     ?>
     <a href="<?= url('docente/tutoria') ?>"
@@ -48,7 +48,10 @@
                 registra conclusiones y cierra el bimestre.
             </p>
         </div>
-        <span class="tutoria-card__estado"><?= e($estadoTexto) ?></span>
+        <span class="tutoria-card__estado">
+            <?php if ($estadoClase === 'progreso'): ?><span class="btn-icon btn-icon--wait" aria-hidden="true"></span><?php endif; ?>
+            <?= e($estadoTexto) ?>
+        </span>
     </a>
 <?php endif; ?>
 
@@ -60,10 +63,10 @@
         $ccTexto = 'Cerrada el ' . fechaLima($conducta['cierre']['tutor_cerrado_en'], 'd/m/Y');
     } elseif ($conducta['cierre']) {
         $ccClase = 'disponible';
-        $ccTexto = 'Disponible para tu nota y cierre';
+        $ccTexto = 'Disponible';
     } else {
         $ccClase = 'progreso';
-        $ccTexto = '⏳ En espera de Registro Académico';
+        $ccTexto = 'En espera';
     }
     ?>
     <a href="<?= url('docente/conducta') ?>"
@@ -79,7 +82,10 @@
                 y cierra la conducta del bimestre.
             </p>
         </div>
-        <span class="tutoria-card__estado"><?= e($ccTexto) ?></span>
+        <span class="tutoria-card__estado">
+            <?php if ($ccClase === 'progreso'): ?><span class="btn-icon btn-icon--wait" aria-hidden="true"></span><?php endif; ?>
+            <?= e($ccTexto) ?>
+        </span>
     </a>
 <?php endif; ?>
 

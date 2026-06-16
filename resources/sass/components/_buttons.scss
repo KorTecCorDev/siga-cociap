@@ -77,7 +77,10 @@
         -webkit-mask-image: url('../assets/icons/save_logo.svg');
                 mask-image: url('../assets/icons/save_logo.svg');
     }
-
+    &--saveall {
+        -webkit-mask-image: url('../assets/icons/check-circle.svg');
+                mask-image: url('../assets/icons/check-circle.svg');
+    }
     &--upload {
         -webkit-mask-image: url('../assets/icons/upload_minimal.svg');
                 mask-image: url('../assets/icons/upload_minimal.svg');
@@ -91,5 +94,25 @@
     &--view {
         -webkit-mask-image: url('../assets/icons/glasses-logo.svg');
                 mask-image: url('../assets/icons/glasses-logo.svg');
+    }
+
+    &--check {
+        -webkit-mask-image: url('../assets/icons/pass.svg');
+                mask-image: url('../assets/icons/pass.svg');
+    }
+
+    &--locked {
+        -webkit-mask-image: url('../assets/icons/locked.svg');
+                mask-image: url('../assets/icons/locked.svg');
+    }
+
+    &--unlocked {
+        -webkit-mask-image: url('../assets/icons/unlocked.svg');
+                mask-image: url('../assets/icons/unlocked.svg');
+    }
+
+    &--wait {
+        -webkit-mask-image: url('../assets/icons/sand-clock-wait.svg');
+                mask-image: url('../assets/icons/sand-clock-wait.svg');
     }
 }

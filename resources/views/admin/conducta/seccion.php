@@ -44,19 +44,22 @@ $completo  = $completitud['esperados'] > 0 && $completitud['completos'] >= $comp
 
 <?php if ($bloqueada): ?>
     <div class="alert alert--<?= $cerradaT ? 'success' : 'info' ?>">
-        <?php if ($cerradaT): ?>
-            ✓ Conducta <strong>cerrada y aprobada por el tutor</strong>
-            el <?= e(fechaLima($cierre['tutor_cerrado_en'])) ?>.
-        <?php else: ?>
-            🔒 Conducta <strong>bloqueada y aprobada por Registro Académico</strong>
-            el <?= e(fechaLima($cierre['ra_bloqueado_en'])) ?>. En espera del cierre del tutor.
-        <?php endif; ?>
-        Para corregir, solicita el desbloqueo a Dirección.
+        <span class="btn-icon btn-icon--locked" aria-hidden="true"></span>
+        <span>
+            <?php if ($cerradaT): ?>
+                Conducta <strong>bloqueada y aprobada por el tutor(a)</strong>
+                el <?= e(fechaLima($cierre['tutor_cerrado_en'])) ?>.
+            <?php else: ?>
+                Conducta <strong>bloqueada y aprobada por Registro Académico</strong>
+                el <?= e(fechaLima($cierre['ra_bloqueado_en'])) ?>. En espera del cierre del tutor.
+            <?php endif; ?>
+            Para corregir, solicita el desbloqueo a Registro Académico.
+        </span>
     </div>
 <?php endif; ?>
 
 <details class="conducta-criterios-leyenda">
-    <summary>Ver los <?= $total ?> criterios (Sí = cumple)</summary>
+    <summary>Ver los <?= $total ?> criterios (✓ = cumple · ✗ = no cumple)</summary>
     <ol class="conducta-criterios-lista">
         <?php foreach ($criterios as $c): ?>
             <li><?= e($c['texto']) ?></li>
@@ -64,7 +67,23 @@ $completo  = $completitud['esperados'] > 0 && $completitud['completos'] >= $comp
     </ol>
 </details>
 
-<div class="tabla-notas-wrapper">
+<?php if (!$bloqueada): ?>
+    <div class="conducta-toolbar">
+        <button type="button" id="conducta-autollenar" class="btn btn--secondary btn--sm"
+                title="Marcar Sí en los criterios sin responder (no cambia las excepciones)">
+            <span class="btn-icon btn-icon--saveall" aria-hidden="true"></span> Marcar Sí
+        </button>
+        <button type="button" id="conducta-guardar-todos" class="btn btn--primary btn--sm"
+                title="Guardar todas las filas pendientes">
+            <span class="btn-icon btn-icon--save" aria-hidden="true"></span> Guardar todo
+        </button>
+        <span class="conducta-toolbar__hint text-muted">
+            “Marcar Sí” rellena solo lo que falte.
+        </span>
+    </div>
+<?php endif; ?>
+
+<div class="tabla-notas-wrapper conducta-scroll">
     <table class="tabla-notas conducta-grilla">
         <thead>
             <tr>
@@ -73,8 +92,7 @@ $completo  = $completitud['esperados'] > 0 && $completitud['completos'] >= $comp
                 <?php foreach ($criterios as $i => $c): ?>
                     <th class="conducta-th-crit" title="<?= e($c['texto']) ?>">C<?= $i + 1 ?></th>
                 <?php endforeach; ?>
-                <th class="conducta-th-nota" title="Nota de Registro Académico (Sí ÷ <?= $total ?> × 20)">Nota RA</th>
-                <?php if (!$bloqueada): ?><th class="conducta-th-acciones">Acción</th><?php endif; ?>
+                <th class="conducta-th-nota" title="Nota de Registro Académico (Sí ÷ <?= $total ?> × 20)">Nota</th>
             </tr>
         </thead>
         <tbody>
@@ -88,11 +106,7 @@ $completo  = $completitud['esperados'] > 0 && $completitud['completos'] >= $comp
                     data-csrf="<?= e($csrfToken) ?>"
                     data-total="<?= $total ?>">
                     <td class="col-num"><?= $idx + 1 ?></td>
-                    <td class="col-nombre">
-                        <span class="conducta-estado-dot" aria-hidden="true"></span>
-                        <span class="conducta-estado-txt"><?= $guardado ? 'Guardado' : 'Sin guardar' ?></span>
-                        <?= e($est['nombre_completo']) ?>
-                    </td>
+                    <td class="col-nombre"><?= e($est['nombre_completo']) ?></td>
 
                     <?php foreach ($criterios as $c):
                         $val = $resp[(int) $c['id']] ?? null; // null | 0 | 1
@@ -102,21 +116,14 @@ $completo  = $completitud['esperados'] > 0 && $completitud['completos'] >= $comp
                                  data-valor="<?= $val === null ? '' : (int) $val ?>"
                                  role="group" aria-label="Criterio para <?= e($est['nombre_completo']) ?>">
                                 <button type="button" class="cc-btn cc-btn--si<?= $val === 1 ? ' cc-btn--activo' : '' ?>"
-                                        data-v="1" <?= $bloqueada ? 'disabled' : '' ?>>Sí</button>
+                                        data-v="1" title="Cumple" aria-label="Cumple" <?= $bloqueada ? 'disabled' : '' ?>>✓</button>
                                 <button type="button" class="cc-btn cc-btn--no<?= $val === 0 ? ' cc-btn--activo' : '' ?>"
-                                        data-v="0" <?= $bloqueada ? 'disabled' : '' ?>>No</button>
+                                        data-v="0" title="No cumple" aria-label="No cumple" <?= $bloqueada ? 'disabled' : '' ?>>✗</button>
                             </div>
                         </td>
                     <?php endforeach; ?>
 
                     <td class="conducta-td-nota"><span class="cc-nota">—</span></td>
-
-                    <?php if (!$bloqueada): ?>
-                        <td class="conducta-td-acciones">
-                            <button type="button" class="btn btn--primary btn--sm conducta-guardar">Guardar</button>
-                            <span class="conducta-status" aria-live="polite"></span>
-                        </td>
-                    <?php endif; ?>
                 </tr>
             <?php endforeach; ?>
         </tbody>
@@ -135,7 +142,7 @@ $completo  = $completitud['esperados'] > 0 && $completitud['completos'] >= $comp
             <?php endif; ?>
         </div>
         <button type="submit" class="btn btn--success" <?= $completo ? '' : 'disabled' ?>>
-            🔒 Bloquear y aprobar sección
+            <span class="btn-icon btn-icon--upload" aria-hidden="true"></span>Bloquear y aprobar 
         </button>
     </form>
 <?php endif; ?>

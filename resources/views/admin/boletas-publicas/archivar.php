@@ -39,7 +39,7 @@ unset($_bim);
 <!-- ── Panel de progreso ─────────────────────────────────── -->
 <div id="archivo-progreso" class="archivo-progreso">
     <div class="archivo-progreso__header">
-        <span class="archivo-progreso__icono" id="archivo-icono">⏳</span>
+        <span class="archivo-progreso__icono" id="archivo-icono"><span class="btn-icon btn-icon--wait" aria-hidden="true"></span></span>
         <div class="archivo-progreso__textos">
             <strong id="archivo-status">Iniciando archivado...</strong>
             <span id="archivo-detalle" class="archivo-progreso__detalle"></span>

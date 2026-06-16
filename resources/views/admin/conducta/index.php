@@ -47,7 +47,7 @@
 
                     <?php if ($bloqueada): ?>
                         <span class="conducta-estado-badge conducta-estado-badge--<?= $cerradaTut ? 'cerrada' : 'bloqueada' ?>">
-                            <?= $cerradaTut ? '✓ Cerrada por el tutor' : '🔒 Bloqueada (RA)' ?>
+                            <?= $cerradaTut ? '✓ Cerrada por el tutor' : '🔒 Bloqueada' ?>
                         </span>
                     <?php endif; ?>
 

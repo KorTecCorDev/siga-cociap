@@ -40,7 +40,7 @@ $pid       = (int) $periodoSel['id'];
 <?php if (!$cierre): ?>
 
     <div class="conducta-espera">
-        <div class="conducta-espera__icono" aria-hidden="true">⏳</div>
+        <div class="conducta-espera__icono" aria-hidden="true"><span class="btn-icon btn-icon--wait"></span></div>
         <h2 class="conducta-espera__titulo">Conducta pendiente de Registro Académico</h2>
         <p class="conducta-espera__texto">
             Todavía los auxiliares académicos no han registrado sus calificaciones de conducta
@@ -57,70 +57,123 @@ $pid       = (int) $periodoSel['id'];
 
     <?php if ($cerradoTutor): ?>
         <div class="alert alert--success">
-            ✓ Conducta <strong>cerrada y aprobada</strong> el <?= e(fechaLima($cierre['tutor_cerrado_en'])) ?>.
-            Para modificarla, solicita el desbloqueo a Dirección.
+            <span>
+                Conducta <strong>bloqueada y aprobada</strong> el <?= e(fechaLima($cierre['tutor_cerrado_en'])) ?>.
+                Para modificarla, solicita el desbloqueo a Registro Académico.
+            </span>
         </div>
     <?php else: ?>
         <div class="alert alert--info">
-            🔒 Registro Académico bloqueó la conducta el <?= e(fechaLima($cierre['ra_bloqueado_en'])) ?>.
-            Puedes agregar tu nota (00–20, opcional) por estudiante; se promedia con la de RA.
-            Cuando termines, <strong>cierra y aprueba</strong> la sección.
+            <span class="btn-icon btn-icon--locked" aria-hidden="true"></span>
+            <span>
+                Se aprobó las notas de conducta el <?= e(fechaLima($cierre['ra_bloqueado_en'])) ?>.
+                Puedes agregar tu nota (00–20).
+                Cuando termines, <strong>bloquea y aprueba</strong>.
+            </span>
         </div>
     <?php endif; ?>
 
-    <div class="tabla-notas-wrapper">
-        <table class="tabla-notas conducta-tutor-tabla">
-            <thead>
-                <tr>
-                    <th class="col-num">N°</th>
-                    <th class="col-nombre">Apellidos y Nombres</th>
-                    <th class="conducta-th-nota" title="Nota de Registro Académico">Nota RA</th>
-                    <th class="conducta-th-nota" title="Tu nota (opcional)">Tu nota</th>
-                    <th class="conducta-th-nota" title="Promedio final (.5 a favor)">Final</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($estudiantes as $i => $est): ?>
-                    <tr class="conducta-tutor-fila"
-                        data-matricula="<?= (int) $est['matricula_id'] ?>"
-                        data-periodo="<?= $pid ?>"
-                        data-csrf="<?= e($csrfToken) ?>"
-                        data-nota-ra="<?= (int) $est['nota_ra'] ?>">
-                        <td class="col-num"><?= $i + 1 ?></td>
-                        <td class="col-nombre"><?= e($est['nombre_completo']) ?></td>
-                        <td class="conducta-td-nota"><?= fmt_nota((int) $est['nota_ra']) ?></td>
-                        <td class="conducta-td-nota">
-                            <?php if ($editable): ?>
-                                <input type="number" class="conducta-nota-tutor" min="0" max="20" step="1"
-                                       inputmode="numeric" autocomplete="off"
-                                       value="<?= $est['nota_tutor'] !== null ? (int) $est['nota_tutor'] : '' ?>"
-                                       aria-label="Tu nota para <?= e($est['nombre_completo']) ?>">
-                                <span class="conducta-status" aria-live="polite"></span>
-                            <?php else: ?>
-                                <?= $est['nota_tutor'] !== null ? fmt_nota((int) $est['nota_tutor']) : '—' ?>
-                            <?php endif; ?>
-                        </td>
-                        <td class="conducta-td-nota conducta-final">
-                            <span class="conducta-final__nota"><?= fmt_nota((int) $est['nota_final']) ?></span>
-                            <span class="conducta-final__lit cc-nota--<?= strtolower($est['literal_final']) ?>">
-                                (<?= e($est['literal_final']) ?>)
-                            </span>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+    <div class="card mb-lg">
+        <div class="card__header">
+            <h2 class="card__title">Comportamiento</h2>
+            <span class="competencia-card__codigo"><?= e($periodoSel['nombre_display']) ?></span>
+        </div>
 
-    <?php if ($editable): ?>
-        <form id="conducta-cerrar-form" class="conducta-bloqueo-form"
-              data-action="<?= url('docente/conducta/' . $pid . '/cerrar') ?>"
-              data-csrf="<?= e($csrfToken) ?>">
-            <div class="conducta-bloqueo-info">
-                Tu nota es opcional: puedes cerrar sin agregarla (la final será la nota de RA).
-            </div>
-            <button type="submit" class="btn btn--success">✓ Cerrar y aprobar sección</button>
-        </form>
-    <?php endif; ?>
+        <div class="tabla-responsive">
+            <table class="tabla-resumen conducta-tutor-tabla">
+                <thead>
+                    <tr>
+                        <th class="col-num">N°</th>
+                        <th class="col-nombre">Apellidos y nombres</th>
+                        <th class="col-numeral text-center" title="Nota de Registro Académico">Nota del Auxiliar</th>
+                        <th class="col-numeral text-center" title="Tu nota (opcional, 00–20)">Tu nota</th>
+                        <th class="col-numeral text-center" title="Promedio final (.5 a favor)">Numeral</th>
+                        <th class="col-literal text-center">Literal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($estudiantes as $i => $est):
+                        $esLegado = !empty($est['es_legado']);
+                        $notaRa   = $est['nota_ra'];        // int|null
+                        $notaFin  = $est['nota_final'];     // int|null
+                        $litFin   = $est['literal_final'];  // string|null
+                        $litRa    = $notaRa !== null ? nota_a_literal((int) $notaRa) : null;
+                    ?>
+                        <tr class="conducta-tutor-fila<?= $esLegado ? ' conducta-tutor-fila--legado' : '' ?>"
+                            data-matricula="<?= (int) $est['matricula_id'] ?>"
+                            data-periodo="<?= $pid ?>"
+                            data-csrf="<?= e($csrfToken) ?>"
+                            data-nota-ra="<?= $notaRa !== null ? (int) $notaRa : '' ?>">
+                            <td class="col-num"><?= $i + 1 ?></td>
+                            <td class="col-nombre"><strong><?= e($est['nombre_completo']) ?></strong></td>
+
+                            <!-- Nota de Registro Académico (Auxiliar) -->
+                            <td class="col-numeral text-center">
+                                <?php if ($notaRa !== null): ?>
+                                    <span class="nota-numeral nota-numeral--<?= strtolower($litRa) ?>">
+                                        <?= fmt_nota((int) $notaRa) ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="text-muted" title="I Bimestre: registro por literal directo (legado)">—</span>
+                                <?php endif; ?>
+                            </td>
+
+                            <!-- Nota del tutor (editable / lectura) -->
+                            <td class="col-numeral text-center">
+                                <?php if ($editable && !$esLegado): ?>
+                                    <input type="number" class="conducta-nota-tutor" min="0" max="20" step="1"
+                                           inputmode="numeric" autocomplete="off"
+                                           value="<?= $est['nota_tutor'] !== null ? (int) $est['nota_tutor'] : '' ?>"
+                                           aria-label="Tu nota para <?= e($est['nombre_completo']) ?>">
+                                    <span class="conducta-status" aria-live="polite"></span>
+                                <?php elseif (!$esLegado && $est['nota_tutor'] !== null):
+                                    $litTut = nota_a_literal((int) $est['nota_tutor']); ?>
+                                    <span class="nota-numeral nota-numeral--<?= strtolower($litTut) ?>">
+                                        <?= fmt_nota((int) $est['nota_tutor']) ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="text-muted">—</span>
+                                <?php endif; ?>
+                            </td>
+
+                            <!-- Numeral final -->
+                            <td class="col-numeral text-center">
+                                <?php if ($notaFin !== null): ?>
+                                    <span class="nota-numeral nota-numeral--<?= strtolower($litFin) ?> conducta-final__nota">
+                                        <?= fmt_nota((int) $notaFin) ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="text-muted">—</span>
+                                <?php endif; ?>
+                            </td>
+
+                            <!-- Literal final -->
+                            <td class="col-literal text-center">
+                                <?php if ($litFin !== null): ?>
+                                    <span class="nota-literal nota-literal--<?= strtolower($litFin) ?> conducta-final__lit"<?= $esLegado ? ' title="I Bimestre (legado)"' : '' ?>>
+                                        <?= e($litFin) ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="text-muted">—</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <?php if ($editable): ?>
+            <form id="conducta-cerrar-form" class="resumen-footer"
+                  data-action="<?= url('docente/conducta/' . $pid . '/cerrar') ?>"
+                  data-csrf="<?= e($csrfToken) ?>">
+                <button type="submit" class="btn btn--success">
+                    <span class="btn-icon btn-icon--upload" aria-hidden="true"></span>
+                    Bloquear y aprobar
+                </button>
+                <span class="text-muted text-sm">Verifique correctamente los datos.</span>
+            </form>
+        <?php endif; ?>
+    </div><!-- /.card -->
 
 <?php endif; ?>

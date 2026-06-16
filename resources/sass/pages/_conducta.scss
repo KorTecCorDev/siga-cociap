@@ -43,6 +43,37 @@
     }
 }
 
+// ── Barra de acciones (autollenar) ──────────────────────────────────────────
+.conducta-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: $spacing-sm $spacing-md;
+    margin-bottom: $spacing-sm;
+
+    &__hint { font-size: $font-size-sm; }
+}
+
+// ── Scroll con encabezado fijo ──────────────────────────────────────────────
+// El wrapper se vuelve el contenedor de scroll (vertical + horizontal); el thead
+// queda pegado arriba y las columnas N°/Nombre pegadas a la izquierda conviven.
+.conducta-scroll {
+    max-height: calc(100vh - 220px);
+    overflow: auto;
+
+    .conducta-grilla thead th {
+        position: sticky;
+        top: 0;
+        z-index: 4; // sobre las celdas sticky del cuerpo (z-index 2)
+        // En border-collapse el borde inferior se va con el scroll: lo emulo.
+        box-shadow: inset 0 -1px 0 $border-color;
+    }
+
+    // La esquina (N°/Nombre del encabezado) es sticky en ambos ejes → la más alta
+    .conducta-grilla thead .col-num,
+    .conducta-grilla thead .col-nombre { z-index: 5; }
+}
+
 // ── Grilla de criterios ─────────────────────────────────────────────────────
 .conducta-grilla {
     th.conducta-th-crit {
@@ -51,10 +82,17 @@
         cursor: help;
     }
     th.conducta-th-nota     { min-width: 84px; text-align: center; }
-    th.conducta-th-acciones { min-width: 120px; }
 
     td.conducta-td-crit { text-align: center; padding: $spacing-xs; }
     td.conducta-td-nota { text-align: center; font-weight: 600; }
+
+    // Separador vertical entre columnas de criterios para no confundir el Si/No
+    th.conducta-th-crit,
+    td.conducta-td-crit { border-left: 1px solid $border-color; }
+
+    // Cierra la ultima columna de criterios contra la columna de nota
+    th.conducta-th-nota,
+    td.conducta-td-nota { border-left: 1px solid $border-color; }
 }
 
 // Toggle Si/No por criterio
@@ -70,9 +108,11 @@
     border: 0;
     background: $bg-white;
     color: $text-muted;
+    min-width: 34px;          // ancho parejo entre ✓ y ✗
     padding: $spacing-xs $spacing-sm;
-    font-size: $font-size-sm;
-    font-weight: 600;
+    font-size: $font-size-base;
+    line-height: 1.1;
+    font-weight: 700;
     cursor: pointer;
     transition: background .12s, color .12s;
 
@@ -95,46 +135,20 @@
     &--c  { color: $color-error; }
 }
 
-// ── Estado de guardado por fila (pendiente / guardado) ──────────────────────
-.conducta-estado-dot {
-    display: inline-block;
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    margin-right: $spacing-xs;
-    vertical-align: middle;
-    background: $color-warning; // por defecto: sin guardar
-}
-
-.conducta-estado-txt {
-    display: inline-block;
-    margin-right: $spacing-sm;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    color: $color-warning;
-}
-
+// ── Estado de guardado por fila (sin texto: barra izquierda + color de fila) ─
+// El fondo se aplica tambien a las celdas sticky (col-num/col-nombre) con
+// !important para ganarle a su fondo propio, igual que .fila-pendiente.
 .conducta-fila--pendiente {
+    td,
+    td.col-num,
+    td.col-nombre { background: $color-warning-bg !important; }
+
     // barra de estado en la celda N° (no pelea con el fondo sticky)
     td.col-num { box-shadow: inset 3px 0 0 $color-warning; }
 }
 
 .conducta-fila--guardada {
     td.col-num { box-shadow: inset 3px 0 0 $color-success; }
-    .conducta-estado-dot { background: $color-success; }
-    .conducta-estado-txt { color: $color-success; }
-}
-
-.conducta-status {
-    display: inline-block;
-    margin-left: $spacing-sm;
-    font-size: $font-size-sm;
-
-    &.status--success { color: $color-success; }
-    &.status--error   { color: $color-error; }
-    &.status--loading { color: $text-muted; }
 }
 
 // ── Bloqueo de seccion ──────────────────────────────────────────────────────
@@ -185,13 +199,15 @@
     border: 1px solid rgba($color-warning, 0.35);
     border-radius: $border-radius-lg;
 
-    &__icono  { font-size: 40px; }
+    &__icono  { font-size: 40px; color: $color-warning; }
     &__titulo { margin: $spacing-sm 0; color: $color-warning; font-size: $font-size-lg; }
     &__texto  { max-width: 560px; margin: 0 auto; color: $text-secondary; }
 }
 
-// Tabla del tutor
+// Tabla del tutor — reusa el estilo .tabla-resumen (badges nota-numeral/nota-literal)
 .conducta-tutor-tabla {
+    td { vertical-align: middle; }
+
     .conducta-nota-tutor {
         width: 60px;
         text-align: center;
@@ -199,11 +215,17 @@
         border: 1px solid $border-color;
         border-radius: $border-radius-sm;
     }
-    .conducta-final {
-        font-weight: 700;
-        white-space: nowrap;
-    }
-    .conducta-final__lit { margin-left: 2px; font-size: $font-size-sm; }
+}
+
+// Indicador de guardado junto al input de nota del tutor
+.conducta-status {
+    display: inline-block;
+    margin-left: $spacing-xs;
+    font-size: $font-size-sm;
+
+    &.status--success { color: $color-success; }
+    &.status--error   { color: $color-error; }
+    &.status--loading { color: $text-muted; }
 }
 
 // ── Feedback flotante ───────────────────────────────────────────────────────

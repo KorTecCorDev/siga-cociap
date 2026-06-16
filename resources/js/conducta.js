@@ -73,16 +73,22 @@ function pintarToggle(toggle) {
     });
 }
 
-// Marca visual del estado de guardado de la fila (dot + texto).
+// Marca visual del estado de guardado de la fila (barra izquierda + color de fila).
 function marcarEstado(fila, estado) { // 'guardado' | 'pendiente'
     const guardado = estado === 'guardado';
     fila.classList.toggle('conducta-fila--guardada', guardado);
     fila.classList.toggle('conducta-fila--pendiente', !guardado);
-    const txt = fila.querySelector('.conducta-estado-txt');
-    if (txt) txt.textContent = guardado ? 'Guardado' : 'Sin guardar';
 }
 
-async function guardarFila(fila) {
+// true si la fila tiene los N criterios respondidos.
+function filaCompleta(fila) {
+    return [...fila.querySelectorAll('.cc-toggle')]
+        .every(t => t.dataset.valor === '1' || t.dataset.valor === '0');
+}
+
+// Guarda una fila. En modo silencioso no dispara el toast global (lo usa el
+// guardado masivo, que muestra un resumen agregado). Devuelve true si guardó.
+async function guardarFila(fila, silencioso = false) {
     const toggles = [...fila.querySelectorAll('.cc-toggle')];
     const respuestas = {};
     let faltan = false;
@@ -94,8 +100,8 @@ async function guardarFila(fila) {
 
     if (faltan) {
         mostrarStatusFila(fila, 'error', '⚠ Responde todos', true);
-        mostrarFeedback('error', '⚠ Faltan criterios por responder en esta fila.');
-        return;
+        if (!silencioso) mostrarFeedback('error', '⚠ Faltan criterios por responder en esta fila.');
+        return false;
     }
 
     const btn = fila.querySelector('.conducta-guardar');
@@ -115,18 +121,95 @@ async function guardarFila(fila) {
         if (data.success) {
             marcarEstado(fila, 'guardado');
             mostrarStatusFila(fila, 'success', '✓ Guardado');
-            mostrarFeedback('ok', '✓ Guardado');
-        } else {
-            mostrarStatusFila(fila, 'error', '⚠ ' + (data.mensaje ?? 'Error'), true);
-            mostrarFeedback('error', '⚠ ' + (data.mensaje ?? 'Error al guardar.'));
+            if (!silencioso) mostrarFeedback('ok', '✓ Guardado');
+            return true;
         }
+        mostrarStatusFila(fila, 'error', '⚠ ' + (data.mensaje ?? 'Error'), true);
+        if (!silencioso) mostrarFeedback('error', '⚠ ' + (data.mensaje ?? 'Error al guardar.'));
+        return false;
     } catch (err) {
         mostrarStatusFila(fila, 'error', '⚠ Error de conexión', true);
-        mostrarFeedback('error', '⚠ Error de conexión.');
+        if (!silencioso) mostrarFeedback('error', '⚠ Error de conexión.');
+        return false;
     } finally {
         if (btn) btn.disabled = false;
     }
 }
+
+// Guarda en lote todas las filas pendientes y completas. Las pendientes con
+// criterios sin responder se saltan (no se pueden guardar) y se informan.
+async function guardarTodosPendientes(boton) {
+    const pendientes = [...document.querySelectorAll('.conducta-fila--pendiente')];
+    const completas  = pendientes.filter(filaCompleta);
+    const incompletas = pendientes.length - completas.length;
+
+    if (completas.length === 0) {
+        mostrarFeedback(incompletas ? 'error' : 'ok',
+            incompletas
+                ? `⚠ ${incompletas} fila(s) pendiente(s) tienen criterios sin responder.`
+                : 'No hay filas pendientes por guardar.');
+        return;
+    }
+
+    if (boton) boton.disabled = true;
+    let ok = 0, fail = 0;
+    for (const fila of completas) {
+        (await guardarFila(fila, true)) ? ok++ : fail++;
+    }
+
+    // Todo guardado, sin errores ni filas a medio llenar → refrescar para
+    // mostrar los registros ya persistidos desde la BD.
+    if (fail === 0 && incompletas === 0) {
+        mostrarFeedback('ok', `✓ ${ok} fila(s) guardada(s). Actualizando…`);
+        setTimeout(() => window.location.reload(), 700);
+        return;
+    }
+
+    // Si quedaron filas sin completar, NO recargamos (perderían sus marcas).
+    if (boton) boton.disabled = false;
+    const extra = incompletas ? ` · ${incompletas} sin completar` : '';
+    if (fail === 0) mostrarFeedback('ok', `✓ ${ok} guardada(s)${extra}. Completa las faltantes y vuelve a guardar.`);
+    else            mostrarFeedback('error', `Guardadas ${ok}, con error ${fail}${extra}.`);
+}
+
+// Autollenar ✓ (Sí) en los criterios SIN responder de todas las filas.
+// Manual y nunca destructivo: respeta toda marca previa (✓ o ✗). No guarda:
+// deja las filas afectadas en estado pendiente para que el usuario revise y guarde.
+function autollenarSi() {
+    let celdas = 0, filas = 0;
+    document.querySelectorAll('.conducta-fila').forEach(fila => {
+        let cambiada = false;
+        fila.querySelectorAll('.cc-toggle').forEach(toggle => {
+            const v = toggle.dataset.valor;
+            if (v === '1' || v === '0') return;            // ya respondida → no tocar
+            if (toggle.querySelector('.cc-btn')?.disabled) return; // seccion bloqueada
+            toggle.dataset.valor = '1';
+            pintarToggle(toggle);
+            celdas++;
+            cambiada = true;
+        });
+        if (cambiada) {
+            recalcularNotaFila(fila);
+            marcarEstado(fila, 'pendiente');
+            filas++;
+        }
+    });
+
+    if (celdas === 0) {
+        mostrarFeedback('ok', 'No quedaban criterios sin responder.');
+    } else {
+        mostrarFeedback('ok', `✓ ${celdas} criterio(s) marcados en ${filas} fila(s). Revisa las excepciones y guarda.`);
+    }
+}
+
+document.getElementById('conducta-autollenar')?.addEventListener('click', () => {
+    if (!confirm('¿Marcar ✓ (Sí) en todos los criterios sin responder?\nNo cambia las marcas existentes. Luego revisa las excepciones y guarda.')) return;
+    autollenarSi();
+});
+
+document.getElementById('conducta-guardar-todos')?.addEventListener('click', e => {
+    guardarTodosPendientes(e.currentTarget);
+});
 
 document.querySelectorAll('.conducta-fila').forEach(fila => {
     fila.querySelectorAll('.cc-toggle').forEach(toggle => {
@@ -140,5 +223,4 @@ document.querySelectorAll('.conducta-fila').forEach(fila => {
         });
     });
     recalcularNotaFila(fila); // nota inicial al cargar
-    fila.querySelector('.conducta-guardar')?.addEventListener('click', () => guardarFila(fila));
 });

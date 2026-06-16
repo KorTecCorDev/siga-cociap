@@ -281,6 +281,13 @@ body.auth-body {
     &:hover    { background: darken($brand-accent, 8%); }
     &:active   { transform: scale(.99); }
     &:disabled { background: lighten($brand-accent, 20%); cursor: not-allowed; }
+
+    // El icono de espera gira mientras se procesa el login.
+    &__spinner .btn-icon { animation: btn-login-spin 1s linear infinite; }
+}
+
+@keyframes btn-login-spin {
+    to { transform: rotate(360deg); }
 }
 
 // ── Responsivo ───────────────────────────────────────────────

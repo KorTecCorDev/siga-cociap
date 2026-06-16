@@ -93,7 +93,7 @@
 
         <button type="submit" class="btn-login" id="btn-login">
             <span class="btn-login__text">Ingresar al sistema</span>
-            <span class="btn-login__spinner" hidden>⏳</span>
+            <span class="btn-login__spinner" hidden><span class="btn-icon btn-icon--wait" aria-hidden="true"></span></span>
         </button>
 
     </form>

@@ -60,8 +60,11 @@ $pid      = (int) $periodoSel['id'];
         : 0;
     ?>
     <div class="flash flash--warning">
-        ⏳ Aún no puedes cerrar. El cierre se habilita cuando todos los docentes
-        de la sección aprueban sus cargas.
+        <span class="btn-icon btn-icon--wait" aria-hidden="true"></span>
+        <span>
+            Aún no puedes cerrar. El cierre se habilita cuando todos los docentes
+            de la sección aprueban sus cargas.
+        </span>
     </div>
 
     <div class="card mb-lg">

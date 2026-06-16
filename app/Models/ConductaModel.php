@@ -365,6 +365,7 @@ class ConductaModel extends BaseModel
                 m.id AS matricula_id,
                 CONCAT(p.apellido_paterno,' ',p.apellido_materno,', ',p.nombres) AS nombre_completo,
                 cc.nota_tutor,
+                cc.literal AS literal_legado,
                 (SELECT COUNT(*) FROM conducta_respuestas r
                   WHERE r.matricula_id = m.id AND r.periodo_id = ? AND r.respuesta = 1) AS si,
                 (SELECT COUNT(*) FROM conducta_respuestas r
@@ -379,15 +380,35 @@ class ConductaModel extends BaseModel
         ", [$periodoId, $periodoId, $periodoId, $seccionId]);
 
         foreach ($rows as &$r) {
-            $si      = (int) $r['si'];
-            $notaRA  = $totalCriterios > 0 ? ($si / $totalCriterios) * 20 : 0.0;
-            $nt      = $r['nota_tutor'] !== null ? (int) $r['nota_tutor'] : null;
-            $final   = $this->promediar($notaRA, $nt);
+            $respondidos = (int) $r['respondidos'];
+            $si          = (int) $r['si'];
+            $nt          = $r['nota_tutor'] !== null ? (int) $r['nota_tutor'] : null;
 
-            $r['nota_ra']       = (int) round($notaRA, 0, PHP_ROUND_HALF_UP);
-            $r['nota_final']    = $final;
-            $r['literal_final'] = nota_a_literal($final);
+            if ($respondidos > 0 && $totalCriterios > 0) {
+                // Modelo nuevo (B2+): nota RA derivada de las respuestas Si/No.
+                $notaRA = ($si / $totalCriterios) * 20;
+                $final  = $this->promediar($notaRA, $nt);
+
+                $r['nota_ra']       = (int) round($notaRA, 0, PHP_ROUND_HALF_UP);
+                $r['nota_final']    = $final;
+                $r['literal_final'] = nota_a_literal($final);
+                $r['es_legado']     = false;
+            } elseif ($r['literal_legado'] !== null) {
+                // Legado (I Bimestre): literal directo, sin nota numerica.
+                // Mismo criterio que componerLiteral() (la nota del tutor no aplica).
+                $r['nota_ra']       = null;
+                $r['nota_final']    = null;
+                $r['literal_final'] = $r['literal_legado'];
+                $r['es_legado']     = true;
+            } else {
+                // Sin datos para este periodo.
+                $r['nota_ra']       = null;
+                $r['nota_final']    = null;
+                $r['literal_final'] = null;
+                $r['es_legado']     = false;
+            }
         }
+        unset($r);
         return $rows;
     }
 

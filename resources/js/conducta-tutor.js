@@ -52,10 +52,13 @@ function recalcularFinal(fila) {
     const raw = input && input.value !== '' ? parseInt(input.value, 10) : null;
     const fin = (raw === null || isNaN(raw)) ? ra : Math.round((ra + raw) / 2);
     const lit = literalDe(fin);
+    const litLower = lit.toLowerCase();
 
+    // Mismo estilo que ver-resumen: badges nota-numeral / nota-literal.
     sNota.textContent = pad2(fin);
-    sLit.textContent = `(${lit})`;
-    sLit.className = `conducta-final__lit cc-nota--${lit.toLowerCase()}`;
+    sNota.className = `nota-numeral nota-numeral--${litLower} conducta-final__nota`;
+    sLit.textContent = lit;
+    sLit.className = `nota-literal nota-literal--${litLower} conducta-final__lit`;
 }
 
 function sanear(input) {
