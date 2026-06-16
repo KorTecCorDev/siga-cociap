@@ -191,7 +191,8 @@ class AnioAcademicoModel extends BaseModel
      */
     public function bloquearCompetenciasPendientes(int $periodoId, int $usuarioId): int
     {
-        $stmt = $this->db->prepare("
+        // 1) Competencias PROPIAS de cada carga activa (por su subarea/area).
+        $stmtPropias = $this->db->prepare("
             INSERT IGNORE INTO bloqueos_competencia
                 (carga_id, competencia_id, periodo_id, bloqueado_por, origen)
             SELECT ca.id, comp.id, ?, ?, 'cierre'
@@ -204,7 +205,57 @@ class AnioAcademicoModel extends BaseModel
             WHERE ca.estado  = 'activa'
               AND ca.anio_id = (SELECT anio_id FROM periodos WHERE id = ?)
         ");
-        $stmt->execute([$periodoId, $usuarioId, $periodoId]);
+        $stmtPropias->execute([$periodoId, $usuarioId, $periodoId]);
+
+        // 2) Competencias TRANSVERSALES (TIC/GAMA): viven en un area
+        //    tipo='transversal' del NIVEL de la carga (carga -> seccion -> grado
+        //    -> nivel), distinta del area propia, por eso el JOIN de arriba no
+        //    las alcanza. Cada docente las registra en su propia carga, asi que
+        //    se bloquean por carga igual que en la aprobacion del docente
+        //    (Variante 1). Sin esto el cierre dejaba las TIC/GAMA sin bloquear.
+        $stmtTrans = $this->db->prepare("
+            INSERT IGNORE INTO bloqueos_competencia
+                (carga_id, competencia_id, periodo_id, bloqueado_por, origen)
+            SELECT ca.id, comp.id, ?, ?, 'cierre'
+            FROM cargas_academicas ca
+            INNER JOIN secciones s ON s.id = ca.seccion_id
+            INNER JOIN grados    g ON g.id = s.grado_id
+            INNER JOIN areas     a ON a.tipo = 'transversal' AND a.nivel_id = g.nivel_id
+            INNER JOIN competencias comp ON comp.area_id = a.id
+            WHERE ca.estado  = 'activa'
+              AND ca.anio_id = (SELECT anio_id FROM periodos WHERE id = ?)
+        ");
+        $stmtTrans->execute([$periodoId, $usuarioId, $periodoId]);
+
+        return $stmtPropias->rowCount() + $stmtTrans->rowCount();
+    }
+
+    /**
+     * Crea el cierre transversal (cierres_transversales) de cada seccion con
+     * cargas activas que aun NO tenga uno vigente, para que las TIC/GAMA queden
+     * agregadas y visibles en boleta tras el cierre forzado (getTransversalesAgregadas
+     * exige cierre vigente). Idempotente: NO duplica los cierres que el tutor ya
+     * hizo (los respeta por el NOT EXISTS sobre anulado_en IS NULL). El cleanup
+     * manual del panel de bloqueos los anula via seccionesConBloqueosDeCierre.
+     * Retorna cuantos cierres creo.
+     */
+    public function crearCierresTransversalesPendientes(int $periodoId, int $usuarioId): int
+    {
+        $stmt = $this->db->prepare("
+            INSERT INTO cierres_transversales (seccion_id, periodo_id, cerrado_por)
+            SELECT DISTINCT s.id, ?, ?
+            FROM secciones s
+            INNER JOIN cargas_academicas ca
+                ON ca.seccion_id = s.id AND ca.estado = 'activa'
+            WHERE s.anio_id = (SELECT anio_id FROM periodos WHERE id = ?)
+              AND NOT EXISTS (
+                  SELECT 1 FROM cierres_transversales ct
+                  WHERE ct.seccion_id = s.id
+                    AND ct.periodo_id = ?
+                    AND ct.anulado_en IS NULL
+              )
+        ");
+        $stmt->execute([$periodoId, $usuarioId, $periodoId, $periodoId]);
         return $stmt->rowCount();
     }
 

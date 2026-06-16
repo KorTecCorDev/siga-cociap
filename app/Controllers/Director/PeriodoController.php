@@ -110,7 +110,11 @@ class PeriodoController extends BaseController
 
         try {
             $this->model->beginTransaction();
+            // Bloquea competencias propias + transversales (TIC/GAMA) de cada carga.
             $this->model->bloquearCompetenciasPendientes($id, $usuarioId);
+            // Cierra las transversales por seccion para que agreguen en boleta
+            // (respeta los cierres que el tutor ya hizo).
+            $this->model->crearCierresTransversalesPendientes($id, $usuarioId);
             $this->model->setEstadoPeriodo($id, 'cerrado');
             $this->model->commit();
         } catch (\Exception $e) {
