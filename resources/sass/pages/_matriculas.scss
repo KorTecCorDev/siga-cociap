@@ -125,6 +125,10 @@
     gap: $spacing-xs;
     max-width: 420px;
 
+    // El atributo [hidden] debe ganar al display:flex de arriba (el JS colapsa
+    // el formulario con form.hidden = true); si no, queda siempre visible.
+    &[hidden] { display: none; }
+
     .btn { align-self: flex-start; }
 }
 
@@ -259,6 +263,64 @@
         font-size: $font-size-sm;
 
         li { margin-bottom: 2px; }
+    }
+}
+
+// ── Acciones de gestión (show): bloque diferenciado por severidad ──
+// Cada operación: info (título + descripción) + control, con borde
+// izquierdo de color según gravedad. safe=info · danger=destructiva ·
+// critico=la más delicada (retorno de grado).
+.mat-accion {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: $spacing-md;
+    flex-wrap: wrap;
+    padding: $spacing-md;
+    border: 1px solid $border-color;
+    border-left: 4px solid $border-color;
+    border-radius: $border-radius;
+    background: $bg-white;
+
+    & + & { margin-top: $spacing-sm; }
+
+    &__info { flex: 1 1 260px; min-width: 0; }
+
+    &__titulo {
+        display: block;
+        font-weight: 600;
+        color: $text-primary;
+    }
+
+    &__desc {
+        display: block;
+        margin-top: 2px;
+        font-size: $font-size-sm;
+        color: $text-muted;
+        line-height: 1.4;
+    }
+
+    &__control { flex: 0 0 auto; }
+
+    // El formulario de desactivar (disclosure) baja a su propia línea
+    // a ancho completo cuando se despliega, no apretado a la derecha.
+    .mat-desactivar-form {
+        flex: 1 1 100%;
+        max-width: 560px;
+        margin-top: $spacing-sm;
+    }
+
+    &--safe   { border-left-color: $color-info; }
+    &--danger { border-left-color: $color-error; }
+    &--critico {
+        border-left-color: $color-error;
+        border-color: lighten($color-error, 30%);
+        background: $color-error-bg;
+    }
+
+    @media (max-width: 640px) {
+        &__control { width: 100%; }
+        .mat-desactivar-form { max-width: 100%; }
     }
 }
 

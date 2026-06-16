@@ -461,6 +461,7 @@ class MatriculaController extends BaseController
             'traslado'     => $this->traslados->getUltimaPorMatricula((int) $id),
             'puedeGestionar' => has_role(['admin', 'registro_academico']),
             'pendientes'   => $this->pendientesParaActivar($matricula),
+            'page_scripts' => ['matriculas'],
         ]);
     }
 

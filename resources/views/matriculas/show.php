@@ -184,48 +184,104 @@ $labelDoc = [
 
 </div>
 
-<!-- Acciones -->
+<!-- ── Boleta (consulta / impresión) ─────────────────────────── -->
+<?php if ($esActivo): ?>
+<div class="card mb-md">
+    <div class="card__body">
+        <p class="form-section-title">Boleta</p>
+        <p class="text-sm text-muted mb-sm">Consulta la boleta del estudiante en pantalla o imprímela en formato físico A4.</p>
+        <div class="btn-group">
+            <a href="<?= url('boleta/digital/' . $mid . '/1') ?>" target="_blank" rel="noopener"
+               class="btn btn--secondary">Ver boleta digital</a>
+            <a href="<?= url('boleta/' . $mid . '/1') ?>" target="_blank" rel="noopener"
+               class="btn btn--secondary">
+                <span class="btn-icon btn-icon--print" aria-hidden="true"></span>
+                Imprimir boleta
+            </a>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- ── Gestión de la matrícula (operaciones diferenciadas) ────── -->
+<?php if ($puedeGestionar): ?>
 <div class="card mb-lg">
     <div class="card__body">
-        <p class="form-section-title">Acciones</p>
-        <div class="btn-group">
-            <?php if ($esActivo): ?>
-                <a href="<?= url('boleta/digital/' . $mid . '/1') ?>" class="btn btn--secondary">Ver boleta</a>
-            <?php endif; ?>
+        <p class="form-section-title">Gestión de la matrícula</p>
 
-            <?php if ($puedeGestionar): ?>
-                <?php if (!$esActivo): ?>
-                    <?php if (!empty($pendientes)): ?>
-                    <div class="mat-pendientes">
-                        <p class="mat-pendientes__titulo">Para activar, falta completar:</p>
-                        <ul class="mat-pendientes__list">
-                            <?php foreach ($pendientes as $pend): ?>
-                            <li><?= e($pend) ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                    <?php else: ?>
+        <?php if (!$esActivo): ?>
+            <?php if (!empty($pendientes)): ?>
+            <div class="mat-pendientes">
+                <p class="mat-pendientes__titulo">Para activar, falta completar:</p>
+                <ul class="mat-pendientes__list">
+                    <?php foreach ($pendientes as $pend): ?>
+                    <li><?= e($pend) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php else: ?>
+            <div class="mat-accion mat-accion--safe">
+                <div class="mat-accion__info">
+                    <span class="mat-accion__titulo">Activar matrícula</span>
+                    <span class="mat-accion__desc">Cumple todos los requisitos. Al activarla contará para boletas, notas y orden de mérito.</span>
+                </div>
+                <div class="mat-accion__control">
                     <form method="POST" action="<?= url('matriculas/' . $mid . '/activar') ?>"
                           onsubmit="return confirm('¿Activar esta matrícula?')">
                         <?= csrf_field() ?>
                         <button type="submit" class="btn btn--primary">Activar matrícula</button>
                     </form>
-                    <?php endif; ?>
-                <?php else: ?>
+                </div>
+            </div>
+            <?php endif; ?>
+        <?php else: ?>
+            <!-- Desactivar (requiere motivo) — el motivo se despliega al pulsar
+                 "Desactivar". Mejora progresiva: sin JS, el formulario se ve abierto. -->
+            <div class="mat-accion mat-accion--danger">
+                <div class="mat-accion__info">
+                    <span class="mat-accion__titulo">Desactivar matrícula</span>
+                    <span class="mat-accion__desc">Conserva el tipo, pero desactiva el acceso del apoderado y oculta sus boletas públicas. Requiere un motivo.</span>
+                </div>
+                <div class="mat-accion__control" data-desactivar-control hidden>
+                    <button type="button" class="btn btn--danger" data-desactivar-toggle>Desactivar</button>
+                </div>
                 <form method="POST" action="<?= url('matriculas/' . $mid . '/desactivar') ?>"
-                      class="mat-desactivar-form"
-                      onsubmit="return confirm('¿Desactivar esta matrícula? Conserva su tipo, pero se desactivará el acceso del apoderado y sus boletas públicas.')">
+                      class="mat-desactivar-form" data-desactivar-form
+                      onsubmit="return confirm('¿Desactivar esta matrícula? Se desactivará el acceso del apoderado y sus boletas públicas.')">
                     <?= csrf_field() ?>
                     <label class="form-label" for="motivo_desactivar">Motivo de la desactivación <span class="text-danger">*</span></label>
-                    <textarea id="motivo_desactivar" name="motivo" class="form-control" rows="2"
+                    <textarea id="motivo_desactivar" name="motivo" class="form-input" rows="2"
                               required placeholder="Indica por qué se desactiva la matrícula"></textarea>
-                    <button type="submit" class="btn btn--danger">Desactivar</button>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn--secondary" data-desactivar-cancel hidden>Cancelar</button>
+                        <button type="submit" class="btn btn--danger">Confirmar baja</button>
+                    </div>
                 </form>
-                <a href="<?= url('matriculas/' . $mid . '/trasladar') ?>" class="btn btn--danger">Trasladar</a>
-                <?php endif; ?>
+            </div>
 
-                <a href="<?= url('matriculas/' . $mid . '/retorno') ?>" class="btn btn--secondary">Retorno de grado</a>
-            <?php endif; ?>
+            <!-- Trasladar de colegio -->
+            <div class="mat-accion mat-accion--danger">
+                <div class="mat-accion__info">
+                    <span class="mat-accion__titulo">Trasladar de colegio</span>
+                    <span class="mat-accion__desc">Genera la constancia de traslado a otra institución educativa y da de baja al estudiante.</span>
+                </div>
+                <div class="mat-accion__control">
+                    <a href="<?= url('matriculas/' . $mid . '/trasladar') ?>" class="btn btn--danger">Trasladar</a>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Retorno de grado: la operación más delicada -->
+        <div class="mat-accion mat-accion--critico">
+            <div class="mat-accion__info">
+                <span class="mat-accion__titulo">⚠ Retorno de grado</span>
+                <span class="mat-accion__desc">Caso especial y auditable: crea una matrícula operativa en un grado inferior; el estudiante asiste y compite en ese grado. La matrícula oficial se conserva. Requiere un motivo.</span>
+            </div>
+            <div class="mat-accion__control">
+                <a href="<?= url('matriculas/' . $mid . '/retorno') ?>" class="btn btn--danger">Retorno de grado</a>
+            </div>
         </div>
+
     </div>
 </div>
+<?php endif; ?>
