@@ -115,4 +115,8 @@
         -webkit-mask-image: url('../assets/icons/sand-clock-wait.svg');
                 mask-image: url('../assets/icons/sand-clock-wait.svg');
     }
+    &--bigwait {
+        -webkit-mask-image: url('../assets/icons/big-sand-clock-wait.svg');
+                mask-image: url('../assets/icons/big-sand-clock-wait.svg');
+    }
 }

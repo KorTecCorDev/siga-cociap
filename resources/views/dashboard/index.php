@@ -1,8 +1,8 @@
 <?php /** @var array $auth_user */ ?>
 
 <div class="welcome">
-    <h1>Bienvenido, <?= e(nombre_corto($auth_user['nombres'] ?? '', $auth_user['apellido_paterno'] ?? '')) ?> </h1>
-    <p>Panel de <?= e($auth_user['rol_nombre']) ?> · SIGA-COCIAP <?= date('Y') ?></p>
+    <h1>Bienvenido, <?= e(nombre_corto($auth_user['nombres'] ?? '', $auth_user['apellido_paterno'] ?? '')) ?><img class="welcome__wave" src="<?= url('assets/icons/hand-saludo.svg') ?>" alt="" aria-hidden="true"></h1>
+    <p>Panel de <?= e($auth_user['rol_nombre']) ?> · <?= date('Y') ?></p>
 </div>
 
 <?php if ($flash_success): ?>

@@ -4,6 +4,7 @@ namespace App\Controllers\Docente;
 
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
+use App\Models\ConductaModel;
 use App\Models\DirectorEbrModel;
 use App\Models\EstudianteModel;
 use App\Models\OrdenMeritoModel;
@@ -19,12 +20,14 @@ class PanelController extends BaseController
 {
     private CalificacionModel $calModel;
     private TransversalModel  $transModel;
+    private ConductaModel     $conductaModel;
 
     public function __construct()
     {
         $this->requireRole(['docente', 'admin']);
-        $this->calModel   = new CalificacionModel();
-        $this->transModel = new TransversalModel();
+        $this->calModel      = new CalificacionModel();
+        $this->transModel    = new TransversalModel();
+        $this->conductaModel = new ConductaModel();
     }
 
     /**
@@ -108,6 +111,18 @@ class PanelController extends BaseController
             ];
         }
 
+        // Card de Conducta (solo tutores del año activo): pendiente (RA no
+        // bloqueó) / disponible / cerrado. Misma fuente que /docente/mis-cargas.
+        $conducta = null;
+        if ($seccionTutor && $periodo) {
+            $cc = $this->conductaModel->getCierreVigente((int) $seccionTutor['id'], $pid);
+            $conducta = [
+                'seccion' => $seccionTutor,
+                'cierre'  => $cc,
+                'cerrado' => $cc && !empty($cc['tutor_cerrado_en']),
+            ];
+        }
+
         // Niveles del docente + resumen de nómina
         $niveles      = $this->getNivelesDocente($did);
         $nominaResumen = $this->getNominaResumen($niveles);
@@ -129,6 +144,7 @@ class PanelController extends BaseController
             'diasCierre'    => $diasCierre,
             'pendientes'    => $pendientes,
             'tutoria'       => $tutoria,
+            'conducta'      => $conducta,
             'niveles'       => $niveles,
             'nominaResumen' => $nominaResumen,
             'totalNomina'   => $totalNomina,

@@ -647,6 +647,88 @@ registran en el casillero de un área oficial que cede ese tramo de grados.
 - El panel muestra el conteo `stats['cierre_forzado']` y etiqueta "por cierre
   forzado" en cada fila bloqueada por el cierre.
 
+## Sistema de color "wayfinding" (16/06/2026)
+
+> Color FIJO por concepto en todo el sistema, como ayuda de orientación: hay
+> docentes que trabajan en varios colegios y se saturan con mucha información;
+> el color fijo deja que ubiquen el acceso sin leer.
+
+- **Tokens en `resources/sass/base/_variables.scss`** (bloque "Wayfinding del dashboard
+  docente"). Cada concepto tiene 3 variantes: `-line` (borde vivo), `-bg` (fondo tenue),
+  `-ink` (título oscuro legible):
+  | Concepto | `-line` | `-bg` | `-ink` |
+  |---|---|---|---|
+  | **Académicas / Mis cargas** (`$card-cargas-*`) | `#1e6fa8` azul | `#eef5fb` | `#1a5a8c` |
+  | **Transversales / Tutoría** (`$card-tutoria-*`) | `#0d9488` teal | `#ecfbf8` | `#0f766e` |
+  | **Conducta** (`$card-conducta-*`) | `#7c3aed` púrpura | `#f5f0fe` | `#6d28d9` |
+  | **Nómina** (`$card-nomina-*`) | `#e07b1a` naranja | `#fef3e2` | `#b45309` |
+- **REGLA:** rojo (`$color-error`) y ámbar (`$color-warning`) quedan RESERVADOS para los
+  badges de estado (error/advertencia); NUNCA se usan como identidad de un acceso.
+- Combinación azul↔naranja + teal/púrpura: bien diferenciable con daltonismo.
+- Aplicado en `/docente/inicio` y `/director/bloqueos`. Usar estos mismos colores en
+  futuras vistas para el mismo concepto.
+
+## Dashboard del docente — cards de acceso (16/06/2026)
+
+- **`/docente/inicio`** (`Docente\PanelController::index`) tiene 4 cards en `.dpanel-grid`:
+  **Mis cargas académicas** (azul), **Tutoría — {grado}{sección}** (teal), **Conducta —
+  {grado}{sección}** (púrpura) y **Nómina de matriculados** (naranja). Tutoría y Conducta
+  solo aparecen si el docente es tutor del año activo (`$tutoria`/`$conducta` no nulos).
+- `PanelController` ahora inyecta `ConductaModel` y calcula `$conducta` (mismo origen que
+  usaba `mis-cargas`: `ConductaModel::getCierreVigente`).
+- **Se eliminaron las cards largas** (`.tutoria-card`) de Tutoría y Conducta de
+  `/docente/mis-cargas`; `CalificacionController::misCargas` ya NO calcula
+  `$tutoria`/`$conducta` (y se quitaron de ese controlador `TransversalModel`/`ConductaModel`
+  que quedaron sin uso). La vista solo lista cargas.
+- **SASS** en `pages/_docente-panel.scss`: modificadores `.dpanel-card--{cargas,tutoria,
+  conducta,nomina}` (borde + título por color). El **fondo tenue (`-bg`) SOLO se pinta
+  cuando la card lleva un estado activo** (`--cerrado`/`--disponible`/`--progreso`); libre
+  de estados = fondo blanco (menos ruido). Como Mis cargas y Nómina nunca llevan estado,
+  quedan blancas; Tutoría/Conducta siempre traen estado, así que muestran su tinte.
+
+## Panel de bloqueos del director — hub de 3 tabs (16/06/2026)
+
+> `/director/bloqueos` pasó de ser un scroll único a un **hub** con 3 cards-tab que
+> separan los tres tipos de bloqueo. Mismo color wayfinding (académicas=azul,
+> transversales=teal, conducta=púrpura).
+
+### Estructura de la vista (`resources/views/director/bloqueos/index.php`)
+- Selector de periodo (igual) + `.bloqueos-hub` con 3 `.bloqueos-tabcard` (mini-stat
+  `X/Y` + barra + %). **Sin detalle hasta hacer clic.**
+- Tres `<section class="bloqueos-panel" data-panel="..." hidden>`:
+  - **academicas** — donut + widgets + ranking + tablas por sección (TODO lo que existía,
+    preservado intacto, solo envuelto en el panel).
+  - **transversales** — tabla TIC/GAMA cerrar/reabrir (lo que existía).
+  - **conducta** — tabla NUEVA (ver abajo).
+- **JS** (`resources/js/bloqueos.js`): tabs sin recargar; clic muestra un panel y oculta
+  los demás; segundo clic colapsa; recuerda el último tab **por periodo** en
+  `sessionStorage` (`bloqueos.tab.{periodoId}`) para no perder contexto tras un
+  POST→redirect. El acordeón de secciones académicas se mantiene.
+- **SASS** en `pages/_admin.scss`: `.bloqueos-hub`, `.bloqueos-tabcard--*` (tokens
+  wayfinding; fondo tenue solo en `--activa`), `.bloqueos-panel`, `.td-acciones-conducta`.
+
+### Conducta en el panel del director (gestión nueva)
+- **Dos etapas** (igual que el flujo real): **auxiliar académico** registra/bloquea
+  (etapa 1) → **tutor** cierra (etapa 2). Hoy la etapa 1 la hace el rol
+  `registro_academico`, pero en la UI se etiqueta **"auxiliar académico"** (rol futuro;
+  NO se creó el rol todavía).
+- `$conducta[]` con `estado` ∈ `pendiente_auxiliar` (rojo) / `pendiente_tutor` (ámbar) /
+  `cerrada` (verde) + columna "Calificados X/Y".
+- **El director tiene control total:** forzar etapa 1, forzar etapa 2, o **reabrir**
+  (anula con traza). Forzar etapa 1 RESPETA la regla de negocio (exige todos los
+  estudiantes calificados; el botón se deshabilita y `bloquearRA` lo revalida en servidor).
+  Reabrir es libre.
+- **`ConductaModel::getResumenSeccionesPorPeriodo(int $periodoId)`** — espejo del de
+  transversales (sección + tutor + estado de las 2 etapas del cierre), enriquecido con
+  completitud reusando `getProgresoConductaPorSeccion`. Solo secciones del año del periodo
+  CON tutor (la etapa 2 lo exige).
+- **`Director\BloqueoController`**: inyecta `ConductaModel`; `index()` arma
+  `$conducta`/`$conductaStats`/`$transStats` (todas inicializadas ANTES de los `if`, nunca
+  indefinidas en la vista); métodos `bloquearConducta`/`cerrarConducta`/`reabrirConducta`
+  (reusan `bloquearRA`/`cerrarTutor`/`anularCierre`) + helper privado `nivelIdDeSeccion`.
+- **Rutas** (registradas ANTES de `/director/bloqueos/{id}/desbloquear`):
+  `POST /director/bloqueos/conducta/{seccion_id}/{bloquear|cerrar|reabrir}`.
+
 ## Módulo Director EBR — historial de cargo (sesión 7)
 
 ### Tabla `director_ebr_historial`

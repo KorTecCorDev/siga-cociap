@@ -7,6 +7,15 @@
         font-weight: 700;
         color: $text-primary;
         margin-bottom: $spacing-xs;
+        display: inline-flex;
+        align-items: center;
+        gap: $spacing-sm;
+    }
+
+    &__wave {
+        width: 1.1em;
+        height: 1.1em;
+        flex-shrink: 0;
     }
 
     p {

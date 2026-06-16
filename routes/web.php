@@ -202,6 +202,9 @@ $router->post('/director/bloqueos/bloquear',             'Director\BloqueoContro
 $router->post('/director/bloqueos/limpiar-cierre',       'Director\BloqueoController@limpiarBloqueosCierre');
 $router->post('/director/bloqueos/transversal/{seccion_id}/cerrar',  'Director\BloqueoController@cerrarTransversal');
 $router->post('/director/bloqueos/transversal/{seccion_id}/reabrir', 'Director\BloqueoController@reabrirTransversal');
+$router->post('/director/bloqueos/conducta/{seccion_id}/bloquear',   'Director\BloqueoController@bloquearConducta');
+$router->post('/director/bloqueos/conducta/{seccion_id}/cerrar',     'Director\BloqueoController@cerrarConducta');
+$router->post('/director/bloqueos/conducta/{seccion_id}/reabrir',    'Director\BloqueoController@reabrirConducta');
 $router->post('/director/bloqueos/{id}/desbloquear',     'Director\BloqueoController@desbloquear');
 
 // ─── Resumen y bloqueo de competencia ────────────────────────

@@ -37,6 +37,16 @@ $color-warning-bg:#fffbeb;
 $color-info:      #0284c7;
 $color-info-bg:   #f0f9ff;
 
+// ── Wayfinding del dashboard docente (4 accesos) ─────────────
+// Color fijo por acceso para que el docente lo ubique sin leer.
+// 4 tonos bien separados (azul/teal/purpura/naranja) y legibles con
+// daltonismo. Rojo y ambar se reservan para los badges de estado.
+// Cada acceso: borde vivo (-line), fondo tenue (-bg), titulo oscuro (-ink).
+$card-cargas-line:   #1e6fa8;  $card-cargas-bg:   #eef5fb;  $card-cargas-ink:   #1a5a8c;
+$card-tutoria-line:  #0d9488;  $card-tutoria-bg:  #ecfbf8;  $card-tutoria-ink:  #0f766e;
+$card-conducta-line: #7c3aed;  $card-conducta-bg: #f5f0fe;  $card-conducta-ink: #6d28d9;
+$card-nomina-line:   #e07b1a;  $card-nomina-bg:   #fef3e2;  $card-nomina-ink:   #b45309;
+
 // ── Tipografía ───────────────────────────────────────────────
 $font-family:     'Inter', system-ui, -apple-system, sans-serif;
 $font-size-base:  14px;

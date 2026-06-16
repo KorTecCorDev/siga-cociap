@@ -16,7 +16,7 @@ $pid       = (int) $periodoSel['id'];
 ?>
 
 <div class="page-header">
-    <a href="<?= url('docente/mis-cargas') ?>" class="btn btn--secondary btn--sm">← Mis cargas</a>
+    <a href="<?= url('docente/inicio') ?>" class="btn btn--secondary btn--sm">← Volver</a>
     <div>
         <h1 class="page-title">Conducta — Sección <?= e($seccion['nombre']) ?></h1>
         <p class="page-subtitle">
@@ -40,8 +40,8 @@ $pid       = (int) $periodoSel['id'];
 <?php if (!$cierre): ?>
 
     <div class="conducta-espera">
-        <div class="conducta-espera__icono" aria-hidden="true"><span class="btn-icon btn-icon--wait"></span></div>
-        <h2 class="conducta-espera__titulo">Conducta pendiente de Registro Académico</h2>
+        <div class="conducta-espera__icono" aria-hidden="true"><span class="btn-icon btn-icon--bigwait"></span></div>
+        <h2 class="conducta-espera__titulo">Conducta pendiente de registro</h2>
         <p class="conducta-espera__texto">
             Todavía los auxiliares académicos no han registrado sus calificaciones de conducta
             de esta sección para el <strong><?= e($periodoSel['nombre_display']) ?></strong>.

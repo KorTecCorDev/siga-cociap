@@ -4,15 +4,27 @@
  * @var int        $periodoId
  * @var array|null $periodo
  * @var array      $competencias
- * @var array      $stats         ['total','bloqueadas','pendientes','sin_criterios']
- * @var array      $statsDocentes [['apellido','nombres','total','bloqueadas','pendientes','sin_criterios'], ...]
- * @var array      $topCriticos   primeros 5 con incumplimiento, mismo shape que $statsDocentes
+ * @var array      $transversales
+ * @var array      $transStats    ['total','cerradas']
+ * @var array      $conducta      [['seccion_id','grado_nombre','seccion_nombre','nivel_nombre','tutor_nombre','estado','bloqueada','cerrada','esperados','calificados','ra_bloqueado_en','tutor_cerrado_en'], ...]
+ * @var array      $conductaStats ['total','bloqueadas','cerradas']
+ * @var array      $stats         ['total','bloqueadas','pendientes','sin_criterios','cierre_forzado']
+ * @var array      $statsDocentes
+ * @var array      $topCriticos
  */
 
-$porNivel = [];
-foreach ($competencias as $c) {
-    $porNivel[$c['nivel_nombre']][] = $c;
-}
+// Mini-stats de las cards del hub.
+$acTotal = (int) $stats['total'];
+$acBloq  = (int) $stats['bloqueadas'];
+$acPct   = $acTotal > 0 ? round($acBloq / $acTotal * 100) : 0;
+
+$trTotal = (int) ($transStats['total'] ?? 0);
+$trCerr  = (int) ($transStats['cerradas'] ?? 0);
+$trPct   = $trTotal > 0 ? round($trCerr / $trTotal * 100) : 0;
+
+$coTotal = (int) ($conductaStats['total'] ?? 0);
+$coCerr  = (int) ($conductaStats['cerradas'] ?? 0);
+$coPct   = $coTotal > 0 ? round($coCerr / $coTotal * 100) : 0;
 ?>
 
 <div class="page-header">
@@ -43,7 +55,54 @@ foreach ($competencias as $c) {
     </div>
 </div>
 
-<?php if ($periodo && !empty($competencias)): ?>
+<?php if ($periodo): ?>
+
+<!-- Hub: 3 accesos (tabs). Sin detalle hasta hacer clic. -->
+<div class="bloqueos-hub" role="tablist" aria-label="Tipos de bloqueo">
+
+    <button type="button"
+            class="bloqueos-tabcard bloqueos-tabcard--academicas"
+            role="tab" id="tabcard-academicas"
+            data-tab="academicas" aria-controls="tab-academicas" aria-selected="false">
+        <span class="bloqueos-tabcard__titulo">Competencias académicas</span>
+        <span class="bloqueos-tabcard__stat"><?= $acBloq ?>/<?= $acTotal ?> bloqueadas</span>
+        <span class="bloqueos-tabcard__bar">
+            <span class="bloqueos-tabcard__fill" style="--pct:<?= $acPct ?>%"></span>
+        </span>
+        <span class="bloqueos-tabcard__pct"><?= $acPct ?>%</span>
+    </button>
+
+    <button type="button"
+            class="bloqueos-tabcard bloqueos-tabcard--transversales"
+            role="tab" id="tabcard-transversales"
+            data-tab="transversales" aria-controls="tab-transversales" aria-selected="false">
+        <span class="bloqueos-tabcard__titulo">Competencias transversales</span>
+        <span class="bloqueos-tabcard__stat"><?= $trCerr ?>/<?= $trTotal ?> cerradas</span>
+        <span class="bloqueos-tabcard__bar">
+            <span class="bloqueos-tabcard__fill" style="--pct:<?= $trPct ?>%"></span>
+        </span>
+        <span class="bloqueos-tabcard__pct"><?= $trPct ?>%</span>
+    </button>
+
+    <button type="button"
+            class="bloqueos-tabcard bloqueos-tabcard--conducta"
+            role="tab" id="tabcard-conducta"
+            data-tab="conducta" aria-controls="tab-conducta" aria-selected="false">
+        <span class="bloqueos-tabcard__titulo">Conducta</span>
+        <span class="bloqueos-tabcard__stat"><?= $coCerr ?>/<?= $coTotal ?> cerradas</span>
+        <span class="bloqueos-tabcard__bar">
+            <span class="bloqueos-tabcard__fill" style="--pct:<?= $coPct ?>%"></span>
+        </span>
+        <span class="bloqueos-tabcard__pct"><?= $coPct ?>%</span>
+    </button>
+
+</div>
+
+<!-- ══ PANEL: Competencias académicas ══════════════════════════ -->
+<section id="tab-academicas" class="bloqueos-panel" data-panel="academicas"
+         role="tabpanel" aria-labelledby="tabcard-academicas" hidden>
+
+<?php if (!empty($competencias)): ?>
 
 <?php
 // Reagrupar: nivel → seccion_id → { header, competencias[] }
@@ -178,7 +237,6 @@ $_oS  = round(25 - $_pB - $_pP, 2);
 <?php endif; ?>
 
 
-<?php if ($periodoId && $periodo): ?>
 <div class="bloqueos-lateral mb-md">
 
     <!-- Ranking docentes -->
@@ -303,7 +361,6 @@ $_oS  = round(25 - $_pB - $_pP, 2);
 
     </div><!-- /.bloqueos-widgets -->
 </div><!-- /.bloqueos-lateral -->
-<?php endif; ?>
 
 <?php foreach ($porNivel as $nivelNombre => $secciones): ?>
 
@@ -469,17 +526,19 @@ $_oS  = round(25 - $_pB - $_pP, 2);
     <?php endforeach; ?>
 <?php endforeach; ?>
 
-<?php elseif ($periodo && empty($competencias)): ?>
+<?php else: ?>
     <div class="empty-state">
         <p>No hay cargas academicas activas para este periodo.</p>
     </div>
-<?php else: ?>
-    <div class="empty-state">
-        <p>Selecciona un periodo para ver el estado de los bloqueos.</p>
-    </div>
 <?php endif; ?>
 
-<?php if ($periodo && !empty($transversales)): ?>
+</section><!-- /#tab-academicas -->
+
+<!-- ══ PANEL: Competencias transversales (TIC/GAMA) ════════════ -->
+<section id="tab-transversales" class="bloqueos-panel" data-panel="transversales"
+         role="tabpanel" aria-labelledby="tabcard-transversales" hidden>
+
+<?php if (!empty($transversales)): ?>
     <p class="bloqueos-nivel-titulo">Competencias Transversales (TIC/GAMA) &mdash; cierre del tutor</p>
     <div class="card mb-md">
         <div class="card__body">
@@ -544,5 +603,125 @@ $_oS  = round(25 - $_pB - $_pP, 2);
                 </tbody>
             </table>
         </div>
+    </div>
+<?php else: ?>
+    <div class="empty-state">
+        <p>No hay secciones con tutor para gestionar transversales en este periodo.</p>
+    </div>
+<?php endif; ?>
+
+</section><!-- /#tab-transversales -->
+
+<!-- ══ PANEL: Conducta ═════════════════════════════════════════ -->
+<section id="tab-conducta" class="bloqueos-panel" data-panel="conducta"
+         role="tabpanel" aria-labelledby="tabcard-conducta" hidden>
+
+<?php if (!empty($conducta)): ?>
+    <p class="bloqueos-nivel-titulo">Conducta &mdash; dos etapas: auxiliar académico &rarr; tutor</p>
+    <div class="card mb-md">
+        <div class="card__body">
+            <p class="text-sm text-muted mb-sm">
+                La conducta cierra en dos etapas: el <strong>auxiliar académico</strong> registra y
+                bloquea, luego el <strong>tutor</strong> aprueba. El director puede forzar cualquier
+                etapa o <em>reabrir</em> para correcciones. Forzar la etapa del auxiliar exige que
+                todos los estudiantes estén calificados.
+            </p>
+            <table class="tabla-ranking tabla-bloqueos">
+                <thead>
+                    <tr>
+                        <th>Secci&oacute;n</th>
+                        <th>Tutor(a)</th>
+                        <th>Calificados</th>
+                        <th>Estado</th>
+                        <th>Cerrado el</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($conducta as $cc):
+                        $califTxt = $cc['calificados'] . '/' . $cc['esperados'];
+                        $completa = $cc['esperados'] > 0 && $cc['calificados'] >= $cc['esperados'];
+                        $filaCss  = $cc['estado'] === 'cerrada' ? '' : 'fila-pendiente';
+                    ?>
+                    <tr class="<?= $filaCss ?>">
+                        <td class="text-sm">
+                            <?= e($cc['grado_nombre']) ?> &mdash; <?= e($cc['seccion_nombre']) ?>
+                            <br><span class="text-muted"><?= e($cc['nivel_nombre']) ?></span>
+                        </td>
+                        <td class="text-sm"><?= e($cc['tutor_nombre']) ?></td>
+                        <td class="text-sm <?= $completa ? '' : 'text-muted' ?>">
+                            <?= $califTxt ?>
+                        </td>
+                        <td>
+                            <?php if ($cc['estado'] === 'cerrada'): ?>
+                                <span class="badge badge--activo">&#10003; Cerrada</span>
+                            <?php elseif ($cc['estado'] === 'pendiente_tutor'): ?>
+                                <span class="badge badge--warning">Pendiente tutor</span>
+                            <?php else: ?>
+                                <span class="badge badge--error">Pendiente auxiliar</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-muted text-sm">
+                            <?= $cc['tutor_cerrado_en']
+                                ? date('d/m/Y H:i', strtotime($cc['tutor_cerrado_en']))
+                                : '—'
+                            ?>
+                        </td>
+                        <td class="td-acciones-conducta">
+                            <?php if ($cc['estado'] === 'pendiente_auxiliar'): ?>
+                                <form method="POST"
+                                      action="<?= url('director/bloqueos/conducta/' . $cc['seccion_id'] . '/bloquear') ?>"
+                                      onsubmit="return confirm('Forzar el bloqueo del auxiliar académico para esta sección?')">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
+                                    <button type="submit" class="btn btn--secondary btn--sm"
+                                        <?= $completa ? '' : 'disabled title="Faltan estudiantes por calificar"' ?>>
+                                        Bloquear (etapa 1)
+                                    </button>
+                                </form>
+                            <?php elseif ($cc['estado'] === 'pendiente_tutor'): ?>
+                                <div class="btn-group">
+                                    <form method="POST"
+                                          action="<?= url('director/bloqueos/conducta/' . $cc['seccion_id'] . '/cerrar') ?>"
+                                          onsubmit="return confirm('Forzar el cierre del tutor para esta sección?')">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
+                                        <button type="submit" class="btn btn--secondary btn--sm">Cerrar (etapa 2)</button>
+                                    </form>
+                                    <form method="POST"
+                                          action="<?= url('director/bloqueos/conducta/' . $cc['seccion_id'] . '/reabrir') ?>"
+                                          onsubmit="return confirm('Reabrir la conducta de esta sección? Se anulará el bloqueo del auxiliar.')">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
+                                        <button type="submit" class="btn btn--danger btn--sm">Reabrir</button>
+                                    </form>
+                                </div>
+                            <?php else: /* cerrada */ ?>
+                                <form method="POST"
+                                      action="<?= url('director/bloqueos/conducta/' . $cc['seccion_id'] . '/reabrir') ?>"
+                                      onsubmit="return confirm('Reabrir la conducta de esta sección? El auxiliar y el tutor deberán volver a cerrar.')">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
+                                    <button type="submit" class="btn btn--danger btn--sm">Reabrir</button>
+                                </form>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+<?php else: ?>
+    <div class="empty-state">
+        <p>No hay secciones con tutor para gestionar conducta en este periodo.</p>
+    </div>
+<?php endif; ?>
+
+</section><!-- /#tab-conducta -->
+
+<?php else: ?>
+    <div class="empty-state">
+        <p>Selecciona un periodo para ver el estado de los bloqueos.</p>
     </div>
 <?php endif; ?>

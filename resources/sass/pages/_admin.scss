@@ -137,6 +137,97 @@ tr.fila-separador-nivel td {
     }
 }
 
+// ── Hub de accesos: 3 cards-tab (académicas / transversales / conducta) ──
+// Color fijo por concepto (wayfinding): azul / teal / púrpura. Rojo y ámbar
+// se reservan para badges de estado dentro de cada panel.
+.bloqueos-hub {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+}
+
+.bloqueos-tabcard {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+    padding: $spacing-md $spacing-lg;
+    background: $bg-white;
+    border: 1px solid $border-color;
+    border-left: 4px solid $border-color;
+    border-radius: $border-radius-lg;
+    cursor: pointer;
+    transition: $transition;
+    font: inherit;
+    color: $text-primary;
+
+    &:hover {
+        box-shadow: $shadow-md;
+        transform: translateY(-2px);
+    }
+
+    &__titulo  { font-weight: 700; }
+    &__stat    { font-size: $font-size-sm; color: $text-muted; }
+
+    &__bar {
+        display: block;
+        height: 8px;
+        border-radius: 4px;
+        background: $bg-secondary;
+        overflow: hidden;
+    }
+    &__fill {
+        display: block;
+        height: 100%;
+        width: var(--pct, 0%);
+        border-radius: 4px;
+        background: $text-muted;
+    }
+    &__pct {
+        font-size: $font-size-sm;
+        font-weight: 600;
+        color: $text-secondary;
+        align-self: flex-end;
+    }
+
+    // Identidad por concepto + estado activo (fondo tenue solo al estar activa).
+    &--academicas {
+        border-left-color: $card-cargas-line;
+        .bloqueos-tabcard__titulo { color: $card-cargas-ink; }
+        .bloqueos-tabcard__fill   { background: $card-cargas-line; }
+        &.bloqueos-tabcard--activa {
+            background: $card-cargas-bg;
+            box-shadow: inset 0 0 0 1px $card-cargas-line, $shadow-md;
+        }
+    }
+    &--transversales {
+        border-left-color: $card-tutoria-line;
+        .bloqueos-tabcard__titulo { color: $card-tutoria-ink; }
+        .bloqueos-tabcard__fill   { background: $card-tutoria-line; }
+        &.bloqueos-tabcard--activa {
+            background: $card-tutoria-bg;
+            box-shadow: inset 0 0 0 1px $card-tutoria-line, $shadow-md;
+        }
+    }
+    &--conducta {
+        border-left-color: $card-conducta-line;
+        .bloqueos-tabcard__titulo { color: $card-conducta-ink; }
+        .bloqueos-tabcard__fill   { background: $card-conducta-line; }
+        &.bloqueos-tabcard--activa {
+            background: $card-conducta-bg;
+            box-shadow: inset 0 0 0 1px $card-conducta-line, $shadow-md;
+        }
+    }
+}
+
+.bloqueos-panel { scroll-margin-top: $spacing-lg; }
+
+.td-acciones-conducta {
+    .btn-group { flex-wrap: wrap; }
+    form { display: inline; }
+}
+
 // ── Donut chart — estado de bloqueos ─────────────────────────
 .bloqueos-cierre-accion {
     display: flex;

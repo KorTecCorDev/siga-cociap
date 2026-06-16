@@ -80,7 +80,35 @@
         font-size: $font-size-sm;
     }
 
-    &--tutoria { border-left: 4px solid $color-info; }
+    // Identidad por acceso (wayfinding): borde vivo + titulo en tono oscuro
+    // legible. El color es fijo para cada card y siempre visible.
+    &--cargas {
+        border-left: 4px solid $card-cargas-line;
+        .card__title { color: $card-cargas-ink; }
+    }
+    &--tutoria {
+        border-left: 4px solid $card-tutoria-line;
+        .card__title { color: $card-tutoria-ink; }
+    }
+    &--conducta {
+        border-left: 4px solid $card-conducta-line;
+        .card__title { color: $card-conducta-ink; }
+    }
+    &--nomina {
+        border-left: 4px solid $card-nomina-line;
+        .card__title { color: $card-nomina-ink; }
+    }
+
+    // Fondo tenue SOLO cuando la card lleva un estado activo (cerrado /
+    // disponible / progreso); libre de estados se queda en blanco.
+    &--cerrado,
+    &--disponible,
+    &--progreso {
+        &.dpanel-card--cargas   { background: $card-cargas-bg; }
+        &.dpanel-card--tutoria  { background: $card-tutoria-bg; }
+        &.dpanel-card--conducta { background: $card-conducta-bg; }
+        &.dpanel-card--nomina   { background: $card-nomina-bg; }
+    }
 }
 
 // ── Panel de pendientes ──────────────────────────────────────

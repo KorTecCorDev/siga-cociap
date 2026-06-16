@@ -2,7 +2,6 @@
 /**
  * @var array      $cargas
  * @var array|null $periodo
- * @var array|null $tutoria  estado de tutoría (solo tutores del año activo)
  */
 ?>
 
@@ -18,76 +17,6 @@
         <span class="badge badge--warning">Sin periodo activo</span>
     <?php endif; ?>
 </div>
-
-<?php if (!empty($tutoria)): ?>
-    <?php
-    // 3 estados de la card: cerrado / disponible / en progreso
-    if ($tutoria['cierre']) {
-        $estadoClase = 'cerrado';
-        $estadoTexto = 'Cerrado el ' . fechaLima($tutoria['cierre']['cerrado_en'], 'd/m/Y');
-    } elseif ($tutoria['listo']) {
-        $estadoClase = 'disponible';
-        $estadoTexto = $tutoria['pendientes'] > 0
-            ? 'Disponible — ' . $tutoria['pendientes'] . ' conclusión(es) pendiente(s)'
-            : 'Disponible para cerrar';
-    } else {
-        $estadoClase = 'progreso';
-        $estadoTexto = 'Bloqueadas ' . $tutoria['bloqueadas'] . ' de ' . $tutoria['total'];
-    }
-    ?>
-    <a href="<?= url('docente/tutoria') ?>"
-       class="tutoria-card tutoria-card--<?= $estadoClase ?>">
-        <div class="tutoria-card__icono" aria-hidden="true">★</div>
-        <div class="tutoria-card__cuerpo">
-            <h2 class="tutoria-card__titulo">
-                Tutoría — Sección <?= e($tutoria['seccion']['nombre']) ?>
-                (<?= e($tutoria['seccion']['grado_nombre']) ?> <?= e($tutoria['seccion']['nivel_nombre']) ?>)
-            </h2>
-            <p class="tutoria-card__desc">
-                Competencias transversales TIC/GAMA: revisa promedios,
-                registra conclusiones y cierra el bimestre.
-            </p>
-        </div>
-        <span class="tutoria-card__estado">
-            <?php if ($estadoClase === 'progreso'): ?><span class="btn-icon btn-icon--wait" aria-hidden="true"></span><?php endif; ?>
-            <?= e($estadoTexto) ?>
-        </span>
-    </a>
-<?php endif; ?>
-
-<?php if (!empty($conducta)): ?>
-    <?php
-    // 3 estados: cerrado / disponible (RA bloqueo) / pendiente (RA aun no)
-    if ($conducta['cerrado']) {
-        $ccClase = 'cerrado';
-        $ccTexto = 'Cerrada el ' . fechaLima($conducta['cierre']['tutor_cerrado_en'], 'd/m/Y');
-    } elseif ($conducta['cierre']) {
-        $ccClase = 'disponible';
-        $ccTexto = 'Disponible';
-    } else {
-        $ccClase = 'progreso';
-        $ccTexto = 'En espera';
-    }
-    ?>
-    <a href="<?= url('docente/conducta') ?>"
-       class="tutoria-card tutoria-card--<?= $ccClase ?>">
-        <div class="tutoria-card__icono" aria-hidden="true">◉</div>
-        <div class="tutoria-card__cuerpo">
-            <h2 class="tutoria-card__titulo">
-                Conducta — Sección <?= e($conducta['seccion']['nombre']) ?>
-                (<?= e($conducta['seccion']['grado_nombre']) ?> <?= e($conducta['seccion']['nivel_nombre']) ?>)
-            </h2>
-            <p class="tutoria-card__desc">
-                Revisa la nota de Registro Académico, agrega tu nota (opcional)
-                y cierra la conducta del bimestre.
-            </p>
-        </div>
-        <span class="tutoria-card__estado">
-            <?php if ($ccClase === 'progreso'): ?><span class="btn-icon btn-icon--wait" aria-hidden="true"></span><?php endif; ?>
-            <?= e($ccTexto) ?>
-        </span>
-    </a>
-<?php endif; ?>
 
 <?php if (empty($cargas)): ?>
     <div class="empty-state">

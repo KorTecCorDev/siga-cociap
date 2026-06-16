@@ -9,6 +9,7 @@
  * @var int|null $diasCierre
  * @var array $pendientes
  * @var array|null $tutoria
+ * @var array|null $conducta
  * @var array $niveles
  * @var array $nominaResumen
  * @var int   $totalNomina
@@ -65,7 +66,7 @@ $avEstado = $avance >= 100 ? 'completo' : ($avance > 0 ? 'parcial' : 'vacio');
 <div class="dpanel-grid">
 
     <!-- Card: Mis cargas -->
-    <a href="<?= url('docente/mis-cargas') ?>" class="card dpanel-card">
+    <a href="<?= url('docente/mis-cargas') ?>" class="card dpanel-card dpanel-card--cargas">
         <div class="dpanel-card__head">
             <h2 class="card__title">Mis cargas académicas</h2>
             <span class="badge badge--activo"><?= $nCargas ?> cargas</span>
@@ -109,12 +110,35 @@ $avEstado = $avance >= 100 ? 'completo' : ($avance > 0 ? 'parcial' : 'vacio');
                 <h2 class="card__title">Tutoría — <?= e($tutoria['seccion']['grado_nombre']) ?> <?= e($tutoria['seccion']['nombre']) ?></h2>
             </div>
             <p class="dpanel-card__sub">Competencias transversales TIC/GAMA: revisa promedios, registra conclusiones y cierra el bimestre.</p>
-            <span class="badge badge--<?= $tEstado === 'cerrado' ? 'activo' : ($tEstado === 'disponible' ? 'warning' : 'warning') ?>"><?= e($tTexto) ?></span>
+            <span class="badge badge--<?= $tEstado === 'cerrado' ? 'activo' : 'warning' ?>"><?= e($tTexto) ?></span>
+        </a>
+    <?php endif; ?>
+
+    <!-- Card: Conducta (solo tutores) -->
+    <?php if (!empty($conducta)): ?>
+        <?php
+        if ($conducta['cerrado']) {
+            $cEstado = 'cerrado';
+            $cTexto  = 'Cerrada el ' . fechaLima($conducta['cierre']['tutor_cerrado_en'], 'd/m/Y');
+        } elseif ($conducta['cierre']) {
+            $cEstado = 'disponible';
+            $cTexto  = 'Disponible';
+        } else {
+            $cEstado = 'progreso';
+            $cTexto  = 'En espera';
+        }
+        ?>
+        <a href="<?= url('docente/conducta') ?>" class="card dpanel-card dpanel-card--conducta dpanel-card--<?= $cEstado ?>">
+            <div class="dpanel-card__head">
+                <h2 class="card__title">Conducta — <?= e($conducta['seccion']['grado_nombre']) ?> <?= e($conducta['seccion']['nombre']) ?></h2>
+            </div>
+            <p class="dpanel-card__sub">Revisa la nota de Registro Académico, agrega tu nota (opcional) y cierra la conducta del bimestre.</p>
+            <span class="badge badge--<?= $cEstado === 'cerrado' ? 'activo' : 'warning' ?>"><?= e($cTexto) ?></span>
         </a>
     <?php endif; ?>
 
     <!-- Card: Nómina de matriculados -->
-    <a href="<?= url('docente/nomina') ?>" class="card dpanel-card">
+    <a href="<?= url('docente/nomina') ?>" class="card dpanel-card dpanel-card--nomina">
         <div class="dpanel-card__head">
             <h2 class="card__title">Nómina de matriculados</h2>
             <span class="badge badge--activo"><?= $totalNomina ?> aprobados</span>

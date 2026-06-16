@@ -257,6 +257,52 @@ class ConductaModel extends BaseModel
         ];
     }
 
+    /**
+     * Resumen por seccion para el panel del director (espejo del de
+     * transversales): datos de la seccion + tutor, estado de las DOS etapas
+     * del cierre de conducta y completitud (alumnos calificados / esperados).
+     * Solo secciones del año del periodo CON tutor asignado (la etapa 2 lo exige).
+     */
+    public function getResumenSeccionesPorPeriodo(int $periodoId): array
+    {
+        $secciones = $this->query("
+            SELECT s.id              AS seccion_id,
+                   s.nombre          AS seccion_nombre,
+                   g.numero          AS grado_numero,
+                   g.nombre_display  AS grado_nombre,
+                   n.id              AS nivel_id,
+                   n.nombre          AS nivel_nombre,
+                   n.codigo          AS nivel_codigo,
+                   CONCAT(pu.apellido_paterno, ', ', pu.nombres) AS tutor_nombre,
+                   cc.id             AS cierre_id,
+                   cc.ra_bloqueado_en,
+                   cc.tutor_cerrado_en
+            FROM secciones s
+            INNER JOIN grados g    ON g.id  = s.grado_id
+            INNER JOIN niveles n   ON n.id  = g.nivel_id
+            INNER JOIN usuarios u  ON u.id  = s.tutor_id
+            INNER JOIN personas pu ON pu.id = u.persona_id
+            LEFT JOIN cierres_conducta cc
+                ON  cc.seccion_id = s.id
+                AND cc.periodo_id = ?
+                AND cc.anulado_en IS NULL
+            WHERE s.anio_id   = (SELECT anio_id FROM periodos WHERE id = ?)
+              AND s.tutor_id IS NOT NULL
+            ORDER BY n.id, g.numero, s.nombre
+        ", [$periodoId, $periodoId]);
+
+        // Completitud (esperados/calificados) reutilizando la query del indice de RA.
+        $progreso = $this->getProgresoConductaPorSeccion($periodoId);
+        foreach ($secciones as &$s) {
+            $p = $progreso[(int) $s['seccion_id']] ?? ['esperados' => 0, 'calificados' => 0];
+            $s['esperados']   = $p['esperados'];
+            $s['calificados'] = $p['calificados'];
+        }
+        unset($s);
+
+        return $secciones;
+    }
+
     /** Cierre vigente (anulado_en IS NULL) de una seccion+periodo, o null. */
     public function getCierreVigente(int $seccionId, int $periodoId): ?array
     {

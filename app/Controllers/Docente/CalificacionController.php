@@ -5,10 +5,8 @@ namespace App\Controllers\Docente;
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
 use App\Models\CriterioModel;
-use App\Models\ConductaModel;
 use App\Models\ExoneracionModel;
 use App\Models\OmisionCriterioModel;
-use App\Models\TransversalModel;
 use Core\Session;
 
 /**
@@ -26,8 +24,6 @@ class CalificacionController extends BaseController
     private CriterioModel        $critModel;
     private OmisionCriterioModel $omisionModel;
     private ExoneracionModel     $exoModel;
-    private TransversalModel     $transModel;
-    private ConductaModel        $conductaModel;
 
     public function __construct()
     {
@@ -36,8 +32,6 @@ class CalificacionController extends BaseController
         $this->critModel   = new CriterioModel();
         $this->omisionModel = new OmisionCriterioModel();
         $this->exoModel    = new ExoneracionModel();
-        $this->transModel  = new TransversalModel();
-        $this->conductaModel = new ConductaModel();
     }
     
     private function getBloqueos(int $cargaId, int $periodoId): array
@@ -63,49 +57,12 @@ class CalificacionController extends BaseController
         $periodo = $this->getPeriodoActivo();
         $cargas  = $this->getCargas($user['id'], $periodo ? (int) $periodo['id'] : 0);
 
-        // Card de Tutoría (solo tutores del año activo): 3 estados —
-        // bloqueadas X de Y / disponible con N conclusiones pendientes /
-        // cerrado el {fecha}.
-        $tutoria = null;
-        $seccionTutor = $this->transModel->getSeccionDelTutor((int) $user['id']);
-        if ($seccionTutor && $periodo) {
-            $sid    = (int) $seccionTutor['id'];
-            $pid    = (int) $periodo['id'];
-            $estado = $this->transModel->estadoCargasSeccion($sid, $pid);
-            $cierre = $this->transModel->getCierreVigente($sid, $pid);
-            $listo  = $estado['total'] > 0 && $estado['bloqueadas'] >= $estado['total'];
-
-            $tutoria = [
-                'seccion'     => $seccionTutor,
-                'total'       => $estado['total'],
-                'bloqueadas'  => $estado['bloqueadas'],
-                'cierre'      => $cierre,
-                'listo'       => $listo,
-                'pendientes'  => ($listo && !$cierre)
-                    ? $this->transModel->conclusionesObligatoriasPendientes(
-                        $sid, $pid, $seccionTutor['nivel_codigo']
-                      )
-                    : 0,
-            ];
-        }
-
-        // Card de Conducta (Etapa 2): pendiente (RA no bloqueo) / disponible / cerrado.
-        $conducta = null;
-        if ($seccionTutor && $periodo) {
-            $cc = $this->conductaModel->getCierreVigente((int) $seccionTutor['id'], (int) $periodo['id']);
-            $conducta = [
-                'seccion'  => $seccionTutor,
-                'cierre'   => $cc,
-                'cerrado'  => $cc && !empty($cc['tutor_cerrado_en']),
-            ];
-        }
-
+        // Tutoría y Conducta tienen sus propias cards de acceso en el dashboard
+        // (/docente/inicio); aquí solo se listan las cargas académicas.
         $this->view('docente/mis-cargas', [
             'titulo'   => 'Mis cargas académicas',
             'cargas'   => $cargas,
             'periodo'  => $periodo,
-            'tutoria'  => $tutoria,
-            'conducta' => $conducta,
         ]);
     }
 

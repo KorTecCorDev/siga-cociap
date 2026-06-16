@@ -4,6 +4,7 @@ namespace App\Controllers\Director;
 
 use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
+use App\Models\ConductaModel;
 use App\Models\TransversalModel;
 use Core\Session;
 
@@ -11,12 +12,14 @@ class BloqueoController extends BaseController
 {
     private CalificacionModel $calModel;
     private TransversalModel  $transModel;
+    private ConductaModel     $conductaModel;
 
     public function __construct()
     {
         $this->requireRole(['admin', 'director_general', 'director_ebr']);
-        $this->calModel   = new CalificacionModel();
-        $this->transModel = new TransversalModel();
+        $this->calModel      = new CalificacionModel();
+        $this->transModel    = new TransversalModel();
+        $this->conductaModel = new ConductaModel();
     }
 
     /**
@@ -147,6 +150,7 @@ class BloqueoController extends BaseController
         // El estado lo gobierna el CIERRE de la sección, no la carga transversal
         // heredada (inactiva). 'lista' = todas las cargas propias bloqueadas.
         $transversales = [];
+        $transStats    = ['total' => 0, 'cerradas' => 0];
         if ($periodoId && $periodo) {
             foreach ($this->transModel->getResumenSeccionesPorPeriodo($periodoId) as $s) {
                 // Mismos estados que las competencias académicas: Bloqueada (cierre
@@ -154,6 +158,26 @@ class BloqueoController extends BaseController
                 $s['cerrada']    = $s['cierre_id'] !== null;
                 $transversales[] = $s;
             }
+            $transStats['total']    = count($transversales);
+            $transStats['cerradas'] = count(array_filter($transversales, fn($s) => $s['cerrada']));
+        }
+
+        // Conducta por sección: dos etapas (auxiliar académico → tutor). El
+        // director puede forzar ambas o reabrir. 'estado' resume las dos etapas.
+        $conducta      = [];
+        $conductaStats = ['total' => 0, 'bloqueadas' => 0, 'cerradas' => 0];
+        if ($periodoId && $periodo) {
+            foreach ($this->conductaModel->getResumenSeccionesPorPeriodo($periodoId) as $s) {
+                $bloqueada = $s['ra_bloqueado_en']   !== null;   // etapa 1 (auxiliar)
+                $cerrada   = $s['tutor_cerrado_en']  !== null;   // etapa 2 (tutor)
+                $s['bloqueada'] = $bloqueada;
+                $s['cerrada']   = $cerrada;
+                $s['estado']    = $cerrada ? 'cerrada' : ($bloqueada ? 'pendiente_tutor' : 'pendiente_auxiliar');
+                $conducta[]     = $s;
+            }
+            $conductaStats['total']      = count($conducta);
+            $conductaStats['bloqueadas'] = count(array_filter($conducta, fn($s) => $s['bloqueada']));
+            $conductaStats['cerradas']   = count(array_filter($conducta, fn($s) => $s['cerrada']));
         }
 
         $this->view('director/bloqueos/index', [
@@ -163,6 +187,9 @@ class BloqueoController extends BaseController
             'periodo'            => $periodo,
             'competencias'       => $competencias,
             'transversales'      => $transversales,
+            'transStats'         => $transStats,
+            'conducta'           => $conducta,
+            'conductaStats'      => $conductaStats,
             'stats'              => $stats,
             'statsDocentes'      => $statsDocentes   ?? [],
             'topCriticos'        => $topCriticos     ?? [],
@@ -435,5 +462,103 @@ class BloqueoController extends BaseController
                 'Cierre transversal anulado. El tutor puede editar las conclusiones y volver a cerrar.');
         }
         $this->redirectWithError($back, 'No había un cierre transversal vigente para anular.');
+    }
+
+    /**
+     * POST /director/bloqueos/conducta/{seccion_id}/bloquear
+     * Etapa 1 forzada por el director: bloquea/aprueba la conducta como lo haría
+     * el auxiliar académico (hoy Registro Académico). Respeta la regla de negocio:
+     * exige que TODOS los estudiantes estén calificados (validado en bloquearRA).
+     */
+    public function bloquearConducta(string $seccionId): void
+    {
+        $this->validateCsrf();
+        $seccionId = (int) $seccionId;
+        $periodoId = (int) $this->input('periodo_id');
+        $user      = Session::user();
+
+        if (!$periodoId) {
+            $this->redirectWithError(url('director/bloqueos'), 'Periodo no especificado.');
+        }
+        $back = url("director/bloqueos?periodo_id={$periodoId}");
+
+        $nivelId = $this->nivelIdDeSeccion($seccionId);
+        if ($nivelId === null) {
+            $this->redirectWithError($back, 'Sección no encontrada.');
+        }
+
+        $total = $this->conductaModel->totalCriterios($nivelId);
+        $res   = $this->conductaModel->bloquearRA($seccionId, $periodoId, (int) $user['id'], $total);
+
+        if ($res['ok']) {
+            $this->redirectWithSuccess($back, $res['mensaje']);
+        }
+        $this->redirectWithError($back, $res['mensaje']);
+    }
+
+    /**
+     * POST /director/bloqueos/conducta/{seccion_id}/cerrar
+     * Etapa 2 forzada por el director: cierra/aprueba la conducta como lo haría
+     * el tutor. Precondición (en cerrarTutor): la etapa 1 (auxiliar) ya hecha.
+     */
+    public function cerrarConducta(string $seccionId): void
+    {
+        $this->validateCsrf();
+        $seccionId = (int) $seccionId;
+        $periodoId = (int) $this->input('periodo_id');
+        $user      = Session::user();
+
+        if (!$periodoId) {
+            $this->redirectWithError(url('director/bloqueos'), 'Periodo no especificado.');
+        }
+        $back = url("director/bloqueos?periodo_id={$periodoId}");
+
+        $res = $this->conductaModel->cerrarTutor($seccionId, $periodoId, (int) $user['id']);
+
+        if ($res['ok']) {
+            $this->redirectWithSuccess($back, $res['mensaje']);
+        }
+        $this->redirectWithError($back, $res['mensaje']);
+    }
+
+    /**
+     * POST /director/bloqueos/conducta/{seccion_id}/reabrir
+     * Anula el cierre de conducta vigente (cualquiera de las dos etapas) con
+     * traza, para permitir correcciones. Libre (sin precondición de negocio).
+     */
+    public function reabrirConducta(string $seccionId): void
+    {
+        $this->validateCsrf();
+        $seccionId = (int) $seccionId;
+        $periodoId = (int) $this->input('periodo_id');
+        $user      = Session::user();
+
+        if (!$periodoId) {
+            $this->redirectWithError(url('director/bloqueos'), 'Periodo no especificado.');
+        }
+        $back = url("director/bloqueos?periodo_id={$periodoId}");
+
+        $ok = $this->conductaModel->anularCierre(
+            $seccionId, $periodoId, (int) $user['id'],
+            'Reapertura del cierre de conducta por el director desde el panel de bloqueos.'
+        );
+
+        if ($ok) {
+            $this->redirectWithSuccess($back,
+                'Conducta reabierta. El auxiliar académico puede corregir y volver a cerrar.');
+        }
+        $this->redirectWithError($back, 'No había un cierre de conducta vigente para anular.');
+    }
+
+    /** nivel_id de una sección, o null si no existe. */
+    private function nivelIdDeSeccion(int $seccionId): ?int
+    {
+        $row = $this->calModel->queryOne("
+            SELECT g.nivel_id
+            FROM secciones s
+            INNER JOIN grados g ON g.id = s.grado_id
+            WHERE s.id = ?
+        ", [$seccionId]);
+        return $row ? (int) $row['nivel_id'] : null;
     }
 }
