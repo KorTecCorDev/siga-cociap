@@ -42,8 +42,9 @@ $router->get( '/admin/buscar-estudiante/api', 'Admin\BuscadorEstudianteControlle
 
 // ─── Admin — Conducta ───────────────────────────────────────
 $router->get( '/admin/conducta',              'Admin\ConductaController@index');
-$router->get( '/admin/conducta/{id}',         'Admin\ConductaController@seccion');
 $router->post('/admin/conducta/guardar',      'Admin\ConductaController@guardar');
+$router->post('/admin/conducta/{id}/bloquear','Admin\ConductaController@bloquear');
+$router->get( '/admin/conducta/{id}',         'Admin\ConductaController@seccion');
 
 // ─── Admin — Asistencia (incidencias) ───────────────────────
 $router->get( '/admin/asistencia',            'Admin\AsistenciaController@index');
@@ -222,3 +223,9 @@ $router->get( '/docente/tutoria',                          'Docente\TutoriaContr
 $router->post('/docente/tutoria/{periodo_id}/conclusion',  'Docente\TutoriaController@guardarConclusion');
 $router->post('/docente/tutoria/{periodo_id}/cerrar',      'Docente\TutoriaController@cerrar');
 $router->get( '/docente/tutoria/{periodo_id}',             'Docente\TutoriaController@index');
+
+// ─── Conducta — cierre del tutor (Etapa 2) ──────────────────
+$router->get( '/docente/conducta',                         'Docente\ConductaTutorController@index');
+$router->post('/docente/conducta/{periodo_id}/nota',       'Docente\ConductaTutorController@guardarNota');
+$router->post('/docente/conducta/{periodo_id}/cerrar',     'Docente\ConductaTutorController@cerrar');
+$router->get( '/docente/conducta/{periodo_id}',            'Docente\ConductaTutorController@index');

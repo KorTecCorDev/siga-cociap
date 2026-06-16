@@ -52,6 +52,37 @@
     </a>
 <?php endif; ?>
 
+<?php if (!empty($conducta)): ?>
+    <?php
+    // 3 estados: cerrado / disponible (RA bloqueo) / pendiente (RA aun no)
+    if ($conducta['cerrado']) {
+        $ccClase = 'cerrado';
+        $ccTexto = 'Cerrada el ' . fechaLima($conducta['cierre']['tutor_cerrado_en'], 'd/m/Y');
+    } elseif ($conducta['cierre']) {
+        $ccClase = 'disponible';
+        $ccTexto = 'Disponible para tu nota y cierre';
+    } else {
+        $ccClase = 'progreso';
+        $ccTexto = '⏳ En espera de Registro Académico';
+    }
+    ?>
+    <a href="<?= url('docente/conducta') ?>"
+       class="tutoria-card tutoria-card--<?= $ccClase ?>">
+        <div class="tutoria-card__icono" aria-hidden="true">◉</div>
+        <div class="tutoria-card__cuerpo">
+            <h2 class="tutoria-card__titulo">
+                Conducta — Sección <?= e($conducta['seccion']['nombre']) ?>
+                (<?= e($conducta['seccion']['grado_nombre']) ?> <?= e($conducta['seccion']['nivel_nombre']) ?>)
+            </h2>
+            <p class="tutoria-card__desc">
+                Revisa la nota de Registro Académico, agrega tu nota (opcional)
+                y cierra la conducta del bimestre.
+            </p>
+        </div>
+        <span class="tutoria-card__estado"><?= e($ccTexto) ?></span>
+    </a>
+<?php endif; ?>
+
 <?php if (empty($cargas)): ?>
     <div class="empty-state">
         <p>No tienes cargas académicas asignadas para este año.</p>

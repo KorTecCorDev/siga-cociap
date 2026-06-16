@@ -6,39 +6,53 @@ use App\Controllers\BaseController;
 use App\Models\ConductaModel;
 use Core\Session;
 
+/**
+ * Conducta — ETAPA 1 (Registro Academico).
+ * Registra los criterios Si/No por alumno y bloquea/aprueba la seccion.
+ * La ETAPA 2 (tutor) vive en Docente\ConductaTutorController.
+ */
 class ConductaController extends BaseController
 {
     private ConductaModel $model;
 
     public function __construct()
     {
-        $this->requireRole('admin');
+        // Conducta ahora la registra Registro Academico (ademas de admin).
+        $this->requireRole(['admin', 'registro_academico']);
         $this->model = new ConductaModel();
+    }
+
+    /** Devuelve el primer periodo editable del año activo, o null. */
+    private function periodoActivo(): ?array
+    {
+        foreach ($this->model->listarPeriodosActivos() as $p) {
+            if ((bool) $p['editable']) {
+                return $p;
+            }
+        }
+        return null;
+    }
+
+    /** Busca una seccion del año activo por id, o null. */
+    private function buscarSeccion(int $seccionId): ?array
+    {
+        foreach ($this->model->listarSeccionesActivas() as $s) {
+            if ((int) $s['id'] === $seccionId) {
+                return $s;
+            }
+        }
+        return null;
     }
 
     // GET /admin/conducta
     public function index(): void
     {
-        $secciones = $this->model->listarSeccionesActivas();
-        $periodos  = $this->model->listarPeriodosActivos();
-
-        // Periodo abierto actual: el progreso de las secciones refleja el
-        // llenado del periodo en curso (coherente con la vista de detalle
-        // que solo expone el editable). Si no hay periodo activo, $progreso
-        // queda vacío y la vista omite la barra.
-        $periodoActivo = null;
-        foreach ($periodos as $p) {
-            if ((bool) $p['editable']) {
-                $periodoActivo = $p;
-                break;
-            }
-        }
-
-        $progreso = $periodoActivo
+        $secciones     = $this->model->listarSeccionesActivas();
+        $periodoActivo = $this->periodoActivo();
+        $progreso      = $periodoActivo
             ? $this->model->getProgresoConductaPorSeccion((int) $periodoActivo['id'])
             : [];
 
-        // Agrupar secciones por nivel
         $porNivel = [];
         foreach ($secciones as $s) {
             $porNivel[$s['nivel_nombre']][] = $s;
@@ -47,7 +61,6 @@ class ConductaController extends BaseController
         $this->view('admin/conducta/index', [
             'titulo'        => 'Calificaciones de Conducta',
             'porNivel'      => $porNivel,
-            'periodos'      => $periodos,
             'periodoActivo' => $periodoActivo,
             'progreso'      => $progreso,
         ]);
@@ -56,81 +69,118 @@ class ConductaController extends BaseController
     // GET /admin/conducta/{seccion_id}
     public function seccion(string $seccionId): void
     {
-        $seccionId = (int) $seccionId;
-        $periodos  = $this->model->listarPeriodosActivos();
-
-        if (empty($periodos)) {
-            $this->redirectWithError(url('admin/conducta'), 'No hay periodos configurados.');
-        }
-
-        // Solo mostramos los periodos editables (los cerrados o vencidos
-        // permanecen ocultos en esta vista). array_values reindexa para
-        // que las claves sean 0..N tras el filtrado.
-        $periodos = array_values(array_filter(
-            $periodos,
-            fn(array $p): bool => (bool) $p['editable']
-        ));
-
-        $periodoIds  = array_column($periodos, 'id');
-        $estudiantes = $this->model->getEstudiantesConConducra($seccionId, $periodoIds);
-
-        // Info de la sección
-        $secciones = $this->model->listarSeccionesActivas();
-        $seccion   = null;
-        foreach ($secciones as $s) {
-            if ((int)$s['id'] === $seccionId) {
-                $seccion = $s;
-                break;
-            }
-        }
-
+        $seccionId     = (int) $seccionId;
+        $seccion       = $this->buscarSeccion($seccionId);
         if (!$seccion) {
             $this->redirectWithError(url('admin/conducta'), 'Sección no encontrada.');
         }
 
+        $periodoActivo = $this->periodoActivo();
+        $nivelId       = (int) $seccion['nivel_id'];
+        $criterios     = $this->model->getCriterios($nivelId);
+
+        $estudiantes = $cierre = null;
+        $completitud = ['esperados' => 0, 'completos' => 0];
+        if ($periodoActivo) {
+            $pid         = (int) $periodoActivo['id'];
+            $estudiantes = $this->model->getEstudiantesParaRegistro($seccionId, $pid);
+            $cierre      = $this->model->getCierreVigente($seccionId, $pid);
+            $completitud = $this->model->completitudSeccion($seccionId, $pid, count($criterios));
+        }
+
         $this->view('admin/conducta/seccion', [
-            'titulo'       => 'Conducta — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
-            'seccion'      => $seccion,
-            'periodos'     => $periodos,
-            'estudiantes'  => $estudiantes,
-            'literales'    => ['AD', 'A', 'B', 'C'],
-            'page_scripts' => ['conducta'],
+            'titulo'        => 'Conducta — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
+            'seccion'       => $seccion,
+            'periodoActivo' => $periodoActivo,
+            'criterios'     => $criterios,
+            'estudiantes'   => $estudiantes ?? [],
+            'cierre'        => $cierre,
+            'completitud'   => $completitud,
+            'page_scripts'  => ['conducta'],
         ]);
     }
 
-    // POST /admin/conducta/guardar  (AJAX)
+    // POST /admin/conducta/guardar  (AJAX — respuestas de un alumno)
     public function guardar(): void
     {
         $this->validateCsrf();
 
-        $matriculaId = (int)   $this->input('matricula_id');
-        $periodoId   = (int)   $this->input('periodo_id');
-        $literal     = trim((string) $this->input('literal', ''));
+        $matriculaId = (int) $this->input('matricula_id');
+        $periodoId   = (int) $this->input('periodo_id');
         $userId      = (int) Session::user()['id'];
 
         if (!$matriculaId || !$periodoId) {
             $this->json(['success' => false, 'mensaje' => 'Datos incompletos.'], 400);
         }
-
-        // Verificar que el periodo esté abierto
         if (!$this->model->periodoEditable($periodoId)) {
             $this->json(['success' => false, 'mensaje' => 'El periodo no está disponible para edición.'], 403);
         }
 
-        // Literal vacío = eliminar la nota
-        if ($literal === '' || $literal === 'null') {
-            $this->model->eliminar($matriculaId, $periodoId);
-            $this->json(['success' => true, 'mensaje' => 'Nota eliminada.']);
+        $ctx = $this->model->contextoMatricula($matriculaId);
+        if (!$ctx) {
+            $this->json(['success' => false, 'mensaje' => 'Matrícula no encontrada.'], 404);
+        }
+        $seccionId = (int) $ctx['seccion_id'];
+        $nivelId   = (int) $ctx['nivel_id'];
+
+        // Si la seccion ya esta bloqueada, RA no puede editar (debe desbloquear admin).
+        if ($this->model->getCierreVigente($seccionId, $periodoId)) {
+            $this->json(['success' => false, 'mensaje' => 'La conducta de esta sección ya fue bloqueada; no se puede editar.'], 403);
         }
 
-        if (!in_array($literal, ['AD', 'A', 'B', 'C'], true)) {
-            $this->json(['success' => false, 'mensaje' => 'Literal inválido.'], 400);
+        $criterios   = $this->model->getCriterios($nivelId);
+        $criterioIds = array_map(static fn($c) => (int) $c['id'], $criterios);
+        $respIn      = $this->input('respuestas', []);
+        if (!is_array($respIn)) {
+            $respIn = [];
         }
 
-        $ok = $this->model->guardar($matriculaId, $periodoId, $literal, $userId);
+        // Los criterios son OBLIGATORIOS: todos deben venir con 0 o 1.
+        $respuestas = [];
+        foreach ($criterioIds as $cid) {
+            $v = $respIn[$cid] ?? null;
+            if ($v === null || !in_array((string) $v, ['0', '1'], true)) {
+                $this->json([
+                    'success' => false,
+                    'mensaje' => 'Debes responder Sí/No en los ' . count($criterioIds) . ' criterios.',
+                ], 400);
+            }
+            $respuestas[$cid] = (int) $v;
+        }
+
+        $ok = $this->model->guardarRespuestas($matriculaId, $periodoId, $respuestas, $userId, $criterioIds);
         $this->json([
             'success' => $ok,
             'mensaje' => $ok ? 'Guardado.' : 'Error al guardar.',
         ], $ok ? 200 : 500);
+    }
+
+    // POST /admin/conducta/{seccion_id}/bloquear  (RA bloquea/aprueba la seccion)
+    public function bloquear(string $seccionId): void
+    {
+        $this->validateCsrf();
+        $seccionId = (int) $seccionId;
+
+        $seccion = $this->buscarSeccion($seccionId);
+        if (!$seccion) {
+            $this->redirectWithError(url('admin/conducta'), 'Sección no encontrada.');
+        }
+        $periodoActivo = $this->periodoActivo();
+        if (!$periodoActivo) {
+            $this->redirectWithError(url('admin/conducta/' . $seccionId), 'No hay periodo abierto para edición.');
+        }
+
+        $total = $this->model->totalCriterios((int) $seccion['nivel_id']);
+        $res   = $this->model->bloquearRA(
+            $seccionId,
+            (int) $periodoActivo['id'],
+            (int) Session::user()['id'],
+            $total
+        );
+
+        if ($res['ok']) {
+            $this->redirectWithSuccess(url('admin/conducta/' . $seccionId), $res['mensaje']);
+        }
+        $this->redirectWithError(url('admin/conducta/' . $seccionId), $res['mensaje']);
     }
 }

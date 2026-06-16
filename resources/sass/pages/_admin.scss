@@ -1116,23 +1116,9 @@ $cond-teal: #2a7a6e;
     }
 }
 
-// ── Feedback global de guardado ──────────────────────────────
-.conducta-feedback {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    padding: $spacing-sm $spacing-md;
-    border-radius: $border-radius-sm;
-    font-size: $font-size-sm;
-    font-weight: 600;
-    z-index: 9999;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, .15);
-
-    &[hidden] { display: none; }
-
-    &--ok    { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-    &--error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-}
+// .conducta-feedback se define en pages/_conducta.scss (modulo de conducta
+// numerica). Se elimino de aqui para evitar el conflicto top/bottom que estiraba
+// el toast por todo el alto de la pantalla.
 
 // Card de conducta en panel padre
 .competencia-card--conducta {

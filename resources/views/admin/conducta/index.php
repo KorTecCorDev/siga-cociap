@@ -32,18 +32,26 @@
         <h2 class="conducta-nivel-titulo"><?= e($nivel) ?></h2>
         <div class="conducta-secciones-grid">
             <?php foreach ($secciones as $s):
-                $datos       = $progreso[(int) $s['id']] ?? ['esperados' => 0, 'calificados' => 0];
+                $datos       = $progreso[(int) $s['id']] ?? ['esperados' => 0, 'calificados' => 0, 'bloqueada' => false, 'cerrada_tutor' => false];
                 $esperados   = $datos['esperados'];
                 $calificados = $datos['calificados'];
+                $bloqueada   = !empty($datos['bloqueada']);
+                $cerradaTut  = !empty($datos['cerrada_tutor']);
                 $pct         = $esperados > 0 ? (int) round($calificados * 100 / $esperados) : 0;
                 $completo    = $esperados > 0 && $calificados >= $esperados;
             ?>
                 <a href="<?= url('admin/conducta/' . $s['id']) ?>"
-                   class="conducta-seccion-card">
+                   class="conducta-seccion-card<?= $bloqueada ? ' conducta-seccion-card--bloqueada' : '' ?>">
                     <span class="conducta-seccion-card__grado"><?= e($s['grado_nombre']) ?></span>
                     <span class="conducta-seccion-card__nombre">Sección <?= e($s['seccion_nombre']) ?></span>
 
-                    <?php if ($periodoActivo): ?>
+                    <?php if ($bloqueada): ?>
+                        <span class="conducta-estado-badge conducta-estado-badge--<?= $cerradaTut ? 'cerrada' : 'bloqueada' ?>">
+                            <?= $cerradaTut ? '✓ Cerrada por el tutor' : '🔒 Bloqueada (RA)' ?>
+                        </span>
+                    <?php endif; ?>
+
+                    <?php if ($periodoActivo && !$bloqueada): ?>
                         <div class="conducta-progreso<?= $completo ? ' conducta-progreso--completo' : '' ?>">
                             <?php if ($esperados === 0): ?>
                                 <span class="conducta-progreso__vacio">Sin estudiantes</span>

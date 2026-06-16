@@ -1,0 +1,226 @@
+// ============================================================================
+// _conducta.scss — Modulo de conducta numerica (rediseno migracion 021)
+// ETAPA 1 (Registro Academico): grilla de criterios Si/No.
+// El indice (cards/progreso) reutiliza estilos de _admin.scss.
+// ============================================================================
+
+// ── Badge de estado en las cards del indice ─────────────────────────────────
+.conducta-estado-badge {
+    display: inline-block;
+    margin-top: $spacing-sm;
+    padding: 2px $spacing-sm;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-sm;
+    font-weight: 600;
+
+    &--bloqueada { background: $color-warning-bg; color: $color-warning; }
+    &--cerrada   { background: $color-success-bg; color: $color-success; }
+}
+
+.conducta-seccion-card--bloqueada {
+    border-color: rgba($color-success, 0.4);
+}
+
+// ── Leyenda de criterios (desplegable) ──────────────────────────────────────
+.conducta-criterios-leyenda {
+    margin-bottom: $spacing-md;
+    padding: $spacing-sm $spacing-md;
+    background: $bg-secondary;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+
+    summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: $text-secondary;
+    }
+
+    .conducta-criterios-lista {
+        margin: $spacing-sm 0 0;
+        padding-left: 1.4rem;
+
+        li { margin-bottom: $spacing-xs; font-size: $font-size-base; color: $text-secondary; }
+    }
+}
+
+// ── Grilla de criterios ─────────────────────────────────────────────────────
+.conducta-grilla {
+    th.conducta-th-crit {
+        min-width: 56px;
+        text-align: center;
+        cursor: help;
+    }
+    th.conducta-th-nota     { min-width: 84px; text-align: center; }
+    th.conducta-th-acciones { min-width: 120px; }
+
+    td.conducta-td-crit { text-align: center; padding: $spacing-xs; }
+    td.conducta-td-nota { text-align: center; font-weight: 600; }
+}
+
+// Toggle Si/No por criterio
+.cc-toggle {
+    display: inline-flex;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-sm;
+    overflow: hidden;
+}
+
+.cc-btn {
+    appearance: none;
+    border: 0;
+    background: $bg-white;
+    color: $text-muted;
+    padding: $spacing-xs $spacing-sm;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+
+    & + .cc-btn { border-left: 1px solid $border-color; }
+
+    &:hover:not(:disabled) { background: $bg-secondary; }
+    &:disabled { cursor: default; opacity: .55; }
+
+    &--si.cc-btn--activo { background: $color-success; color: $text-white; }
+    &--no.cc-btn--activo { background: $color-error;   color: $text-white; }
+}
+
+// Nota RA en vivo (color por literal)
+.cc-nota {
+    color: $text-muted;
+
+    &--ad { color: $color-success; }
+    &--a  { color: $color-info; }
+    &--b  { color: $color-warning; }
+    &--c  { color: $color-error; }
+}
+
+// ── Estado de guardado por fila (pendiente / guardado) ──────────────────────
+.conducta-estado-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-right: $spacing-xs;
+    vertical-align: middle;
+    background: $color-warning; // por defecto: sin guardar
+}
+
+.conducta-estado-txt {
+    display: inline-block;
+    margin-right: $spacing-sm;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: $color-warning;
+}
+
+.conducta-fila--pendiente {
+    // barra de estado en la celda N° (no pelea con el fondo sticky)
+    td.col-num { box-shadow: inset 3px 0 0 $color-warning; }
+}
+
+.conducta-fila--guardada {
+    td.col-num { box-shadow: inset 3px 0 0 $color-success; }
+    .conducta-estado-dot { background: $color-success; }
+    .conducta-estado-txt { color: $color-success; }
+}
+
+.conducta-status {
+    display: inline-block;
+    margin-left: $spacing-sm;
+    font-size: $font-size-sm;
+
+    &.status--success { color: $color-success; }
+    &.status--error   { color: $color-error; }
+    &.status--loading { color: $text-muted; }
+}
+
+// ── Bloqueo de seccion ──────────────────────────────────────────────────────
+.conducta-bloqueo-form {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $spacing-md;
+    margin-top: $spacing-lg;
+    padding-top: $spacing-md;
+    border-top: 1px solid $border-color;
+}
+
+.conducta-bloqueo-info { font-size: $font-size-base; color: $text-secondary; }
+
+// ── Panel del tutor (Etapa 2) ───────────────────────────────────────────────
+.conducta-bimestres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-xs;
+    margin-bottom: $spacing-md;
+}
+
+.conducta-bimestre-tab {
+    padding: $spacing-xs $spacing-md;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    color: $text-secondary;
+    text-decoration: none;
+    background: $bg-white;
+
+    &:hover { background: $bg-secondary; }
+
+    &--activo {
+        background: $brand-mid;
+        border-color: $brand-mid;
+        color: $text-white;
+    }
+}
+
+// Estado "pendiente": RA aun no bloqueo
+.conducta-espera {
+    text-align: center;
+    padding: $spacing-2xl $spacing-lg;
+    background: $color-warning-bg;
+    border: 1px solid rgba($color-warning, 0.35);
+    border-radius: $border-radius-lg;
+
+    &__icono  { font-size: 40px; }
+    &__titulo { margin: $spacing-sm 0; color: $color-warning; font-size: $font-size-lg; }
+    &__texto  { max-width: 560px; margin: 0 auto; color: $text-secondary; }
+}
+
+// Tabla del tutor
+.conducta-tutor-tabla {
+    .conducta-nota-tutor {
+        width: 60px;
+        text-align: center;
+        padding: $spacing-xs;
+        border: 1px solid $border-color;
+        border-radius: $border-radius-sm;
+    }
+    .conducta-final {
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .conducta-final__lit { margin-left: 2px; font-size: $font-size-sm; }
+}
+
+// ── Feedback flotante ───────────────────────────────────────────────────────
+.conducta-feedback {
+    position: fixed;
+    bottom: $spacing-2xl; // por encima del .app-footer (estatico, ~30px)
+    right: $spacing-lg;
+    z-index: 1000;
+    max-width: 320px;
+    padding: $spacing-sm $spacing-md;
+    border-radius: $border-radius;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    box-shadow: $shadow-md;
+
+    &[hidden] { display: none; }
+
+    &--ok    { background: $color-success; color: $text-white; }
+    &--error { background: $color-error;   color: $text-white; }
+}
