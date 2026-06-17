@@ -470,7 +470,7 @@ $_oS  = round(25 - $_pB - $_pP, 2);
 
                         <td>
                             <?php if ($estado === 'bloqueada'): ?>
-                                <span class="badge badge--activo">&#10003; Bloqueada</span>
+                                <span class="badge badge--activo">Bloqueada <span class="badge__icono" aria-hidden="true"></span></span>
                             <?php elseif ($estado === 'bloqueada-sin-notas'): ?>
                                 <span class="badge badge--activo badge--sin-notas">&#10003; Sin notas</span>
                             <?php elseif ($estado === 'pendiente'): ?>
@@ -568,7 +568,7 @@ $_oS  = round(25 - $_pB - $_pP, 2);
                         <td class="text-sm"><?= e($st['tutor_nombre']) ?></td>
                         <td>
                             <?php if ($st['cerrada']): ?>
-                                <span class="badge badge--activo">&#10003; Bloqueada</span>
+                                <span class="badge badge--activo">Bloqueada <span class="badge__icono" aria-hidden="true"></span></span>
                             <?php else: ?>
                                 <span class="badge badge--warning">Pendiente</span>
                             <?php endif; ?>

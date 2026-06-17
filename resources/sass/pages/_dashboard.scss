@@ -271,6 +271,17 @@
         background: $bg-secondary;
         color: $text-muted;
     }
+
+    // Check-circle tintado al color del pill (currentColor) para el estado
+    // "Completas", consistente con el badge "Bloqueada" de las cargas.
+    &__icono {
+        width: 12px;
+        height: 12px;
+        flex-shrink: 0;
+        background-color: currentColor;
+        -webkit-mask: url('../assets/icons/check-circle.svg') center / contain no-repeat;
+        mask: url('../assets/icons/check-circle.svg') center / contain no-repeat;
+    }
 }
 
 // ── Vista de calificaciones ──────────────────────────────────

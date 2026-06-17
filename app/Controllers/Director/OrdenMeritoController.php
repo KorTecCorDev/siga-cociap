@@ -76,22 +76,9 @@ class OrdenMeritoController extends BaseController
         }
 
         // Obtener grados con estudiantes calificados
-        $grados = $this->calModel->query("
-            SELECT DISTINCT
-                g.id,
-                g.numero,
-                g.nombre_display,
-                n.nombre AS nivel_nombre,
-                n.codigo AS nivel_codigo
-            FROM matriculas m
-            INNER JOIN secciones s  ON s.id = m.seccion_id
-            INNER JOIN grados g     ON g.id = s.grado_id
-            INNER JOIN niveles n    ON n.id = g.nivel_id
-            INNER JOIN calificaciones cal ON cal.matricula_id = m.id
-            WHERE cal.periodo_id = ?
-              AND m.estado = 'aprobada'
-            ORDER BY n.id, g.numero
-        ", [$periodoId]);
+        // Snapshot-aware: para un bimestre cerrado enumera desde el snapshot
+        // (incluye grados congelados como la sección operativa de un retorno).
+        $grados = $this->ordenMeritoModel->gradosConRanking($periodoId);
 
         // Calcular ranking por cada grado
         $ranking = [];
@@ -244,22 +231,9 @@ class OrdenMeritoController extends BaseController
             );
         }
 
-        $grados = $this->calModel->query("
-            SELECT DISTINCT
-                g.id,
-                g.numero,
-                g.nombre_display,
-                n.nombre AS nivel_nombre,
-                n.codigo AS nivel_codigo
-            FROM matriculas m
-            INNER JOIN secciones s  ON s.id = m.seccion_id
-            INNER JOIN grados g     ON g.id = s.grado_id
-            INNER JOIN niveles n    ON n.id = g.nivel_id
-            INNER JOIN calificaciones cal ON cal.matricula_id = m.id
-            WHERE cal.periodo_id = ?
-              AND m.estado = 'aprobada'
-            ORDER BY n.id, g.numero
-        ", [$periodoId]);
+        // Snapshot-aware: para un bimestre cerrado enumera desde el snapshot
+        // (incluye grados congelados como la sección operativa de un retorno).
+        $grados = $this->ordenMeritoModel->gradosConRanking($periodoId);
 
         $ranking = [];
         foreach ($grados as $grado) {

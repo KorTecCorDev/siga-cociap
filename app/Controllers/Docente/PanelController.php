@@ -567,6 +567,15 @@ class PanelController extends BaseController
             LEFT JOIN apoderados apo ON apo.id = vf.apoderado_id
             LEFT JOIN personas ap    ON ap.id = apo.persona_id
             WHERE m.estado = 'aprobada' AND m.tipo != 'trasladado'
+              -- Retorno de grado: la nómina es un documento OFICIAL (SIAGIE), por
+              -- lo que muestra la matrícula ORIGINAL (grado/sección oficial) y
+              -- oculta la operativa interna (grado inferior). Espejo de la regla
+              -- de OrdenMeritoModel, que excluye la oficial para el ranking operativo.
+              AND m.id NOT IN (
+                  SELECT matricula_operativa_id
+                  FROM retornos_grado
+                  WHERE estado = 'activo'
+              )
               AND n.id IN ($ph)$filtroSeccion
             ORDER BY n.id, g.numero, s.nombre,
                      p.apellido_paterno, p.apellido_materno, p.nombres

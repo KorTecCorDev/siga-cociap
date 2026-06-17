@@ -4,6 +4,7 @@ namespace App\Controllers\Director;
 
 use App\Controllers\BaseController;
 use App\Models\AnioAcademicoModel;
+use App\Models\OrdenMeritoModel;
 use Core\Session;
 
 /**
@@ -84,6 +85,11 @@ class PeriodoController extends BaseController
         if ($this->model->tieneBimestreActivo((int) $periodo['anio_id'])) {
             $this->redirectWithError($volverUrl, 'Ya hay un bimestre activo en este año. Ciérralo antes de abrir otro.');
         }
+        // Orden cronológico: no se puede abrir un bimestre si uno anterior sigue
+        // sin abrir. Evita saltarse bimestres (lo que distorsiona el "vigente").
+        if ($this->model->hayBimestrePrevioPendiente((int) $periodo['anio_id'], (int) $periodo['numero'])) {
+            $this->redirectWithError($volverUrl, 'Debes abrir los bimestres en orden: hay un bimestre anterior que aún no se ha abierto.');
+        }
 
         $this->model->setEstadoPeriodo($id, 'activo');
         $this->redirectWithSuccess($volverUrl, "{$periodo['nombre_display']} abierto. Los docentes ya pueden registrar notas.");
@@ -106,6 +112,19 @@ class PeriodoController extends BaseController
             $this->redirectWithError($volverUrl, 'Solo se puede cerrar un bimestre activo.');
         }
 
+        // Todos los empates del orden de mérito deben estar resueltos antes de
+        // cerrar: el snapshot oficial (Fase 2) congela un ranking definitivo, así
+        // que un empate pendiente al cierre quedaría petrificado sin resolver.
+        $empates = (new OrdenMeritoModel())->gradosConEmpatesPendientes($id);
+        if (!empty($empates)) {
+            $this->redirectWithError(
+                $volverUrl,
+                'No se puede cerrar: hay empates sin resolver en el orden de mérito ('
+                . implode('; ', array_unique($empates))
+                . '). Resuélvelos antes de cerrar el bimestre.'
+            );
+        }
+
         $usuarioId = (int) (Session::user()['id'] ?? 0);
 
         try {
@@ -116,6 +135,9 @@ class PeriodoController extends BaseController
             // (respeta los cierres que el tutor ya hizo).
             $this->model->crearCierresTransversalesPendientes($id, $usuarioId);
             $this->model->setEstadoPeriodo($id, 'cerrado');
+            // Congela el orden de mérito oficial del bimestre (documento inmutable).
+            // Mismo PDO singleton → entra en esta misma transacción.
+            (new OrdenMeritoModel())->generarSnapshot($id, $usuarioId);
             $this->model->commit();
         } catch (\Exception $e) {
             $this->model->rollback();

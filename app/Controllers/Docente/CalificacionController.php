@@ -547,34 +547,21 @@ class CalificacionController extends BaseController
                 sa.nombre         AS subarea_nombre,
                 a.id              AS area_id,
                 (
-                    -- Competencias propias del area/subarea de la carga...
-                    (
-                        SELECT COUNT(DISTINCT comp2.id)
-                        FROM competencias comp2
-                        WHERE (
-                            (ca.subarea_id IS NOT NULL AND comp2.subarea_id = ca.subarea_id)
-                            OR
-                            (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL
-                                AND comp2.area_id = ca.area_id)
-                        )
+                    -- Competencias PROPIAS del area/subarea de la carga. La barra de
+                    -- avance compara este total contra competencias_bloqueadas, que
+                    -- recorre EXACTAMENTE este mismo universo (propias). Las TIC/GAMA
+                    -- transversales NO se suman aqui: tienen su propio distintivo
+                    -- (total_transversales / transversales_bloqueadas). Sumarlas al
+                    -- total mientras el numerador solo cuenta propias dejaba el avance
+                    -- atascado (p. ej. 5/7 = 71%) al bloquear todo (Variante 1).
+                    SELECT COUNT(DISTINCT comp2.id)
+                    FROM competencias comp2
+                    WHERE (
+                        (ca.subarea_id IS NOT NULL AND comp2.subarea_id = ca.subarea_id)
+                        OR
+                        (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL
+                            AND comp2.area_id = ca.area_id)
                     )
-                    -- ...mas las transversales TIC/GAMA que ESTA carga registra en
-                    -- el periodo (modelo por docente / Variante 1: se bloquean junto
-                    -- con la ultima propia). Solo cuentan si el docente las abrio en
-                    -- esta carga (hay criterios transversales), de modo que el modelo
-                    -- antiguo del tutor —donde la carga propia no lleva transversales—
-                    -- no las suma y el avance no baja falsamente. Las cargas heredadas
-                    -- del tutor (area transversal) ya las cuentan como propias arriba.
-                    + CASE WHEN a.tipo = 'transversal' THEN 0 ELSE (
-                        SELECT COUNT(DISTINCT cr3.competencia_id)
-                        FROM criterios cr3
-                        INNER JOIN competencias c3 ON c3.id = cr3.competencia_id
-                        INNER JOIN areas a3       ON a3.id = c3.area_id
-                        WHERE cr3.carga_id     = ca.id
-                          AND cr3.periodo_id   = ?
-                          AND cr3.eliminado_en IS NULL
-                          AND a3.tipo          = 'transversal'
-                    ) END
                 ) AS total_competencias,
                 -- Avance defensivo: numerador y denominador recorren el MISMO
                 -- universo (las competencias PROPIAS de la carga, vía su predicado
@@ -647,7 +634,7 @@ class CalificacionController extends BaseController
             WHERE ca.docente_id = ?
               AND ca.estado     = 'activa'
             ORDER BY n.id, g.numero, s.nombre, a.orden
-        ", [$periodoId, $periodoId, $periodoId, $periodoId, $periodoId, $docenteId]);
+        ", [$periodoId, $periodoId, $periodoId, $periodoId, $docenteId]);
     }
 
     private function validarCargaDocente(int $cargaId): ?array

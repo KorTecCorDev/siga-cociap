@@ -161,6 +161,23 @@ class AnioAcademicoModel extends BaseModel
         return $fila !== null;
     }
 
+    /**
+     * ¿Existe algún bimestre ANTERIOR (numero menor) que aún no se ha abierto
+     * (estado 'pendiente')? Se usa para forzar la apertura en orden cronológico
+     * (B1 → B2 → B3 → B4) y evitar que se abra un bimestre futuro saltándose uno
+     * previo, lo que distorsionaba el "orden de mérito vigente".
+     */
+    public function hayBimestrePrevioPendiente(int $anioId, int $numero): bool
+    {
+        $fila = $this->queryOne("
+            SELECT id FROM periodos
+            WHERE anio_id = ? AND numero < ? AND estado = 'pendiente'
+            LIMIT 1
+        ", [$anioId, $numero]);
+
+        return $fila !== null;
+    }
+
     /** Actualiza las fechas y la fecha límite de notas de un bimestre. */
     public function actualizarFechasPeriodo(
         int $id,

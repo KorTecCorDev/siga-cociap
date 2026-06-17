@@ -31,9 +31,13 @@ class EstudianteModel extends BaseModel
     }
 
     /**
-     * Último bimestre CERRADO del año dado (el de mayor número con
-     * estado = 'cerrado'). Es el orden de mérito vigente para consulta.
-     * NULL si aún no se cerró ningún bimestre (estamos en el I Bimestre).
+     * Bimestre cerrado VIGENTE para consulta del orden de mérito: el cerrado de
+     * mayor número ANTERIOR al bimestre activo. Si no hay activo (fin de año),
+     * el cerrado de mayor número. NULL si aún no se cerró ninguno.
+     *
+     * Anclarlo "previo al activo" evita que un bimestre cerrado fuera de orden
+     * (futuro) se muestre como vigente. Con la apertura ya forzada en orden
+     * (Fase 1) coincide con el flujo normal, pero la consulta queda robusta.
      */
     public function ultimoBimestreCerrado(int $anioId): ?array
     {
@@ -41,9 +45,13 @@ class EstudianteModel extends BaseModel
             SELECT id, numero, nombre_display
             FROM periodos
             WHERE anio_id = ? AND estado = 'cerrado'
+              AND numero < COALESCE(
+                  (SELECT MIN(numero) FROM periodos WHERE anio_id = ? AND estado = 'activo'),
+                  999
+              )
             ORDER BY numero DESC
             LIMIT 1
-        ", [$anioId]);
+        ", [$anioId, $anioId]);
     }
 
     /**

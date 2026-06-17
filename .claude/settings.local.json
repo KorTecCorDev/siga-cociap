@@ -132,7 +132,27 @@
       "PowerShell($base = \"http://localhost/siga-cociap/public\"; $r = Invoke-WebRequest -Uri \"$base/login\" -UseBasicParsing -SessionVariable sess; $csrf = \\([regex]::Match\\($r.Content, 'name=\"_csrf_token\" value=\"\\([^\"]+\\)\"'\\)\\).Groups[1].Value; $null = Invoke-WebRequest -Uri \"$base/login/procesar\" -Method POST -Body @{ dni = '00000000'; password = 'admin1234'; _csrf_token = $csrf } -WebSession $sess -UseBasicParsing; $b = Invoke-WebRequest -Uri \"$base/boleta/digital/204/1\" -WebSession $sess -UseBasicParsing; $t = [System.Text.Encoding]::UTF8.GetString\\($b.RawContentStream.ToArray\\(\\)\\); if \\($t -match 'Comp\\\\. Transv\\\\.'\\) { \"SEC23 TRANSVERSALES: restauradas\" }; & \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root siga_cociap -e \"SELECT nota_numerica FROM calificaciones WHERE matricula_id = 204 AND periodo_id = 1 AND competencia_id IN \\(56,57\\);\")",
       "PowerShell($base = \"http://localhost/siga-cociap/public\"; $r = Invoke-WebRequest -Uri \"$base/login\" -UseBasicParsing -SessionVariable sess; $csrf = \\([regex]::Match\\($r.Content, 'name=\"_csrf_token\" value=\"\\([^\"]+\\)\"'\\)\\).Groups[1].Value; $null = Invoke-WebRequest -Uri \"$base/login/procesar\" -Method POST -Body @{ dni = '99999999'; password = 'admin1234'; _csrf_token = $csrf } -WebSession $sess -UseBasicParsing; $p = Invoke-WebRequest -Uri \"$base/padre/notas\" -WebSession $sess -UseBasicParsing; $t = [System.Text.Encoding]::UTF8.GetString\\($p.RawContentStream.ToArray\\(\\)\\); $err = if \\($t -match 'Fatal error|Unknown column'\\) { '⚠ ERROR' } else { 'OK' }; \"PADRE/NOTAS: $\\($p.StatusCode\\) $err\")",
       "PowerShell(Remove-Item *)",
-      "PowerShell($r = Invoke-WebRequest -Uri \"https://sigacociap.net/boleta-publica\" -UseBasicParsing -SessionVariable sess -TimeoutSec 25; $csrf = \\([regex]::Match\\($r.Content, 'name=\"_csrf_token\" value=\"\\([^\"]+\\)\"'\\)\\).Groups[1].Value; $b = Invoke-WebRequest -Uri \"https://sigacociap.net/boleta-publica/consultar\" -Method POST -Body @{ codigo_acceso = 'COCIAP-2026-B1-V55BRA'; _csrf_token = $csrf } -WebSession $sess -UseBasicParsing -TimeoutSec 25 -SkipHttpErrorCheck; $t = [System.Text.Encoding]::UTF8.GetString\\($b.RawContentStream.ToArray\\(\\)\\); \"CONSULTA: $\\($b.StatusCode\\) LEN: $\\($t.Length\\)\"; if \\($t -match 'Comp\\\\. Transv\\\\.'\\) { \"TRANSVERSALES: presentes\" }; if \\($t -match 'Logro destacado \\\\\\(\\([^\\)]+\\)\\\\\\)'\\) { \"LEYENDA AD: $\\($Matches[1]\\)\" })"
+      "PowerShell($r = Invoke-WebRequest -Uri \"https://sigacociap.net/boleta-publica\" -UseBasicParsing -SessionVariable sess -TimeoutSec 25; $csrf = \\([regex]::Match\\($r.Content, 'name=\"_csrf_token\" value=\"\\([^\"]+\\)\"'\\)\\).Groups[1].Value; $b = Invoke-WebRequest -Uri \"https://sigacociap.net/boleta-publica/consultar\" -Method POST -Body @{ codigo_acceso = 'COCIAP-2026-B1-V55BRA'; _csrf_token = $csrf } -WebSession $sess -UseBasicParsing -TimeoutSec 25 -SkipHttpErrorCheck; $t = [System.Text.Encoding]::UTF8.GetString\\($b.RawContentStream.ToArray\\(\\)\\); \"CONSULTA: $\\($b.StatusCode\\) LEN: $\\($t.Length\\)\"; if \\($t -match 'Comp\\\\. Transv\\\\.'\\) { \"TRANSVERSALES: presentes\" }; if \\($t -match 'Logro destacado \\\\\\(\\([^\\)]+\\)\\\\\\)'\\) { \"LEYENDA AD: $\\($Matches[1]\\)\" })",
+      "PowerShell(& \"node_modules\\\\.bin\\\\gulp.cmd\" --tasks 2>&1 | Select-Object -First 30)",
+      "PowerShell(& \"node_modules\\\\.bin\\\\gulp.cmd\" build 2>&1 | Select-Object -Last 20)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --default-character-set=utf8mb4 siga_cociap -e \"source database/migrations/020_bloqueos_origen.sql\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -l app\\\\Models\\\\TransversalModel.php)",
+      "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -l app\\\\Controllers\\\\Director\\\\BloqueoController.php)",
+      "Bash(php -l app/Models/ConductaModel.php)",
+      "Bash(php -l resources/views/docente/conducta.php)",
+      "Bash(php -l app/Models/AnioAcademicoModel.php)",
+      "Bash(php -l app/Controllers/Director/PeriodoController.php)",
+      "Bash(php -l app/Controllers/Docente/PanelController.php)",
+      "Bash(php -l app/Controllers/Docente/CalificacionController.php)",
+      "Bash(php -l resources/views/docente/inicio.php)",
+      "Bash(php -l resources/views/docente/mis-cargas.php)",
+      "Bash(awk 'END{print NR}' resources/sass/pages/_admin.scss)",
+      "Bash(php -l app/Controllers/Director/BloqueoController.php)",
+      "Bash(php -l resources/views/director/bloqueos/index.php)",
+      "Bash(php -l routes/web.php)",
+      "Bash(php -l resources/views/matriculas/show.php)",
+      "Bash(php -l app/Controllers/Matricula/MatriculaController.php)",
+      "Bash(awk '{print $5, $NF}')"
     ]
   }
 }

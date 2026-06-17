@@ -34,17 +34,56 @@
         $agrupadas[$ng][$carga['seccion_id']][$carga['area_id']][] = $carga;
     }
 
-    // Devuelve [clase_badge, texto_badge] según el estado de bloqueo de una carga
-    $estadoBadge = function (array $c): array {
-        $total        = (int) ($c['total_competencias']      ?? 0);
-        $bloqueadas   = (int) ($c['competencias_bloqueadas'] ?? 0);
-        $conCriterios = (int) ($c['competencias_con_criterios'] ?? 0);
+    // Avance GLOBAL de la carga = competencias propias del area + transversales
+    // TIC/GAMA que el docente registra en su propia carga. Devuelve
+    // [bloqueadas, total, pct, estado]. En una carga de tipo transversal
+    // (modelo antiguo del tutor) sus competencias YA son las transversales, por
+    // lo que NO se vuelven a sumar (evitaria un doble conteo).
+    $avanceCarga = function (array $c): array {
+        $esTransversal = ($c['area_tipo'] ?? '') === 'transversal';
+        $total      = (int) ($c['total_competencias']      ?? 0);
+        $bloqueadas = (int) ($c['competencias_bloqueadas'] ?? 0);
+        if (!$esTransversal) {
+            $total      += (int) ($c['total_transversales']      ?? 0);
+            $bloqueadas += (int) ($c['transversales_bloqueadas'] ?? 0);
+        }
+        $pct    = $total > 0 ? (int) round($bloqueadas / $total * 100) : 0;
+        $estado = $pct >= 100 ? 'completo' : ($pct > 0 ? 'parcial' : 'vacio');
+        return [$bloqueadas, $total, $pct, $estado];
+    };
+
+    // Sub-avance SOLO de transversales: [bloqueadas, total, estado] o NULL.
+    // NULL en cargas transversales (la barra principal ya las representa) o si
+    // el nivel no define transversales.
+    $transAvance = function (array $c): ?array {
+        if (($c['area_tipo'] ?? '') === 'transversal') {
+            return null;
+        }
+        $total = (int) ($c['total_transversales'] ?? 0);
+        if ($total === 0) {
+            return null;
+        }
+        $bloqueadas = (int) ($c['transversales_bloqueadas']   ?? 0);
+        $criterios  = (int) ($c['transversales_con_criterios'] ?? 0);
+        $estado     = $bloqueadas >= $total
+            ? 'completo'
+            : (($bloqueadas > 0 || $criterios > 0) ? 'progreso' : 'pendiente');
+        return [$bloqueadas, $total, $estado];
+    };
+
+    // Devuelve [clase_badge, texto_badge] según el estado GLOBAL de la carga
+    // (propias + transversales). "Bloqueada" solo cuando TODO esta aprobado.
+    $estadoBadge = function (array $c) use ($avanceCarga): array {
+        [$bloqueadas, $total] = $avanceCarga($c);
+        $esTransversal = ($c['area_tipo'] ?? '') === 'transversal';
+        $conCriterios  = (int) ($c['competencias_con_criterios'] ?? 0)
+            + ($esTransversal ? 0 : (int) ($c['transversales_con_criterios'] ?? 0));
 
         if ($total === 0 || ($bloqueadas === 0 && $conCriterios === 0)) {
             return ['badge--error',   'Sin criterios'];
         }
         if ($bloqueadas === $total) {
-            return ['badge--activo',  '✓ Bloqueada'];
+            return ['badge--activo',  'Bloqueada <span class="badge__icono" aria-hidden="true"></span>'];
         }
         if ($bloqueadas > 0) {
             return ['badge--warning', 'Parcial'];
@@ -52,21 +91,18 @@
         return ['badge--warning', 'Pendiente'];
     };
 
-    // Distintivo de transversales (TIC/GAMA) de la carga: completas cuando
-    // todas estan bloqueadas; en progreso si ya tienen criterios; pendiente
-    // si aun no se inician. Devuelve [modificador, texto].
-    $transBadge = function (array $c): array {
-        $total      = (int) ($c['total_transversales']        ?? 0);
-        $bloqueadas = (int) ($c['transversales_bloqueadas']   ?? 0);
-        $criterios  = (int) ($c['transversales_con_criterios'] ?? 0);
-
-        if ($total > 0 && $bloqueadas >= $total) {
-            return ['completo', 'Transversales · Completas ✓'];
+    // Pill de transversales con contador "X/Y" (ej. 1/2, 2/2). Devuelve
+    // [modificador, texto] o NULL si no aplica (carga transversal / sin TIC-GAMA).
+    $transBadge = function (array $c) use ($transAvance): ?array {
+        $av = $transAvance($c);
+        if ($av === null) {
+            return null;
         }
-        if ($criterios > 0) {
-            return ['progreso', 'Transversales · En progreso'];
-        }
-        return ['pendiente', 'Transversales · Pendiente'];
+        [$bloqueadas, $total, $estado] = $av;
+        $icono = $estado === 'completo'
+            ? ' <span class="carga-transversal__icono" aria-hidden="true"></span>'
+            : '';
+        return [$estado, 'Transversales ' . $bloqueadas . '/' . $total . $icono];
     };
     ?>
 
@@ -99,12 +135,7 @@
                                     </div>
                                     <div class="carga-area__items">
                                         <?php foreach ($areaCargas as $carga): ?>
-                                            <?php
-                                            $total      = (int) ($carga['total_competencias'] ?? 0);
-                                            $bloqueadas = (int) ($carga['competencias_bloqueadas'] ?? 0);
-                                            $pct        = $total > 0 ? round($bloqueadas / $total * 100) : 0;
-                                            $estado     = $pct >= 100 ? 'completo' : ($pct > 0 ? 'parcial' : 'vacio');
-                                            ?>
+                                            <?php [$bloqueadas, $total, $pct, $estado] = $avanceCarga($carga); ?>
                                             <?php [$badgeClase, $badgeTexto] = $estadoBadge($carga); ?>
                                             <a href="<?= url('docente/calificaciones/' . $carga['id']) ?>"
                                                class="carga-item <?= $periodo ? '' : 'carga-item--disabled' ?>">
@@ -134,10 +165,12 @@
                                                     </div>
                                                 </div>
 
-                                                <?php [$trClase, $trTexto] = $transBadge($carga); ?>
-                                                <span class="carga-transversal carga-transversal--<?= $trClase ?>">
-                                                    <?= $trTexto ?>
-                                                </span>
+                                                <?php if ($tr = $transBadge($carga)): ?>
+                                                    <?php [$trClase, $trTexto] = $tr; ?>
+                                                    <span class="carga-transversal carga-transversal--<?= $trClase ?>">
+                                                        <?= $trTexto ?>
+                                                    </span>
+                                                <?php endif; ?>
 
                                             </a>
                                         <?php endforeach; ?>
@@ -147,11 +180,8 @@
                             <?php else: ?>
 
                                 <?php
-                                $carga      = $areaCargas[0];
-                                $total      = (int) ($carga['total_competencias'] ?? 0);
-                                $bloqueadas = (int) ($carga['competencias_bloqueadas'] ?? 0);
-                                $pct        = $total > 0 ? round($bloqueadas / $total * 100) : 0;
-                                $estado     = $pct >= 100 ? 'completo' : ($pct > 0 ? 'parcial' : 'vacio');
+                                $carga = $areaCargas[0];
+                                [$bloqueadas, $total, $pct, $estado] = $avanceCarga($carga);
                                 [$badgeClase, $badgeTexto] = $estadoBadge($carga);
                                 ?>
                                 <a href="<?= url('docente/calificaciones/' . $carga['id']) ?>"
@@ -186,10 +216,12 @@
                                         </div>
                                     </div>
 
-                                    <?php [$trClase, $trTexto] = $transBadge($carga); ?>
-                                    <span class="carga-transversal carga-transversal--<?= $trClase ?>">
-                                        <?= $trTexto ?>
-                                    </span>
+                                    <?php if ($tr = $transBadge($carga)): ?>
+                                        <?php [$trClase, $trTexto] = $tr; ?>
+                                        <span class="carga-transversal carga-transversal--<?= $trClase ?>">
+                                            <?= $trTexto ?>
+                                        </span>
+                                    <?php endif; ?>
 
                                 </a>
 
