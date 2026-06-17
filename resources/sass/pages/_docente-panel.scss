@@ -193,6 +193,26 @@
     cursor: default;
 }
 
+// La fila de la nómina reutiliza .buscador-item pero NO navega (es un <div>
+// informativo, no un enlace a la matrícula). Se neutraliza la animación de
+// botón: card llano, sin cursor de mano ni elevación/resaltado al pasar el
+// mouse. Scoped a .nomina-fila para no afectar los buscadores de otras vistas.
+.buscador-item.nomina-fila {
+    cursor: default;
+
+    &:hover,
+    &:focus-visible {
+        transform: none;
+        border-color: $border-color;
+        box-shadow: none;
+    }
+
+    // No hay chevron de navegación aquí: recupera el padding derecho reservado.
+    .buscador-item__body {
+        padding-right: $spacing-md;
+    }
+}
+
 // ── Nómina (impresión A4) ────────────────────────────────────
 .nomina-print {
     padding: $spacing-sm;

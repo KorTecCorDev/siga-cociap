@@ -105,6 +105,9 @@
     display: flex;
     flex-direction: column;
     gap: $spacing-sm;
+    // El contenedor nace oculto (hidden) hasta que hay coincidencias; el JS lo
+    // alterna. El [hidden] debe ganarle al display:flex de arriba.
+    &[hidden] { display: none; }
 
     &__contador {
         margin: 0 0 $spacing-xs;
@@ -119,6 +122,9 @@
 .buscador-item {
     // La tarjeta es un <a>: se neutraliza el estilo de enlace y se vuelve clicable.
     display: block;
+    // El atributo [hidden] (que el JS del buscador alterna por fila) debe ganarle
+    // al display:block de arriba; si no, las filas filtradas siguen visibles.
+    &[hidden] { display: none; }
     position: relative;
     margin: 0;
     color: inherit;
