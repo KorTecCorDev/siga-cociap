@@ -259,6 +259,47 @@ class AsistenciaModel extends BaseModel
         ];
     }
 
+    // ── Variantes por UNIÓN para el retorno de grado ─────────────
+    // Una estudiante en retorno tiene dos matrículas (oficial + operativa) y su
+    // asistencia queda repartida por bimestre. La boleta (siempre la oficial)
+    // suma ambas: por bimestre solo una tiene datos, así que la suma no infla.
+    // Con una sola matrícula se comportan igual que los métodos base.
+
+    public function getDelBimestreUnion(array $matriculaIds, int $periodoId): array
+    {
+        if (count($matriculaIds) <= 1) {
+            return $this->getDelBimestre((int) ($matriculaIds[0] ?? 0), $periodoId);
+        }
+        return $this->sumarAsistencias(array_map(
+            fn($id) => $this->getDelBimestre((int) $id, $periodoId),
+            $matriculaIds
+        ));
+    }
+
+    public function getAcumuladoAnualUnion(array $matriculaIds, int $periodoIdHasta): array
+    {
+        if (count($matriculaIds) <= 1) {
+            return $this->getAcumuladoAnual((int) ($matriculaIds[0] ?? 0), $periodoIdHasta);
+        }
+        return $this->sumarAsistencias(array_map(
+            fn($id) => $this->getAcumuladoAnual((int) $id, $periodoIdHasta),
+            $matriculaIds
+        ));
+    }
+
+    /** Suma campo a campo los contadores de asistencia de varias matrículas. */
+    private function sumarAsistencias(array $items): array
+    {
+        $keys = ['faltas', 'faltas_justificadas', 'tardanzas', 'tardanzas_justificadas'];
+        $out  = array_fill_keys($keys, 0);
+        foreach ($items as $it) {
+            foreach ($keys as $k) {
+                $out[$k] += (int) ($it[$k] ?? 0);
+            }
+        }
+        return $out;
+    }
+
     // ── Verificación de edición ──────────────────────────────────
 
     /**

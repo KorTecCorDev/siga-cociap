@@ -97,6 +97,27 @@ class ExoneracionModel extends BaseModel
     }
 
     /**
+     * Versión por UNIÓN para el retorno de grado: fusiona las exoneraciones de
+     * varias matrículas del mismo estudiante (oficial + operativa), deduplicando
+     * por competencia (la oficial, última en la lista, gana). Con una sola
+     * matrícula se comporta igual que getConCompetenciasParaBoleta().
+     */
+    public function getConCompetenciasParaBoletaUnion(array $matriculaIds, int $anioId): array
+    {
+        if (count($matriculaIds) <= 1) {
+            return $this->getConCompetenciasParaBoleta((int) ($matriculaIds[0] ?? 0), $anioId);
+        }
+
+        $porComp = [];
+        foreach ($matriculaIds as $id) {
+            foreach ($this->getConCompetenciasParaBoleta((int) $id, $anioId) as $row) {
+                $porComp[(int) $row['competencia_id']] = $row;
+            }
+        }
+        return array_values($porComp);
+    }
+
+    /**
      * Retorna las exoneraciones activas de una sección con detalle de alumno y área.
      */
     public function getParaSeccion(int $seccionId, int $anioId): array

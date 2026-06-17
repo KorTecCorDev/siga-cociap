@@ -59,10 +59,17 @@ class PanelController extends BaseController
             );
         }
 
-        $notas = $this->calModel->getBoletaAlumno(
-            $hijo['matricula_id'],
-            $periodo['id']
-        );
+        // Retorno de grado: durante la nivelación las notas del periodo viven en
+        // la matrícula operativa; se leen por unión bajo la identidad oficial.
+        $fuentes = $this->calModel->boletaContexto((int) $hijo['matricula_id'])['fuentes'];
+
+        $notas = [];
+        foreach ($fuentes as $mid) {
+            $notas = array_merge(
+                $notas,
+                $this->calModel->getBoletaAlumno((int) $mid, (int) $periodo['id'])
+            );
+        }
 
         // Agrupar notas por área
         $areas = [];
@@ -74,10 +81,14 @@ class PanelController extends BaseController
             $areas[$areaNombre][] = $nota;
         }
 
-        $conducta = $this->conductaModel->getParaPeriodo(
-            $hijo['matricula_id'],
-            $periodo['id']
-        );
+        // Conducta del periodo: la que tenga la fuente con cierre vigente.
+        $conducta = null;
+        foreach ($fuentes as $mid) {
+            $conducta = $this->conductaModel->getParaPeriodo((int) $mid, (int) $periodo['id']);
+            if ($conducta !== null) {
+                break;
+            }
+        }
 
         $this->view('padre/notas', [
             'titulo'   => 'Notas de ' . $hijo['nombres'],
@@ -153,6 +164,9 @@ class PanelController extends BaseController
             WHERE u.id      = ?
               AND a.estado  = 'activo'
               AND m.estado  = 'aprobada'
+              -- Retorno de grado: el padre siempre ve la matrícula OFICIAL
+              -- (grado/sección SIAGIE), nunca la operativa del grado inferior.
+              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'activo')
             LIMIT 1
         ", [$usuarioId]);
     }

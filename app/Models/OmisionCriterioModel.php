@@ -118,6 +118,29 @@ class OmisionCriterioModel extends BaseModel
         return $this->agruparPorCompetencia($rows);
     }
 
+    /**
+     * Versión por UNIÓN para el retorno de grado: fusiona las omisiones de varias
+     * matrículas del mismo estudiante (oficial + operativa) en un único mapa
+     * [competencia_id => [motivos...]]. Con una sola matrícula se comporta igual
+     * que getPorMatriculaAnio().
+     */
+    public function getPorMatriculaAnioUnion(array $matriculaIds, int $anioId): array
+    {
+        if (count($matriculaIds) <= 1) {
+            return $this->getPorMatriculaAnio((int) ($matriculaIds[0] ?? 0), $anioId);
+        }
+
+        $out = [];
+        foreach ($matriculaIds as $id) {
+            foreach ($this->getPorMatriculaAnio((int) $id, $anioId) as $compId => $motivos) {
+                $out[$compId] = array_values(array_unique(
+                    array_merge($out[$compId] ?? [], $motivos)
+                ));
+            }
+        }
+        return $out;
+    }
+
     private function agruparPorCompetencia(array $rows): array
     {
         $result = [];

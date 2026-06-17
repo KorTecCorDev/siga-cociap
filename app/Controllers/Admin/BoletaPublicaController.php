@@ -312,18 +312,29 @@ class BoletaPublicaController extends BaseController
 
     private function buildBoletaData(int $matriculaId, int $periodoId, int $anioId): ?array
     {
-        $alumno   = $this->getAlumno($matriculaId);
+        // Retorno de grado: la boleta se rotula con la matrícula oficial
+        // (grado/sección SIAGIE) y une las notas de las matrículas involucradas.
+        // En el caso normal, identidad y única fuente coinciden.
+        $ctx       = $this->calModel->boletaContexto($matriculaId);
+        $identidad = (int) $ctx['identidad'];
+        $fuentes   = $ctx['fuentes'];
+
+        $alumno   = $this->getAlumno($identidad);
         $periodos = $this->getPeriodosDelAnio($anioId);
 
         if (!$alumno || empty($periodos)) return null;
 
         $datosPorPeriodo = [];
         foreach ($periodos as $p) {
-            $datosPorPeriodo[$p['id']] = $this->calModel->getBoletaAlumno($matriculaId, $p['id']);
+            $rows = [];
+            foreach ($fuentes as $mid) {
+                $rows = array_merge($rows, $this->calModel->getBoletaAlumno((int) $mid, $p['id']));
+            }
+            $datosPorPeriodo[$p['id']] = $rows;
         }
 
         $areas  = $this->buildAreasConBimestres($datosPorPeriodo, $periodos);
-        $exoData = $this->exoModel->getConCompetenciasParaBoleta($matriculaId, $anioId);
+        $exoData = $this->exoModel->getConCompetenciasParaBoletaUnion($fuentes, $anioId);
         $areas  = ExoneracionModel::inyectarEnAreas($areas, $exoData, $periodos);
 
         return [
@@ -331,14 +342,14 @@ class BoletaPublicaController extends BaseController
             'periodos'          => $periodos,
             'periodo_activo_id' => $periodoId,
             'areas'             => $areas,
-            'conducta'          => $this->conductaModel->getParaBoleta($matriculaId, $anioId),
+            'conducta'          => $this->conductaModel->getParaBoletaUnion($fuentes, $anioId),
             'asistencia'        => [
-                'bimestre' => $this->asistenciaModel->getDelBimestre($matriculaId, $periodoId),
-                'anual'    => $this->asistenciaModel->getAcumuladoAnual($matriculaId, $periodoId),
+                'bimestre' => $this->asistenciaModel->getDelBimestreUnion($fuentes, $periodoId),
+                'anual'    => $this->asistenciaModel->getAcumuladoAnualUnion($fuentes, $periodoId),
             ],
-            'omisiones'   => $this->omisionModel->getPorMatriculaAnio($matriculaId, $anioId),
+            'omisiones'   => $this->omisionModel->getPorMatriculaAnioUnion($fuentes, $anioId),
             'institucion' => config('institucion'),
-            'tutor'       => $this->getTutorSeccion($matriculaId),
+            'tutor'       => $this->getTutorSeccion($identidad),
             'directorEbr' => $this->dirModel->getVigenteEnFecha($anioId),
         ];
     }

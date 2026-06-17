@@ -223,6 +223,44 @@ class CalificacionModel extends BaseModel
     }
 
     /**
+     * Contexto de boleta para soportar el RETORNO DE GRADO. Una estudiante
+     * puede tener dos matrículas en el mismo año: la OFICIAL (grado/sección
+     * SIAGIE) y una OPERATIVA en un grado inferior mientras se nivela. Las
+     * notas viven repartidas (p. ej. B1-B2 en la operativa, B3-B4 en la
+     * oficial), pero la boleta SIEMPRE se identifica con la matrícula oficial.
+     *
+     * Devuelve:
+     *   - 'identidad': matrícula con la que se rotula la boleta (encabezado,
+     *      tutor, director). Es la OFICIAL si participa de un retorno.
+     *   - 'fuentes': matrículas de las que se leen las notas, ordenadas
+     *      [operativa, oficial] para que, al fusionar por periodo, la oficial
+     *      gane ante un eventual choque del mismo periodo.
+     *
+     * Si la matrícula no participa de ningún retorno (caso normal) devuelve
+     * la propia matrícula como identidad y única fuente. Cubre tanto el retorno
+     * 'activo' como el 'revertido' (en ambos la boleta es la oficial).
+     */
+    public function boletaContexto(int $matriculaId): array
+    {
+        $r = $this->queryOne("
+            SELECT matricula_oficial_id, matricula_operativa_id
+            FROM retornos_grado
+            WHERE matricula_oficial_id = ? OR matricula_operativa_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+        ", [$matriculaId, $matriculaId]);
+
+        if (!$r) {
+            return ['identidad' => $matriculaId, 'fuentes' => [$matriculaId]];
+        }
+
+        $oficial   = (int) $r['matricula_oficial_id'];
+        $operativa = (int) $r['matricula_operativa_id'];
+
+        return ['identidad' => $oficial, 'fuentes' => [$operativa, $oficial]];
+    }
+
+    /**
      * Obtiene la boleta completa de un alumno en un periodo.
      *
      * Las competencias TRANSVERSALES (TIC/GAMA) no salen de las filas crudas
@@ -522,6 +560,10 @@ class CalificacionModel extends BaseModel
             -- la grilla de ingreso.
             AND m.estado IN ('aprobada', 'pendiente')
             AND m.tipo  != 'trasladado'
+            -- Retorno de grado: misma exclusión que getAlumnosSeccion (oficial en
+            -- retorno activo / operativa ya revertida no se califican aquí).
+            AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
+            AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
             ORDER BY p.apellido_paterno, p.apellido_materno
         ", [$cargaId, $competenciaId, $periodoId, $cargaId]);
 

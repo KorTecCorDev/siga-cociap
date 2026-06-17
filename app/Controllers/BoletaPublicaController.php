@@ -103,7 +103,14 @@ class BoletaPublicaController extends BaseController
 
     private function buildBoletaPublicaData(int $matriculaId, int $periodoId): ?array
     {
-        $alumno  = $this->getAlumno($matriculaId);
+        // Retorno de grado: la boleta pública también se rotula con la matrícula
+        // oficial (grado/sección SIAGIE) y une las notas de las matrículas
+        // involucradas. En el caso normal, identidad y única fuente coinciden.
+        $ctx       = $this->calModel->boletaContexto($matriculaId);
+        $identidad = (int) $ctx['identidad'];
+        $fuentes   = $ctx['fuentes'];
+
+        $alumno  = $this->getAlumno($identidad);
         $periodo = $this->getPeriodo($periodoId);
 
         if (!$alumno || !$periodo) return null;
@@ -112,22 +119,26 @@ class BoletaPublicaController extends BaseController
 
         $datosPorPeriodo = [];
         foreach ($periodos as $p) {
-            $datosPorPeriodo[$p['id']] = $this->calModel->getBoletaAlumno($matriculaId, $p['id']);
+            $rows = [];
+            foreach ($fuentes as $mid) {
+                $rows = array_merge($rows, $this->calModel->getBoletaAlumno((int) $mid, $p['id']));
+            }
+            $datosPorPeriodo[$p['id']] = $rows;
         }
 
         $anioId = (int) $periodo['anio_id'];
         $areas  = $this->buildAreasConBimestres($datosPorPeriodo, $periodos);
-        $exoData = $this->exoModel->getConCompetenciasParaBoleta($matriculaId, $anioId);
+        $exoData = $this->exoModel->getConCompetenciasParaBoletaUnion($fuentes, $anioId);
         $areas  = ExoneracionModel::inyectarEnAreas($areas, $exoData, $periodos);
 
         return [
             'alumno'      => $alumno,
             'periodos'    => $periodos,
             'areas'       => $areas,
-            'conducta'    => $this->conductaModel->getParaBoleta($matriculaId, $anioId),
-            'omisiones'   => $this->omisionModel->getPorMatriculaAnio($matriculaId, $anioId),
+            'conducta'    => $this->conductaModel->getParaBoletaUnion($fuentes, $anioId),
+            'omisiones'   => $this->omisionModel->getPorMatriculaAnioUnion($fuentes, $anioId),
             'institucion' => config('institucion'),
-            'tutor'       => $this->getTutorSeccion($matriculaId),
+            'tutor'       => $this->getTutorSeccion($identidad),
             'directorEbr' => $this->dirModel->getVigenteEnFecha($anioId),
         ];
     }

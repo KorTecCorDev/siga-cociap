@@ -124,6 +124,8 @@ $router->post('/matriculas/{id}/trasladar',      'Matricula\TrasladoController@s
 $router->get( '/matriculas/{id}/notas-externas', 'Matricula\MatriculaController@notasExternas');
 $router->post('/matriculas/{id}/notas-externas', 'Matricula\MatriculaController@storeNotasExternas');
 // Retorno de grado
+$router->get( '/matriculas/{id}/retorno/revertir', 'Matricula\RetornoGradoController@confirmarReversion');
+$router->post('/matriculas/{id}/retorno/revertir', 'Matricula\RetornoGradoController@revertir');
 $router->get( '/matriculas/{id}/retorno',        'Matricula\RetornoGradoController@create');
 $router->post('/matriculas/{id}/retorno',        'Matricula\RetornoGradoController@store');
 // El detalle {id} va al FINAL para no capturar los sub-recursos anteriores.

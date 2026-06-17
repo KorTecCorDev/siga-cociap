@@ -522,6 +522,26 @@ class ConductaModel extends BaseModel
         return $result;
     }
 
+    /**
+     * Versión por UNIÓN para el retorno de grado: fusiona la conducta de varias
+     * matrículas del mismo estudiante (oficial + operativa) en un único mapa
+     * [periodo_id => literal]. Las matrículas vienen ordenadas con la oficial al
+     * final, de modo que gana ante un eventual choque en el mismo periodo.
+     * Con una sola matrícula se comporta igual que getParaBoleta().
+     */
+    public function getParaBoletaUnion(array $matriculaIds, int $anioId): array
+    {
+        if (count($matriculaIds) <= 1) {
+            return $this->getParaBoleta((int) ($matriculaIds[0] ?? 0), $anioId);
+        }
+
+        $out = [];
+        foreach ($matriculaIds as $id) {
+            $out = array_replace($out, $this->getParaBoleta((int) $id, $anioId));
+        }
+        return $out;
+    }
+
     /** Conducta (literal) de un alumno en un solo periodo, o null si no es visible. */
     public function getParaPeriodo(int $matriculaId, int $periodoId): ?string
     {

@@ -704,6 +704,11 @@ class CalificacionController extends BaseController
             -- colegio y no debe calificarse. Un traslado siempre es desactivado,
             -- así que basta filtrar por tipo.
             AND m.tipo != 'trasladado'
+            -- Retorno de grado: durante la nivelación la matrícula OFICIAL no se
+            -- califica en su grado (lo hace la operativa); tras revertir, la
+            -- operativa deja de calificarse (lo hace de nuevo la oficial).
+            AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
+            AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
             ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
         ", [$seccionId]);
     }

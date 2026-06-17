@@ -170,14 +170,33 @@ $labelDoc = [
 
     <!-- Retorno de grado -->
     <?php if ($retorno): ?>
+    <?php $retornoActivo = ($retorno['estado'] ?? 'activo') === 'activo'; ?>
     <div class="card">
         <div class="card__body">
             <p class="form-section-title">Retorno de grado</p>
             <div class="retorno-aviso">
-                Asiste al grado operativo <strong><?= e($retorno['grado_destino'] ?? '—') ?></strong>
-                desde el <?= fecha_es($retorno['fecha_retorno']) ?>.
-                <br>Motivo: <?= e($retorno['motivo']) ?>
+                <?php if ($retornoActivo): ?>
+                    Asiste al grado operativo <strong><?= e($retorno['grado_destino'] ?? '—') ?></strong>
+                    desde el <?= fecha_es($retorno['fecha_retorno']) ?>.
+                    <br>Motivo: <?= e($retorno['motivo']) ?>
+                <?php else: ?>
+                    <strong>Revertido.</strong> El estudiante volvió a su grado oficial
+                    el <?= fecha_es($retorno['fecha_reversion'] ?? $retorno['fecha_retorno']) ?>.
+                    Estuvo en el grado operativo <strong><?= e($retorno['grado_destino'] ?? '—') ?></strong>
+                    desde el <?= fecha_es($retorno['fecha_retorno']) ?>.
+                    <br>Motivo del retorno: <?= e($retorno['motivo']) ?>
+                    <?php if (!empty($retorno['motivo_reversion'])): ?>
+                    <br>Motivo de la reversión: <?= e($retorno['motivo_reversion']) ?>
+                    <?php endif; ?>
+                <?php endif; ?>
             </div>
+            <?php if ($retornoActivo && $puedeGestionar): ?>
+            <div class="btn-group form-actions">
+                <a href="<?= url('matriculas/' . $mid . '/retorno/revertir') ?>" class="btn btn--danger">
+                    Revertir retorno (volver al grado oficial)
+                </a>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
     <?php endif; ?>
@@ -271,7 +290,9 @@ $labelDoc = [
             </div>
         <?php endif; ?>
 
-        <!-- Retorno de grado: la operación más delicada -->
+        <!-- Retorno de grado: la operación más delicada. Se oculta si ya hay un
+             retorno activo (en ese caso, la reversión se ofrece en su tarjeta). -->
+        <?php if (!($retorno && ($retorno['estado'] ?? 'activo') === 'activo')): ?>
         <div class="mat-accion mat-accion--critico">
             <div class="mat-accion__info">
                 <span class="mat-accion__titulo">⚠ Retorno de grado</span>
@@ -281,6 +302,7 @@ $labelDoc = [
                 <a href="<?= url('matriculas/' . $mid . '/retorno') ?>" class="btn btn--danger">Retorno de grado</a>
             </div>
         </div>
+        <?php endif; ?>
 
     </div>
 </div>
