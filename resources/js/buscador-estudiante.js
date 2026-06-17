@@ -16,6 +16,10 @@
 
     if (!input || !resultados) return;
 
+    // Destino de cada tarjeta. Por defecto la vista de matrícula; otras vistas
+    // (p. ej. Rectificación) lo redefinen con data-target-base en el contenedor.
+    var TARGET_BASE = resultados.dataset.targetBase || '/matriculas/';
+
     var MIN_CARACTERES = 2;
     var timer = null;
     var peticionActual = 0;
@@ -129,9 +133,9 @@
         // La tarjeta entera es un enlace a la vista de matricula del estudiante.
         var card = document.createElement('a');
         card.className = 'buscador-item card';
-        card.href = BASE + '/matriculas/' + f.matricula_id;
+        card.href = BASE + TARGET_BASE + f.matricula_id;
         card.setAttribute('aria-label',
-            'Ver matricula de ' + (f.nombre || 'estudiante'));
+            'Abrir ' + (f.nombre || 'estudiante'));
 
         var body = document.createElement('div');
         body.className = 'buscador-item__body';

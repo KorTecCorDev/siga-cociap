@@ -196,6 +196,12 @@ $labelDoc = [
                     Revertir retorno (volver al grado oficial)
                 </a>
             </div>
+            <?php elseif (!$retornoActivo && $puedeGestionar && !empty($retorno['matricula_operativa_id'])): ?>
+            <div class="btn-group form-actions">
+                <a href="<?= url('rectificaciones/matricula/' . (int) $retorno['matricula_operativa_id']) ?>" class="btn btn--secondary">
+                    Rectificar notas del grado operativo
+                </a>
+            </div>
             <?php endif; ?>
         </div>
     </div>
@@ -303,6 +309,18 @@ $labelDoc = [
             </div>
         </div>
         <?php endif; ?>
+
+        <!-- Rectificación de calificaciones: corrige notas ya cerradas o
+             bloqueadas con auditoría obligatoria (módulo aparte). -->
+        <div class="mat-accion">
+            <div class="mat-accion__info">
+                <span class="mat-accion__titulo">Rectificar calificaciones</span>
+                <span class="mat-accion__desc">Corrige notas de bimestres cerrados o competencias bloqueadas dejando traza de auditoría con el motivo. Regenera el orden de mérito del bimestre.</span>
+            </div>
+            <div class="mat-accion__control">
+                <a href="<?= url('rectificaciones/matricula/' . $mid) ?>" class="btn btn--secondary">Rectificar notas</a>
+            </div>
+        </div>
 
     </div>
 </div>

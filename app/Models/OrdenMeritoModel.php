@@ -41,6 +41,22 @@ class OrdenMeritoModel extends BaseModel
         return $this->rankingGradoLive($gradoId, $periodoId);
     }
 
+    /**
+     * ¿El grado tiene algún empate irreducible SIN resolver, calculado EN VIVO?
+     * Ignora el snapshot a propósito: se usa tras una rectificación de notas
+     * (periodo ya cerrado y con snapshot) para avisar si la corrección introdujo
+     * un empate que el director debe resolver antes de regenerar el documento.
+     */
+    public function gradoTieneEmpateLivePendiente(int $gradoId, int $periodoId): bool
+    {
+        foreach ($this->rankingGradoLive($gradoId, $periodoId) as $fila) {
+            if (!empty($fila['empate_pendiente'])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Cálculo EN VIVO del ranking de grado (fuente de la vista activa y del snapshot). */
     private function rankingGradoLive(int $gradoId, int $periodoId): array
     {

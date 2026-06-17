@@ -1,0 +1,105 @@
+// _rectificaciones.scss — Módulo de Rectificación de calificaciones
+// Reutiliza .buscador-item, .tabla-notas, .card, .info-grid. Aquí solo lo
+// propio del módulo (prefijo .rect-).
+
+.rect-aviso {
+    margin: 0;
+    font-size: $font-size-sm;
+    color: $text-muted;
+    line-height: 1.5;
+}
+
+// Etiqueta de área (sobre el nombre de la competencia) y nombre destacado.
+.rect-comp__area {
+    font-size: $font-size-sm;
+    color: $text-muted;
+}
+
+.rect-comp__nombre {
+    font-weight: 600;
+}
+
+.rect-criterio__desc {
+    margin-top: 2px;
+    line-height: 1.4;
+}
+
+// Motivo en tablas de historial: no estira la fila, recorta con elipsis.
+.rect-motivo {
+    max-width: 280px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+// Input de nota por criterio: compacto y centrado.
+.rect-nota-input {
+    width: 84px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+// Promedio en vivo (numeral + literal) en el formulario de rectificación.
+.rect-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: $spacing-md;
+    padding: $spacing-md;
+    margin-bottom: $spacing-md;
+    border: 1px solid $border-color;
+    border-left: 4px solid $border-color;
+    border-radius: $border-radius-sm;
+    background: $bg-secondary;
+    transition: border-color .15s ease, background .15s ease;
+
+    &__label {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+    }
+
+    &__valor {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 8px;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    &__num { font-size: 34px; }
+    &__sep { color: $text-muted; font-size: 22px; }
+    &__lit { font-size: 26px; }
+
+    // Color por literal (escala de logro: NO compite con badges de estado).
+    // Pinta el borde izquierdo y el literal; el numeral queda neutro.
+    &[data-rect-literal="AD"] { border-left-color: #16a34a; .rect-preview__lit { color: #16a34a; } }
+    &[data-rect-literal="A"]  { border-left-color: #1e6fa8; .rect-preview__lit { color: #1e6fa8; } }
+    &[data-rect-literal="B"]  { border-left-color: #e07b1a; .rect-preview__lit { color: #b45309; } }
+    &[data-rect-literal="C"]  { border-left-color: #dc2626; .rect-preview__lit { color: #dc2626; } }
+}
+
+// Chips de estado (no compiten con los badges de error/advertencia del sistema).
+.rect-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    line-height: 1.6;
+
+    &--cerrado {
+        background: $bg-secondary;
+        color: $text-muted;
+        border: 1px solid $border-color;
+    }
+
+    &--bloqueada {
+        background: $color-warning-bg;
+        color: $color-warning;
+        border: 1px solid $color-warning;
+    }
+}

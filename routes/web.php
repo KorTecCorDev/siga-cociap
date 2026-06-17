@@ -131,6 +131,16 @@ $router->post('/matriculas/{id}/retorno',        'Matricula\RetornoGradoControll
 // El detalle {id} va al FINAL para no capturar los sub-recursos anteriores.
 $router->get( '/matriculas/{id}',                'Matricula\MatriculaController@show');
 
+// ─── Rectificación de calificaciones (auditada) ──────────────
+// Módulo general: corrige notas ya cerradas/bloqueadas con traza. Solo
+// admin/registro_academico (gateado en el controlador). Las literales van
+// ANTES del patrón {id} de matrícula y entre sí (editar/guardar antes de
+// matricula/{id}) para que el router no capture mal los segmentos.
+$router->get( '/rectificaciones',                 'Rectificacion\RectificacionController@index');
+$router->get( '/rectificaciones/editar',          'Rectificacion\RectificacionController@editar');
+$router->post('/rectificaciones/guardar',         'Rectificacion\RectificacionController@guardar');
+$router->get( '/rectificaciones/matricula/{id}',  'Rectificacion\RectificacionController@matricula');
+
 // ─── Constancias de traslado (registro oficial) ──────────────
 $router->get( '/traslados',                'Matricula\TrasladoController@index');
 $router->get( '/traslados/{id}/imprimir',  'Matricula\TrasladoController@imprimir');
