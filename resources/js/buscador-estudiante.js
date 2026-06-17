@@ -20,13 +20,16 @@
     var timer = null;
     var peticionActual = 0;
 
-    // Etiquetas y clases por estado de matrícula
+    // Etiquetas y clases por estado de matrícula (enum consolidado: tres estados).
+    // Se conservan los estados antiguos por compatibilidad con datos historicos.
     var ESTADOS = {
-        aprobada:              { texto: 'Aprobada',    clase: 'aprobada'  },
-        registrada:            { texto: 'Registrada',  clase: 'pendiente' },
-        pendiente_documentos:  { texto: 'Pend. docs.', clase: 'pendiente' },
-        observada:             { texto: 'Observada',   clase: 'observada' },
-        retirada:              { texto: 'Retirada',    clase: 'retirada'  }
+        aprobada:              { texto: 'Aprobada',    clase: 'aprobada'    },
+        pendiente:             { texto: 'Pendiente',   clase: 'pendiente'   },
+        desactivado:           { texto: 'Desactivado', clase: 'desactivado' },
+        registrada:            { texto: 'Registrada',  clase: 'pendiente'   },
+        pendiente_documentos:  { texto: 'Pend. docs.', clase: 'pendiente'   },
+        observada:             { texto: 'Observada',   clase: 'observada'   },
+        retirada:              { texto: 'Retirada',    clase: 'retirada'    }
     };
 
     input.addEventListener('input', function () {
@@ -123,8 +126,12 @@
     }
 
     function crearTarjeta(f, tieneOrden) {
-        var card = document.createElement('div');
+        // La tarjeta entera es un enlace a la vista de matricula del estudiante.
+        var card = document.createElement('a');
         card.className = 'buscador-item card';
+        card.href = BASE + '/matriculas/' + f.matricula_id;
+        card.setAttribute('aria-label',
+            'Ver matricula de ' + (f.nombre || 'estudiante'));
 
         var body = document.createElement('div');
         body.className = 'buscador-item__body';
@@ -202,6 +209,16 @@
 
         body.appendChild(ubicacion);
         card.appendChild(body);
+
+        // Indicador de navegacion (chevron) — afirma que la tarjeta es clicable
+        var ir = document.createElement('span');
+        ir.className = 'buscador-item__ir';
+        ir.setAttribute('aria-hidden', 'true');
+        ir.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
+            + '<path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" '
+            + 'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        card.appendChild(ir);
+
         return card;
     }
 

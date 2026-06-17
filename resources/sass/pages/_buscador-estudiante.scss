@@ -117,7 +117,39 @@
 }
 
 .buscador-item {
+    // La tarjeta es un <a>: se neutraliza el estilo de enlace y se vuelve clicable.
+    display: block;
+    position: relative;
     margin: 0;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid $border-color;
+    transition: transform $transition, box-shadow $transition, border-color $transition;
+
+    &,
+    &:hover,
+    &:focus,
+    &:focus-visible,
+    &:active {
+        text-decoration: none;
+    }
+
+    &:hover,
+    &:focus-visible {
+        transform: translateY(-2px);
+        border-color: $brand-accent;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, .08);
+        outline: none;
+    }
+
+    &:focus-visible {
+        box-shadow: 0 0 0 3px $brand-light;
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
 
     &__body {
         display: grid;
@@ -125,7 +157,8 @@
         align-items: center;
         column-gap: $spacing-md;
         row-gap: $spacing-sm;
-        padding: $spacing-md;
+        // Espacio a la derecha para el chevron de navegación.
+        padding: $spacing-md ($spacing-md + 22px) $spacing-md $spacing-md;
 
         // En móvil/tablet vertical: avatar | info en la fila 1; la ubicación
         // baja a la fila 2 bajo la info. La grilla la alinea sola (la columna 1
@@ -133,6 +166,26 @@
         @media (max-width: 640px) {
             grid-template-columns: auto 1fr;
         }
+    }
+
+    // Chevron de navegación — centrado vertical, anclado a la derecha.
+    &__ir {
+        position: absolute;
+        top: 50%;
+        right: $spacing-md;
+        transform: translateY(-50%) translateX(0);
+        display: flex;
+        align-items: center;
+        color: $text-muted;
+        opacity: .55;
+        transition: transform $transition, opacity $transition, color $transition;
+    }
+
+    &:hover &__ir,
+    &:focus-visible &__ir {
+        opacity: 1;
+        color: $brand-accent;
+        transform: translateY(-50%) translateX(3px);
     }
 
     &__avatar {
@@ -227,10 +280,11 @@
     text-transform: uppercase;
     letter-spacing: .4px;
 
-    &--aprobada  { background: $color-success-bg; color: $color-success; }
-    &--pendiente { background: $color-warning-bg; color: $color-warning; }
-    &--observada { background: $color-warning-bg; color: $color-warning; }
-    &--retirada  { background: $color-error-bg;   color: $color-error;   }
+    &--aprobada    { background: $color-success-bg; color: $color-success; }
+    &--pendiente   { background: $color-warning-bg; color: $color-warning; }
+    &--observada   { background: $color-warning-bg; color: $color-warning; }
+    &--desactivado { background: $color-error-bg;   color: $color-error;   }
+    &--retirada    { background: $color-error-bg;   color: $color-error;   }
 }
 
 // ── Mensajes (vacío / error) ──────────────────────────────────

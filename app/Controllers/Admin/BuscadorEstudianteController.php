@@ -91,6 +91,7 @@ class BuscadorEstudianteController extends BaseController
             $puesto = $puestos[(int) $f['matricula_id']]['puesto'] ?? null;
 
             return [
+                'matricula_id' => (int) $f['matricula_id'],
                 'dni'      => $f['dni'],
                 'nombre'   => mb_strtoupper($f['apellido_paterno']) . ' '
                             . mb_strtoupper($f['apellido_materno']) . ', '
