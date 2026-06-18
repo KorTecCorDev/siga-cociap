@@ -268,6 +268,59 @@ class CalificacionController extends BaseController
     }
 
     /**
+     * POST /docente/calificaciones/{carga_id}/autosave
+     * Guarda o borra la nota de UNA celda al salir del campo (blur).
+     * Nota vacía = borrar la fila en calificaciones_criterio.
+     */
+    public function autosave(string $cargaId): void
+    {
+        $this->validateCsrf();
+        $cargaId = (int) $cargaId;
+
+        $periodo = $this->getPeriodoActivo();
+        if (!$periodo || $this->calModel->periodoEstaBloqueado($periodo['id'])) {
+            $this->json(['success' => false, 'mensaje' => 'El periodo está cerrado.'], 403);
+        }
+
+        $criterioId    = (int) $this->input('criterio_id');
+        $competenciaId = (int) $this->input('competencia_id');
+        $matriculaId   = (int) $this->input('matricula_id');
+        $nota          = trim($this->input('nota', ''));
+
+        if (!$criterioId || !$competenciaId || !$matriculaId) {
+            $this->json(['success' => false, 'mensaje' => 'Datos incompletos.'], 400);
+        }
+
+        if ($this->calModel->competenciaBloqueada($cargaId, $competenciaId, $periodo['id'])) {
+            $this->json(['success' => false, 'mensaje' => 'Competencia bloqueada.'], 403);
+        }
+
+        if ($nota === '') {
+            $this->calModel->eliminarNotaCriterio($criterioId, $matriculaId);
+        } else {
+            $notaInt = max(0, min(20, (int) $nota));
+            $this->calModel->guardarNotaCriterio($criterioId, $matriculaId, $notaInt);
+        }
+
+        try {
+            $this->calModel->recalcularPromedioSeccion(
+                $cargaId,
+                $competenciaId,
+                $periodo['id'],
+                Session::user()['id']
+            );
+        } catch (\Exception $e) {
+            log_error('Autosave: error recalculando promedio', [
+                'carga_id'       => $cargaId,
+                'competencia_id' => $competenciaId,
+                'error'          => $e->getMessage(),
+            ]);
+        }
+
+        $this->json(['success' => true]);
+    }
+
+    /**
      * POST /docente/calificaciones/{carga_id}/omisiones
      * Registra el motivo por el que uno o más alumnos no fueron evaluados
      * en un criterio. Puede llamarse varias veces (upsert por pares).

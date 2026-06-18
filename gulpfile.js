@@ -66,7 +66,7 @@ function compilarJs() {
 function servidor(done) {
     browserSync.init({
         proxy:     proxyURL,
-        startPath: '/siga-cociap/public',   // abre directo en la app
+        startPath: '/siga_cociap/public',   // abre directo en la app
         notify:    false,
         open:      true,
         port:      3000

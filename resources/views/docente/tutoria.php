@@ -111,7 +111,7 @@ $pid      = (int) $periodoSel['id'];
                     <th class="col-num"<?= $esPrim ? '' : ' rowspan="2"' ?>>N°</th>
                     <th class="col-nombre"<?= $esPrim ? '' : ' rowspan="2"' ?>>Apellidos y nombres</th>
                     <?php foreach ($competencias as $comp): ?>
-                        <th class="th-competencia text-center"
+                        <th class="th-competencia col-resultado col-resultado--inicio text-center"
                             <?= $esPrim ? '' : 'colspan="2" ' ?>title="<?= e($comp['nombre_completo']) ?>">
                             <?= e($comp['nombre_corto'] ?? $comp['codigo_minedu']) ?>
                         </th>
@@ -121,8 +121,9 @@ $pid      = (int) $periodoSel['id'];
                 <?php if (!$esPrim): ?>
                     <tr>
                         <?php foreach ($competencias as $comp): ?>
-                            <th class="col-numeral text-center">Numeral</th>
-                            <th class="col-literal text-center">Literal</th>
+                            <th class="col-numeral col-resultado col-resultado--inicio text-center"
+                                title="Promedio de las cargas bloqueadas (calculado automáticamente)">Promedio numeral</th>
+                            <th class="col-literal col-resultado text-center">Literal</th>
                         <?php endforeach; ?>
                     </tr>
                 <?php endif; ?>
@@ -132,11 +133,7 @@ $pid      = (int) $periodoSel['id'];
                     <?php $matId = (int) $alumno['matricula_id']; ?>
                     <tr>
                         <td class="col-num"><?= $i + 1 ?></td>
-                        <td class="col-nombre">
-                            <strong><?= e($alumno['apellido_paterno'] . ' ' . $alumno['apellido_materno']) ?></strong>
-                            <br>
-                            <small class="text-muted"><?= e($alumno['nombres']) ?></small>
-                        </td>
+                        <td class="col-nombre"><?= e($alumno['apellido_paterno'] . ' ' . $alumno['apellido_materno'] . ', ' . $alumno['nombres']) ?></td>
 
                         <?php foreach ($competencias as $comp): ?>
                             <?php
@@ -145,11 +142,11 @@ $pid      = (int) $periodoSel['id'];
                             $literal = $nota !== null ? nota_a_literal((int) $nota, $nivel) : null;
                             ?>
                             <?php if (!$esPrim): ?>
-                                <td class="col-numeral text-center">
+                                <td class="col-numeral col-resultado col-resultado--inicio text-center">
                                     <?= $nota !== null ? fmt_nota((int) $nota) : '—' ?>
                                 </td>
                             <?php endif; ?>
-                            <td class="col-literal text-center">
+                            <td class="col-literal col-resultado<?= $esPrim ? ' col-resultado--inicio' : '' ?> text-center">
                                 <?php if ($literal !== null): ?>
                                     <span class="nota-literal nota-literal--<?= strtolower($literal) ?>">
                                         <?= $literal ?>
@@ -175,21 +172,24 @@ $pid      = (int) $periodoSel['id'];
                                 ?>
                                 <?php if (!$cerrado): ?>
                                     <?php // El tutor puede registrar conclusión a CUALQUIER alumno.
-                                          // Obligatorias (B/C prim, C sec) y opcionales CON texto se
-                                          // muestran abiertas. Las opcionales vacías se colapsan tras un
-                                          // enlace para no saturar la tabla; el JS las despliega al clic. ?>
+                                          // Las OBLIGATORIAS (B/C prim, C sec) nacen abiertas y sin toggle:
+                                          // hay que llenarlas. Las OPCIONALES siempre llevan toggle para
+                                          // mostrar/ocultar el textarea, tengan o no texto; nacen colapsadas
+                                          // si están vacías y abiertas si ya traen una conclusión. ?>
                                     <?php
                                     $concluId  = 'concl-' . $matId . '-' . $cid;
                                     $colapsada = !$obligatoria && $texto === '';
+                                    $conToggle = !$obligatoria; // las opcionales SIEMPRE se pueden ocultar
                                     ?>
                                     <div class="tutoria-conclusion<?= $colapsada ? ' tutoria-conclusion--colapsada' : '' ?>">
-                                        <?php if ($colapsada): ?>
+                                        <?php if ($conToggle): ?>
                                             <button type="button"
-                                                    class="btn btn--secondary btn--sm tutoria-conclusion__toggle"
+                                                    class="btn btn--<?= $colapsada ? 'secondary' : 'primary' ?> btn--sm tutoria-conclusion__toggle<?= $texto !== '' ? ' tutoria-conclusion__toggle--con-texto' : '' ?>"
                                                     data-target="<?= $concluId ?>"
-                                                    aria-expanded="false"
-                                                    data-label-abrir="✎ <?= e($nombreComp) ?>: agregar conclusión"
-                                                    data-label-cerrar="✕ <?= e($nombreComp) ?>: ocultar conclusión">✎ <?= e($nombreComp) ?>: agregar conclusión</button>
+                                                    aria-expanded="<?= $colapsada ? 'false' : 'true' ?>"
+                                                    title="Mostrar u ocultar la conclusión descriptiva (<?= e($nombreComp) ?>)"
+                                                    data-label-abrir="✎ <?= e($nombreComp) ?>"
+                                                    data-label-cerrar="✕ <?= e($nombreComp) ?>"><?= $colapsada ? '✎' : '✕' ?> <?= e($nombreComp) ?></button>
                                         <?php endif; ?>
                                         <div class="tutoria-conclusion__campo"<?= $colapsada ? ' hidden' : '' ?>>
                                             <label class="tutoria-conclusion__label" for="<?= $concluId ?>">

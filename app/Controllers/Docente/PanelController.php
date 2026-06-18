@@ -123,6 +123,23 @@ class PanelController extends BaseController
             ];
         }
 
+        // Avance TOTAL del bimestre: suma TODAS las responsabilidades del docente
+        // como unidades — cada competencia académica + (solo si es tutor) la
+        // tutoría y la conducta de su sección, una unidad cada una. Es el número
+        // global del KPI "Avance del bimestre"; el avance de la card "Mis cargas"
+        // sigue siendo solo académico ($avance).
+        $respTotal = $sumTotal;
+        $respHecho = $sumBloq;
+        if ($tutoria !== null) {
+            $respTotal++;
+            if ($tutoria['cierre']) { $respHecho++; }
+        }
+        if ($conducta !== null) {
+            $respTotal++;
+            if ($conducta['cerrado']) { $respHecho++; }
+        }
+        $avanceTotal = $respTotal > 0 ? (int) round($respHecho / $respTotal * 100) : 0;
+
         // Niveles del docente + resumen de nómina
         $niveles      = $this->getNivelesDocente($did);
         $nominaResumen = $this->getNominaResumen($niveles);
@@ -137,6 +154,7 @@ class PanelController extends BaseController
             'cargas'        => $cargas,
             'nCargas'       => count($cargas),
             'avance'        => $avance,
+            'avanceTotal'   => $avanceTotal,
             'sumTotal'      => $sumTotal,
             'sumBloq'       => $sumBloq,
             'completas'     => $completas,

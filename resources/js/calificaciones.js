@@ -35,21 +35,64 @@ document.querySelectorAll('[data-criterio-target]').forEach(btn => {
 
 // ── Detección de cambios sin guardar ─────────────────────────
 // Compara el valor actual de cada input contra su data-nota-inicial.
-// Si difieren (ignorando vaciados, porque el backend no borra notas),
-// marca el card con el modificador --con-cambios (ámbar). El ámbar
-// gana sobre el verde por orden de cascade en el CSS.
+// Vaciar un campo sí es un cambio (el autosave borra la nota en BD).
+// Marca el card con --con-cambios (ámbar) mientras el autosave no confirmó.
 function notaActualDifiereDeInicial(input) {
     const inicial = (input.dataset.notaInicial ?? '').trim();
     const actual  = (input.value ?? '').trim();
-
-    // Vaciar una nota previamente registrada NO cuenta como cambio
-    // persistible: el endpoint `guardar` no borra notas vaciadas.
-    if (actual === '' && inicial !== '') return false;
-
-    // Comparar como enteros para evitar falsos positivos por padding ('8' vs '08').
     const ni = inicial === '' ? null : parseInt(inicial, 10);
     const na = actual  === '' ? null : parseInt(actual,  10);
     return ni !== na;
+}
+
+// ── Autosave por celda ────────────────────────────────────────
+// Se dispara en blur. Si no hay cambio respecto a data-nota-inicial,
+// no hace nada. Nota vacía = borra la fila en BD. En fallo silencioso
+// la card queda ámbar y el docente reintenta al volver al campo.
+async function autoguardarCelda(input) {
+    const form = input.closest('.form-notas');
+    if (!form) return;
+    if (!notaActualDifiereDeInicial(input)) return;
+
+    const match = input.name.match(/\[(\d+)\]/);
+    if (!match) return;
+
+    const criterioId    = form.dataset.criterioId;
+    const competenciaId = form.dataset.competenciaId;
+    const cargaId       = form.dataset.cargaId;
+    const matriculaId   = match[1];
+    const nota          = input.value.trim(); // '' = borrar
+
+    const fd = new FormData();
+    fd.append('_csrf_token',    CSRF);
+    fd.append('criterio_id',    criterioId);
+    fd.append('competencia_id', competenciaId);
+    fd.append('matricula_id',   matriculaId);
+    fd.append('nota',           nota);
+
+    try {
+        const res  = await fetch(`${BASE}/docente/calificaciones/${cargaId}/autosave`,
+            { method: 'POST', body: fd });
+        const data = await res.json();
+
+        if (data.success) {
+            input.dataset.notaInicial = nota;
+            const tieneAlgunaNota = Array.from(form.querySelectorAll('.input-nota'))
+                .some(i => i.value.trim() !== '');
+            const info = obtenerContenedorIluminacion(form);
+            if (info) {
+                info.contenedor.classList.toggle(`${info.prefijo}--con-notas`, tieneAlgunaNota);
+                if (tieneAlgunaNota) {
+                    const btnEliminar = info.contenedor.querySelector('.btn-eliminar-criterio');
+                    if (btnEliminar) btnEliminar.dataset.tieneCalificaciones = '1';
+                }
+            }
+        }
+    } catch {
+        // Silencioso: card queda ámbar, docente reintenta en el siguiente blur
+    }
+
+    recalcularCambiosForm(form);
 }
 
 // Vista normal: el form vive dentro de .criterio-bloque.
@@ -104,9 +147,9 @@ document.querySelectorAll('.form-notas').forEach(form => {
 
         e.preventDefault();
 
-        const inputs = Array.from(form.querySelectorAll('.input-nota'));
-        const inicio = inputs.indexOf(e.target);
-        let pegados  = 0;
+        const inputs         = Array.from(form.querySelectorAll('.input-nota'));
+        const inicio         = inputs.indexOf(e.target);
+        const affectedInputs = [];
 
         lineas.forEach((linea, i) => {
             const idx = inicio + i;
@@ -122,21 +165,17 @@ document.querySelectorAll('.form-notas').forEach(form => {
                 inputs[idx].classList.remove('input--error');
                 inputs[idx].classList.add('input--pasted');
                 setTimeout(() => inputs[idx].classList.remove('input--pasted'), 1200);
-                pegados++;
+                affectedInputs.push(inputs[idx]);
             } else if (celda === '' || celda === '-' || celda === '—') {
                 inputs[idx].value = '';
                 inputs[idx].classList.remove('input--error');
+                affectedInputs.push(inputs[idx]);
             }
         });
 
-        if (pegados > 0) {
-            const status = form.querySelector('.form-notas__status');
-            mostrarStatus(status, 'success',
-                `✓ ${pegados} nota(s) pegada(s) — revisa y guarda`);
-        }
+        // Autoguardar cada celda afectada (el paste no dispara blur)
+        affectedInputs.forEach(inp => autoguardarCelda(inp));
 
-        // El paste asigna value directamente y no dispara el evento `input`,
-        // así que recalculamos el estado de cambios manualmente.
         recalcularCambiosForm(form);
     });
 });
@@ -163,15 +202,14 @@ document.querySelectorAll('.input-nota').forEach(input => {
         if (form) recalcularCambiosForm(form);
     });
 
-    // 3. Al salir del campo: ajustar rango y aplicar cero inicial
-    input.addEventListener('blur', () => {
+    // 3. Al salir del campo: normalizar rango, luego autoguardar.
+    input.addEventListener('blur', async () => {
         const val = input.value.trim();
         if (val === '') {
             input.classList.remove('input--error');
         } else {
             const nota = parseInt(val, 10);
             if (!isNaN(nota)) {
-                // Clamp al rango válido
                 const valida = Math.min(20, Math.max(0, nota));
                 input.value = String(valida).padStart(2, '0');
                 input.classList.remove('input--error');
@@ -180,9 +218,9 @@ document.querySelectorAll('.input-nota').forEach(input => {
                 input.classList.remove('input--error');
             }
         }
-        // Tras la normalización ('8' → '08') volvemos a evaluar el estado.
         const form = input.closest('.form-notas');
         if (form) recalcularCambiosForm(form);
+        await autoguardarCelda(input);
     });
 });
 
@@ -302,6 +340,11 @@ async function ejecutarGuardado(form, criterioId, competenciaId, cargaId, notas,
         }
 
         mostrarStatus(status, 'success', '✓ ' + data.mensaje);
+
+        // Desbloquear "Ver resumen" de esta competencia (el docente ya confirmó)
+        form.closest('.competencia-card')
+            ?.querySelector('.btn-ver-resumen--bloqueado')
+            ?.classList.remove('btn-ver-resumen--bloqueado');
 
         const tieneAlgunaNota = Array.from(form.querySelectorAll('.input-nota'))
             .some(i => i.value.trim() !== '');

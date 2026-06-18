@@ -89,6 +89,11 @@ class MatriculaModel extends BaseModel
                 n.nombre         AS nivel_nombre,
                 s.nombre         AS seccion_nombre,
                 a.anio,
+                -- Rol de la fila dentro de un retorno de grado ACTIVO:
+                --  ro presente → m es la matricula OFICIAL (su pareja operativa = ro.matricula_operativa_id)
+                --  rp presente → m es la matricula OPERATIVA (su pareja oficial = rp.matricula_oficial_id)
+                ro.matricula_operativa_id AS retorno_operativa_id,
+                rp.matricula_oficial_id   AS retorno_oficial_id,
                 (
                     SELECT CONCAT(pap.apellido_paterno,' ',pap.apellido_materno,', ',pap.nombres)
                     FROM vinculo_familiar vf
@@ -104,6 +109,8 @@ class MatriculaModel extends BaseModel
             LEFT  JOIN secciones s        ON s.id = m.seccion_id
             LEFT  JOIN grados g           ON g.id = s.grado_id
             LEFT  JOIN niveles n          ON n.id = g.nivel_id
+            LEFT  JOIN retornos_grado ro  ON ro.matricula_oficial_id  = m.id AND ro.estado = 'activo'
+            LEFT  JOIN retornos_grado rp  ON rp.matricula_operativa_id = m.id AND rp.estado = 'activo'
             WHERE {$where}
             ORDER BY m.fecha_registro DESC, m.id DESC
             LIMIT {$limit} OFFSET {$offset}
@@ -159,6 +166,24 @@ class MatriculaModel extends BaseModel
             WHERE m.id = ?
             LIMIT 1
         ", [$id]);
+    }
+
+    /**
+     * Si la matrícula es la OPERATIVA de un retorno de grado ACTIVO, devuelve
+     * el id de su matrícula oficial (hub de gestión); null en caso contrario.
+     * Se usa para bloquear el acceso directo al detalle de la operativa: toda
+     * la gestión del retorno vive en la oficial.
+     */
+    public function oficialSiEsOperativaEnRetornoActivo(int $matriculaId): ?int
+    {
+        $r = $this->queryOne(
+            "SELECT matricula_oficial_id
+             FROM retornos_grado
+             WHERE matricula_operativa_id = ? AND estado = 'activo'
+             LIMIT 1",
+            [$matriculaId]
+        );
+        return $r ? (int) $r['matricula_oficial_id'] : null;
     }
 
     /** ¿El estudiante ya tiene matrícula en ese año académico? */

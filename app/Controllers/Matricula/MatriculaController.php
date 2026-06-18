@@ -440,6 +440,15 @@ class MatriculaController extends BaseController
     public function show(string $id): void
     {
         $matricula  = $this->requireMatricula((int) $id);
+
+        // Si es la matrícula OPERATIVA de un retorno activo, su detalle no es
+        // accesible: es solo informativa. Toda la gestión vive en la oficial.
+        $oficialId = $this->model->oficialSiEsOperativaEnRetornoActivo((int) $id);
+        if ($oficialId !== null) {
+            $this->redirectWithError(url('matriculas/' . $oficialId),
+                'Esa es la matrícula operativa de un retorno de grado (solo informativa). La gestión se hace desde la matrícula oficial.');
+        }
+
         $retorno    = $this->model->queryOne("
             SELECT r.*, g.nombre_display AS grado_destino
             FROM retornos_grado r

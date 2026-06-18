@@ -104,8 +104,16 @@ document.getElementById('btn-guardar-conclusiones-trans')
     });
 
 // Cualquier edición posterior invalida el guardado: re-deshabilita Aprobar.
+// Ademas mantiene la marca verde del toggle en sync: punto si hay texto, sin
+// punto si quedo vacio (las obligatorias no tienen toggle → btn es null y se ignora).
 document.querySelectorAll('.textarea-conclusion-transversal').forEach(ta => {
-    ta.addEventListener('input', () => habilitarAprobar(false));
+    ta.addEventListener('input', () => {
+        habilitarAprobar(false);
+        const btn = document.querySelector(
+            `.tutoria-conclusion__toggle[data-target="${ta.id}"]`
+        );
+        btn?.classList.toggle('tutoria-conclusion__toggle--con-texto', ta.value.trim() !== '');
+    });
 });
 
 document.getElementById('btn-cerrar-transversal')

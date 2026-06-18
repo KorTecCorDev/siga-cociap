@@ -204,17 +204,12 @@
     &__texto  { max-width: 560px; margin: 0 auto; color: $text-secondary; }
 }
 
-// Tabla del tutor — reusa el estilo .tabla-resumen (badges nota-numeral/nota-literal)
+// Tabla del tutor — hereda el look de .tabla-notas (fuente base, columnas sticky,
+// hover) igual que la grilla de cargas. El input "Tu nota" reutiliza .input-nota;
+// aqui solo se fijan los anchos de las columnas calculadas (Auxiliar/Numeral/Literal).
 .conducta-tutor-tabla {
-    td { vertical-align: middle; }
-
-    .conducta-nota-tutor {
-        width: 60px;
-        text-align: center;
-        padding: $spacing-xs;
-        border: 1px solid $border-color;
-        border-radius: $border-radius-sm;
-    }
+    .col-numeral { min-width: 80px; white-space: nowrap; }
+    .col-literal { min-width: 70px; white-space: nowrap; }
 }
 
 // Indicador de guardado junto al input de nota del tutor

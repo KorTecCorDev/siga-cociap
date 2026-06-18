@@ -31,6 +31,17 @@ class CalificacionModel extends BaseModel
     }
 
     /**
+     * Borra la nota de un alumno en un criterio (celda vaciada por el docente).
+     */
+    public function eliminarNotaCriterio(int $criterioId, int $matriculaId): bool
+    {
+        return $this->execute("
+            DELETE FROM calificaciones_criterio
+            WHERE criterio_id = ? AND matricula_id = ?
+        ", [$criterioId, $matriculaId]);
+    }
+
+    /**
      * Guarda las notas de TODOS los alumnos de un criterio.
      * Recibe array [matricula_id => nota].
      */

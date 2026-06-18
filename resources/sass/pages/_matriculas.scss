@@ -107,6 +107,26 @@
     &--continuador { background: $color-info-bg; color: $color-info; }
     &--nuevo       { background: $brand-light; color: $brand-accent; }
     &--trasladado  { background: #f1f5f9; color: #64748b; }
+
+    // Rol dentro de un retorno de grado activo
+    &--oficial     { background: #eef5fb; color: #1a5a8c; } // azul (SIAGIE)
+    &--operativa   { background: #f5f0fe; color: #6d28d9; } // púrpura (cursa aquí)
+}
+
+// ── Fila de matrícula operativa (retorno de grado) ───────────
+// Solo informativa: matiz tenue + acceso al detalle bloqueado (gestión en la oficial).
+.mat-fila-operativa {
+    background: #faf8ff;
+
+    td { color: $text-muted; }
+}
+
+.mat-info-operativa {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 11px;
+    color: $text-muted;
+    font-style: italic;
 }
 
 // ── Motivo visible del estado (junto al badge) ───────────────

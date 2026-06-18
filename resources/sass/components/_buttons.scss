@@ -111,6 +111,11 @@
                 mask-image: url('../assets/icons/unlocked.svg');
     }
 
+    &--shield-check {
+        -webkit-mask-image: url('../assets/icons/shield-check.svg');
+                mask-image: url('../assets/icons/shield-check.svg');
+    }
+
     &--wait {
         -webkit-mask-image: url('../assets/icons/sand-clock-wait.svg');
                 mask-image: url('../assets/icons/sand-clock-wait.svg');

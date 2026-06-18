@@ -196,6 +196,24 @@
     }
 }
 
+// ── Zona de resultado (promedio calculado) ───────────────────
+// Diferencia las columnas calculadas (Promedio/Literal) de las columnas de
+// criterios, que el docente SÍ edita. Evita que un despistado confunda la
+// última nota de criterio con su promedio. Reutilizable en cualquier grilla
+// (resumen, conducta): se marca cada celda de la zona con .col-resultado y la
+// PRIMERA de la zona además con .col-resultado--inicio (borde separador).
+.col-resultado {
+    background: #f8fafc;
+}
+
+thead .col-resultado {
+    background: #eef2f7;
+}
+
+.col-resultado--inicio {
+    border-left: 2px solid #cbd5e1;
+}
+
 // Texto de conclusión cuando la competencia está bloqueada
 .conclusion-texto {
     font-size: $font-size-sm;

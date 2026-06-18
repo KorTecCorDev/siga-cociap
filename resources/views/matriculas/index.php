@@ -146,8 +146,12 @@ $qs = fn(int $p): string => http_build_query(array_filter([
                 </tr>
             </thead>
             <tbody>
-                <?php $i = ($pagina - 1) * 25; foreach ($matriculas as $m): $i++; ?>
-                <tr>
+                <?php $i = ($pagina - 1) * 25; foreach ($matriculas as $m): $i++;
+                    // Rol dentro de un retorno de grado activo (ver MatriculaModel::listar).
+                    $esOficialRetorno   = !empty($m['retorno_operativa_id']);
+                    $esOperativaRetorno = !empty($m['retorno_oficial_id']);
+                ?>
+                <tr class="<?= $esOperativaRetorno ? 'mat-fila-operativa' : '' ?>">
                     <td class="text-sm"><?= $i ?></td>
                     <td><?= e($m['nombre_completo']) ?></td>
                     <td class="text-sm"><?= e($m['dni']) ?></td>
@@ -156,6 +160,11 @@ $qs = fn(int $p): string => http_build_query(array_filter([
                     </td>
                     <td>
                         <span class="matricula-badge matricula-badge--<?= e($m['tipo']) ?>"><?= $labelTipo($m['tipo']) ?></span>
+                        <?php if ($esOficialRetorno): ?>
+                        <span class="matricula-badge matricula-badge--oficial" title="Matrícula oficial de SIAGIE: la boleta usa este grado/sección.">Oficial</span>
+                        <?php elseif ($esOperativaRetorno): ?>
+                        <span class="matricula-badge matricula-badge--operativa" title="Matrícula operativa de un retorno: el estudiante cursa aquí. Solo informativa.">Operativa</span>
+                        <?php endif; ?>
                     </td>
                     <td class="text-center">
                         <span class="matricula-badge matricula-badge--<?= e($m['estado']) ?>"><?= $labelEstado($m['estado']) ?></span>
@@ -166,7 +175,12 @@ $qs = fn(int $p): string => http_build_query(array_filter([
                     <td class="text-sm"><?= e($m['apoderado_responsable'] ?? '—') ?></td>
                     <td class="text-sm text-muted"><?= $m['fecha_registro'] ? fecha_es($m['fecha_registro']) : '—' ?></td>
                     <td class="text-right">
-                        <a href="<?= url('matriculas/' . $m['id']) ?>" class="btn btn--secondary btn--sm">Ver</a>
+                        <?php if ($esOperativaRetorno): ?>
+                            <span class="mat-info-operativa">Solo informativa</span>
+                            <a href="<?= url('matriculas/' . (int) $m['retorno_oficial_id']) ?>" class="btn btn--secondary btn--sm">Ver oficial →</a>
+                        <?php else: ?>
+                            <a href="<?= url('matriculas/' . $m['id']) ?>" class="btn btn--secondary btn--sm">Ver</a>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>

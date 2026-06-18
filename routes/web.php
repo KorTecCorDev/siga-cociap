@@ -156,6 +156,7 @@ $router->get( '/docente/horario/imprimir',             'Docente\PanelController@
 $router->get( '/docente/mis-cargas',                        'Docente\CalificacionController@misCargas');
 $router->get( '/docente/calificaciones/{carga_id}',         'Docente\CalificacionController@formulario');
 $router->post('/docente/calificaciones/{carga_id}/guardar',   'Docente\CalificacionController@guardar');
+$router->post('/docente/calificaciones/{carga_id}/autosave',  'Docente\CalificacionController@autosave');
 $router->post('/docente/calificaciones/{carga_id}/omisiones', 'Docente\CalificacionController@guardarOmisiones');
 
 // ─── Criterios ───────────────────────────────────────────────

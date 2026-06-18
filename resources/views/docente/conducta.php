@@ -79,16 +79,16 @@ $pid       = (int) $periodoSel['id'];
             <span class="competencia-card__codigo"><?= e($periodoSel['nombre_display']) ?></span>
         </div>
 
-        <div class="tabla-responsive">
-            <table class="tabla-resumen conducta-tutor-tabla">
+        <div class="tabla-notas-wrapper">
+            <table class="tabla-notas conducta-tutor-tabla">
                 <thead>
                     <tr>
                         <th class="col-num">N°</th>
                         <th class="col-nombre">Apellidos y nombres</th>
                         <th class="col-numeral text-center" title="Nota de Registro Académico">Nota del Auxiliar</th>
                         <th class="col-numeral text-center" title="Tu nota (opcional, 00–20)">Tu nota</th>
-                        <th class="col-numeral text-center" title="Promedio final (.5 a favor)">Numeral</th>
-                        <th class="col-literal text-center">Literal</th>
+                        <th class="col-numeral col-resultado col-resultado--inicio text-center" title="Promedio final entre la nota del auxiliar y la tuya (.5 a favor, calculado)">Promedio numeral</th>
+                        <th class="col-literal col-resultado text-center">Literal</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -105,7 +105,7 @@ $pid       = (int) $periodoSel['id'];
                             data-csrf="<?= e($csrfToken) ?>"
                             data-nota-ra="<?= $notaRa !== null ? (int) $notaRa : '' ?>">
                             <td class="col-num"><?= $i + 1 ?></td>
-                            <td class="col-nombre"><strong><?= e($est['nombre_completo']) ?></strong></td>
+                            <td class="col-nombre"><?= e($est['nombre_completo']) ?></td>
 
                             <!-- Nota de Registro Académico (Auxiliar) -->
                             <td class="col-numeral text-center">
@@ -121,9 +121,11 @@ $pid       = (int) $periodoSel['id'];
                             <!-- Nota del tutor (editable / lectura) -->
                             <td class="col-numeral text-center">
                                 <?php if ($editable && !$esLegado): ?>
-                                    <input type="number" class="conducta-nota-tutor" min="0" max="20" step="1"
-                                           inputmode="numeric" autocomplete="off"
-                                           value="<?= $est['nota_tutor'] !== null ? (int) $est['nota_tutor'] : '' ?>"
+                                    <input type="text" class="input-nota conducta-nota-tutor"
+                                           inputmode="numeric" pattern="(0?[0-9]|1[0-9]|20)" maxlength="2"
+                                           autocomplete="off"
+                                           value="<?= $est['nota_tutor'] !== null ? fmt_nota((int) $est['nota_tutor']) : '' ?>"
+                                           placeholder="—"
                                            aria-label="Tu nota para <?= e($est['nombre_completo']) ?>">
                                     <span class="conducta-status" aria-live="polite"></span>
                                 <?php elseif (!$esLegado && $est['nota_tutor'] !== null):
@@ -136,8 +138,8 @@ $pid       = (int) $periodoSel['id'];
                                 <?php endif; ?>
                             </td>
 
-                            <!-- Numeral final -->
-                            <td class="col-numeral text-center">
+                            <!-- Numeral final (promedio) -->
+                            <td class="col-numeral col-resultado col-resultado--inicio text-center">
                                 <?php if ($notaFin !== null): ?>
                                     <span class="nota-numeral nota-numeral--<?= strtolower($litFin) ?> conducta-final__nota">
                                         <?= fmt_nota((int) $notaFin) ?>
@@ -148,7 +150,7 @@ $pid       = (int) $periodoSel['id'];
                             </td>
 
                             <!-- Literal final -->
-                            <td class="col-literal text-center">
+                            <td class="col-literal col-resultado text-center">
                                 <?php if ($litFin !== null): ?>
                                     <span class="nota-literal nota-literal--<?= strtolower($litFin) ?> conducta-final__lit"<?= $esLegado ? ' title="I Bimestre (legado)"' : '' ?>>
                                         <?= e($litFin) ?>

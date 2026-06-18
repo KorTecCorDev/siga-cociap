@@ -1,3 +1,11 @@
+// ── "Ver resumen" bloqueado hasta que el docente confirme ────
+// pointer-events:none evita el clic sin JS extra; el JS solo quita la clase.
+.btn-ver-resumen--bloqueado {
+    opacity: 0.4;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
 // ── Dashboard admin — grid de cards ─────────────────────────
 .welcome {
     margin-bottom: $spacing-xl;
@@ -803,7 +811,29 @@
     // El toggle para desplegar una conclusión opcional usa el botón estándar
     // del proyecto (.btn btn--secondary btn--sm; pasa a --primary al abrir via
     // JS). Solo lo separamos del campo siguiente.
-    &__toggle { margin-bottom: $spacing-xs; }
+    &__toggle {
+        margin-bottom: $spacing-xs;
+
+        // Marca los toggles cuya conclusión YA tiene texto, para ubicarlas de un
+        // vistazo aun colapsadas. El punto va via ::after (no se borra cuando el
+        // JS reescribe el textContent del botón al alternar abrir/ocultar).
+        // Verde = guardado (convención de estado del proyecto).
+        &--con-texto {
+            position: relative;
+
+            &::after {
+                content: '';
+                position: absolute;
+                top: -3px;
+                right: -3px;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: $color-success;
+                border: 1.5px solid $bg-white;
+            }
+        }
+    }
 
     .textarea-conclusion-transversal {
         width: 100%;
@@ -822,6 +852,17 @@
     min-width: 110px;
     line-height: 1.25;
     vertical-align: middle;
+}
+
+// Separador vertical entre la zona de calificaciones (TIC/GAMA) y la columna
+// de Conclusiones descriptivas: deja claro que la conclusión NO es una nota.
+// Mismo gris que .col-resultado--inicio para coherencia con la zona de resultado.
+// El <th> de secundaria lleva rowspan=2, así que el borde cubre las dos filas.
+.tutoria-tabla {
+    th.col-conclusion,
+    td.col-conclusion {
+        border-left: 2px solid #cbd5e1;
+    }
 }
 
 // ── Separador y card de transversales (vista de carga) ──────

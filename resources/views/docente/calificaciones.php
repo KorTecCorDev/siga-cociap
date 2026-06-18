@@ -155,7 +155,8 @@
                         <span class="badge badge--error">🔒 Aprobada</span>
                     <?php endif; ?>
                     <a href="<?= url('docente/calificaciones/' . $carga['id'] . '/resumen/' . $competencia['id']) ?>"
-                       class="btn btn--secondary btn--sm">
+                       class="btn btn--secondary btn--sm<?= !$compBloqueada ? ' btn-ver-resumen--bloqueado' : '' ?>"
+                       <?= !$compBloqueada ? 'tabindex="-1" aria-disabled="true"' : '' ?>>
                         <span class="btn-icon btn-icon--view" aria-hidden="true"></span>
                         Ver resumen
                     </a>
@@ -283,7 +284,8 @@
                                             <div class="form-notas__footer">
                                                 <button type="submit"
                                                         class="btn btn--primary">
-                                                    Guardar notas
+                                                    <span class="btn-icon btn-icon--shield-check" aria-hidden="true"></span>
+                                                    Confirmar
                                                 </button>
                                                 <span class="form-notas__status"></span>
                                             </div>

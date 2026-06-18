@@ -3,7 +3,8 @@
  * Dashboard del docente.
  * @var array|null $periodo
  * @var int   $nCargas
- * @var int   $avance        % aprobado del bimestre
+ * @var int   $avance        % aprobado solo de cargas academicas (card Mis cargas)
+ * @var int   $avanceTotal   % de TODAS las responsabilidades (academicas + tutoria + conducta)
  * @var int   $sumTotal,$sumBloq
  * @var int   $completas,$sinCriterios
  * @var int|null $diasCierre
@@ -24,7 +25,8 @@ elseif ($diasCierre <= 3)      { $diasMod = 'err';   $diasTxt = $diasCierre; $di
 elseif ($diasCierre <= 7)      { $diasMod = 'warn';  $diasTxt = $diasCierre; $diasSub = 'días para el cierre'; }
 else                           { $diasMod = 'ok';    $diasTxt = $diasCierre; $diasSub = 'días para el cierre'; }
 
-$avEstado = $avance >= 100 ? 'completo' : ($avance > 0 ? 'parcial' : 'vacio');
+$avEstado      = $avance >= 100 ? 'completo' : ($avance > 0 ? 'parcial' : 'vacio');
+$avEstadoTotal = $avanceTotal >= 100 ? 'completo' : ($avanceTotal > 0 ? 'parcial' : 'vacio');
 ?>
 
 <div class="welcome">
@@ -50,7 +52,7 @@ $avEstado = $avance >= 100 ? 'completo' : ($avance > 0 ? 'parcial' : 'vacio');
         <span class="dpanel-kpi__label">Cargas asignadas</span>
     </div>
     <div class="dpanel-kpi">
-        <span class="dpanel-kpi__num dpanel-kpi__num--<?= $avEstado ?>"><?= $avance ?>%</span>
+        <span class="dpanel-kpi__num dpanel-kpi__num--<?= $avEstadoTotal ?>"><?= $avanceTotal ?>%</span>
         <span class="dpanel-kpi__label">Avance del bimestre</span>
     </div>
     <div class="dpanel-kpi">

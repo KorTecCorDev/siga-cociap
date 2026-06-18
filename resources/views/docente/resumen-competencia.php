@@ -114,8 +114,9 @@ $esTransversal = !empty($competencia['es_transversal']);
                                 </span>
                             </th>
                         <?php endforeach; ?>
-                        <th class="col-numeral text-center">Numeral</th>
-                        <th class="col-literal text-center">Literal</th>
+                        <th class="col-numeral col-resultado col-resultado--inicio text-center"
+                            title="Promedio de los criterios (calculado automáticamente)">Promedio numeral</th>
+                        <th class="col-literal col-resultado text-center">Literal</th>
                         <th class="col-conclusion">Conclusión descriptiva</th>
                     </tr>
                 </thead>
@@ -139,11 +140,7 @@ $esTransversal = !empty($competencia['es_transversal']);
                     ?>
                         <tr class="<?= $esExonerado ? 'fila-exonerado' : ($esOblig && empty($alumno['conclusion_descriptiva']) ? 'fila-pendiente' : '') ?>">
                             <td class="col-num"><?= $i + 1 ?></td>
-                            <td class="col-nombre">
-                                <strong><?= e($alumno['apellido_paterno'] . ' ' . $alumno['apellido_materno']) ?></strong>
-                                <br>
-                                <small class="text-muted"><?= e($alumno['nombres']) ?></small>
-                            </td>
+                            <td class="col-nombre"><?= e($alumno['apellido_paterno'] . ' ' . $alumno['apellido_materno'] . ', ' . $alumno['nombres']) ?></td>
 
                             <!-- Notas por criterio -->
                             <?php foreach ($criterios as $criterio): ?>
@@ -166,8 +163,8 @@ $esTransversal = !empty($competencia['es_transversal']);
                                 </td>
                             <?php endforeach; ?>
 
-                            <!-- Numeral -->
-                            <td class="col-numeral text-center">
+                            <!-- Promedio (numeral calculado) -->
+                            <td class="col-numeral col-resultado col-resultado--inicio text-center">
                                 <?php if ($esExonerado): ?>
                                     <span class="exo-badge" title="Exonerado(a)">EXO</span>
                                 <?php elseif ($promedio !== null): ?>
@@ -180,7 +177,7 @@ $esTransversal = !empty($competencia['es_transversal']);
                             </td>
 
                             <!-- Literal -->
-                            <td class="col-literal text-center">
+                            <td class="col-literal col-resultado text-center">
                                 <?php if ($esExonerado): ?>
                                     <span class="exo-badge exo-badge--lit" title="Exonerado(a)">EXO</span>
                                 <?php elseif ($literal !== null): ?>
