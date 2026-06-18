@@ -2,6 +2,10 @@
 /**
  * Dashboard del docente.
  * @var array|null $periodo
+ * @var bool  $tieneAula   es tutor(a) de aula (unidocente de alguna seccion)
+ * @var bool  $soloAula    el aula es TODA su carga (rotulo "Mi aula")
+ * @var string|null $aula  etiqueta del aula (ej. "1° A") cuando tiene aula
+ * @var int   $nAreasAula  cantidad de areas distintas del aula
  * @var int   $nCargas
  * @var int   $avance        % aprobado solo de cargas academicas (card Mis cargas)
  * @var int   $avanceTotal   % de TODAS las responsabilidades (academicas + tutoria + conducta)
@@ -38,11 +42,15 @@ $saludo = match($auth_user['sexo'] ?? null) {
 ?>
 <div class="welcome">
     <h1>
-        <img src="<?= url('assets/icons/hand-saludo.svg') ?>" class="welcome__wave" alt="" aria-hidden="true">
         <?= $saludo ?>, <?= e(nombre_corto($auth_user['nombres'] ?? '', $auth_user['apellido_paterno'] ?? '')) ?>
+        <img src="<?= url('assets/icons/hand-saludo.svg') ?>" class="welcome__wave" alt="" aria-hidden="true">
     </h1>
     <p>
-        Panel del docente · SIGA-COCIAP
+        <?php if ($tieneAula): ?>
+            <span class="badge badge--aula"><?= e(rol_aula($auth_user['sexo'] ?? null)) ?> — <?= e($aula) ?> Primaria</span>
+        <?php else: ?>
+            Panel del docente
+        <?php endif; ?>
         <?php if ($periodo): ?>
             · <strong><?= e($periodo['nombre_display']) ?> <?= e($periodo['anio']) ?></strong>
         <?php else: ?>
@@ -58,8 +66,8 @@ $saludo = match($auth_user['sexo'] ?? null) {
 <!-- KPIs -->
 <div class="dpanel-kpis">
     <div class="dpanel-kpi">
-        <span class="dpanel-kpi__num"><?= $nCargas ?></span>
-        <span class="dpanel-kpi__label">Cargas asignadas</span>
+        <span class="dpanel-kpi__num"><?= $soloAula ? $nAreasAula : $nCargas ?></span>
+        <span class="dpanel-kpi__label"><?= $soloAula ? 'Áreas a mi cargo' : 'Cargas asignadas' ?></span>
     </div>
     <div class="dpanel-kpi">
         <span class="dpanel-kpi__num dpanel-kpi__num--<?= $avEstadoTotal ?>"><?= $avanceTotal ?>%</span>
@@ -80,8 +88,8 @@ $saludo = match($auth_user['sexo'] ?? null) {
     <!-- Card: Mis cargas -->
     <a href="<?= url('docente/mis-cargas') ?>" class="card dpanel-card dpanel-card--cargas">
         <div class="dpanel-card__head">
-            <h2 class="card__title">Mis cargas académicas</h2>
-            <span class="badge badge--activo"><?= $nCargas ?> cargas</span>
+            <h2 class="card__title"><?= $soloAula ? 'Mi aula — ' . e($aula) : 'Mis cargas académicas' ?></h2>
+            <span class="badge badge--activo"><?= $soloAula ? $nAreasAula . ' áreas' : $nCargas . ' cargas' ?></span>
         </div>
         <div class="carga-progreso">
             <div class="carga-progreso__track">

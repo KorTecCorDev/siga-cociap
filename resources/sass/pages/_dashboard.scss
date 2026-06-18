@@ -212,6 +212,22 @@
     }
 }
 
+// ── Cards del aula del docente (unidocente) ──────────────────
+// Se distinguen de las cargas normales solo con una barra de acento azul de
+// wayfinding "Academicas" al borde izquierdo, para que el tutor(a) de aula
+// reconozca de un vistazo su salon frente a cargas en otras secciones.
+.carga-item--aula {
+    border-color: $card-cargas-line;
+    border-left: 4px solid $card-cargas-line;
+}
+
+.carga-area--aula {
+    border-color: $card-cargas-line;
+    border-left: 4px solid $card-cargas-line;
+
+    .carga-area__nombre { color: $card-cargas-ink; }
+}
+
 // ── Barra de progreso — competencias aprobadas ───────────────
 .carga-progreso {
     margin-top: $spacing-sm;

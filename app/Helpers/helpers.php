@@ -50,6 +50,20 @@ function nombre_corto(?string $nombres, ?string $apellidoPaterno = ''): string
     return trim($primerNombre . ' ' . trim($apellidoPaterno ?? ''));
 }
 
+/**
+ * Etiqueta del docente de aula (unidocente) segun sexo. En primaria 1°-3° un
+ * solo docente dicta TODAS las areas de su seccion y es su tutor: la interfaz
+ * lo nombra "Tutor(a) de aula" para reflejar esa identidad de aula completa.
+ */
+function rol_aula(?string $sexo): string
+{
+    return match ($sexo) {
+        'M'     => 'Tutor de aula',
+        'F'     => 'Tutora de aula',
+        default => 'Tutor(a) de aula',
+    };
+}
+
 /** Escapa HTML para prevenir XSS */
 function e(string $value): string
 {

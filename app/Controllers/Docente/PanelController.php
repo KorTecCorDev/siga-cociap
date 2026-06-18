@@ -42,6 +42,30 @@ class PanelController extends BaseController
 
         $cargas  = $pid ? $this->getCargasResumen($did, $pid) : [];
 
+        // Docente de aula (unidocente): si alguna carga pertenece a una seccion
+        // es_unidocente, dicta TODAS las areas de esa aula y es su tutor.
+        //   - tieneAula: es tutor(a) de aula (para el badge de identidad).
+        //   - soloAula : el aula es TODA su carga (habilita el rotulo "Mi aula").
+        // Caso mixto (unidocente de una seccion + especialista en otra, p.ej. el
+        // docente que ademas dicta C. y T. en otro grado): tieneAula=true pero
+        // soloAula=false, asi el dashboard usa el rotulo generico y NO mezcla
+        // secciones bajo "Mi aula"; la identidad queda en el badge de bienvenida.
+        $tieneAula  = false;
+        $hayOtras   = false;
+        $aula       = null;
+        $areasAula  = [];
+        foreach ($cargas as $c) {
+            if (!empty($c['es_unidocente'])) {
+                $tieneAula = true;
+                $aula    ??= trim($c['grado_nombre'] . ' ' . $c['seccion_nombre']);
+                $areasAula[(int) $c['area_id']] = true;
+            } else {
+                $hayOtras = true;
+            }
+        }
+        $soloAula   = $tieneAula && !$hayOtras;
+        $nAreasAula = count($areasAula);
+
         // KPIs / resumen de cargas
         $sumTotal = $sumBloq = $completas = $sinCriterios = 0;
         $pendientes = [];
@@ -152,6 +176,10 @@ class PanelController extends BaseController
             'titulo'        => 'Inicio',
             'periodo'       => $periodo,
             'cargas'        => $cargas,
+            'tieneAula'     => $tieneAula,
+            'soloAula'      => $soloAula,
+            'aula'          => $aula,
+            'nAreasAula'    => $nAreasAula,
             'nCargas'       => count($cargas),
             'avance'        => $avance,
             'avanceTotal'   => $avanceTotal,
@@ -468,8 +496,10 @@ class PanelController extends BaseController
         return $this->calModel->query("
             SELECT ca.id, ca.horas_semanales,
                    s.nombre          AS seccion_nombre,
+                   s.es_unidocente,
                    g.nombre_display  AS grado_nombre,
                    n.nombre          AS nivel_nombre,
+                   a.id              AS area_id,
                    CASE WHEN s.es_unidocente = 1 THEN a.nombre
                         ELSE COALESCE(sa.nombre, a.nombre) END AS nombre_display,
                    (

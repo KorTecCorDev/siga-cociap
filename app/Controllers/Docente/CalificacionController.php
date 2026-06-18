@@ -57,12 +57,28 @@ class CalificacionController extends BaseController
         $periodo = $this->getPeriodoActivo();
         $cargas  = $this->getCargas($user['id'], $periodo ? (int) $periodo['id'] : 0);
 
+        // Docente de aula (unidocente): es tutor(a) de aula si alguna carga es de
+        // una seccion es_unidocente. La vista marca ESE grupo como "Mi aula"; las
+        // demas secciones (caso mixto: ademas especialista en otro grado) se
+        // listan normalmente con su propio encabezado.
+        $tieneAula = false;
+        $aula      = null;
+        foreach ($cargas as $c) {
+            if (!empty($c['es_unidocente'])) {
+                $tieneAula = true;
+                $aula      = trim($c['grado_nombre'] . ' ' . $c['seccion_nombre']);
+                break;
+            }
+        }
+
         // Tutoría y Conducta tienen sus propias cards de acceso en el dashboard
         // (/docente/inicio); aquí solo se listan las cargas académicas.
         $this->view('docente/mis-cargas', [
-            'titulo'   => 'Mis cargas académicas',
-            'cargas'   => $cargas,
-            'periodo'  => $periodo,
+            'titulo'    => 'Mis cargas académicas',
+            'cargas'    => $cargas,
+            'periodo'   => $periodo,
+            'tieneAula' => $tieneAula,
+            'aula'      => $aula,
         ]);
     }
 

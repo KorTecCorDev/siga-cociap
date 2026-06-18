@@ -2,12 +2,19 @@
 /**
  * @var array      $cargas
  * @var array|null $periodo
+ * @var bool       $tieneAula  es tutor(a) de aula (unidocente de alguna seccion)
+ * @var string|null $aula      etiqueta del aula (ej. "1° A") cuando tiene aula
  */
 ?>
 
 <div class="page-header">
     <a href="<?= url('docente/inicio') ?>" class="btn btn--secondary btn--sm">← Volver</a>
     <h1 class="page-title">Mis cargas académicas</h1>
+    <?php if ($tieneAula): ?>
+        <span class="badge badge--aula">
+            <?= e(rol_aula(auth()['sexo'] ?? null)) ?> — <?= e($aula) ?> Primaria
+        </span>
+    <?php endif; ?>
     <?php if ($periodo): ?>
         <span class="badge badge--activo">
             <?= e($periodo['nombre_display'] ?? 'Periodo activo') ?>
@@ -27,13 +34,6 @@
 <?php else: ?>
 
     <?php
-    // Agrupar: nivel+grado → seccion_id → area_id → cargas[]
-    $agrupadas = [];
-    foreach ($cargas as $carga) {
-        $ng = $carga['nivel_nombre'] . ' — ' . $carga['grado_nombre'];
-        $agrupadas[$ng][$carga['seccion_id']][$carga['area_id']][] = $carga;
-    }
-
     // Avance GLOBAL de la carga = competencias propias del area + transversales
     // TIC/GAMA que el docente registra en su propia carga. Devuelve
     // [bloqueadas, total, pct, estado]. En una carga de tipo transversal
@@ -104,12 +104,67 @@
             : '';
         return [$estado, 'Transversales ' . $bloqueadas . '/' . $total . $icono];
     };
+
+    // Agrupar: nivel+grado → seccion_id → area_id → cargas[]
+    $agrupadas = [];
+    foreach ($cargas as $carga) {
+        $ng = $carga['nivel_nombre'] . ' — ' . $carga['grado_nombre'];
+        $agrupadas[$ng][$carga['seccion_id']][$carga['area_id']][] = $carga;
+    }
+
+    // ¿El grupo es el AULA del docente? (alguna de sus cargas es de una seccion
+    // es_unidocente). Sirve para destacar su encabezado como "Mi aula".
+    $grupoEsAula = function (array $secciones): bool {
+        foreach ($secciones as $areas) {
+            foreach ($areas as $areaCargas) {
+                foreach ($areaCargas as $c) {
+                    if (!empty($c['es_unidocente'])) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    };
+
+    // Primera carga del grupo (para leer grado/seccion/nivel del encabezado).
+    $primeraDelGrupo = function (array $secciones): ?array {
+        foreach ($secciones as $areas) {
+            foreach ($areas as $areaCargas) {
+                return $areaCargas[0];
+            }
+        }
+        return null;
+    };
+
+    // El AULA va primero; el resto (caso mixto: cargas de especialista en otras
+    // secciones) conserva su orden natural por nivel/grado.
+    $aulaGrupos  = [];
+    $otrosGrupos = [];
+    foreach ($agrupadas as $grupo => $secciones) {
+        if ($grupoEsAula($secciones)) {
+            $aulaGrupos[$grupo] = $secciones;
+        } else {
+            $otrosGrupos[$grupo] = $secciones;
+        }
+    }
+    $agrupadas = $aulaGrupos + $otrosGrupos;
     ?>
 
     <?php foreach ($agrupadas as $grupo => $secciones): ?>
+        <?php $esAula = $grupoEsAula($secciones); ?>
         <div class="card mb-md">
             <div class="card__header">
-                <h2 class="card__title"><?= e($grupo) ?></h2>
+                <?php if ($esAula): ?>
+                    <?php $pc = $primeraDelGrupo($secciones); ?>
+                    <h2 class="card__title">
+                        Mi aula — <?= e($pc['grado_nombre'] . ' ' . $pc['seccion_nombre']) ?>
+                        <?= e($pc['nivel_nombre']) ?>
+                    </h2>
+                    <span class="badge badge--aula"><?= e(rol_aula(auth()['sexo'] ?? null)) ?></span>
+                <?php else: ?>
+                    <h2 class="card__title"><?= e($grupo) ?></h2>
+                <?php endif; ?>
             </div>
             <div class="card__body">
                 <div class="cargas-grid">
@@ -123,12 +178,14 @@
 
                             <?php if ($esGrupo): ?>
 
-                                <div class="carga-area">
+                                <div class="carga-area <?= $esAula ? 'carga-area--aula' : '' ?>">
                                     <div class="carga-area__header">
-                                        <span class="carga-area__seccion">
-                                            Sección <?= e($primeraC['seccion_nombre']) ?>
-                                        </span>
-                                        <span class="carga-area__sep">—</span>
+                                        <?php if (!$esAula): ?>
+                                            <span class="carga-area__seccion">
+                                                Sección <?= e($primeraC['seccion_nombre']) ?>
+                                            </span>
+                                            <span class="carga-area__sep">—</span>
+                                        <?php endif; ?>
                                         <span class="carga-area__nombre">
                                             <?= e($primeraC['area_nombre']) ?>
                                         </span>
@@ -185,11 +242,13 @@
                                 [$badgeClase, $badgeTexto] = $estadoBadge($carga);
                                 ?>
                                 <a href="<?= url('docente/calificaciones/' . $carga['id']) ?>"
-                                   class="carga-item <?= $periodo ? '' : 'carga-item--disabled' ?>">
+                                   class="carga-item <?= $esAula ? 'carga-item--aula' : '' ?> <?= $periodo ? '' : 'carga-item--disabled' ?>">
 
-                                    <div class="carga-item__seccion">
-                                        Sección <?= e($carga['seccion_nombre']) ?>
-                                    </div>
+                                    <?php if (!$esAula): ?>
+                                        <div class="carga-item__seccion">
+                                            Sección <?= e($carga['seccion_nombre']) ?>
+                                        </div>
+                                    <?php endif; ?>
 
                                     <div class="carga-item__nombre">
                                         <?= e($carga['nombre_display']) ?>
@@ -235,4 +294,4 @@
         </div>
     <?php endforeach; ?>
 
-<?php endif; ?>
+<?php endif; // fin empty($cargas) ?>
