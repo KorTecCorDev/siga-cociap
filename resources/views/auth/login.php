@@ -13,21 +13,18 @@
     <!-- Alertas de sesión -->
     <?php if ($flash_error): ?>
         <div class="alert alert--error">
-            <span class="alert__icon">⚠</span>
             <?= e($flash_error) ?>
         </div>
     <?php endif; ?>
 
     <?php if ($flash_success): ?>
         <div class="alert alert--success">
-            <span class="alert__icon">✓</span>
             <?= e($flash_success) ?>
         </div>
     <?php endif; ?>
 
     <?php if (isset($_GET['timeout'])): ?>
         <div class="alert alert--warning">
-            <span class="alert__icon">⏱</span>
             Tu sesión cerró por inactividad. Vuelve a ingresar.
         </div>
     <?php endif; ?>
@@ -92,7 +89,7 @@
         </div>
 
         <button type="submit" class="btn-login" id="btn-login">
-            <span class="btn-login__text">Ingresar al sistema</span>
+            <span class="btn-login__text">Ingresar</span>
             <span class="btn-login__spinner" hidden><span class="btn-icon btn-icon--wait" aria-hidden="true"></span></span>
         </button>
 
