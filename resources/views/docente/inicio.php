@@ -29,8 +29,18 @@ $avEstado      = $avance >= 100 ? 'completo' : ($avance > 0 ? 'parcial' : 'vacio
 $avEstadoTotal = $avanceTotal >= 100 ? 'completo' : ($avanceTotal > 0 ? 'parcial' : 'vacio');
 ?>
 
+<?php
+$saludo = match($auth_user['sexo'] ?? null) {
+    'M'     => 'Bienvenido',
+    'F'     => 'Bienvenida',
+    default => 'Bienvenido(a)',
+};
+?>
 <div class="welcome">
-    <h1>Bienvenido(a), <?= e(nombre_corto($auth_user['nombres'] ?? '', $auth_user['apellido_paterno'] ?? '')) ?></h1>
+    <h1>
+        <img src="<?= url('assets/icons/hand-saludo.svg') ?>" class="welcome__wave" alt="" aria-hidden="true">
+        <?= $saludo ?>, <?= e(nombre_corto($auth_user['nombres'] ?? '', $auth_user['apellido_paterno'] ?? '')) ?>
+    </h1>
     <p>
         Panel del docente · SIGA-COCIAP
         <?php if ($periodo): ?>

@@ -99,16 +99,6 @@
         .card__title { color: $card-nomina-ink; }
     }
 
-    // Fondo tenue SOLO cuando la card lleva un estado activo (cerrado /
-    // disponible / progreso); libre de estados se queda en blanco.
-    &--cerrado,
-    &--disponible,
-    &--progreso {
-        &.dpanel-card--cargas   { background: $card-cargas-bg; }
-        &.dpanel-card--tutoria  { background: $card-tutoria-bg; }
-        &.dpanel-card--conducta { background: $card-conducta-bg; }
-        &.dpanel-card--nomina   { background: $card-nomina-bg; }
-    }
 }
 
 // ── Panel de pendientes ──────────────────────────────────────
