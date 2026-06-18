@@ -150,6 +150,7 @@
     }
 
     &__tag {
+        align-self: flex-start;   // no estirar a todo el ancho en la card (flex col)
         display: inline-block;
         font-size: 10px;
         background: $brand-light;
@@ -226,6 +227,9 @@
     border-left: 4px solid $card-cargas-line;
 
     .carga-area__nombre { color: $card-cargas-ink; }
+    // Etiqueta del codigo MINEDU (C21...) en azul de aula, no en el naranja
+    // institucional ($brand-accent), para no chocar con el acento.
+    .carga-item__tag    { background: $card-cargas-bg; color: $card-cargas-ink; }
 }
 
 // ── Barra de progreso — competencias aprobadas ───────────────

@@ -133,7 +133,9 @@ class CalificacionController extends BaseController
         $exonerados      = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
 
         $this->view('docente/calificaciones', [
-            'titulo'          => 'Calificaciones — ' . ($carga['nombre_display'] ?? ''),
+            'titulo'          => 'Calificaciones — ' . (!empty($carga['es_unidocente'])
+                ? ($carga['area_nombre'] ?? '')
+                : ($carga['nombre_display'] ?? '')),
             'carga'           => $carga,
             'periodo'         => $periodo,
             'competencias'    => $competencias,
@@ -615,6 +617,15 @@ class CalificacionController extends BaseController
                 sa.id             AS subarea_id,
                 sa.nombre         AS subarea_nombre,
                 a.id              AS area_id,
+                -- Competencia vinculada a la subarea (1 subarea = 1 competencia).
+                -- El unidocente NO dicta subareas: sus cards muestran el nombre
+                -- corto + codigo MINEDU de la competencia en vez de la subarea.
+                (SELECT comp.nombre_corto  FROM competencias comp
+                    WHERE comp.subarea_id = ca.subarea_id ORDER BY comp.id LIMIT 1
+                ) AS competencia_corto,
+                (SELECT comp.codigo_minedu FROM competencias comp
+                    WHERE comp.subarea_id = ca.subarea_id ORDER BY comp.id LIMIT 1
+                ) AS competencia_codigo,
                 (
                     -- Competencias PROPIAS del area/subarea de la carga. La barra de
                     -- avance compara este total contra competencias_bloqueadas, que

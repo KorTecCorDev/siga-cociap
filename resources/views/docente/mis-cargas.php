@@ -197,9 +197,18 @@
                                             <a href="<?= url('docente/calificaciones/' . $carga['id']) ?>"
                                                class="carga-item <?= $periodo ? '' : 'carga-item--disabled' ?>">
 
-                                                <div class="carga-item__nombre">
-                                                    <?= e($carga['subarea_nombre'] ?? $carga['nombre_display']) ?>
-                                                </div>
+                                                <?php if ($esAula && !empty($carga['competencia_corto'])): ?>
+                                                    <?php if (!empty($carga['competencia_codigo'])): ?>
+                                                        <span class="carga-item__tag"><?= e($carga['competencia_codigo']) ?></span>
+                                                    <?php endif; ?>
+                                                    <div class="carga-item__nombre">
+                                                        <?= e($carga['competencia_corto']) ?>
+                                                    </div>
+                                                <?php else: ?>
+                                                    <div class="carga-item__nombre">
+                                                        <?= e($carga['subarea_nombre'] ?? $carga['nombre_display']) ?>
+                                                    </div>
+                                                <?php endif; ?>
 
                                                 <span class="badge <?= $badgeClase ?> carga-item__badge">
                                                     <?= $badgeTexto ?>

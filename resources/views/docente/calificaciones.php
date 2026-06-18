@@ -14,7 +14,15 @@
     <a href="<?= url('docente/mis-cargas') ?>"
        class="btn btn--secondary btn--sm">← Mis cargas</a>
     <div>
-        <h1 class="page-title"><?= e($carga['nombre_display']) ?></h1>
+        <?php
+        // Unidocente en SU seccion a cargo (es_unidocente): no dicta subareas,
+        // dicta el area-curso -> muestra solo el nombre del area. Fuera de su
+        // seccion (carga de especialista) conserva el nombre de la subarea.
+        $tituloCarga = !empty($carga['es_unidocente'])
+            ? $carga['area_nombre']
+            : $carga['nombre_display'];
+        ?>
+        <h1 class="page-title"><?= e($tituloCarga) ?></h1>
         <p class="page-subtitle">
             <?= 
             e($carga['nivel_nombre']) ?> —
