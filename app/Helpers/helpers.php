@@ -90,7 +90,55 @@ function url(string $path = ''): string
         }
     }
 
-    return rtrim($base, '/') . '/' . ltrim($path, '/');
+    $full = rtrim($base, '/') . '/' . ltrim($path, '/');
+
+    // Cache-busting: si la ruta es un archivo estatico real, le anexa la fecha
+    // de modificacion como ?v=... para que el navegador re-descargue al cambiar.
+    return asset_version($full, $path);
+}
+
+/**
+ * Cache-busting de assets estaticos.
+ * Si $relPath apunta a un archivo real bajo public/ (css, js, imagenes,
+ * fuentes, etc.) devuelve la URL con ?v=<filemtime>; asi el navegador y la
+ * PWA instalada vuelven a descargar el archivo cada vez que cambia, sin que
+ * el usuario tenga que limpiar la cache. Las rutas de la app (sin extension,
+ * ej. /login, /boleta/123/1) se devuelven sin tocar.
+ */
+function asset_version(string $absoluteUrl, string $relPath): string
+{
+    static $cache = [];
+
+    // Ya trae query string propia -> no interferir.
+    if (str_contains($absoluteUrl, '?')) {
+        return $absoluteUrl;
+    }
+
+    $rel = ltrim($relPath, '/');
+    if ($rel === '') {
+        return $absoluteUrl;
+    }
+
+    // Solo extensiones de archivos versionables. Las rutas de la app no tienen
+    // extension, asi que se descartan aqui sin tocar el disco.
+    static $exts = [
+        'css', 'js', 'map', 'svg', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico',
+        'woff', 'woff2', 'ttf', 'eot', 'json', 'mp4', 'webm', 'pdf',
+    ];
+    $ext = strtolower(pathinfo($rel, PATHINFO_EXTENSION));
+    if ($ext === '' || !in_array($ext, $exts, true)) {
+        return $absoluteUrl;
+    }
+
+    if (!array_key_exists($rel, $cache)) {
+        $root = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 2);
+        $file = $root . '/public/' . $rel;
+        $cache[$rel] = is_file($file) ? filemtime($file) : null;
+    }
+
+    return $cache[$rel] === null
+        ? $absoluteUrl
+        : $absoluteUrl . '?v=' . $cache[$rel];
 }
 
 /** Genera la URL de un asset público (css, js, imágenes) */
