@@ -86,7 +86,7 @@ class AuthController extends BaseController
         if ($usuario['estado'] !== 'activo') {
             $this->view('auth/login', [
                 'titulo'  => 'Iniciar sesión',
-                'errores' => ['dni' => 'Tu cuenta está inactiva. Comunícate con el administrador.'],
+                'errores' => ['dni' => 'Tu cuenta está inactiva. Comunícate con personal de Registro Académico.'],
                 'dni_previo' => $dni,
             ]);
             return;

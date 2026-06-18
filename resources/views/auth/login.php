@@ -89,7 +89,7 @@
         </div>
 
         <button type="submit" class="btn-login" id="btn-login">
-            <span class="btn-login__text">Ingresar</span>
+            <span class="btn-login__text">Iniciar Sesión</span>
             <span class="btn-login__spinner" hidden><span class="btn-icon btn-icon--wait" aria-hidden="true"></span></span>
         </button>
 

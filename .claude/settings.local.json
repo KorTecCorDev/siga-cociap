@@ -152,7 +152,9 @@
       "Bash(php -l routes/web.php)",
       "Bash(php -l resources/views/matriculas/show.php)",
       "Bash(php -l app/Controllers/Matricula/MatriculaController.php)",
-      "Bash(awk '{print $5, $NF}')"
+      "Bash(awk '{print $5, $NF}')",
+      "Bash(awk \"/CREATE TABLE \\\\`usuarios\\\\`/{f=1} f{print} f&&/ENGINE=/{exit}\" database/backup_10_06_2026.sql)",
+      "Bash(php *)"
     ]
   }
 }
