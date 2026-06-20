@@ -80,21 +80,44 @@
         font-size: $font-size-sm;
     }
 
+    // Icono wayfinding antepuesto al titulo de cada card de acceso. Se pinta
+    // con mask + currentColor, asi hereda el mismo tono -ink del titulo (lo
+    // define cada modificador via --dpanel-icon). Decorativo: vive en ::before.
+    .card__title {
+        display: inline-flex;
+        align-items: center;
+        gap: $spacing-xs;
+
+        &::before {
+            content: "";
+            flex: 0 0 auto;
+            width: 1.35em;
+            height: 1.35em;
+            background-color: currentColor;
+            -webkit-mask: var(--dpanel-icon) center / contain no-repeat;
+                    mask: var(--dpanel-icon) center / contain no-repeat;
+        }
+    }
+
     // Identidad por acceso (wayfinding): borde vivo + titulo en tono oscuro
     // legible. El color es fijo para cada card y siempre visible.
     &--cargas {
+        --dpanel-icon: url("../assets/icons/book-bookmark.svg");
         border-left: 4px solid $card-cargas-line;
         .card__title { color: $card-cargas-ink; }
     }
     &--tutoria {
+        --dpanel-icon: url("../assets/icons/users-group-rounded.svg");
         border-left: 4px solid $card-tutoria-line;
         .card__title { color: $card-tutoria-ink; }
     }
     &--conducta {
+        --dpanel-icon: url("../assets/icons/smile.svg");
         border-left: 4px solid $card-conducta-line;
         .card__title { color: $card-conducta-ink; }
     }
     &--nomina {
+        --dpanel-icon: url("../assets/icons/childs-students.svg");
         border-left: 4px solid $card-nomina-line;
         .card__title { color: $card-nomina-ink; }
     }
