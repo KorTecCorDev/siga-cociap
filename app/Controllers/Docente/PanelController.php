@@ -54,10 +54,13 @@ class PanelController extends BaseController
         $hayOtras   = false;
         $aula       = null;
         $areasAula  = [];
+        $seccionesAula = [];   // labels unicos de aulas unidocentes (para los chips)
         foreach ($cargas as $c) {
             if (!empty($c['es_unidocente'])) {
                 $tieneAula = true;
-                $aula    ??= trim($c['grado_nombre'] . ' ' . $c['seccion_nombre']);
+                $label     = trim($c['grado_nombre'] . ' ' . $c['seccion_nombre']);
+                $aula    ??= $label;
+                $seccionesAula[$label] = true;
                 $areasAula[(int) $c['area_id']] = true;
             } else {
                 $hayOtras = true;
@@ -147,6 +150,33 @@ class PanelController extends BaseController
             ];
         }
 
+        // Chips de identidad del encabezado: un chip por cada ROL que cumple el
+        // docente, combinables. Unidocente (dicta todas las areas de un aula) y
+        // tutor (responsable de una seccion) son atributos INDEPENDIENTES, con
+        // fuentes distintas (es_unidocente vs secciones.tutor_id).
+        //   - "Unidocente - X"  por cada aula unidocente.
+        //   - "Tutor(a) - Y"    si es tutor de una seccion (cualquier nivel).
+        //   - "Docente"         como complemento si ademas dicta fuera de su aula,
+        //                       o como unica etiqueta del especialista sin rol.
+        $chips = [];
+        foreach (array_keys($seccionesAula) as $label) {
+            $chips[] = ['tipo' => 'unidocente', 'texto' => 'Unidocente — ' . $label];
+        }
+        if ($seccionTutor) {
+            $rotTutor = match ($user['sexo'] ?? null) {
+                'M'     => 'Tutor',
+                'F'     => 'Tutora',
+                default => 'Tutor(a)',
+            };
+            $chips[] = [
+                'tipo'  => 'tutor',
+                'texto' => $rotTutor . ' — ' . trim($seccionTutor['grado_nombre'] . ' ' . $seccionTutor['nombre']),
+            ];
+        }
+        if ((!$tieneAula && !$seccionTutor) || ($tieneAula && $hayOtras)) {
+            $chips[] = ['tipo' => 'docente', 'texto' => 'Docente'];
+        }
+
         // Avance TOTAL del bimestre: suma TODAS las responsabilidades del docente
         // como unidades — cada competencia académica + (solo si es tutor) la
         // tutoría y la conducta de su sección, una unidad cada una. Es el número
@@ -179,6 +209,7 @@ class PanelController extends BaseController
             'tieneAula'     => $tieneAula,
             'soloAula'      => $soloAula,
             'aula'          => $aula,
+            'chips'         => $chips,
             'nAreasAula'    => $nAreasAula,
             'nCargas'       => count($cargas),
             'avance'        => $avance,

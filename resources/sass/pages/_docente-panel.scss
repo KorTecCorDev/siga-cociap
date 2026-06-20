@@ -124,6 +124,31 @@
 
 }
 
+// ── Iconos de los paneles de contenido (Pendientes / Mi horario) ──
+// Tono NEUTRO (currentColor del titulo), SIN color wayfinding: son paneles de
+// contenido, no accesos. El wayfinding por color queda reservado a las cards.
+.dpanel-panel {
+    &--pendientes .card__title,
+    &--horario    .card__title {
+        display: inline-flex;
+        align-items: center;
+        gap: $spacing-xs;
+
+        &::before {
+            content: "";
+            flex: 0 0 auto;
+            width: 1.2em;
+            height: 1.2em;
+            background-color: currentColor;
+            -webkit-mask: var(--dpanel-panel-icon) center / contain no-repeat;
+                    mask: var(--dpanel-panel-icon) center / contain no-repeat;
+        }
+    }
+
+    &--pendientes { --dpanel-panel-icon: url("../assets/icons/sand-clock-wait.svg"); }
+    &--horario    { --dpanel-panel-icon: url("../assets/icons/calendar.svg"); }
+}
+
 // ── Panel de pendientes ──────────────────────────────────────
 .dpanel-pend {
     list-style: none;

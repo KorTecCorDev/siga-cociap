@@ -5,6 +5,7 @@
  * @var bool  $tieneAula   es tutor(a) de aula (unidocente de alguna seccion)
  * @var bool  $soloAula    el aula es TODA su carga (rotulo "Mi aula")
  * @var string|null $aula  etiqueta del aula (ej. "1° A") cuando tiene aula
+ * @var array $chips       chips de identidad combinables [{tipo, texto}]
  * @var int   $nAreasAula  cantidad de areas distintas del aula
  * @var int   $nCargas
  * @var int   $avance        % aprobado solo de cargas academicas (card Mis cargas)
@@ -46,13 +47,11 @@ $saludo = match($auth_user['sexo'] ?? null) {
         <img src="<?= url('assets/icons/hand-saludo.svg') ?>" class="welcome__wave" alt="" aria-hidden="true">
     </h1>
     <p>
-        <?php if ($tieneAula): ?>
-            <span class="badge badge--aula"><?= e(rol_aula($auth_user['sexo'] ?? null)) ?> — <?= e($aula) ?> Primaria</span>
-        <?php else: ?>
-            Panel del docente
-        <?php endif; ?>
+        <?php foreach (($chips ?? []) as $chip): ?>
+            <span class="badge badge--ident badge--ident-<?= e($chip['tipo']) ?>"><?= e($chip['texto']) ?></span>
+        <?php endforeach; ?>
         <?php if ($periodo): ?>
-            · <strong><?= e($periodo['nombre_display']) ?> <?= e($periodo['anio']) ?></strong>
+            · <span class="badge badge--periodo"><?= e($periodo['nombre_display']) ?> <?= e($periodo['anio']) ?></span>
         <?php else: ?>
             · <span class="badge badge--warning">Sin periodo activo</span>
         <?php endif; ?>
@@ -180,7 +179,7 @@ $saludo = match($auth_user['sexo'] ?? null) {
 <div class="dpanel-grid">
 
     <!-- Pendientes -->
-    <div class="card dpanel-panel">
+    <div class="card dpanel-panel dpanel-panel--pendientes">
         <div class="card__header"><h2 class="card__title">Pendientes</h2></div>
         <div class="card__body">
             <?php if (empty($pendientes)): ?>
@@ -202,7 +201,7 @@ $saludo = match($auth_user['sexo'] ?? null) {
     </div>
 
     <!-- Mi horario -->
-    <div class="card dpanel-panel">
+    <div class="card dpanel-panel dpanel-panel--horario">
         <div class="card__header dpanel-panel__head">
             <h2 class="card__title">Mi horario</h2>
             <?php if (!empty($horario)): ?>

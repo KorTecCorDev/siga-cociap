@@ -92,6 +92,45 @@ details.card {
     // Docente de aula (unidocente): color wayfinding de "Academicas / Mis cargas"
     // (azul) para identificar de un vistazo al tutor(a) de aula.
     &--aula      { background: $card-cargas-bg; color: $card-cargas-ink; }
+
+    // Chips de identidad del dashboard docente (combinables). Reusan el color
+    // wayfinding del concepto: tutor=teal (card Tutoria), unidocente=azul
+    // (card Mis cargas), docente=neutro (especialista, sin concepto propio).
+    &--ident-tutor      { background: $card-tutoria-bg; color: $card-tutoria-ink; }
+    &--ident-unidocente { background: $card-cargas-bg;  color: $card-cargas-ink;  }
+    &--ident-docente    { background: #f1f5f9;          color: #64748b;           }
+
+    // Bimestre activo: verde "vivo" con punto indicador y resplandor exterior
+    // pulsante, para dar sensacion de periodo en curso de un vistazo.
+    &--periodo {
+        background: $color-success-bg;
+        color: $color-success;
+        font-weight: 700;
+        box-shadow: 0 0 0 1px rgba($color-success, .25),
+                    0 0 10px rgba($color-success, .35);
+        animation: periodo-pulse 2.6s ease-in-out infinite;
+
+        // Punto "en vivo" antes del texto (el gap de .badge lo separa).
+        &::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: $color-success;
+            box-shadow: 0 0 6px rgba($color-success, .85);
+        }
+    }
+}
+
+// Resplandor exterior que "respira" — sutil, para no distraer.
+@keyframes periodo-pulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba($color-success, .25), 0 0 8px  rgba($color-success, .30); }
+    50%      { box-shadow: 0 0 0 1px rgba($color-success, .40), 0 0 15px rgba($color-success, .55); }
+}
+
+// Accesibilidad: sin animacion si el usuario reduce el movimiento.
+@media (prefers-reduced-motion: reduce) {
+    .badge--periodo { animation: none; }
 }
 
 // ── Flash messages ───────────────────────────────────────────
