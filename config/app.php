@@ -57,4 +57,14 @@ return [
     'firmas_path'     => is_dir('/home/u761410128/siga_uploads/firmas')
         ? '/home/u761410128/siga_uploads/firmas'
         : dirname(__DIR__) . '/storage/firmas',
+
+    // Log de errores/auditoria. DEBE vivir FUERA del repo: el auto-deploy de
+    // Hostinger hace checkout limpio y borraria storage/logs/*.log en cada push,
+    // perdiendo el historial. En el servidor (detecta el home de Hostinger) usa
+    // un directorio DEDICADO externo (siga_logs, separado de uploads); en XAMPP
+    // local cae a storage/logs. Se detecta por el home base, no por el dir del
+    // log, para que apunte afuera aunque la carpeta aun no exista (mkdir la crea).
+    'log_path'        => is_dir('/home/u761410128')
+        ? '/home/u761410128/siga_logs/siga.log'
+        : dirname(__DIR__) . '/storage/logs/siga.log',
 ];

@@ -251,7 +251,16 @@ function log_error(string $mensaje, array $context = []): void
     if ($context) {
         $linea .= ' | ' . json_encode($context, JSON_UNESCAPED_UNICODE);
     }
-    error_log($linea . PHP_EOL, 3, STORAGE_PATH . '/logs/siga.log');
+
+    // Ruta del log fuera del docroot en produccion (config 'log_path'). El
+    // logging nunca debe tumbar la app: mkdir y escritura son defensivos, con
+    // fallback silencioso si el directorio no es escribible.
+    $destino = config('log_path') ?: (STORAGE_PATH . '/logs/siga.log');
+    $dir     = dirname($destino);
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    @error_log($linea . PHP_EOL, 3, $destino);
 }
 
 /**

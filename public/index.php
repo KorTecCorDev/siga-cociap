@@ -48,6 +48,17 @@ if (config('debug')) {
     ini_set('display_errors', '0');
     ini_set('log_errors', '1');
 
+    // Errores nativos de PHP (warnings/notices no capturados) tambien fuera del
+    // docroot, unificados con el log propio. Asegura el directorio (defensivo).
+    $logPath = config('log_path');
+    if ($logPath) {
+        $logDir = dirname($logPath);
+        if (!is_dir($logDir)) {
+            @mkdir($logDir, 0755, true);
+        }
+        ini_set('error_log', $logPath);
+    }
+
     // ── Blindaje global (solo producción) ───────────────────
     // Cualquier excepción no capturada o error fatal se registra en el log
     // y se muestra una página de error genérica, sin filtrar stack traces ni
