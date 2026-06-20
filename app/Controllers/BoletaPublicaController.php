@@ -64,6 +64,15 @@ class BoletaPublicaController extends BaseController
             return;
         }
 
+        // Charset/longitud antes de tocar BD: el código solo lleva mayúsculas,
+        // dígitos y guiones (formato COCIAP-2026-B1-XXXXXX). Filtra basura y
+        // payloads sin acoplarse al formato exacto (robusto a cambios futuros).
+        // Mismo mensaje que "no válido" para no revelar si el formato acertó.
+        if (!preg_match('/^[A-Z0-9-]{1,40}$/', $codigo)) {
+            $this->mostrarFormularioConError('Código no válido. Verifica e intenta de nuevo.', $codigo);
+            return;
+        }
+
         $registro = $this->bpModel->getPorCodigo($codigo);
 
         if (!$registro) {

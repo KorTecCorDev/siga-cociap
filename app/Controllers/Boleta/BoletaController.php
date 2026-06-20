@@ -344,6 +344,16 @@ class BoletaController extends BaseController
      */
     private function resolveToken(string $token): array
     {
+        // El token es bin2hex(random_bytes(16)) = 32 hex en minúsculas. Validar
+        // el formato antes de consultar rechaza basura/payloads de inmediato,
+        // con el mismo 404 que un token inexistente. No afecta los QR ya
+        // emitidos: todos los tokens vigentes cumplen este patrón.
+        if (!preg_match('/^[a-f0-9]{32}$/', $token)) {
+            http_response_code(404);
+            require VIEW_PATH . '/shared/404.php';
+            exit;
+        }
+
         // Una matrícula 'desactivado' (baja o traslado) no expone su boleta por
         // token aunque el QR impreso siga circulando: se trata como inexistente.
         $matricula = $this->calModel->queryOne(
