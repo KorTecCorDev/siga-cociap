@@ -113,6 +113,7 @@ $router->post('/director/matriculas/{id}/aprobar',  'Director\MatriculaControlle
 // Las rutas literales (crear) van ANTES del patrón {id} para que el router
 // no capture "crear" como parámetro. Lo mismo con los sub-recursos del {id}.
 $router->get( '/matriculas',                     'Matricula\MatriculaController@index');
+$router->get( '/matriculas/resumen',             'Matricula\MatriculaController@resumen');
 $router->get( '/matriculas/crear',               'Matricula\MatriculaController@create');
 $router->post('/matriculas/crear',               'Matricula\MatriculaController@store');
 $router->get( '/matriculas/{id}/apoderado',      'Matricula\MatriculaController@apoderado');

@@ -348,3 +348,88 @@
     .mat-filtros { grid-template-columns: 1fr 1fr; }
     .wizard-steps__sep { width: 14px; }
 }
+
+// ── Dashboard de resumen (/matriculas/resumen) ──────────────────
+.resumen-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+}
+
+.resumen-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+    padding: $spacing-lg;
+    background: #fff;
+    border: 1px solid $border-color;
+    border-left: 4px solid $text-muted;
+    border-radius: $border-radius;
+
+    &__num {
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $text-primary;
+        line-height: 1;
+    }
+
+    &__label {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+    }
+
+    &--ok    { border-left-color: $color-success; }
+    &--muted { border-left-color: $text-muted; }
+    &--warn  { border-left-color: $color-warning; }
+}
+
+.resumen-charts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: $spacing-lg;
+
+    @media (max-width: 760px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.resumen-chart {
+    margin: 0;
+
+    // El gráfico de barras por grado ocupa toda la fila.
+    &--ancho { grid-column: 1 / -1; }
+}
+
+.resumen-nota {
+    margin: $spacing-sm 0 0;
+    font-size: $font-size-sm;
+    color: $text-muted;
+    line-height: 1.4;
+}
+
+// Tooltip de Frappe Charts (la v1.6.2 no incluye CSS propio).
+.graph-svg-tip {
+    position: absolute;
+    z-index: 99999;
+    padding: $spacing-xs $spacing-sm;
+    font-size: $font-size-sm;
+    font-family: $font-family;
+    color: #fff;
+    background: rgba(30, 41, 59, .94);
+    border-radius: $border-radius-sm;
+    pointer-events: none;
+
+    ul { list-style: none; margin: 0; padding: 0; }
+    .title { font-weight: 600; }
+    .svg-pointer {
+        position: absolute;
+        height: 8px;
+        width: 8px;
+        background: rgba(30, 41, 59, .94);
+        transform: rotate(45deg);
+    }
+    .value { font-weight: 600; }
+}

@@ -133,6 +133,143 @@ class MatriculaModel extends BaseModel
         return (int) ($r['total'] ?? 0);
     }
 
+    /**
+     * Estadísticas de matrícula de un año para el dashboard /matriculas/resumen.
+     * "Matriculados" = estado='aprobada' (vigentes); las desactivadas se reportan
+     * aparte como KPI. Todo scopeado al año indicado.
+     *
+     * Retorna ['kpis'=>..., 'por_grado'=>[...], 'por_tipo'=>[...], 'por_genero'=>[...]].
+     */
+    public function getResumen(int $anioId): array
+    {
+        // 1) KPIs por estado.
+        $estados = $this->query("
+            SELECT m.estado, COUNT(*) AS n
+            FROM matriculas m
+            WHERE m.anio_id = ?
+            GROUP BY m.estado
+        ", [$anioId]);
+
+        $porEstado = ['aprobada' => 0, 'pendiente' => 0, 'desactivado' => 0];
+        foreach ($estados as $e) {
+            $porEstado[$e['estado']] = (int) $e['n'];
+        }
+
+        $secc = $this->queryOne("
+            SELECT COUNT(DISTINCT m.seccion_id) AS n
+            FROM matriculas m
+            WHERE m.anio_id = ? AND m.estado = 'aprobada'
+        ", [$anioId]);
+        $nSecciones = (int) ($secc['n'] ?? 0);
+
+        $kpis = [
+            'aprobadas'    => $porEstado['aprobada'],
+            'pendientes'   => $porEstado['pendiente'],
+            'desactivadas' => $porEstado['desactivado'],
+            'secciones'    => $nSecciones,
+            'promedio_seccion' => $nSecciones > 0
+                ? round($porEstado['aprobada'] / $nSecciones, 1)
+                : 0.0,
+        ];
+
+        // 2) Matriculados por grado (agrupable por nivel en la vista).
+        $porGrado = $this->query("
+            SELECT
+                n.id     AS nivel_id,
+                n.nombre AS nivel_nombre,
+                n.codigo AS nivel_codigo,
+                g.id     AS grado_id,
+                g.numero AS grado_numero,
+                g.nombre_display AS grado_nombre,
+                COUNT(*) AS n
+            FROM matriculas m
+            INNER JOIN secciones s ON s.id = m.seccion_id
+            INNER JOIN grados g    ON g.id = s.grado_id
+            INNER JOIN niveles n   ON n.id = g.nivel_id
+            WHERE m.anio_id = ? AND m.estado = 'aprobada'
+            GROUP BY n.id, n.nombre, n.codigo, g.id, g.numero, g.nombre_display
+            ORDER BY n.id, g.numero
+        ", [$anioId]);
+
+        // 2b) Matriculados por sección (con desglose de sexo para el gráfico apilado).
+        $porSeccion = $this->query("
+            SELECT
+                n.id     AS nivel_id,
+                n.codigo AS nivel_codigo,
+                g.numero AS grado_numero,
+                s.id     AS seccion_id,
+                s.nombre AS seccion_nombre,
+                COUNT(*)                  AS n,
+                SUM(p.sexo = 'M')         AS m,
+                SUM(p.sexo = 'F')         AS f,
+                SUM(p.sexo IS NULL)       AS sin_dato
+            FROM matriculas m
+            INNER JOIN secciones s   ON s.id = m.seccion_id
+            INNER JOIN grados g      ON g.id = s.grado_id
+            INNER JOIN niveles n     ON n.id = g.nivel_id
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas p    ON p.id = e.persona_id
+            WHERE m.anio_id = ? AND m.estado = 'aprobada'
+            GROUP BY n.id, n.codigo, g.numero, s.id, s.nombre
+            ORDER BY n.id, g.numero, s.nombre
+        ", [$anioId]);
+
+        // 3) Matriculados por tipo.
+        $porTipo = $this->query("
+            SELECT m.tipo, COUNT(*) AS n
+            FROM matriculas m
+            WHERE m.anio_id = ? AND m.estado = 'aprobada'
+            GROUP BY m.tipo
+        ", [$anioId]);
+
+        // 4) Matriculados por género (NULL => 'sin_dato') + cobertura.
+        $porGenero = $this->query("
+            SELECT COALESCE(p.sexo, 'ND') AS sexo, COUNT(*) AS n
+            FROM matriculas m
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas p    ON p.id = e.persona_id
+            WHERE m.anio_id = ? AND m.estado = 'aprobada'
+            GROUP BY COALESCE(p.sexo, 'ND')
+        ", [$anioId]);
+
+        $gen = ['M' => 0, 'F' => 0, 'ND' => 0];
+        foreach ($porGenero as $g) {
+            $gen[$g['sexo']] = (int) $g['n'];
+        }
+        $totalGen = $gen['M'] + $gen['F'] + $gen['ND'];
+        $conDato  = $gen['M'] + $gen['F'];
+
+        return [
+            'kpis'      => $kpis,
+            'por_grado' => array_map(static fn($r) => [
+                'nivel_nombre' => $r['nivel_nombre'],
+                'nivel_codigo' => $r['nivel_codigo'],
+                'grado_nombre' => $r['grado_nombre'],
+                'grado_numero' => (int) $r['grado_numero'],
+                'n'            => (int) $r['n'],
+            ], $porGrado),
+            'por_seccion' => array_map(static fn($r) => [
+                'nivel_codigo'   => $r['nivel_codigo'],
+                'grado_numero'   => (int) $r['grado_numero'],
+                'seccion_nombre' => $r['seccion_nombre'],
+                'n'              => (int) $r['n'],
+                'm'              => (int) $r['m'],
+                'f'              => (int) $r['f'],
+                'sin_dato'       => (int) $r['sin_dato'],
+            ], $porSeccion),
+            'por_tipo'  => array_map(static fn($r) => [
+                'tipo' => $r['tipo'],
+                'n'    => (int) $r['n'],
+            ], $porTipo),
+            'por_genero' => [
+                'm'         => $gen['M'],
+                'f'         => $gen['F'],
+                'sin_dato'  => $gen['ND'],
+                'cobertura' => $totalGen > 0 ? round($conDato / $totalGen * 100, 1) : 0.0,
+            ],
+        ];
+    }
+
     /** Matrícula con todos los datos del estudiante, grado y sección. */
     public function findById(int $id): ?array
     {

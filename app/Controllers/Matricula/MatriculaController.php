@@ -129,6 +129,32 @@ class MatriculaController extends BaseController
         ]);
     }
 
+    // ── GET /matriculas/resumen ──────────────────────────────────
+    /** Dashboard de estadísticas de matrícula (KPIs + gráficos) por año. */
+    public function resumen(): void
+    {
+        $anioActivo = $this->estudiantes->anioActivo();
+        $anioFiltro = (int) ($this->query('anio_id') ?: ($anioActivo['id'] ?? 0));
+
+        $anios   = $this->model->listarAnios();
+        $resumen = $anioFiltro
+            ? $this->model->getResumen($anioFiltro)
+            : ['kpis' => [], 'por_grado' => [], 'por_tipo' => [], 'por_genero' => []];
+
+        $anioSel = null;
+        foreach ($anios as $a) {
+            if ((int) $a['id'] === $anioFiltro) { $anioSel = $a; break; }
+        }
+
+        $this->view('matriculas/resumen', [
+            'titulo'  => 'Resumen de matrículas',
+            'resumen' => $resumen,
+            'anios'   => $anios,
+            'anioId'  => $anioFiltro,
+            'anioSel' => $anioSel,
+        ]);
+    }
+
     // ── GET /matriculas/crear ────────────────────────────────────
     public function create(): void
     {
