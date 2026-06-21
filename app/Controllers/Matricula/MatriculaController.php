@@ -510,6 +510,62 @@ class MatriculaController extends BaseController
         ]);
     }
 
+    // ── POST /matriculas/{id}/estudiante ─────────────────────────
+    /**
+     * Actualiza los DATOS PERSONALES del estudiante (tabla personas, compartida
+     * por todos sus años). NO toca grado, sección ni estado de la matrícula
+     * (eso se gestiona por Retorno/Traslado y por el flujo de estado). Solo
+     * admin y registro_academico. Ante error: NO se conservan los cambios; el
+     * detalle se recarga con el último registro guardado.
+     */
+    public function actualizarEstudiante(string $id): void
+    {
+        $this->requireRole(['admin', 'registro_academico']);
+        $this->validateCsrf();
+
+        $id        = (int) $id;
+        $matricula = $this->model->findById($id);
+        if (!$matricula) {
+            $this->redirectWithError(url('matriculas'), 'Matrícula no encontrada.');
+        }
+        $volver    = url('matriculas/' . $id);
+        $personaId = (int) $matricula['persona_id'];
+
+        $dni      = trim((string) $this->input('dni', ''));
+        $apePat   = trim((string) $this->input('apellido_paterno', ''));
+        $apeMat   = trim((string) $this->input('apellido_materno', ''));
+        $nombres  = trim((string) $this->input('nombres', ''));
+
+        if ($apePat === '' || $apeMat === '' || $nombres === '') {
+            $this->redirectWithError($volver, 'Apellidos y nombres son obligatorios.');
+        }
+        if (!ctype_digit($dni) || strlen($dni) !== 8) {
+            $this->redirectWithError($volver, 'DNI inválido (8 dígitos).');
+        }
+        if ($this->model->dniEnUsoPorOtra($dni, $personaId)) {
+            $this->redirectWithError($volver, 'Ese DNI ya pertenece a otra persona.');
+        }
+
+        $datos = [
+            'dni'              => $dni,
+            'apellido_paterno' => mb_strtoupper($apePat),
+            'apellido_materno' => mb_strtoupper($apeMat),
+            'nombres'          => mb_strtoupper($nombres),
+            'fecha_nacimiento' => $this->input('fecha_nacimiento') ?: null,
+            'sexo'             => in_array($this->input('sexo'), ['M', 'F'], true)
+                ? $this->input('sexo') : null,
+        ];
+
+        try {
+            $this->model->actualizarDatosPersonales($personaId, $datos);
+        } catch (\Exception $e) {
+            log_error('Error actualizando datos del estudiante', ['id' => $id, 'error' => $e->getMessage()]);
+            $this->redirectWithError($volver, 'No se pudieron guardar los cambios. Intenta de nuevo.');
+        }
+
+        $this->redirectWithSuccess($volver, 'Datos del estudiante actualizados.');
+    }
+
     /**
      * Lista los requisitos pendientes para que una matrícula pueda quedar 'activo'.
      * Una matrícula solo se considera COMPLETA cuando tiene al menos un apoderado

@@ -48,7 +48,14 @@ $labelDoc = [
     <!-- Datos del estudiante -->
     <div class="card">
         <div class="card__body">
-            <p class="form-section-title">Estudiante</p>
+            <div class="card__header card__header--between">
+                <p class="form-section-title">Estudiante</p>
+                <?php if ($puedeGestionar): ?>
+                <div class="mat-editar__control" data-editar-control hidden>
+                    <button type="button" class="btn btn--secondary btn--sm" data-editar-toggle>Editar datos</button>
+                </div>
+                <?php endif; ?>
+            </div>
             <div class="info-grid">
                 <div class="info-item"><span class="info-item__label">DNI</span><span class="info-item__value"><?= e($matricula['dni']) ?></span></div>
                 <div class="info-item"><span class="info-item__label">Sexo</span><span class="info-item__value"><?= $matricula['sexo'] === 'F' ? 'Femenino' : ($matricula['sexo'] === 'M' ? 'Masculino' : '—') ?></span></div>
@@ -58,6 +65,59 @@ $labelDoc = [
                 <div class="info-item"><span class="info-item__label">Serie del recibo</span><span class="info-item__value"><?= e($matricula['serie_recibo'] ?? '—') ?></span></div>
                 <div class="info-item"><span class="info-item__label">Fecha de registro</span><span class="info-item__value"><?= $matricula['fecha_registro'] ? fecha_es($matricula['fecha_registro']) : '—' ?></span></div>
             </div>
+
+            <?php if ($puedeGestionar): ?>
+            <!-- Editar datos personales (inline, disclosure). Mejora progresiva:
+                 sin JS el formulario se ve abierto; matriculas.js lo colapsa. -->
+            <form method="POST" action="<?= url('matriculas/' . $mid . '/estudiante') ?>"
+                  class="mat-editar" data-editar-form>
+                <?= csrf_field() ?>
+                <p class="form-section-title">Editar datos del estudiante</p>
+                <div class="mat-editar__grid">
+                    <div class="form-group">
+                        <label class="form-label" for="ed_apellido_paterno">Apellido paterno <span class="text-danger">*</span></label>
+                        <input type="text" id="ed_apellido_paterno" name="apellido_paterno" class="form-input"
+                               maxlength="60" required value="<?= e($matricula['apellido_paterno']) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="ed_apellido_materno">Apellido materno <span class="text-danger">*</span></label>
+                        <input type="text" id="ed_apellido_materno" name="apellido_materno" class="form-input"
+                               maxlength="60" required value="<?= e($matricula['apellido_materno']) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="ed_nombres">Nombres <span class="text-danger">*</span></label>
+                        <input type="text" id="ed_nombres" name="nombres" class="form-input"
+                               maxlength="100" required value="<?= e($matricula['nombres']) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="ed_dni">DNI <span class="text-danger">*</span></label>
+                        <input type="text" id="ed_dni" name="dni" class="form-input"
+                               maxlength="8" pattern="\d{8}" required value="<?= e($matricula['dni']) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="ed_fecha_nacimiento">Fecha de nacimiento</label>
+                        <input type="date" id="ed_fecha_nacimiento" name="fecha_nacimiento" class="form-input"
+                               value="<?= e((string) ($matricula['fecha_nacimiento'] ?? '')) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="ed_sexo">Sexo</label>
+                        <select id="ed_sexo" name="sexo" class="form-input">
+                            <option value="">Sin especificar</option>
+                            <option value="M" <?= $matricula['sexo'] === 'M' ? 'selected' : '' ?>>Masculino</option>
+                            <option value="F" <?= $matricula['sexo'] === 'F' ? 'selected' : '' ?>>Femenino</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="resumen-nota">
+                    Estos datos pertenecen al estudiante y se aplican a <strong>todos sus años
+                    académicos</strong>. El DNI debe ser único en el sistema.
+                </p>
+                <div class="btn-group">
+                    <button type="button" class="btn btn--secondary btn--sm" data-editar-cancel hidden>Cancelar</button>
+                    <button type="submit" class="btn btn--primary btn--sm">Guardar cambios</button>
+                </div>
+            </form>
+            <?php endif; ?>
         </div>
     </div>
 

@@ -116,6 +116,7 @@ $router->get( '/matriculas',                     'Matricula\MatriculaController@
 $router->get( '/matriculas/resumen',             'Matricula\MatriculaController@resumen');
 $router->get( '/matriculas/crear',               'Matricula\MatriculaController@create');
 $router->post('/matriculas/crear',               'Matricula\MatriculaController@store');
+$router->post('/matriculas/{id}/estudiante',     'Matricula\MatriculaController@actualizarEstudiante');
 $router->get( '/matriculas/{id}/apoderado',      'Matricula\MatriculaController@apoderado');
 $router->post('/matriculas/{id}/apoderado',      'Matricula\MatriculaController@storeApoderado');
 $router->get( '/matriculas/{id}/documentos',     'Matricula\MatriculaController@documentos');

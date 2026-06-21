@@ -485,3 +485,22 @@
 
     &--activo { color: $brand-mid; }
 }
+
+// ── Editar datos del estudiante (inline en el detalle) ──────────
+.mat-editar {
+    margin-top: $spacing-md;
+    padding-top: $spacing-md;
+    border-top: 1px solid $border-color;
+
+    // El JS colapsa el form con form.hidden = true; aseguramos que gane.
+    &[hidden] { display: none; }
+
+    // Grilla auto-fit: se adapta al ANCHO REAL de la card (que es angosta por
+    // vivir en .mat-detalle-grid), no al viewport. Asi nunca apila columnas
+    // apretadas en desktop; el espaciado vertical lo da el margin de .form-group.
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0 $spacing-lg;
+    }
+}

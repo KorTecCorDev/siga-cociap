@@ -529,6 +529,43 @@ class MatriculaModel extends BaseModel
         }
     }
 
+    /**
+     * ¿El DNI ya pertenece a OTRA persona (distinta de $personaId)? Se usa al
+     * editar los datos personales para no romper la unicidad del DNI.
+     */
+    public function dniEnUsoPorOtra(string $dni, int $personaId): bool
+    {
+        $r = $this->queryOne(
+            "SELECT id FROM personas WHERE dni = ? AND id <> ? LIMIT 1",
+            [$dni, $personaId]
+        );
+        return $r !== null;
+    }
+
+    /**
+     * Actualiza los datos personales del estudiante (tabla personas, compartida
+     * por todos sus años/matrículas). Solo toca identidad básica; NO el grado,
+     * sección ni estado de la matrícula. `updated_at` se refresca solo.
+     */
+    public function actualizarDatosPersonales(int $personaId, array $d): bool
+    {
+        return $this->execute(
+            "UPDATE personas
+                SET dni = ?, apellido_paterno = ?, apellido_materno = ?,
+                    nombres = ?, fecha_nacimiento = ?, sexo = ?
+              WHERE id = ?",
+            [
+                $d['dni'],
+                $d['apellido_paterno'],
+                $d['apellido_materno'],
+                $d['nombres'],
+                $d['fecha_nacimiento'],
+                $d['sexo'],
+                $personaId,
+            ]
+        );
+    }
+
     // ── Documentos ───────────────────────────────────────────────
 
     public function getDocumentos(int $matriculaId): array
