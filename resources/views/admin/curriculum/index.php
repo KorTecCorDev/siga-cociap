@@ -336,8 +336,14 @@ if ($area) {
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn--secondary"
-                        data-modal-cerrar="modal-subarea-<?= $sa['id'] ?>">Cancelar</button>
-                <button type="submit" class="btn btn--primary">Guardar</button>
+                        data-modal-cerrar="modal-subarea-<?= $sa['id'] ?>">
+                    <span class="btn-icon btn-icon--back" aria-hidden="true"></span>
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn--primary">
+                    <span class="btn-icon btn-icon--save" aria-hidden="true"></span>
+                    Guardar
+                </button>
             </div>
         </form>
     </div>
