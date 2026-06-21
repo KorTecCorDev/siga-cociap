@@ -15,7 +15,6 @@
  */
 
 $nivel    = $seccion['nivel_codigo'] === 'prim' ? 'primaria' : 'secundaria';
-$esPrim   = $seccion['nivel_codigo'] === 'prim';
 $cerrado  = $cierre !== null;
 $pid      = (int) $periodoSel['id'];
 ?>
@@ -108,25 +107,23 @@ $pid      = (int) $periodoSel['id'];
         <table class="tabla-resumen tutoria-tabla">
             <thead>
                 <tr>
-                    <th class="col-num"<?= $esPrim ? '' : ' rowspan="2"' ?>>N°</th>
-                    <th class="col-nombre"<?= $esPrim ? '' : ' rowspan="2"' ?>>Apellidos y nombres</th>
+                    <th class="col-num" rowspan="2">N°</th>
+                    <th class="col-nombre" rowspan="2">Apellidos y nombres</th>
                     <?php foreach ($competencias as $comp): ?>
                         <th class="th-competencia col-resultado col-resultado--inicio text-center"
-                            <?= $esPrim ? '' : 'colspan="2" ' ?>title="<?= e($comp['nombre_completo']) ?>">
+                            colspan="2" title="<?= e($comp['nombre_completo']) ?>">
                             <?= e($comp['nombre_corto'] ?? $comp['codigo_minedu']) ?>
                         </th>
                     <?php endforeach; ?>
-                    <th class="col-conclusion"<?= $esPrim ? '' : ' rowspan="2"' ?>>Conclusiones descriptivas</th>
+                    <th class="col-conclusion" rowspan="2">Conclusiones descriptivas</th>
                 </tr>
-                <?php if (!$esPrim): ?>
-                    <tr>
-                        <?php foreach ($competencias as $comp): ?>
-                            <th class="col-numeral col-resultado col-resultado--inicio text-center"
-                                title="Promedio de las cargas bloqueadas (calculado automáticamente)">Promedio numeral</th>
-                            <th class="col-literal col-resultado text-center">Literal</th>
-                        <?php endforeach; ?>
-                    </tr>
-                <?php endif; ?>
+                <tr>
+                    <?php foreach ($competencias as $comp): ?>
+                        <th class="col-numeral col-resultado col-resultado--inicio text-center"
+                            title="Promedio de las cargas bloqueadas (calculado automáticamente)">Promedio numeral</th>
+                        <th class="col-literal col-resultado text-center">Literal</th>
+                    <?php endforeach; ?>
+                </tr>
             </thead>
             <tbody>
                 <?php foreach ($alumnos as $i => $alumno): ?>
@@ -141,12 +138,16 @@ $pid      = (int) $periodoSel['id'];
                             $nota    = $promedios[$matId][$cid] ?? null;
                             $literal = $nota !== null ? nota_a_literal((int) $nota, $nivel) : null;
                             ?>
-                            <?php if (!$esPrim): ?>
-                                <td class="col-numeral col-resultado col-resultado--inicio text-center">
-                                    <?= $nota !== null ? fmt_nota((int) $nota) : '—' ?>
-                                </td>
-                            <?php endif; ?>
-                            <td class="col-literal col-resultado<?= $esPrim ? ' col-resultado--inicio' : '' ?> text-center">
+                            <td class="col-numeral col-resultado col-resultado--inicio text-center">
+                                <?php if ($nota !== null): ?>
+                                    <span class="nota-numeral nota-numeral--<?= strtolower($literal) ?>">
+                                        <?= fmt_nota((int) $nota) ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="text-muted">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="col-literal col-resultado text-center">
                                 <?php if ($literal !== null): ?>
                                     <span class="nota-literal nota-literal--<?= strtolower($literal) ?>">
                                         <?= $literal ?>
