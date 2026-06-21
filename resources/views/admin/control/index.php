@@ -6,6 +6,7 @@
  * @var array|null  $periodo           periodo seleccionado
  * @var array       $chequeos          ['empates'=>{titulo,severidad,accion,items[],...}, ...]
  * @var int         $totalIncidencias
+ * @var string      $estadoBoleta      'registro' | 'borrador' | 'oficial'
  */
 $badgeSeveridad = static fn(string $sev): string =>
     $sev === 'critico' ? 'badge--error' : 'badge--warning';
@@ -58,6 +59,64 @@ $badgeSeveridad = static fn(string $sev): string =>
             </div>
         </div>
     <?php endif; ?>
+
+    <!-- Cierre de bimestre — Hito A (aprobar boletas -> borrador para docentes) -->
+    <div class="card mb-lg">
+        <div class="card__header card__header--between">
+            <h2 class="card__title">Cierre de bimestre — boletas</h2>
+            <?php if ($estadoBoleta === 'oficial'): ?>
+                <span class="badge badge--activo">Oficial (bimestre cerrado)</span>
+            <?php elseif ($estadoBoleta === 'borrador'): ?>
+                <span class="badge badge--warning">Boletas en borrador</span>
+            <?php else: ?>
+                <span class="badge badge--info">En registro</span>
+            <?php endif; ?>
+        </div>
+        <div class="card__body">
+            <?php if ($estadoBoleta === 'oficial'): ?>
+                <p class="text-muted">
+                    El bimestre está cerrado. Las boletas son <strong>oficiales</strong> y visibles
+                    para los padres. Para corregir, usá Rectificación de notas.
+                </p>
+            <?php elseif ($estadoBoleta === 'borrador'): ?>
+                <p>
+                    Las boletas están en <strong>BORRADOR</strong>: los docentes ya ven la vista
+                    previa en su nómina. Cuando den el visto bueno, <strong>cerrá el bimestre</strong>
+                    desde Año Académico para oficializarlas y publicarlas a los padres.
+                </p>
+                <form method="POST"
+                      action="<?= url('admin/control/' . (int) $periodo['id'] . '/anular-aprobacion') ?>"
+                      onsubmit="return confirm('¿Revertir la aprobación? Las boletas borrador dejarán de mostrarse a los docentes.');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn--secondary">
+                        <span class="btn-icon btn-icon--back" aria-hidden="true"></span>
+                        Revertir aprobación
+                    </button>
+                </form>
+            <?php else: /* en registro */ ?>
+                <?php $sinBloquear = count($chequeos['competencias']['items'] ?? []); ?>
+                <p>
+                    Al <strong>aprobar el bimestre</strong> se generan las <strong>boletas borrador</strong>
+                    para que los docentes las revisen. Las competencias que sigan pendientes se
+                    bloquearán automáticamente (quedarán como Incidencias).
+                </p>
+                <?php if ($sinBloquear > 0): ?>
+                    <p class="text-danger">
+                        ⚠ Hay <?= $sinBloquear ?> sección(es) con competencias sin bloquear: se forzarán al aprobar.
+                    </p>
+                <?php endif; ?>
+                <form method="POST"
+                      action="<?= url('admin/control/' . (int) $periodo['id'] . '/aprobar-bimestre') ?>"
+                      onsubmit="return confirm('¿Bloquear y aprobar el bimestre? Se generan las boletas borrador y se fuerza el bloqueo de lo pendiente.');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn--primary">
+                        <span class="btn-icon btn-icon--check" aria-hidden="true"></span>
+                        Bloquear y aprobar el bimestre
+                    </button>
+                </form>
+            <?php endif; ?>
+        </div>
+    </div>
 
     <?php foreach ($chequeos as $clave => $c): $n = count($c['items']); ?>
         <div class="card mb-lg">

@@ -31,6 +31,9 @@ $router->post('/admin/curriculum/competencias/{id}/editar',        'Admin\Curric
 
 // ─── Admin — Centro de Control Operativo ────────────────────
 $router->get( '/admin/control',               'Admin\ControlOperativoController@index');
+// Cierre de bimestre — Hito A (aprobar boletas -> borrador para docentes).
+$router->post('/admin/control/{periodo_id}/aprobar-bimestre',   'Admin\ControlOperativoController@aprobarBimestre');
+$router->post('/admin/control/{periodo_id}/anular-aprobacion',  'Admin\ControlOperativoController@anularAprobacion');
 
 // ─── Admin — Secciones y Tutores ────────────────────────────
 $router->get( '/admin/secciones',             'Admin\SeccionController@index');

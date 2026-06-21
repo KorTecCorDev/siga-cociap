@@ -31,7 +31,7 @@ class ControlOperativoModel extends BaseModel
     public function getPeriodos(): array
     {
         return $this->query("
-            SELECT p.id, p.nombre_display, p.numero, p.estado, p.anio_id, a.anio
+            SELECT p.id, p.nombre_display, p.numero, p.estado, p.boletas_aprobadas_en, p.anio_id, a.anio
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id
             WHERE p.estado IN ('activo', 'cerrado')
@@ -43,7 +43,7 @@ class ControlOperativoModel extends BaseModel
     public function getPeriodoPorDefecto(): ?array
     {
         $activo = $this->queryOne("
-            SELECT p.id, p.nombre_display, p.numero, p.estado, p.anio_id, a.anio
+            SELECT p.id, p.nombre_display, p.numero, p.estado, p.boletas_aprobadas_en, p.anio_id, a.anio
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id
             WHERE p.estado = 'activo'
@@ -58,7 +58,7 @@ class ControlOperativoModel extends BaseModel
     public function getPeriodo(int $periodoId): ?array
     {
         return $this->queryOne("
-            SELECT p.id, p.nombre_display, p.numero, p.estado, p.anio_id, a.anio
+            SELECT p.id, p.nombre_display, p.numero, p.estado, p.boletas_aprobadas_en, p.anio_id, a.anio
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id
             WHERE p.id = ?

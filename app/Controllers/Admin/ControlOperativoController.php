@@ -3,16 +3,20 @@
 namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
+use App\Models\AnioAcademicoModel;
 use App\Models\ControlOperativoModel;
+use Core\Session;
 
 /**
  * ControlOperativoController
  * Centro de Control Operativo: detecta inconsistencias de datos y enlaza al módulo
- * donde se corrigen. Solo lectura — no modifica nada.
+ * donde se corrigen. Ademas orquesta el HITO A del cierre de bimestre (aprobar
+ * boletas -> borrador para los docentes).
  */
 class ControlOperativoController extends BaseController
 {
     private ControlOperativoModel $model;
+    private AnioAcademicoModel    $anioModel;
 
     public function __construct()
     {
@@ -20,7 +24,8 @@ class ControlOperativoController extends BaseController
             'admin', 'registro_academico',
             'director_general', 'director_ebr',
         ]);
-        $this->model = new ControlOperativoModel();
+        $this->model     = new ControlOperativoModel();
+        $this->anioModel = new AnioAcademicoModel();
     }
 
     /**
@@ -43,6 +48,7 @@ class ControlOperativoController extends BaseController
                 'periodo'  => null,
                 'chequeos' => [],
                 'totalIncidencias' => 0,
+                'estadoBoleta' => 'registro',
             ]);
             return;
         }
@@ -91,6 +97,69 @@ class ControlOperativoController extends BaseController
             'periodo'          => $periodo,
             'chequeos'         => $chequeos,
             'totalIncidencias' => $totalIncidencias,
+            'estadoBoleta'     => boleta_estado_bimestre($periodo['estado'] ?? null, $periodo['boletas_aprobadas_en'] ?? null),
         ]);
+    }
+
+    /**
+     * POST /admin/control/{periodo_id}/aprobar-bimestre
+     * HITO A: bloquea y aprueba el bimestre -> genera boletas BORRADOR para los
+     * docentes. Fuerza el bloqueo de competencias pendientes (Incidencias).
+     */
+    public function aprobarBimestre(string $periodoId): void
+    {
+        $this->validateCsrf();
+        $periodoId = (int) $periodoId;
+        $periodo   = $this->model->getPeriodo($periodoId);
+        $volver    = url('admin/control?periodo_id=' . $periodoId);
+
+        if (!$periodo) {
+            $this->redirectWithError(url('admin/control'), 'Bimestre no encontrado.');
+        }
+        if ($periodo['estado'] !== 'activo') {
+            $this->redirectWithError($volver, 'Solo se puede aprobar un bimestre activo.');
+        }
+        if (!empty($periodo['boletas_aprobadas_en'])) {
+            $this->redirectWithError($volver, 'Las boletas de este bimestre ya estan en borrador.');
+        }
+
+        $usuarioId = (int) (Session::user()['id'] ?? 0);
+        try {
+            $this->anioModel->beginTransaction();
+            $incidencias = $this->anioModel->aprobarBoletasBimestre($periodoId, $usuarioId);
+            $this->anioModel->commit();
+        } catch (\Exception $e) {
+            $this->anioModel->rollback();
+            log_error('Error aprobando boletas del bimestre', ['id' => $periodoId, 'error' => $e->getMessage()]);
+            $this->redirectWithError($volver, 'No se pudo aprobar el bimestre. Intenta de nuevo.');
+        }
+
+        $msg = 'Bimestre aprobado: las boletas BORRADOR ya estan disponibles para los docentes.';
+        if ($incidencias > 0) {
+            $msg .= ' Se forzo el bloqueo de ' . $incidencias . ' competencia(s) pendiente(s).';
+        }
+        $this->redirectWithSuccess($volver, $msg);
+    }
+
+    /**
+     * POST /admin/control/{periodo_id}/anular-aprobacion
+     * Revierte el HITO A (BORRADOR -> EN REGISTRO). No libera bloqueos.
+     */
+    public function anularAprobacion(string $periodoId): void
+    {
+        $this->validateCsrf();
+        $periodoId = (int) $periodoId;
+        $periodo   = $this->model->getPeriodo($periodoId);
+        $volver    = url('admin/control?periodo_id=' . $periodoId);
+
+        if (!$periodo) {
+            $this->redirectWithError(url('admin/control'), 'Bimestre no encontrado.');
+        }
+        if ($periodo['estado'] !== 'activo' || empty($periodo['boletas_aprobadas_en'])) {
+            $this->redirectWithError($volver, 'Este bimestre no tiene boletas en borrador para revertir.');
+        }
+
+        $this->anioModel->anularAprobacionBoletas($periodoId);
+        $this->redirectWithSuccess($volver, 'Aprobacion revertida: las boletas borrador dejaron de mostrarse.');
     }
 }

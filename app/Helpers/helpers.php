@@ -264,6 +264,24 @@ function log_error(string $mensaje, array $context = []): void
 }
 
 /**
+ * Estado de la boleta de un bimestre, DERIVADO del periodo (no es una columna):
+ *   'registro' -> activo y boletas NO aprobadas       -> aun no hay boleta visible
+ *   'borrador' -> activo y boletas aprobadas (Hito A)  -> vista previa (docentes)
+ *   'oficial'  -> bimestre cerrado (Hito B)            -> oficial (docentes + padres)
+ * La reapertura (cerrado -> activo conservando el flag) vuelve a 'borrador'.
+ */
+function boleta_estado_bimestre(?string $estadoPeriodo, ?string $boletasAprobadasEn): string
+{
+    if ($estadoPeriodo === 'cerrado') {
+        return 'oficial';
+    }
+    if ($estadoPeriodo === 'activo' && !empty($boletasAprobadasEn)) {
+        return 'borrador';
+    }
+    return 'registro';
+}
+
+/**
  * Renderiza una página de error genérica y detiene el flujo normal. La usa el
  * manejador global de errores en producción para no filtrar stack traces ni
  * errores de base de datos al usuario. Idempotente: nunca imprime dos veces.

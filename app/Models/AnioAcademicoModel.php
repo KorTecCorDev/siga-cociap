@@ -277,6 +277,40 @@ class AnioAcademicoModel extends BaseModel
     }
 
     /**
+     * HITO A del cierre de bimestre — "Bloquear y aprobar el bimestre": fuerza el
+     * bloqueo de las competencias pendientes (deja traza de INCIDENCIAS via
+     * bloqueos con origen='cierre'), crea los cierres transversales pendientes y
+     * marca el bimestre con boletas en BORRADOR (vista previa para los docentes).
+     * El periodo SIGUE 'activo' (el cierre definitivo es el Hito B). Retorna
+     * cuantas competencias se forzaron (numero de incidencias generadas).
+     */
+    public function aprobarBoletasBimestre(int $periodoId, int $usuarioId): int
+    {
+        $forzadas = $this->bloquearCompetenciasPendientes($periodoId, $usuarioId);
+        $this->crearCierresTransversalesPendientes($periodoId, $usuarioId);
+        $this->execute(
+            "UPDATE periodos SET boletas_aprobadas_en = NOW(), boletas_aprobadas_por = ?
+             WHERE id = ?",
+            [$usuarioId, $periodoId]
+        );
+        return $forzadas;
+    }
+
+    /**
+     * Revierte el HITO A (BORRADOR -> EN REGISTRO). Solo si el periodo sigue
+     * 'activo' (un bimestre ya cerrado no se "des-aprueba" aqui: se reabre). NO
+     * toca los bloqueos: los forzados se liberan desde el panel de bloqueos.
+     */
+    public function anularAprobacionBoletas(int $periodoId): bool
+    {
+        return $this->execute(
+            "UPDATE periodos SET boletas_aprobadas_en = NULL, boletas_aprobadas_por = NULL
+             WHERE id = ? AND estado = 'activo'",
+            [$periodoId]
+        );
+    }
+
+    /**
      * Elimina los bloqueos del CIERRE FORZADO de un periodo (origen='cierre'):
      * las competencias que el docente nunca aprobó y que el cierre del bimestre
      * bloqueó automáticamente. Se invoca SOLO de forma manual desde el panel de
