@@ -162,8 +162,8 @@ $saludo = match($auth_user['sexo'] ?? null) {
         </a>
     <?php endif; ?>
 
-    <!-- Card: Nómina de matriculados -->
-    <a href="<?= url('docente/nomina') ?>" class="card dpanel-card dpanel-card--nomina">
+    <!-- Card: Nómina de matriculados + Orden de mérito (acceso publico) -->
+    <div class="card dpanel-card dpanel-card--nomina dpanel-card--acciones">
         <div class="dpanel-card__head">
             <h2 class="card__title">Nómina de matriculados</h2>
             <span class="badge badge--activo"><?= $totalNomina ?> aprobados</span>
@@ -177,8 +177,21 @@ $saludo = match($auth_user['sexo'] ?? null) {
             echo $partes ? implode(' · ', $partes) : 'Sin matriculados en tus niveles.';
             ?>
         </p>
-        <span class="dpanel-card__link">Ver nómina →</span>
-    </a>
+        <div class="dpanel-card__acciones">
+            <a href="<?= url('docente/nomina') ?>" class="dpanel-card__accion dpanel-card__accion--nomina">
+                <span class="dpanel-card__accion-ico" aria-hidden="true"></span>
+                Ver nómina →
+            </a>
+            <a href="<?= url('docente/orden-merito') ?>" class="dpanel-card__accion dpanel-card__accion--merito">
+                <span class="dpanel-card__accion-ico" aria-hidden="true"></span>
+                Orden de mérito →
+            </a>
+            <a href="<?= url('docente/ranking-seccion') ?>" class="dpanel-card__accion dpanel-card__accion--seccion">
+                <span class="dpanel-card__accion-ico" aria-hidden="true"></span>
+                Ranking por sección →
+            </a>
+        </div>
+    </div>
 
 </div>
 

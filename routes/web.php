@@ -155,6 +155,12 @@ $router->get( '/docente/horario/imprimir',             'Docente\PanelController@
 // patron generico para que el router no capture "imprimir" como matricula_id.
 $router->get( '/docente/boleta/{matricula_id}/imprimir', 'Boleta\BoletaController@verImprimirDocente');
 $router->get( '/docente/boleta/{matricula_id}',          'Boleta\BoletaController@verDigitalDocente');
+// Orden de merito (lectura publica para el claustro). Dos flujos separados:
+// orden de merito por GRADO (media beca) y ranking por SECCION (sin media beca).
+$router->get( '/docente/orden-merito',                  'Docente\OrdenMeritoController@index');
+$router->get( '/docente/orden-merito/{periodo_id}',     'Docente\OrdenMeritoController@porPeriodo');
+$router->get( '/docente/ranking-seccion',               'Docente\OrdenMeritoController@seccionIndex');
+$router->get( '/docente/ranking-seccion/{periodo_id}',  'Docente\OrdenMeritoController@seccionPorPeriodo');
 
 // ─── Calificaciones ──────────────────────────────────────────
 $router->get( '/docente/mis-cargas',                        'Docente\CalificacionController@misCargas');
