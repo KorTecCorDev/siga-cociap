@@ -660,9 +660,58 @@
     &--seccion { background: $bg-secondary;   color: $text-secondary; }
 }
 
-.merito-seccion-titulo {
-    margin: $spacing-lg 0 $spacing-xs;
-    font-size: $font-size-base;
-    font-weight: 700;
-    color: $text-primary;
+// Acordeon por seccion dentro del ranking por seccion (details anidado en el
+// details del grado): permite colapsar cada salon individualmente.
+.merito-seccion-acordeon {
+    // El color por seccion llega via las custom props --sec-* (clase
+    // seccion-ancla--{letra}, misma paleta que /docente/mis-cargas).
+    border: 1px solid $border-color;
+    border-left: 4px solid var(--sec-line, #{$border-color});
+    border-radius: $border-radius;
+    margin-bottom: $spacing-sm;
+    overflow: hidden;
+
+    &:last-child { margin-bottom: 0; }
+
+    &__head {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        padding: $spacing-sm $spacing-md;
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+        background: var(--sec-bg, #{$bg-secondary});
+
+        &::-webkit-details-marker { display: none; }
+        &::marker                 { display: none; }
+    }
+
+    // Letra de la seccion en recuadro (ancla visual, igual que mis-cargas).
+    &__letra {
+        flex-shrink: 0;
+        width: 26px;
+        height: 26px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1;
+        color: var(--sec-ink, #{$text-primary});
+        background: $bg-white;
+        border: 2px solid var(--sec-line, #{$border-color});
+        border-radius: $border-radius;
+    }
+
+    &__titulo {
+        flex: 1;
+        min-width: 0;
+        font-weight: 700;
+        color: var(--sec-ink, #{$text-primary});
+    }
+
+    // Reutiliza el chevron de las cards; toma el tono de la seccion y rota al abrir.
+    > summary .card__chevron { color: var(--sec-ink, #{$text-muted}); }
+    &[open] > summary .card__chevron { transform: rotate(180deg); }
 }
