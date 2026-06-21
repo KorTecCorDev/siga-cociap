@@ -29,6 +29,13 @@
     p {
         font-size: $font-size-base;
         color: $text-muted;
+
+        // Nivel(es) del docente: contexto discreto, un escalon mas pequeño
+        // que el subtitulo (deliberadamente "no llamativo").
+        &.welcome__niveles {
+            font-size: $font-size-sm;
+            margin-top: 2px;
+        }
     }
 }
 
@@ -230,6 +237,56 @@
     // Etiqueta del codigo MINEDU (C21...) en azul de aula, no en el naranja
     // institucional ($brand-accent), para no chocar con el acento.
     .carga-item__tag    { background: $card-cargas-bg; color: $card-cargas-ink; }
+}
+
+// ── Ancla de seccion ─────────────────────────────────────────
+// Banda full-width que separa e identifica cada seccion dentro de una card
+// de grado, con la LETRA en grande + color propio. Pensada para evitar que
+// un docente registre notas en la seccion equivocada (1A vs 1B): la letra y
+// el color son anclas visuales fuertes, utiles para usuarios no tecnicos.
+.seccion-ancla {
+    grid-column: 1 / -1;          // ocupa todo el ancho del grid de cargas
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    padding: $spacing-sm $spacing-md;
+    margin-top: $spacing-md;
+    border-radius: $border-radius-lg;
+    border-left: 6px solid var(--sec-line, #64748b);
+    background: var(--sec-bg, #f1f5f9);
+
+    &:first-child { margin-top: 0; }
+
+    // Letra de la seccion, GRANDE, en un recuadro para maxima legibilidad.
+    &__letra {
+        flex-shrink: 0;
+        width: 2.1em;
+        height: 2.1em;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.7rem;
+        font-weight: 800;
+        line-height: 1;
+        color: var(--sec-ink, #475569);
+        background: $bg-white;
+        border: 2px solid var(--sec-line, #64748b);
+        border-radius: $border-radius;
+    }
+
+    &__texto { display: flex; flex-direction: column; line-height: 1.2; }
+    &__grado { font-weight: 700; font-size: $font-size-lg; color: var(--sec-ink, #475569); }
+    &__nivel { font-size: $font-size-sm; color: $text-muted; }
+
+    // Paleta por letra (custom properties). Distinguibles entre si y sin
+    // chocar con los colores de estado (rojo/ambar/verde reservados).
+    &--a { --sec-line: #1d4ed8; --sec-bg: #eff6ff; --sec-ink: #1e40af; }
+    &--b { --sec-line: #7c3aed; --sec-bg: #f5f3ff; --sec-ink: #6d28d9; }
+    &--c { --sec-line: #0d9488; --sec-bg: #f0fdfa; --sec-ink: #0f766e; }
+    &--d { --sec-line: #be185d; --sec-bg: #fdf2f8; --sec-ink: #9d174d; }
+    &--e { --sec-line: #4338ca; --sec-bg: #eef2ff; --sec-ink: #3730a3; }
+    &--f { --sec-line: #0e7490; --sec-bg: #ecfeff; --sec-ink: #155e75; }
+    &--x { --sec-line: #64748b; --sec-bg: #f1f5f9; --sec-ink: #475569; } // fallback
 }
 
 // ── Barra de progreso — competencias aprobadas ───────────────

@@ -56,6 +56,12 @@ $saludo = match($auth_user['sexo'] ?? null) {
             · <span class="badge badge--warning">Sin periodo activo</span>
         <?php endif; ?>
     </p>
+    <?php if (!empty($niveles)): ?>
+        <p class="welcome__niveles">
+            <?= count($niveles) > 1 ? 'Niveles' : 'Nivel' ?>:
+            <?= e(implode(' · ', array_column($niveles, 'nombre'))) ?>
+        </p>
+    <?php endif; ?>
 </div>
 
 <?php if ($flash_success): ?>

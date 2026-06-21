@@ -170,6 +170,23 @@
                 <div class="cargas-grid">
 
                     <?php foreach ($secciones as $seccionId => $areas): ?>
+                        <?php if (!$esAula):
+                            // Ancla de seccion: letra grande + color como guia
+                            // visual para no confundir secciones (1A vs 1B).
+                            $primerArea = reset($areas);
+                            $secC       = $primerArea[0];
+                            $secLetra   = mb_strtoupper(mb_substr((string) ($secC['seccion_nombre'] ?? ''), 0, 1));
+                            $secColor   = in_array(mb_strtolower($secLetra), ['a','b','c','d','e','f'], true)
+                                ? mb_strtolower($secLetra) : 'x';
+                        ?>
+                            <div class="seccion-ancla seccion-ancla--<?= $secColor ?>">
+                                <span class="seccion-ancla__letra"><?= e($secLetra ?: '?') ?></span>
+                                <div class="seccion-ancla__texto">
+                                    <span class="seccion-ancla__grado"><?= e(trim($secC['grado_nombre'] . ' ' . $secC['seccion_nombre'])) ?></span>
+                                    <span class="seccion-ancla__nivel"><?= e($secC['nivel_nombre']) ?></span>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                         <?php foreach ($areas as $areaId => $areaCargas): ?>
                             <?php
                             $primeraC = $areaCargas[0];
@@ -180,12 +197,6 @@
 
                                 <div class="carga-area <?= $esAula ? 'carga-area--aula' : '' ?>">
                                     <div class="carga-area__header">
-                                        <?php if (!$esAula): ?>
-                                            <span class="carga-area__seccion">
-                                                Sección <?= e($primeraC['seccion_nombre']) ?>
-                                            </span>
-                                            <span class="carga-area__sep">—</span>
-                                        <?php endif; ?>
                                         <span class="carga-area__nombre">
                                             <?= e($primeraC['area_nombre']) ?>
                                         </span>
@@ -252,12 +263,6 @@
                                 ?>
                                 <a href="<?= url('docente/calificaciones/' . $carga['id']) ?>"
                                    class="carga-item <?= $esAula ? 'carga-item--aula' : '' ?> <?= $periodo ? '' : 'carga-item--disabled' ?>">
-
-                                    <?php if (!$esAula): ?>
-                                        <div class="carga-item__seccion">
-                                            Sección <?= e($carga['seccion_nombre']) ?>
-                                        </div>
-                                    <?php endif; ?>
 
                                     <div class="carga-item__nombre">
                                         <?= e($carga['nombre_display']) ?>
