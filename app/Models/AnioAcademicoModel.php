@@ -311,6 +311,24 @@ class AnioAcademicoModel extends BaseModel
     }
 
     /**
+     * Marca el bimestre con boletas aprobadas SIN pisar el dato si ya venia del
+     * Hito A. Lo invoca el cierre (Hito B): el estado 'cerrado' ya hace oficiales
+     * las boletas, pero dejar el flag puesto asegura que, si luego se REABRE el
+     * bimestre, el estado de boleta derive a BORRADOR (no a 'registro') y los
+     * padres dejen de verlo hasta re-cerrarlo.
+     */
+    public function marcarBoletasAprobadas(int $periodoId, int $usuarioId): bool
+    {
+        return $this->execute(
+            "UPDATE periodos
+             SET boletas_aprobadas_en  = COALESCE(boletas_aprobadas_en, NOW()),
+                 boletas_aprobadas_por = COALESCE(boletas_aprobadas_por, ?)
+             WHERE id = ?",
+            [$usuarioId, $periodoId]
+        );
+    }
+
+    /**
      * Elimina los bloqueos del CIERRE FORZADO de un periodo (origen='cierre'):
      * las competencias que el docente nunca aprobó y que el cierre del bimestre
      * bloqueó automáticamente. Se invoca SOLO de forma manual desde el panel de

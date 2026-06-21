@@ -135,8 +135,12 @@ class PeriodoController extends BaseController
             // (respeta los cierres que el tutor ya hizo).
             $this->model->crearCierresTransversalesPendientes($id, $usuarioId);
             $this->model->setEstadoPeriodo($id, 'cerrado');
-            // Congela el orden de mérito oficial del bimestre (documento inmutable).
-            // Mismo PDO singleton → entra en esta misma transacción.
+            // Cierre de boletas: el estado 'cerrado' ya las hace OFICIALES (visibles
+            // para los padres). El flag asegura que, si luego se REABRE, queden en
+            // BORRADOR y los padres dejen de verlas hasta re-cerrar.
+            $this->model->marcarBoletasAprobadas($id, $usuarioId);
+            // Recién DESPUÉS se congela el orden de mérito oficial (primero boletas,
+            // luego mérito). Mismo PDO singleton → entra en esta misma transacción.
             (new OrdenMeritoModel())->generarSnapshot($id, $usuarioId);
             $this->model->commit();
         } catch (\Exception $e) {

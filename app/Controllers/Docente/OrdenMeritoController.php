@@ -87,11 +87,14 @@ class OrdenMeritoController extends BaseController
     /** Selector de periodos parametrizado (mismo componente para ambos flujos). */
     private function verSelector(string $rutaBase, string $titulo): void
     {
+        // Solo bimestres CERRADOS: el orden de merito se PUBLICA al cerrar el
+        // bimestre (Hito B). El director lo ve en vivo desde su propio modulo;
+        // para el claustro es un documento publicado, no un calculo provisional.
         $periodos = $this->calModel->query("
             SELECT p.*, a.anio
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id
-            WHERE p.estado IN ('activo', 'cerrado')
+            WHERE p.estado = 'cerrado'
             ORDER BY a.anio DESC, p.numero ASC
         ");
 
@@ -113,6 +116,14 @@ class OrdenMeritoController extends BaseController
 
         if (!$periodo) {
             $this->redirectWithError(url($rutaBase), 'Periodo no encontrado.');
+        }
+        // Gate: el ranking del claustro solo se ve si el bimestre esta cerrado
+        // (publicado). Antes del cierre no hay ranking oficial que mostrar.
+        if ($periodo['estado'] !== 'cerrado') {
+            $this->redirectWithError(
+                url($rutaBase),
+                'El orden de mérito de este bimestre aún no está publicado (se publica al cerrar el bimestre).'
+            );
         }
 
         return $periodo;
