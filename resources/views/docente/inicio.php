@@ -157,7 +157,7 @@ $saludo = match($auth_user['sexo'] ?? null) {
             <div class="dpanel-card__head">
                 <h2 class="card__title">Conducta — <?= e($conducta['seccion']['grado_nombre']) ?> <?= e($conducta['seccion']['nombre']) ?></h2>
             </div>
-            <p class="dpanel-card__sub">Revisa la nota de Registro Académico, agrega tu nota (opcional) y cierra la conducta del bimestre.</p>
+            <p class="dpanel-card__sub">Revisa la nota de los auxiliares, agrega tu nota y cierra la conducta del bimestre.</p>
             <span class="badge badge--<?= $cEstado === 'cerrado' ? 'activo' : 'warning' ?>"><?= e($cTexto) ?></span>
         </a>
     <?php endif; ?>
@@ -189,7 +189,7 @@ $saludo = match($auth_user['sexo'] ?? null) {
         <div class="card__header"><h2 class="card__title">Pendientes</h2></div>
         <div class="card__body">
             <?php if (empty($pendientes)): ?>
-                <p class="empty-state">Todo al día. No tienes cargas con competencias pendientes.</p>
+                <p class="empty-state">Todo al día. No tienes cargas pendientes.</p>
             <?php else: ?>
                 <ul class="dpanel-pend">
                     <?php foreach ($pendientes as $p): ?>
