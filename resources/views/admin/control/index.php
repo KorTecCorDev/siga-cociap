@@ -118,6 +118,71 @@ $badgeSeveridad = static fn(string $sev): string =>
         </div>
     </div>
 
+    <!-- F5: Incidencias del cierre forzado (etiqueta neutral) -->
+    <?php if ($estadoBoleta !== 'registro'): $res = $incidencias['resumen']; ?>
+        <div class="card mb-lg">
+            <div class="card__header card__header--between">
+                <h2 class="card__title">Incidencias del cierre</h2>
+                <?php if ($res['competencias'] === 0): ?>
+                    <span class="badge badge--activo">✓ Sin incidencias</span>
+                <?php else: ?>
+                    <span class="badge badge--warning">
+                        <?= (int) $res['competencias'] ?> forzada<?= $res['competencias'] === 1 ? '' : 's' ?>
+                    </span>
+                <?php endif; ?>
+            </div>
+            <div class="card__body">
+                <?php if ($res['competencias'] === 0): ?>
+                    <p class="text-muted">
+                        Ningún docente quedó forzado en este bimestre: todas las competencias
+                        se bloquearon a tiempo antes de aprobar las boletas.
+                    </p>
+                <?php else: ?>
+                    <p>
+                        Competencias que el cierre bloqueó automáticamente porque el docente no las
+                        había bloqueado al aprobar el bimestre.
+                        <strong><?= (int) $res['competencias'] ?></strong> competencia(s) en
+                        <strong><?= (int) $res['cargas'] ?></strong> carga(s) de
+                        <strong><?= (int) $res['docentes'] ?></strong> docente(s);
+                        <strong><?= (int) $res['sin_avance'] ?></strong> sin ningún criterio registrado.
+                    </p>
+                    <div class="tabla-responsive">
+                    <table class="tabla-ranking">
+                        <thead>
+                            <tr>
+                                <th>Docente</th>
+                                <th class="text-center">Cargas</th>
+                                <th class="text-center">Competencias forzadas</th>
+                                <th class="text-center">Sin avance</th>
+                                <th class="text-center">Forzado el</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($incidencias['docentes'] as $d): ?>
+                            <tr>
+                                <td><?= e($d['nombre_completo']) ?></td>
+                                <td class="text-center"><?= (int) $d['n_cargas'] ?></td>
+                                <td class="text-center"><?= (int) $d['n_competencias'] ?></td>
+                                <td class="text-center">
+                                    <?php if ((int) $d['sin_avance'] > 0): ?>
+                                        <span class="badge badge--warning"><?= (int) $d['sin_avance'] ?></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">—</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center">
+                                    <?= $d['forzado_en'] ? e(date('d/m/Y H:i', strtotime((string) $d['forzado_en']))) : '—' ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <?php foreach ($chequeos as $clave => $c): $n = count($c['items']); ?>
         <div class="card mb-lg">
             <div class="card__header card__header--between">

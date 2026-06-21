@@ -252,4 +252,71 @@ class ControlOperativoModel extends BaseModel
             ORDER BY n.id, g.numero, s.nombre, p.apellido_paterno
         ", [$anioId]);
     }
+
+    // ── Reporte F5: Incidencias del cierre forzado ───────────────
+
+    /**
+     * Reporte de INCIDENCIAS de un bimestre: competencias que se bloquearon de
+     * forma automática al aprobar/cerrar el bimestre (bloqueos_competencia con
+     * origen='cierre') porque el docente no las había bloqueado a tiempo.
+     *
+     * Etiqueta NEUTRAL "Incidencias": NO es una sanción, solo deja traza de qué
+     * cargas quedaron forzadas. Se agrupa por docente (un bimestre forzado puede
+     * dejar cientos de filas crudas; el resumen por docente es lo accionable).
+     *
+     * Distingue las forzadas "sin avance" (sin ningún criterio registrado en esa
+     * carga/competencia/periodo) de las que sí tenían criterios pero el docente
+     * nunca llegó a aprobarlas.
+     *
+     * Retorna ['docentes' => [...], 'resumen' => ['competencias','cargas','docentes','sin_avance']].
+     */
+    public function incidenciasCierre(int $periodoId): array
+    {
+        $docentes = $this->query("
+            SELECT
+                ca.docente_id,
+                p.apellido_paterno,
+                p.apellido_materno,
+                p.nombres,
+                COUNT(DISTINCT bc.carga_id)                      AS n_cargas,
+                COUNT(*)                                         AS n_competencias,
+                SUM(CASE WHEN cr.cnt IS NULL THEN 1 ELSE 0 END)  AS sin_avance,
+                MAX(bc.bloqueado_en)                             AS forzado_en
+            FROM bloqueos_competencia bc
+            INNER JOIN cargas_academicas ca ON ca.id = bc.carga_id
+            INNER JOIN usuarios u           ON u.id  = ca.docente_id
+            INNER JOIN personas p           ON p.id  = u.persona_id
+            LEFT JOIN (
+                SELECT carga_id, competencia_id, periodo_id, COUNT(*) AS cnt
+                FROM criterios
+                WHERE eliminado_en IS NULL
+                GROUP BY carga_id, competencia_id, periodo_id
+            ) cr ON cr.carga_id       = bc.carga_id
+                AND cr.competencia_id  = bc.competencia_id
+                AND cr.periodo_id      = bc.periodo_id
+            WHERE bc.origen     = 'cierre'
+              AND bc.periodo_id = ?
+            GROUP BY ca.docente_id, p.apellido_paterno, p.apellido_materno, p.nombres
+            ORDER BY n_competencias DESC, p.apellido_paterno, p.nombres
+        ", [$periodoId]);
+
+        $resumen = ['competencias' => 0, 'cargas' => 0, 'docentes' => 0, 'sin_avance' => 0];
+
+        foreach ($docentes as &$d) {
+            $d['n_cargas']        = (int) $d['n_cargas'];
+            $d['n_competencias']  = (int) $d['n_competencias'];
+            $d['sin_avance']      = (int) $d['sin_avance'];
+            $d['nombre_completo'] = $d['apellido_paterno'] . ' '
+                . $d['apellido_materno'] . ', ' . $d['nombres'];
+
+            $resumen['competencias'] += $d['n_competencias'];
+            $resumen['cargas']       += $d['n_cargas'];
+            $resumen['sin_avance']   += $d['sin_avance'];
+        }
+        unset($d);
+
+        $resumen['docentes'] = count($docentes);
+
+        return ['docentes' => $docentes, 'resumen' => $resumen];
+    }
 }

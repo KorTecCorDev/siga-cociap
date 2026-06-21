@@ -49,6 +49,7 @@ class ControlOperativoController extends BaseController
                 'chequeos' => [],
                 'totalIncidencias' => 0,
                 'estadoBoleta' => 'registro',
+                'incidencias'  => ['docentes' => [], 'resumen' => ['competencias' => 0, 'cargas' => 0, 'docentes' => 0, 'sin_avance' => 0]],
             ]);
             return;
         }
@@ -91,13 +92,22 @@ class ControlOperativoController extends BaseController
             $totalIncidencias += count($c['items']);
         }
 
+        $estadoBoleta = boleta_estado_bimestre($periodo['estado'] ?? null, $periodo['boletas_aprobadas_en'] ?? null);
+
+        // F5: reporte de incidencias del cierre forzado. Solo tiene sentido una
+        // vez aprobado el bimestre (en 'registro' aun no hay bloqueos de cierre).
+        $incidencias = $estadoBoleta === 'registro'
+            ? ['docentes' => [], 'resumen' => ['competencias' => 0, 'cargas' => 0, 'docentes' => 0, 'sin_avance' => 0]]
+            : $this->model->incidenciasCierre($periodoId);
+
         $this->view('admin/control/index', [
             'titulo'           => 'Centro de Control',
             'periodos'         => $periodos,
             'periodo'          => $periodo,
             'chequeos'         => $chequeos,
             'totalIncidencias' => $totalIncidencias,
-            'estadoBoleta'     => boleta_estado_bimestre($periodo['estado'] ?? null, $periodo['boletas_aprobadas_en'] ?? null),
+            'estadoBoleta'     => $estadoBoleta,
+            'incidencias'      => $incidencias,
         ]);
     }
 
