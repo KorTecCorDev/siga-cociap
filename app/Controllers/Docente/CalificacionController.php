@@ -713,7 +713,7 @@ class CalificacionController extends BaseController
             LEFT  JOIN areas a      ON a.id  = COALESCE(ca.area_id, sa.area_id)
             WHERE ca.docente_id = ?
               AND ca.estado     = 'activa'
-            ORDER BY n.id, g.numero, s.nombre, a.orden
+            ORDER BY n.id, g.numero, s.nombre, a.orden, sa.orden
         ", [$periodoId, $periodoId, $periodoId, $periodoId, $docenteId]);
     }
 
