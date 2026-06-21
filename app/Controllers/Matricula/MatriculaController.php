@@ -96,6 +96,12 @@ class MatriculaController extends BaseController
         $anioActivo = $this->estudiantes->anioActivo();
         $anioFiltro = (int) ($this->query('anio_id') ?: ($anioActivo['id'] ?? 0));
 
+        // Orden seguro: validar contra la lista blanca del modelo (default modificación/desc).
+        $orden = array_key_exists((string) $this->query('orden'), MatriculaModel::ORDENABLES)
+            ? (string) $this->query('orden')
+            : 'modificacion';
+        $dir = strtolower((string) $this->query('dir')) === 'asc' ? 'asc' : 'desc';
+
         $filtros = [
             'anio_id'    => $anioFiltro ?: null,
             'grado_id'   => (int) $this->query('grado_id') ?: null,
@@ -103,6 +109,8 @@ class MatriculaController extends BaseController
             'estado'     => $this->query('estado') ?: null,
             'tipo'       => $this->query('tipo') ?: null,
             'search'     => trim((string) $this->query('search', '')) ?: null,
+            'orden'      => $orden,
+            'dir'        => $dir,
         ];
 
         $porPagina = 25;
@@ -126,6 +134,8 @@ class MatriculaController extends BaseController
             'total'       => $total,
             'pagina'      => $pagina,
             'total_pags'  => $totalPags,
+            'orden'       => $orden,
+            'dir'         => $dir,
         ]);
     }
 

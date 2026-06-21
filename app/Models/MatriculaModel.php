@@ -63,12 +63,32 @@ class MatriculaModel extends BaseModel
      * Lista matrículas con datos completos: estudiante, grado, sección y
      * apoderado responsable. Acepta filtros y paginación (limit/offset).
      */
+    /**
+     * Columnas ordenables: clave pública => columnas SQL reales.
+     * Lista blanca obligatoria — el ORDER BY no se puede parametrizar, así que
+     * el nombre de columna NUNCA puede venir directo del usuario. La dirección
+     * se aplica a CADA columna del grupo (no solo a la última).
+     */
+    public const ORDENABLES = [
+        'estudiante'   => ['p.apellido_paterno', 'p.apellido_materno', 'p.nombres'],
+        'dni'          => ['p.dni'],
+        'grado'        => ['n.id', 'g.numero', 's.nombre'],
+        'estado'       => ['m.estado'],
+        'registro'     => ['m.fecha_registro'],
+        'modificacion' => ['m.updated_at'],
+    ];
+
     public function listar(array $filtros = []): array
     {
         [$where, $params] = $this->construirFiltros($filtros);
 
         $limit  = max(1, min(200, (int) ($filtros['limit']  ?? 25)));
         $offset = max(0, (int) ($filtros['offset'] ?? 0));
+
+        // Orden seguro desde la lista blanca (default: modificación reciente).
+        $cols = self::ORDENABLES[$filtros['orden'] ?? ''] ?? self::ORDENABLES['modificacion'];
+        $dir  = strtolower((string) ($filtros['dir'] ?? '')) === 'asc' ? 'ASC' : 'DESC';
+        $orderBy = implode(', ', array_map(static fn($c) => "$c $dir", $cols)) . ', m.id DESC';
 
         return $this->query("
             SELECT
@@ -112,7 +132,7 @@ class MatriculaModel extends BaseModel
             LEFT  JOIN retornos_grado ro  ON ro.matricula_oficial_id  = m.id AND ro.estado = 'activo'
             LEFT  JOIN retornos_grado rp  ON rp.matricula_operativa_id = m.id AND rp.estado = 'activo'
             WHERE {$where}
-            ORDER BY m.fecha_registro DESC, m.id DESC
+            ORDER BY {$orderBy}
             LIMIT {$limit} OFFSET {$offset}
         ", $params);
     }

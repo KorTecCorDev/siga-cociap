@@ -5,9 +5,11 @@
  * @var array $anios
  * @var array $grados
  * @var array $secciones
- * @var int   $total
- * @var int   $pagina
- * @var int   $total_pags
+ * @var int    $total
+ * @var int    $pagina
+ * @var int    $total_pags
+ * @var string $orden  columna activa de orden (clave de MatriculaModel::ORDENABLES)
+ * @var string $dir    'asc' | 'desc'
  */
 
 // Etiquetas legibles de estado.
@@ -24,16 +26,39 @@ $labelTipo = fn(string $t): string => match($t) {
     default       => ucfirst($t),
 };
 
-// Conserva los filtros actuales al paginar.
-$qs = fn(int $p): string => http_build_query(array_filter([
+// Filtros activos (sin paginación ni orden) reutilizados al paginar y al ordenar.
+$baseFiltros = array_filter([
     'anio_id'    => $filtros['anio_id']    ?? null,
     'grado_id'   => $filtros['grado_id']   ?? null,
     'seccion_id' => $filtros['seccion_id'] ?? null,
     'estado'     => $filtros['estado']     ?? null,
     'tipo'       => $filtros['tipo']       ?? null,
     'search'     => $filtros['search']     ?? null,
-    'pagina'     => $p,
-]));
+]);
+
+// Conserva filtros + orden actual al paginar.
+$qs = fn(int $p): string => http_build_query(
+    $baseFiltros + ['orden' => $orden, 'dir' => $dir, 'pagina' => $p]
+);
+
+// URL para ordenar por una columna: si ya es la activa, alterna dirección; si no,
+// arranca en asc. Resetea a la página 1 (el dataset se reordena completo).
+$ordenUrl = function (string $key) use ($baseFiltros, $orden, $dir): string {
+    $nuevaDir = ($orden === $key && $dir === 'asc') ? 'desc' : 'asc';
+    return url('matriculas') . '?' . http_build_query(
+        $baseFiltros + ['orden' => $key, 'dir' => $nuevaDir]
+    );
+};
+
+// Encabezado ordenable: enlace con flecha en la columna activa.
+$thOrden = function (string $key, string $label, string $thClass = '') use ($ordenUrl, $orden, $dir): void {
+    $activo = $orden === $key;
+    $flecha = $activo ? ($dir === 'asc' ? ' ▲' : ' ▼') : '';
+    $cls    = 'th-orden' . ($activo ? ' th-orden--activo' : '');
+    echo '<th' . ($thClass ? ' class="' . $thClass . '"' : '') . '>'
+        . '<a class="' . $cls . '" href="' . e($ordenUrl($key)) . '">'
+        . e($label) . $flecha . '</a></th>';
+};
 ?>
 
 <div class="page-header">
@@ -53,6 +78,8 @@ $qs = fn(int $p): string => http_build_query(array_filter([
 <div class="card mb-md">
     <div class="card__body">
         <form method="GET" action="<?= url('matriculas') ?>">
+            <input type="hidden" name="orden" value="<?= e($orden) ?>">
+            <input type="hidden" name="dir" value="<?= e($dir) ?>">
             <div class="mat-filtros">
                 <div class="mat-filtros__campo">
                     <label class="mat-filtros__label" for="anio_id">Año académico</label>
@@ -130,19 +157,33 @@ $qs = fn(int $p): string => http_build_query(array_filter([
     </div></div></div>
 <?php else: ?>
 
+<div class="tabla-toolbar">
+    <span class="tabla-toolbar__label">Ordenar:</span>
+    <a class="orden-chip<?= $orden === 'modificacion' ? ' orden-chip--activo' : '' ?>"
+       href="<?= e($ordenUrl('modificacion')) ?>">
+        Modificación reciente
+        <?php if ($orden === 'modificacion'): ?><span aria-hidden="true"><?= $dir === 'asc' ? '▲' : '▼' ?></span><?php endif; ?>
+    </a>
+    <a class="orden-chip<?= $orden === 'estudiante' ? ' orden-chip--activo' : '' ?>"
+       href="<?= e($ordenUrl('estudiante')) ?>">
+        Alfabéticamente
+        <?php if ($orden === 'estudiante'): ?><span aria-hidden="true"><?= $dir === 'asc' ? 'A–Z' : 'Z–A' ?></span><?php endif; ?>
+    </a>
+</div>
+
 <div class="card">
     <div class="tabla-notas-wrapper">
         <table class="tabla-notas">
             <thead>
                 <tr>
                     <th>N°</th>
-                    <th>Estudiante</th>
-                    <th>DNI</th>
-                    <th>Grado / Sección</th>
+                    <?php $thOrden('estudiante', 'Estudiante'); ?>
+                    <?php $thOrden('dni', 'DNI'); ?>
+                    <?php $thOrden('grado', 'Grado / Sección'); ?>
                     <th>Tipo</th>
-                    <th class="text-center">Estado</th>
+                    <?php $thOrden('estado', 'Estado', 'text-center'); ?>
                     <th>Apoderado responsable</th>
-                    <th>Registro</th>
+                    <?php $thOrden('registro', 'Registro'); ?>
                     <th class="text-right">Acciones</th>
                 </tr>
             </thead>
