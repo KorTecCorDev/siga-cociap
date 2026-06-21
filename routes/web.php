@@ -151,6 +151,10 @@ $router->get( '/docente/inicio',                       'Docente\PanelController@
 $router->get( '/docente/nomina',                       'Docente\PanelController@nomina');
 $router->get( '/docente/nomina/{seccion_id}/imprimir', 'Docente\PanelController@nominaImprimir');
 $router->get( '/docente/horario/imprimir',             'Docente\PanelController@horarioImprimir');
+// Boletas del docente (validadas por nivel). La literal /imprimir va ANTES del
+// patron generico para que el router no capture "imprimir" como matricula_id.
+$router->get( '/docente/boleta/{matricula_id}/imprimir', 'Boleta\BoletaController@verImprimirDocente');
+$router->get( '/docente/boleta/{matricula_id}',          'Boleta\BoletaController@verDigitalDocente');
 
 // ─── Calificaciones ──────────────────────────────────────────
 $router->get( '/docente/mis-cargas',                        'Docente\CalificacionController@misCargas');

@@ -248,7 +248,85 @@
     // No hay chevron de navegación aquí: recupera el padding derecho reservado.
     .buscador-item__body {
         padding-right: $spacing-md;
+        // La columna derecha (ubicacion + Boleta) suele ser mas alta que la
+        // info: alinear arriba en vez de centrar para que no quede "flotando".
+        align-items: flex-start;
     }
+}
+
+// Columna derecha del card de la nomina: agrupa la ubicacion (grado/nivel/
+// puesto) y el panel Boleta, apilados y alineados a la derecha. Ocupa la 3a
+// columna del grid del card (asi el panel ya no rompe la grilla).
+.nomina-derecha {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: $spacing-sm;
+
+    @media (max-width: 640px) {
+        grid-column: 2;          // baja bajo la info en movil
+        align-items: flex-start;
+    }
+}
+
+// ── Panel de boleta en el card de la nómina ──────────────────
+// Agrupa los dos botones-icono (ver digital / imprimir A4) bajo una etiqueta
+// "Boleta" para que se lea de un vistazo que interactuan con la boleta de notas.
+// Solo aparece si el alumno tiene boleta con notas (flag tiene_boleta).
+.nomina-boleta-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    padding: $spacing-xs $spacing-sm;
+    border: 1.5px solid $border-color;
+    border-radius: $border-radius-lg;
+    background: $bg-secondary;
+
+    &__label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: $brand-accent;
+    }
+
+    &__botones {
+        display: flex;
+        gap: $spacing-xs;
+    }
+}
+
+.nomina-boleta-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: $border-radius;
+    border: 1.5px solid $border-color;
+    background: $bg-white;
+    color: $text-secondary;
+    text-decoration: none;
+    transition: $transition;
+
+    &:hover,
+    &:focus-visible {
+        border-color: $brand-accent;
+        color: $brand-accent;
+        background: $brand-light;
+    }
+
+    &__ico {
+        width: 26px;
+        height: 26px;
+        background-color: currentColor;
+        -webkit-mask: var(--bb-icon) center / contain no-repeat;
+                mask: var(--bb-icon) center / contain no-repeat;
+    }
+    &__ico--ver   { --bb-icon: url("../assets/icons/eye_open.svg"); }
+    &__ico--print { --bb-icon: url("../assets/icons/printer.svg"); }
 }
 
 // ── Nómina (impresión A4) ────────────────────────────────────

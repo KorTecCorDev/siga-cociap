@@ -635,7 +635,17 @@ class PanelController extends BaseController
                        COALESCE(tp.apellido_paterno, ''), ' ',
                        COALESCE(tp.apellido_materno, ''), ' ',
                        COALESCE(tp.nombres, '')
-                   )) AS tutor_nombre
+                   )) AS tutor_nombre,
+                   -- ¿Tiene al menos una competencia bloqueada (boleta con
+                   -- contenido)? Gobierna la aparicion de los botones de boleta.
+                   EXISTS (
+                       SELECT 1 FROM calificaciones cal
+                       INNER JOIN bloqueos_competencia bc
+                           ON bc.carga_id       = cal.carga_id
+                          AND bc.competencia_id = cal.competencia_id
+                          AND bc.periodo_id     = cal.periodo_id
+                       WHERE cal.matricula_id = m.id
+                   ) AS tiene_boleta
             FROM matriculas m
             INNER JOIN estudiantes e ON e.id = m.estudiante_id
             INNER JOIN personas p    ON p.id = e.persona_id

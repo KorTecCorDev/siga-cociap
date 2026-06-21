@@ -81,15 +81,36 @@
                     <div class="buscador-item__sub">Apoderado: <?= $a['apoderado_nombre'] !== '' ? e($a['apoderado_nombre']) : '—' ?></div>
                     <div class="buscador-item__sub">Cel: <?= $a['apoderado_telefono'] ? e($a['apoderado_telefono']) : '—' ?></div>
                 </div>
-                <div class="buscador-item__ubicacion">
-                    <div class="buscador-item__lugar"><?= e($a['grado_nombre'] . ' ' . $a['seccion_nombre']) ?></div>
-                    <div class="buscador-item__nivel"><?= e($a['nivel_nombre']) ?></div>
-                    <?php if (!$tieneOrdenMerito): ?>
-                        <div class="buscador-item__puesto buscador-item__puesto--vacio">Sin orden de mérito</div>
-                    <?php elseif ($a['puesto'] !== null): ?>
-                        <div class="buscador-item__puesto">Puesto <?= (int) $a['puesto'] ?>.° del grado</div>
-                    <?php else: ?>
-                        <div class="buscador-item__puesto buscador-item__puesto--vacio">Sin puesto aún</div>
+                <div class="nomina-derecha">
+                    <div class="buscador-item__ubicacion">
+                        <div class="buscador-item__lugar"><?= e($a['grado_nombre'] . ' ' . $a['seccion_nombre']) ?></div>
+                        <div class="buscador-item__nivel"><?= e($a['nivel_nombre']) ?></div>
+                        <?php if (!$tieneOrdenMerito): ?>
+                            <div class="buscador-item__puesto buscador-item__puesto--vacio">Sin orden de mérito</div>
+                        <?php elseif ($a['puesto'] !== null): ?>
+                            <div class="buscador-item__puesto">Puesto <?= (int) $a['puesto'] ?>.° del grado</div>
+                        <?php else: ?>
+                            <div class="buscador-item__puesto buscador-item__puesto--vacio">Sin puesto aún</div>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (!empty($a['tiene_boleta'])): ?>
+                        <div class="nomina-boleta-panel">
+                            <span class="nomina-boleta-panel__label">Boleta</span>
+                            <div class="nomina-boleta-panel__botones">
+                                <a class="nomina-boleta-btn" target="_blank" rel="noopener"
+                                   href="<?= url('docente/boleta/' . (int) $a['matricula_id']) ?>"
+                                   title="Ver boleta digital"
+                                   aria-label="Ver boleta digital de <?= e($nombre) ?>">
+                                    <span class="nomina-boleta-btn__ico nomina-boleta-btn__ico--ver" aria-hidden="true"></span>
+                                </a>
+                                <a class="nomina-boleta-btn" target="_blank" rel="noopener"
+                                   href="<?= url('docente/boleta/' . (int) $a['matricula_id'] . '/imprimir') ?>"
+                                   title="Boleta para imprimir (A4)"
+                                   aria-label="Imprimir boleta de <?= e($nombre) ?>">
+                                    <span class="nomina-boleta-btn__ico nomina-boleta-btn__ico--print" aria-hidden="true"></span>
+                                </a>
+                            </div>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>

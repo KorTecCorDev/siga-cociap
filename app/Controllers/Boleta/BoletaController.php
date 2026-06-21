@@ -107,6 +107,115 @@ class BoletaController extends BaseController
         ]));
     }
 
+    /**
+     * GET /docente/boleta/{matricula_id}
+     * Boleta DIGITAL para el docente. Validada por alcance: solo alumnos de un
+     * nivel donde el docente tiene carga activa. El periodo se resuelve solo.
+     */
+    public function verDigitalDocente($matriculaId): void
+    {
+        $this->requireRole(['docente', 'admin']);
+        $matriculaId = (int) $matriculaId;
+        $periodoId   = $this->resolverBoletaDocente($matriculaId);
+
+        $data = $this->buildBoletaData($matriculaId, $periodoId);
+
+        View::setLayout('digital');
+        $this->view('boleta/digital', array_merge($data, [
+            'titulo'     => 'Boleta Digital — ' . $data['alumno']['nombre_completo'],
+            'url_boleta' => url("docente/boleta/{$matriculaId}"),
+        ]));
+    }
+
+    /**
+     * GET /docente/boleta/{matricula_id}/imprimir
+     * Boleta IMPRIMIBLE (A4) para el docente. Mismo alcance que verDigitalDocente.
+     */
+    public function verImprimirDocente($matriculaId): void
+    {
+        $this->requireRole(['docente', 'admin']);
+        $matriculaId = (int) $matriculaId;
+        $periodoId   = $this->resolverBoletaDocente($matriculaId);
+
+        $data = $this->buildBoletaData($matriculaId, $periodoId);
+
+        View::setLayout('print');
+        $this->view('boleta/alumno', array_merge($data, [
+            'titulo'     => 'Boleta — ' . $data['alumno']['nombre_completo'],
+            'url_boleta' => url("docente/boleta/{$matriculaId}"),
+        ]));
+    }
+
+    /**
+     * Valida que el docente actual pueda ver la boleta de $matriculaId (alumno en
+     * un nivel donde tiene carga activa) y devuelve el periodo a mostrar: el más
+     * reciente con notas bloqueadas, con fallback al primer periodo del año.
+     * Responde 403 si está fuera de alcance, 404 si no hay periodos.
+     */
+    private function resolverBoletaDocente(int $matriculaId): int
+    {
+        $docenteId = (int) Session::user()['id'];
+
+        // Alcance: la matrícula existe, no está desactivada y su NIVEL coincide con
+        // un nivel donde el docente tiene carga activa. Evita abrir boletas fuera
+        // de alcance manipulando el id en la URL.
+        $mat = $this->calModel->queryOne("
+            SELECT m.id, m.anio_id
+            FROM matriculas m
+            INNER JOIN secciones s ON s.id = m.seccion_id
+            INNER JOIN grados g    ON g.id = s.grado_id
+            WHERE m.id = ?
+              AND m.estado <> 'desactivado'
+              AND g.nivel_id IN (
+                  SELECT DISTINCT g2.nivel_id
+                  FROM cargas_academicas ca
+                  INNER JOIN secciones s2 ON s2.id = ca.seccion_id
+                  INNER JOIN grados g2    ON g2.id = s2.grado_id
+                  WHERE ca.docente_id = ? AND ca.estado = 'activa'
+              )
+            LIMIT 1
+        ", [$matriculaId, $docenteId]);
+
+        if (!$mat) {
+            http_response_code(403);
+            $this->view('shared/403');
+            exit;
+        }
+
+        $anioId = (int) $mat['anio_id'];
+
+        $periodo = $this->calModel->queryOne("
+            SELECT p.id
+            FROM periodos p
+            WHERE p.anio_id = ?
+              AND EXISTS (
+                  SELECT 1 FROM calificaciones cal
+                  INNER JOIN bloqueos_competencia bc
+                      ON bc.carga_id = cal.carga_id
+                     AND bc.competencia_id = cal.competencia_id
+                     AND bc.periodo_id = cal.periodo_id
+                  WHERE cal.matricula_id = ? AND cal.periodo_id = p.id
+              )
+            ORDER BY p.numero DESC
+            LIMIT 1
+        ", [$anioId, $matriculaId]);
+
+        if (!$periodo) {
+            $periodo = $this->calModel->queryOne(
+                "SELECT id FROM periodos WHERE anio_id = ? ORDER BY numero ASC LIMIT 1",
+                [$anioId]
+            );
+        }
+
+        if (!$periodo) {
+            http_response_code(404);
+            require VIEW_PATH . '/shared/404.php';
+            exit;
+        }
+
+        return (int) $periodo['id'];
+    }
+
     // ── Datos compartidos entre ver() y verDigital() ────────────
 
     private function buildBoletaData(int $matriculaId, int $periodoId): array
