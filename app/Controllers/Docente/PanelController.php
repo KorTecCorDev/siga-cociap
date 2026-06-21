@@ -586,6 +586,14 @@ class PanelController extends BaseController
             INNER JOIN grados g    ON g.id = s.grado_id
             INNER JOIN niveles n   ON n.id = g.nivel_id
             WHERE m.estado = 'aprobada' AND m.tipo != 'trasladado'
+              -- Retorno de grado: la nomina (documento oficial SIAGIE) muestra
+              -- la matricula OFICIAL y oculta la operativa interna. Mismo filtro
+              -- que getMatriculados, para que la card y el detalle cuadren.
+              AND m.id NOT IN (
+                  SELECT matricula_operativa_id
+                  FROM retornos_grado
+                  WHERE estado = 'activo'
+              )
               AND n.id IN ($ph)
             GROUP BY s.id
             ORDER BY n.id, g.numero, s.nombre
