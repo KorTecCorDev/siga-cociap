@@ -117,13 +117,15 @@ class BoletaController extends BaseController
         $this->requireRole(['docente', 'admin']);
         $matriculaId = (int) $matriculaId;
         $periodoId   = $this->resolverBoletaDocente($matriculaId);
+        $esBorrador  = $this->estadoBoletaDePeriodo($periodoId) !== 'oficial';
 
         $data = $this->buildBoletaData($matriculaId, $periodoId);
 
         View::setLayout('digital');
         $this->view('boleta/digital', array_merge($data, [
-            'titulo'     => 'Boleta Digital — ' . $data['alumno']['nombre_completo'],
-            'url_boleta' => url("docente/boleta/{$matriculaId}"),
+            'titulo'         => 'Boleta Digital — ' . $data['alumno']['nombre_completo'],
+            'url_boleta'     => url("docente/boleta/{$matriculaId}"),
+            'vistaPrevia'    => $esBorrador,
         ]));
     }
 
@@ -136,13 +138,15 @@ class BoletaController extends BaseController
         $this->requireRole(['docente', 'admin']);
         $matriculaId = (int) $matriculaId;
         $periodoId   = $this->resolverBoletaDocente($matriculaId);
+        $esBorrador  = $this->estadoBoletaDePeriodo($periodoId) !== 'oficial';
 
         $data = $this->buildBoletaData($matriculaId, $periodoId);
 
         View::setLayout('print');
         $this->view('boleta/alumno', array_merge($data, [
-            'titulo'     => 'Boleta — ' . $data['alumno']['nombre_completo'],
-            'url_boleta' => url("docente/boleta/{$matriculaId}"),
+            'titulo'         => 'Boleta — ' . $data['alumno']['nombre_completo'],
+            'url_boleta'     => url("docente/boleta/{$matriculaId}"),
+            'vistaPrevia'    => $esBorrador,
         ]));
     }
 
@@ -184,10 +188,15 @@ class BoletaController extends BaseController
 
         $anioId = (int) $mat['anio_id'];
 
+        // Solo periodos PUBLICABLES: cerrado (OFICIAL) o activo con boletas
+        // aprobadas (BORRADOR, Hito A). Un bimestre en registro aun NO tiene
+        // boleta para el docente -> se muestra hasta el ultimo publicable.
         $periodo = $this->calModel->queryOne("
             SELECT p.id
             FROM periodos p
             WHERE p.anio_id = ?
+              AND (p.estado = 'cerrado'
+                   OR (p.estado = 'activo' AND p.boletas_aprobadas_en IS NOT NULL))
               AND EXISTS (
                   SELECT 1 FROM calificaciones cal
                   INNER JOIN bloqueos_competencia bc
@@ -201,19 +210,22 @@ class BoletaController extends BaseController
         ", [$anioId, $matriculaId]);
 
         if (!$periodo) {
-            $periodo = $this->calModel->queryOne(
-                "SELECT id FROM periodos WHERE anio_id = ? ORDER BY numero ASC LIMIT 1",
-                [$anioId]
-            );
-        }
-
-        if (!$periodo) {
             http_response_code(404);
             require VIEW_PATH . '/shared/404.php';
             exit;
         }
 
         return (int) $periodo['id'];
+    }
+
+    /** Estado de boleta ('registro'|'borrador'|'oficial') de un periodo. */
+    private function estadoBoletaDePeriodo(int $periodoId): string
+    {
+        $p = $this->calModel->queryOne(
+            "SELECT estado, boletas_aprobadas_en FROM periodos WHERE id = ? LIMIT 1",
+            [$periodoId]
+        );
+        return boleta_estado_bimestre($p['estado'] ?? null, $p['boletas_aprobadas_en'] ?? null);
     }
 
     // ── Datos compartidos entre ver() y verDigital() ────────────

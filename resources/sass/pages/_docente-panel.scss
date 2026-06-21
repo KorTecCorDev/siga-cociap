@@ -296,6 +296,23 @@
         display: flex;
         gap: $spacing-xs;
     }
+
+    // Borrador (Hito A): el panel se tine de ambar para avisar que es vista previa.
+    &--borrador {
+        border-color: $color-warning;
+        background: $color-warning-bg;
+
+        .nomina-boleta-panel__label { color: $color-warning; }
+    }
+
+    // Etiqueta de estado ("Borrador · II Bim" / "Oficial · I Bim") bajo los botones.
+    &__estado {
+        font-size: 9px;
+        font-weight: 600;
+        line-height: 1.1;
+        text-align: center;
+        color: $text-muted;
+    }
 }
 
 .nomina-boleta-btn {

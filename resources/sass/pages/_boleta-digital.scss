@@ -9,6 +9,31 @@
 //   desktop ≥ 960px
 // ============================================================
 
+// ── Banner BORRADOR (vista previa del docente antes del cierre oficial) ──
+.bd-borrador {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $spacing-sm;
+    margin: 0 0 $spacing-md;
+    padding: $spacing-sm $spacing-md;
+    border: 1.5px dashed $color-warning;
+    border-radius: $border-radius;
+    background: $color-warning-bg;
+
+    &__tag {
+        font-weight: 800;
+        letter-spacing: .08em;
+        font-size: $font-size-sm;
+        color: $color-warning;
+    }
+
+    &__msg {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+    }
+}
+
 // ── Variables locales ─────────────────────────────────────────
 $bd-ad-color:        #16a34a;
 $bd-ad-bg:           #f0fdf4;

@@ -29,6 +29,9 @@ foreach ($areas as $_n => $_c) {
 }
 $areasOrdenadas = array_merge($areasRegulares, $areasTransversales);
 unset($_n, $_c);
+
+// Borrador: vista previa del docente antes del cierre oficial del bimestre.
+$vistaPrevia = $vistaPrevia ?? false;
 ?>
 
 <!-- ══ CONTROLES FLOTANTES (solo pantalla) ══════════════════════ -->
@@ -70,6 +73,13 @@ unset($_n, $_c);
 <article class="bd"
          id="boleta-documento"
          data-nivel="<?= e($alumno['nivel_codigo'] ?? '') ?>">
+
+    <?php if ($vistaPrevia): ?>
+    <div class="bd-borrador" role="note">
+        <span class="bd-borrador__tag">BORRADOR</span>
+        <span class="bd-borrador__msg">Vista previa · No es documento oficial hasta que Registro Académico cierre el bimestre.</span>
+    </div>
+    <?php endif; ?>
 
     <!-- ── HEADER INSTITUCIONAL ─────────────────────────────── -->
     <header class="bd-header">
@@ -459,7 +469,7 @@ unset($_n, $_c);
 
     </footer>
 
-    <?php if (!empty($url_boleta)): ?>
+    <?php if (!empty($url_boleta) && !$vistaPrevia): ?>
     <!-- ── QR de verificación (solo impresión / PDF) ────────── -->
     <section class="bd-qr" aria-hidden="true">
         <h2 class="bd-qr__titulo">Código QR</h2>

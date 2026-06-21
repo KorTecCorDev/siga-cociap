@@ -7,7 +7,19 @@
  * @var int    $total
  * @var bool   $tieneOrdenMerito si hay un bimestre cerrado con ranking vigente
  * @var ?string $bimestre        nombre del bimestre del orden de mérito vigente
+ * @var string  $estadoBoleta    estado del bimestre activo: registro|borrador|oficial
+ * @var ?string $bimestreActivo  nombre del bimestre activo
+ * @var ?string $bimestreCerrado nombre del ultimo bimestre cerrado (boleta oficial)
  */
+
+// Que boleta puede ver el docente: BORRADOR si RA aprobo el bimestre activo
+// (Hito A); si no, la OFICIAL del ultimo bimestre cerrado. Si no hay ninguna,
+// no se muestra el panel de boleta.
+$boletaBorrador   = ($estadoBoleta ?? 'registro') === 'borrador';
+$hayBoletaVisible = $boletaBorrador || !empty($bimestreCerrado);
+$boletaEtiqueta   = $boletaBorrador
+    ? 'Borrador · ' . ($bimestreActivo ?? '')
+    : 'Oficial · ' . ($bimestreCerrado ?? '');
 ?>
 
 <div class="page-header">
@@ -93,9 +105,9 @@
                             <div class="buscador-item__puesto buscador-item__puesto--vacio">Sin puesto aún</div>
                         <?php endif; ?>
                     </div>
-                    <?php if (!empty($a['tiene_boleta'])): ?>
-                        <div class="nomina-boleta-panel">
-                            <span class="nomina-boleta-panel__label">Boleta</span>
+                    <?php if (!empty($a['tiene_boleta']) && $hayBoletaVisible): ?>
+                        <div class="nomina-boleta-panel<?= $boletaBorrador ? ' nomina-boleta-panel--borrador' : '' ?>">
+                            <span class="nomina-boleta-panel__label"><?= $boletaBorrador ? 'Borrador' : 'Boleta' ?></span>
                             <div class="nomina-boleta-panel__botones">
                                 <a class="nomina-boleta-btn" target="_blank" rel="noopener"
                                    href="<?= url('docente/boleta/' . (int) $a['matricula_id']) ?>"
@@ -110,6 +122,7 @@
                                     <span class="nomina-boleta-btn__ico nomina-boleta-btn__ico--print" aria-hidden="true"></span>
                                 </a>
                             </div>
+                            <span class="nomina-boleta-panel__estado"><?= e($boletaEtiqueta) ?></span>
                         </div>
                     <?php endif; ?>
                 </div>

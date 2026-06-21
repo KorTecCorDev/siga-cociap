@@ -281,6 +281,15 @@ class PanelController extends BaseController
             $secciones[$sid]['n']++;
         }
 
+        // Estado de la boleta del bimestre ACTIVO: 'borrador' tras el Hito A (RA
+        // aprobo), 'registro' antes. Mientras el activo no se aprueba, la boleta
+        // visible es la OFICIAL del ultimo bimestre CERRADO ($bimestre).
+        $periodoActivo = $this->getPeriodoActivo();
+        $estadoBoleta  = boleta_estado_bimestre(
+            $periodoActivo['estado'] ?? null,
+            $periodoActivo['boletas_aprobadas_en'] ?? null
+        );
+
         $this->view('docente/nomina', [
             'titulo'           => 'Nómina de matriculados',
             'alumnos'          => $alumnos,
@@ -288,6 +297,9 @@ class PanelController extends BaseController
             'total'            => count($alumnos),
             'tieneOrdenMerito' => $bimestre !== null,
             'bimestre'         => $bimestre['nombre_display'] ?? null,
+            'estadoBoleta'     => $estadoBoleta,
+            'bimestreActivo'   => $periodoActivo['nombre_display'] ?? null,
+            'bimestreCerrado'  => $bimestre['nombre_display'] ?? null,
             'page_scripts'     => ['nomina'],
         ]);
     }
