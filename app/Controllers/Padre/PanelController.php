@@ -50,12 +50,21 @@ class PanelController extends BaseController
     {
         $user    = Session::user();
         $hijo    = $this->getHijo($user['id']);
-        $periodo = $this->getPeriodoActivo();
+        // F4 — El padre solo ve hasta el ULTIMO bimestre CERRADO (oficial). El
+        // bimestre activo (registro/borrador) no se expone: el borrador del cierre
+        // forzado bloquea todas las competencias y se filtraria como definitivo.
+        $periodo = $this->getPeriodoVigentePadre();
 
-        if (!$hijo || !$periodo) {
+        if (!$hijo) {
             $this->redirectWithError(
                 url('padre/inicio'),
                 'No se encontró información del estudiante.'
+            );
+        }
+        if (!$periodo) {
+            $this->redirectWithError(
+                url('padre/inicio'),
+                'Aún no hay un bimestre cerrado. Las notas se publican cuando el colegio cierra el bimestre.'
             );
         }
 
@@ -125,6 +134,23 @@ class PanelController extends BaseController
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id
             WHERE p.estado = 'activo'
+            LIMIT 1
+        ");
+    }
+
+    /**
+     * F4 — Periodo "vigente" para el padre: el ultimo bimestre CERRADO (oficial)
+     * del anio activo. El borrador (Hito A, periodo aun 'activo' con boletas
+     * aprobadas) NUNCA se expone a las familias; solo lo oficial.
+     */
+    private function getPeriodoVigentePadre(): ?array
+    {
+        return $this->calModel->queryOne("
+            SELECT p.*, a.anio
+            FROM periodos p
+            INNER JOIN anios_academicos a ON a.id = p.anio_id
+            WHERE a.estado = 'activo' AND p.estado = 'cerrado'
+            ORDER BY p.numero DESC
             LIMIT 1
         ");
     }

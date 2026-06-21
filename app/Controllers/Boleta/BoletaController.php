@@ -264,6 +264,16 @@ class BoletaController extends BaseController
         $anioId  = (int) $periodo['anio_id'];
         $periodos = $this->getPeriodosDelAnio($anioId);
 
+        // F4 — Padres: solo ven hasta el ultimo bimestre CERRADO (oficial). El
+        // borrador (Hito A) nunca se expone a las familias. Admin/director/docente
+        // ven todos los periodos (el sello "BORRADOR" advierte si no es oficial).
+        if (Session::hasRole('padre')) {
+            $periodos = array_values(array_filter(
+                $periodos,
+                static fn($p) => ($p['estado'] ?? '') === 'cerrado'
+            ));
+        }
+
         $datosPorPeriodo = [];
         foreach ($periodos as $p) {
             $rows = [];
@@ -346,7 +356,7 @@ class BoletaController extends BaseController
     private function getPeriodosDelAnio(int $anioId): array
     {
         return $this->calModel->query("
-            SELECT id, numero, nombre_display
+            SELECT id, numero, nombre_display, estado
             FROM periodos
             WHERE anio_id = ?
             ORDER BY numero

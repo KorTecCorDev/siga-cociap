@@ -233,10 +233,13 @@ class BoletaPublicaController extends BaseController
 
     private function getPeriodosDelAnio(int $anioId): array
     {
+        // F4 — Boleta publica (familias): SOLO bimestres CERRADOS (oficiales). El
+        // borrador (Hito A) nunca se expone a los padres. La vista publica es
+        // exclusiva de familias, asi que el filtro va directo en la query.
         return $this->calModel->query("
             SELECT id, numero, nombre_display
             FROM periodos
-            WHERE anio_id = ?
+            WHERE anio_id = ? AND estado = 'cerrado'
             ORDER BY numero
         ", [$anioId]);
     }
