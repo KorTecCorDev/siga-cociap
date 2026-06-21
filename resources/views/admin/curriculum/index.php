@@ -262,39 +262,45 @@ if ($area) {
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label" for="area-nombre">Nombre</label>
-                    <input type="text" id="area-nombre" name="nombre" class="form-control"
+                    <input type="text" id="area-nombre" name="nombre" class="form-input"
                            value="<?= e($area['nombre']) ?>" required maxlength="120">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="area-nombre-boleta">Nombre en boleta</label>
                     <input type="text" id="area-nombre-boleta" name="nombre_boleta"
-                           class="form-control" maxlength="120"
+                           class="form-input" maxlength="120"
                            value="<?= e($area['nombre_boleta'] ?? '') ?>">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="area-alias-boleta">Alias en boleta</label>
                     <input type="text" id="area-alias-boleta" name="alias_boleta"
-                           class="form-control" maxlength="80"
+                           class="form-input" maxlength="80"
                            placeholder="Ej: (Ética y Valores)"
                            value="<?= e($area['alias_boleta'] ?? '') ?>">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="area-nombre-siagie">Nombre SIAGIE</label>
                     <input type="text" id="area-nombre-siagie" name="nombre_siagie"
-                           class="form-control" maxlength="120"
+                           class="form-input" maxlength="120"
                            value="<?= e($area['nombre_siagie'] ?? '') ?>">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="area-orden">Orden</label>
                     <input type="number" id="area-orden" name="orden"
-                           class="form-control curr-input-orden"
+                           class="form-input curr-input-orden"
                            value="<?= (int)$area['orden'] ?>" min="0" max="99">
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn--secondary"
-                        data-modal-cerrar="modal-area-<?= $area['id'] ?>">Cancelar</button>
-                <button type="submit" class="btn btn--primary">Guardar</button>
+                        data-modal-cerrar="modal-area-<?= $area['id'] ?>">
+                    <span class="btn-icon btn-icon--back" aria-hidden="true"></span>
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn--primary">
+                    <span class="btn-icon btn-icon--save" aria-hidden="true"></span>
+                    Guardar
+                </button>
             </div>
         </form>
     </div>
@@ -318,13 +324,13 @@ if ($area) {
                 <div class="form-group">
                     <label class="form-label" for="sa-nombre-<?= $sa['id'] ?>">Nombre</label>
                     <input type="text" id="sa-nombre-<?= $sa['id'] ?>" name="nombre"
-                           class="form-control" value="<?= e($sa['nombre']) ?>"
+                           class="form-input" value="<?= e($sa['nombre']) ?>"
                            required maxlength="80">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="sa-orden-<?= $sa['id'] ?>">Orden</label>
                     <input type="number" id="sa-orden-<?= $sa['id'] ?>" name="orden"
-                           class="form-control curr-input-orden"
+                           class="form-input curr-input-orden"
                            value="<?= (int)$sa['orden'] ?>" min="0" max="99">
                 </div>
             </div>
@@ -356,32 +362,38 @@ if ($area) {
                 <div class="form-group">
                     <label class="form-label" for="c-codigo-<?= $c['id'] ?>">Código MINEDU</label>
                     <input type="text" id="c-codigo-<?= $c['id'] ?>" name="codigo_minedu"
-                           class="form-control curr-input-codigo"
+                           class="form-input curr-input-codigo"
                            value="<?= e($c['codigo_minedu'] ?? '') ?>" maxlength="5"
                            placeholder="Ej: C14">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="c-nombre-<?= $c['id'] ?>">Nombre completo</label>
                     <textarea id="c-nombre-<?= $c['id'] ?>" name="nombre_completo"
-                              class="form-control" rows="3" required><?= e($c['nombre_completo']) ?></textarea>
+                              class="form-input" rows="3" required><?= e($c['nombre_completo']) ?></textarea>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="c-corto-<?= $c['id'] ?>">Nombre corto</label>
                     <input type="text" id="c-corto-<?= $c['id'] ?>" name="nombre_corto"
-                           class="form-control" value="<?= e($c['nombre_corto'] ?? '') ?>"
+                           class="form-input" value="<?= e($c['nombre_corto'] ?? '') ?>"
                            maxlength="120">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="c-orden-<?= $c['id'] ?>">Orden</label>
                     <input type="number" id="c-orden-<?= $c['id'] ?>" name="orden"
-                           class="form-control curr-input-orden"
+                           class="form-input curr-input-orden"
                            value="<?= (int)$c['orden'] ?>" min="0" max="99">
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn--secondary"
-                        data-modal-cerrar="modal-comp-<?= $c['id'] ?>">Cancelar</button>
-                <button type="submit" class="btn btn--primary">Guardar</button>
+                        data-modal-cerrar="modal-comp-<?= $c['id'] ?>">
+                    <span class="btn-icon btn-icon--back" aria-hidden="true"></span>
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn--primary">
+                    <span class="btn-icon btn-icon--save" aria-hidden="true"></span>
+                    Guardar
+                </button>
             </div>
         </form>
     </div>

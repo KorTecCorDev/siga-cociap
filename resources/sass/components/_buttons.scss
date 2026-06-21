@@ -124,4 +124,9 @@
         -webkit-mask-image: url('../assets/icons/big-sand-clock-wait.svg');
                 mask-image: url('../assets/icons/big-sand-clock-wait.svg');
     }
+
+    &--back {
+        -webkit-mask-image: url('../assets/icons/round-arrow-left.svg');
+                mask-image: url('../assets/icons/round-arrow-left.svg');
+    }
 }
