@@ -11,6 +11,9 @@
 /storage/logs/*.log
 /storage/uploads/*
 /storage/pdfs/*
+# Firma/sello del Director EBR en local (datos del entorno; en prod viven en
+# ~/siga_uploads/firmas). Se sirven por FirmaController, no se versionan.
+/storage/firmas/*.png
 
 # Archivos de sistema
 .DS_Store
@@ -39,10 +42,6 @@ import_matriculas.php
 !storage/logs/.gitkeep
 !storage/uploads/.gitkeep
 !storage/pdfs/.gitkeep
-
-# Imágenes de firma/sello del Director EBR (datos del entorno, no del repo)
-/public/assets/img/firmas/*.png
-!/public/assets/img/firmas/.gitkeep
 
 # Node
 node_modules/
