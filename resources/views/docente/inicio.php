@@ -166,7 +166,7 @@ $saludo = match($auth_user['sexo'] ?? null) {
     <div class="card dpanel-card dpanel-card--nomina dpanel-card--acciones">
         <div class="dpanel-card__head">
             <h2 class="card__title">Nómina de matriculados</h2>
-            <span class="badge badge--activo"><?= $totalNomina ?> aprobados</span>
+            <span class="badge badge--activo"><?= $totalNomina ?> estudiantes</span>
         </div>
         <p class="dpanel-card__sub">
             <?php

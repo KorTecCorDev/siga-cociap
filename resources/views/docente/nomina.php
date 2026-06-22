@@ -34,41 +34,30 @@ $boletaEtiqueta   = $boletaBorrador
     <div class="empty-state"><p>No hay matriculados aprobados en los niveles donde tienes cargas.</p></div>
 <?php else: ?>
 
-<!-- Imprimir nómina de una sección -->
-<div class="card mb-md">
+<!-- Buscador de estudiantes — accion principal, destacada -->
+<div class="card nomina-buscar mb-md">
     <div class="card__body">
-        <label class="form-label" for="nomina-seccion">Imprimir nómina de una sección</label>
-        <div class="nomina-imprimir">
-            <select id="nomina-seccion" class="form-input">
-                <option value="">Selecciona una sección…</option>
-                <?php foreach ($secciones as $s): ?>
-                    <option value="<?= (int) $s['seccion_id'] ?>">
-                        <?= e($s['nivel_nombre']) ?> · <?= e($s['grado_nombre']) ?> — Sección <?= e($s['seccion_nombre']) ?> (<?= (int) $s['n'] ?>)
-                    </option>
-                <?php endforeach; ?>
-            </select>
-            <a id="nomina-imprimir-btn" class="btn btn--primary is-disabled"
-               aria-disabled="true" href="#" target="_blank" rel="noopener"
-               data-base="<?= url('docente/nomina') ?>">
-                <span class="btn-icon btn-icon--print" aria-hidden="true"></span>
-                Imprimir
-            </a>
+        <div class="buscador">
+            <label class="form-label nomina-buscar__titulo" for="nomina-buscador">
+                <span class="nomina-seccion-ico nomina-seccion-ico--buscar" aria-hidden="true"></span>
+                Buscar estudiante
+            </label>
+            <div class="buscador__campo nomina-buscar__campo">
+                <svg class="buscador__icono" width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M20 20l-3.2-3.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+                <input type="search" id="nomina-buscador" class="form-input buscador__input"
+                       placeholder="Buscar por apellidos o nombres…" autocomplete="off" autofocus>
+            </div>
+            <p class="text-sm text-muted" id="nomina-hint">Escribe para buscar entre <?= $total ?> estudiantes.</p>
+            <p class="text-sm text-muted" id="nomina-sin-resultados" hidden>Sin coincidencias.</p>
+            <p class="text-sm text-muted">
+                <?= $tieneOrdenMerito
+                    ? 'Orden de mérito vigente: ' . e($bimestre)
+                    : 'Aún no hay orden de mérito vigente (ningún bimestre cerrado).' ?>
+            </p>
         </div>
-    </div>
-</div>
-
-<!-- Buscador -->
-<div class="card mb-md">
-    <div class="card__body">
-        <input type="search" id="nomina-buscador" class="form-input"
-               placeholder="Buscar estudiante por apellidos o nombres…" autocomplete="off">
-        <p class="text-sm text-muted" id="nomina-hint">Escribe para buscar entre <?= $total ?> estudiantes.</p>
-        <p class="text-sm text-muted" id="nomina-sin-resultados" hidden>Sin coincidencias.</p>
-        <p class="text-sm text-muted">
-            <?= $tieneOrdenMerito
-                ? 'Orden de mérito vigente: ' . e($bimestre)
-                : 'Aún no hay orden de mérito vigente (ningún bimestre cerrado).' ?>
-        </p>
     </div>
 </div>
 
@@ -129,6 +118,32 @@ $boletaEtiqueta   = $boletaBorrador
             </div>
         </div>
     <?php endforeach; ?>
+</div>
+
+<!-- Imprimir nomina de una seccion — accion secundaria -->
+<div class="card nomina-imprimir-card">
+    <div class="card__body">
+        <label class="form-label nomina-imprimir-card__titulo" for="nomina-seccion">
+            <span class="nomina-seccion-ico nomina-seccion-ico--print" aria-hidden="true"></span>
+            Imprimir nómina de una sección
+        </label>
+        <div class="nomina-imprimir">
+            <select id="nomina-seccion" class="form-input">
+                <option value="">Selecciona una sección…</option>
+                <?php foreach ($secciones as $s): ?>
+                    <option value="<?= (int) $s['seccion_id'] ?>">
+                        <?= e($s['nivel_nombre']) ?> · <?= e($s['grado_nombre']) ?> — Sección <?= e($s['seccion_nombre']) ?> (<?= (int) $s['n'] ?>)
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <a id="nomina-imprimir-btn" class="btn btn--primary is-disabled"
+               aria-disabled="true" href="#" target="_blank" rel="noopener"
+               data-base="<?= url('docente/nomina') ?>">
+                <span class="btn-icon btn-icon--print" aria-hidden="true"></span>
+                Imprimir
+            </a>
+        </div>
+    </div>
 </div>
 
 <?php endif; ?>

@@ -212,6 +212,61 @@
 }
 
 // ── Nómina (pantalla) ────────────────────────────────────────
+// Buscador destacado: es la accion principal de la vista. Se le da un borde
+// de marca, un fondo tenue y un acento lateral para que salte a la vista por
+// encima del panel secundario de impresion.
+.nomina-buscar {
+    border: 1.5px solid $brand-light;
+    border-left: 4px solid $brand-accent;
+    background: $brand-light;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .06);
+
+    &__titulo {
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+        font-size: $font-size-lg;
+        font-weight: 700;
+        color: $brand-accent;
+        margin-bottom: $spacing-sm;
+    }
+
+    // El campo abarca todo el ancho del card (el max-width por defecto del
+    // buscador lo dejaba angosto dentro de este panel ancho).
+    &__campo {
+        max-width: 640px;
+    }
+}
+
+// Panel de impresion: accion secundaria, separada del buscador con mas aire y
+// un tratamiento mas sobrio para que no compita visualmente con el buscador.
+.nomina-imprimir-card {
+    margin-top: $spacing-lg;
+    background: $bg-secondary;
+    border: 1px dashed $border-color;
+
+    &__titulo {
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+        color: $text-secondary;
+    }
+}
+
+// Icono que distingue cada seccion (buscar vs imprimir). Pintado por mask con
+// currentColor, hereda el color del titulo donde se monta.
+.nomina-seccion-ico {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    background-color: currentColor;
+    -webkit-mask: var(--nsi-icon) center / contain no-repeat;
+            mask: var(--nsi-icon) center / contain no-repeat;
+
+    &--buscar { --nsi-icon: url("../assets/icons/users-group-rounded.svg"); }
+    &--print  { --nsi-icon: url("../assets/icons/printer.svg"); }
+}
+
 // Selector de sección + botón imprimir en una fila.
 .nomina-imprimir {
     display: flex;
