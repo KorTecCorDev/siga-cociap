@@ -154,6 +154,84 @@ class MatriculaModel extends BaseModel
     }
 
     /**
+     * Listado COMPLETO (sin paginación) para la nómina detallada admin/RA
+     * (reporte al comité directivo). A diferencia de la nómina del docente:
+     *  - Incluye AMBAS matrículas de un retorno de grado (oficial Y operativa),
+     *    cada una con el cruce de su contraparte (regla R3). No oculta la operativa.
+     *  - Trae género (p.sexo), DNI y celular del apoderado responsable.
+     * Usa los MISMOS filtros que listar()/contar() (construirFiltros), pero NO
+     * modifica esos métodos: el index de /matriculas queda intacto.
+     * Ordenado por nivel→grado→sección→apellidos para agrupar por sección.
+     */
+    public function listarParaNomina(array $filtros = []): array
+    {
+        [$where, $params] = $this->construirFiltros($filtros);
+
+        return $this->query("
+            SELECT
+                m.id,
+                m.estado,
+                m.motivo_estado,
+                m.tipo,
+                p.dni,
+                p.sexo,
+                p.apellido_paterno,
+                p.apellido_materno,
+                p.nombres,
+                CONCAT(p.apellido_paterno,' ',p.apellido_materno,', ',p.nombres) AS nombre_completo,
+                n.id     AS nivel_id,
+                n.nombre AS nivel_nombre,
+                g.id     AS grado_id,
+                g.numero AS grado_numero,
+                g.nombre_display AS grado_nombre,
+                s.id     AS seccion_id,
+                s.nombre AS seccion_nombre,
+                a.anio,
+                -- Rol de la fila dentro de un retorno de grado ACTIVO (igual que listar()):
+                --   retorno_operativa_id presente → m es la OFICIAL (alumno cursa en otro grado)
+                --   retorno_oficial_id   presente → m es la OPERATIVA (alumno cursa AQUÍ)
+                ro.matricula_operativa_id AS retorno_operativa_id,
+                rp.matricula_oficial_id   AS retorno_oficial_id,
+                -- Ubicación de la contraparte para la nota cruzada:
+                CONCAT(go.nombre_display,' ',so.nombre) AS retorno_op_ubic,
+                CONCAT(gf.nombre_display,' ',sf.nombre) AS retorno_of_ubic,
+                ap.telefono AS apoderado_telefono,
+                TRIM(CONCAT(
+                    COALESCE(ap.apellido_paterno,''),' ',
+                    COALESCE(ap.apellido_materno,''),' ',
+                    COALESCE(ap.nombres,'')
+                )) AS apoderado_nombre
+            FROM matriculas m
+            INNER JOIN estudiantes e      ON e.id = m.estudiante_id
+            INNER JOIN personas p         ON p.id = e.persona_id
+            INNER JOIN anios_academicos a ON a.id = m.anio_id
+            LEFT  JOIN secciones s        ON s.id = m.seccion_id
+            LEFT  JOIN grados g           ON g.id = s.grado_id
+            LEFT  JOIN niveles n          ON n.id = g.nivel_id
+            LEFT  JOIN retornos_grado ro  ON ro.matricula_oficial_id  = m.id AND ro.estado = 'activo'
+            LEFT  JOIN retornos_grado rp  ON rp.matricula_operativa_id = m.id AND rp.estado = 'activo'
+            LEFT  JOIN matriculas mo ON mo.id = ro.matricula_operativa_id
+            LEFT  JOIN secciones so  ON so.id = mo.seccion_id
+            LEFT  JOIN grados go     ON go.id = so.grado_id
+            LEFT  JOIN matriculas mf ON mf.id = rp.matricula_oficial_id
+            LEFT  JOIN secciones sf  ON sf.id = mf.seccion_id
+            LEFT  JOIN grados gf     ON gf.id = sf.grado_id
+            LEFT  JOIN vinculo_familiar vf
+                ON  vf.estudiante_id = e.id
+                AND vf.es_responsable = 1
+                AND vf.id = (
+                    SELECT MIN(vf2.id) FROM vinculo_familiar vf2
+                    WHERE vf2.estudiante_id = e.id AND vf2.es_responsable = 1
+                )
+            LEFT  JOIN apoderados apo ON apo.id = vf.apoderado_id
+            LEFT  JOIN personas ap    ON ap.id = apo.persona_id
+            WHERE {$where}
+            ORDER BY n.id, g.numero, s.nombre,
+                     p.apellido_paterno, p.apellido_materno, p.nombres
+        ", $params);
+    }
+
+    /**
      * Estadísticas de matrícula de un año para el dashboard /matriculas/resumen.
      * "Matriculados" = estado='aprobada' (vigentes); las desactivadas se reportan
      * aparte como KPI. Todo scopeado al año indicado.
@@ -288,6 +366,70 @@ class MatriculaModel extends BaseModel
                 'cobertura' => $totalGen > 0 ? round($conDato / $totalGen * 100, 1) : 0.0,
             ],
         ];
+    }
+
+    /**
+     * Cuadro cruzado de matrícula por grado (panorama del año para el comité):
+     * filas = grado (agrupable por nivel), columnas = tipo × estado × género × total.
+     * Cuenta TODAS las matrículas del año (todos los estados). Retorno de grado:
+     * cuenta UNA sola vez por la matrícula OFICIAL (excluye la operativa) para no
+     * inflar el panorama. Filtro opcional por nivel. El género NO suma a quien no
+     * tiene sexo registrado (M + F puede ser < total, como acordado).
+     */
+    public function getCuadroMatricula(int $anioId, ?int $nivelId = null): array
+    {
+        $cond   = ['m.anio_id = ?'];
+        $params = [$anioId];
+        if ($nivelId) {
+            $cond[]   = 'n.id = ?';
+            $params[] = $nivelId;
+        }
+        $where = implode(' AND ', $cond);
+
+        $rows = $this->query("
+            SELECT
+                n.id     AS nivel_id,
+                n.nombre AS nivel_nombre,
+                g.numero AS grado_numero,
+                g.nombre_display AS grado_nombre,
+                SUM(m.tipo = 'nuevo')         AS t_nuevo,
+                SUM(m.tipo = 'continuador')   AS t_cont,
+                SUM(m.tipo = 'trasladado')    AS t_tras,
+                SUM(m.estado = 'aprobada')    AS e_aprob,
+                SUM(m.estado = 'pendiente')   AS e_pend,
+                SUM(m.estado = 'desactivado') AS e_desact,
+                SUM(p.sexo = 'M')             AS gen_m,
+                SUM(p.sexo = 'F')             AS gen_f,
+                COUNT(*)                      AS total
+            FROM matriculas m
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas p    ON p.id = e.persona_id
+            INNER JOIN secciones s   ON s.id = m.seccion_id
+            INNER JOIN grados g      ON g.id = s.grado_id
+            INNER JOIN niveles n     ON n.id = g.nivel_id
+            WHERE {$where}
+              AND m.id NOT IN (
+                  SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'activo'
+              )
+            GROUP BY n.id, n.nombre, g.numero, g.nombre_display
+            ORDER BY n.id, g.numero
+        ", $params);
+
+        return array_map(static fn($r) => [
+            'nivel_id'     => (int) $r['nivel_id'],
+            'nivel_nombre' => $r['nivel_nombre'],
+            'grado_numero' => (int) $r['grado_numero'],
+            'grado_nombre' => $r['grado_nombre'],
+            't_nuevo'  => (int) $r['t_nuevo'],
+            't_cont'   => (int) $r['t_cont'],
+            't_tras'   => (int) $r['t_tras'],
+            'e_aprob'  => (int) $r['e_aprob'],
+            'e_pend'   => (int) $r['e_pend'],
+            'e_desact' => (int) $r['e_desact'],
+            'gen_m'    => (int) $r['gen_m'],
+            'gen_f'    => (int) $r['gen_f'],
+            'total'    => (int) $r['total'],
+        ], $rows);
     }
 
     /** Matrícula con todos los datos del estudiante, grado y sección. */
@@ -664,6 +806,12 @@ class MatriculaModel extends BaseModel
             INNER JOIN niveles n ON n.id = g.nivel_id
             ORDER BY n.id, g.numero
         ");
+    }
+
+    /** Niveles educativos (para el filtro del cuadro de matrícula). */
+    public function listarNiveles(): array
+    {
+        return $this->query("SELECT id, nombre, codigo FROM niveles ORDER BY id");
     }
 
     /** Secciones de un año (o de un grado concreto) para los selects. */

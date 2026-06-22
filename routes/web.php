@@ -114,6 +114,8 @@ $router->post('/director/matriculas/{id}/aprobar',  'Director\MatriculaControlle
 // no capture "crear" como parámetro. Lo mismo con los sub-recursos del {id}.
 $router->get( '/matriculas',                     'Matricula\MatriculaController@index');
 $router->get( '/matriculas/resumen',             'Matricula\MatriculaController@resumen');
+$router->get( '/matriculas/resumen/imprimir',    'Matricula\MatriculaController@resumenImprimir');
+$router->get( '/matriculas/nomina/imprimir',     'Matricula\MatriculaController@nominaImprimir');
 $router->get( '/matriculas/crear',               'Matricula\MatriculaController@create');
 $router->post('/matriculas/crear',               'Matricula\MatriculaController@store');
 $router->post('/matriculas/{id}/estudiante',     'Matricula\MatriculaController@actualizarEstudiante');

@@ -504,3 +504,281 @@
         gap: 0 $spacing-lg;
     }
 }
+
+// ── Nómina detallada imprimible (/matriculas/nomina/imprimir) ────
+// Reporte al comité directivo. A4 HORIZONTAL mediante página con nombre
+// (no altera el @page portrait global, igual que .horario-print).
+@page nomina-det-landscape {
+    size: A4 landscape;
+    margin: 8mm;
+}
+
+.nomina-det {
+    page: nomina-det-landscape;
+    padding: $spacing-sm;
+    // Garantiza que se impriman los fondos (filas de baja, encabezados).
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+
+    &__head {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+        margin-bottom: $spacing-sm;
+        border-bottom: 2px solid #000;
+        padding-bottom: $spacing-sm;
+    }
+
+    &__logo { width: 56px; height: auto; }
+
+    &__titulo {
+        h1 { font-size: 15px; margin: 0; }
+        p  { margin: 2px 0; font-size: 11px; }
+    }
+
+    &__filtros { font-size: 10px; }
+
+    &__meta {
+        display: flex;
+        justify-content: space-between;
+        gap: $spacing-md;
+        flex-wrap: wrap;
+        font-size: 11px;
+        margin-bottom: $spacing-sm;
+    }
+
+    &__vacio { font-size: 12px; font-style: italic; }
+
+    // Cada sección no se parte entre páginas cuando es posible.
+    &__grupo {
+        margin-bottom: $spacing-md;
+        page-break-inside: avoid;
+    }
+
+    &__seccion {
+        font-size: 12px;
+        font-weight: 700;
+        margin: 0 0 4px;
+        padding: 3px 6px;
+        background: #e8e8e8;
+        border: 1px solid #000;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: $spacing-md;
+    }
+
+    &__seccion-n { font-size: 10px; font-weight: 600; }
+
+    &__tabla {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 10px;
+
+        th, td {
+            border: 1px solid #000;
+            padding: 2px 5px;
+            text-align: left;
+            vertical-align: top;
+            overflow: hidden;
+            word-wrap: break-word;
+        }
+        thead th { background: #eee; text-align: center; font-size: 9.5px; }
+        tr { page-break-inside: avoid; }
+    }
+
+    // Anchos fijos; "Apellidos y nombres" (sin ancho) toma el resto.
+    &__c-num    { width: 28px;  text-align: center; }
+    &__c-dni    { width: 76px;  text-align: center; }
+    &__c-gen    { width: 50px;  text-align: center; }
+    &__c-cel    { width: 96px;  text-align: center; }
+    &__c-tipo   { width: 84px;  text-align: center; }
+    &__c-estado { width: 90px;  text-align: center; }
+
+    // Desactivados: fondo gris tenue para que salten a la vista en B/N.
+    &__fila--baja td { background: #dedede; }
+
+    // Retorno de grado: acento en el borde izquierdo de la fila.
+    &__fila--retorno td:first-child { box-shadow: inset 3px 0 0 #555; }
+
+    &__retorno-nota {
+        display: block;
+        font-size: 8.5px;
+        font-style: italic;
+        color: #333;
+    }
+
+    // Motivo de la baja: destacado en las filas desactivadas (bold + acento
+    // a la izquierda para que resalte incluso impreso en blanco y negro).
+    &__motivo {
+        display: block;
+        margin-top: 1px;
+        padding-left: 5px;
+        border-left: 3px solid #000;
+        font-size: 8.5px;
+        font-weight: 700;
+        color: #000;
+    }
+
+    &__resumen {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px $spacing-md;
+        margin-top: 3px;
+        padding: 3px 6px;
+        border: 1px solid #999;
+        background: #f4f4f4;
+        font-size: 9.5px;
+    }
+
+    &__resumen-titulo { font-weight: 700; width: 100%; }
+
+    &__resumen-retorno { width: 100%; }
+
+    &__nota-mini { font-size: 8.5px; color: #555; }
+
+    // Pie: sello del Director EBR, anclado a la derecha.
+    &__footer {
+        margin-top: $spacing-lg;
+        display: flex;
+        justify-content: flex-end;
+        page-break-inside: avoid;
+    }
+
+    &__sello-bloque { text-align: center; min-width: 200px; }
+
+    &__sello {
+        display: block;
+        max-width: 170px;
+        max-height: 100px;
+        object-fit: contain;
+        margin: 0 auto;
+    }
+}
+
+// ── Cuadro de matrícula por grado (matriz cruzada) ──────────────
+// Tabla COMPARTIDA por la pantalla (/matriculas/resumen) y la impresión
+// (/matriculas/resumen/imprimir). Estilo base aquí; el contexto print la
+// compacta más abajo en .resumen-print.
+.cuadro-matricula {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-sm;
+
+    th, td {
+        border: 1px solid $border-color;
+        padding: 4px 8px;
+        text-align: center;
+    }
+    thead th {
+        background: $bg-secondary;
+        font-weight: 600;
+    }
+
+    &__grado { text-align: left; white-space: nowrap; }
+    &__total { font-weight: 700; }
+
+    // Banda de nivel (Primaria / Secundaria).
+    &__nivel td {
+        text-align: left;
+        font-weight: 700;
+        background: $brand-light;
+        color: $brand-mid;
+    }
+
+    &__subtotal {
+        font-weight: 600;
+        background: $bg-secondary;
+    }
+
+    &__grandtotal {
+        font-weight: 700;
+        background: darken($bg-secondary, 6%);
+    }
+
+    &__nota {
+        margin-top: $spacing-xs;
+        font-size: 11px;
+        color: $text-muted;
+    }
+}
+
+.cuadro-card {
+    margin-top: $spacing-lg;
+
+    &__acciones {
+        display: flex;
+        align-items: flex-end;
+        gap: $spacing-md;
+        flex-wrap: wrap;
+    }
+
+    &__filtro {
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+    }
+
+    // En pantallas angostas la matriz puede desbordar: scroll horizontal.
+    &__scroll { overflow-x: auto; }
+}
+
+// ── Cuadro de matrícula imprimible (A4 portrait) ────────────────
+// Hereda el @page portrait global (no define página con nombre).
+.resumen-print {
+    padding: $spacing-sm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+
+    &__head {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+        margin-bottom: $spacing-sm;
+        border-bottom: 2px solid #000;
+        padding-bottom: $spacing-sm;
+    }
+
+    &__logo { width: 56px; height: auto; }
+
+    &__titulo {
+        h1 { font-size: 15px; margin: 0; }
+        p  { margin: 2px 0; font-size: 11px; }
+    }
+
+    &__sub { font-size: 10px; }
+
+    &__meta { font-size: 11px; margin-bottom: $spacing-sm; }
+
+    &__vacio { font-size: 12px; font-style: italic; }
+
+    // La matriz, compactada para portrait y en blanco/negro.
+    .cuadro-matricula {
+        font-size: 10px;
+
+        th, td { border-color: #000; padding: 3px 5px; }
+        thead th { background: #eee; }
+        .cuadro-matricula__nivel td { background: #ddd; color: #000; }
+        .cuadro-matricula__subtotal { background: #f0f0f0; }
+        .cuadro-matricula__grandtotal { background: #d9d9d9; }
+        &__nota { font-size: 8.5px; color: #333; }
+    }
+
+    &__footer {
+        margin-top: $spacing-xl;
+        display: flex;
+        justify-content: flex-end;
+        page-break-inside: avoid;
+    }
+
+    &__sello-bloque { text-align: center; min-width: 200px; }
+
+    &__sello {
+        display: block;
+        max-width: 170px;
+        max-height: 100px;
+        object-fit: contain;
+        margin: 0 auto;
+    }
+}

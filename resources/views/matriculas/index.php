@@ -69,6 +69,8 @@ $thOrden = function (string $key, string $label, string $thClass = '') use ($ord
     </div>
     <div class="btn-group">
         <a href="<?= url('matriculas/resumen') ?>" class="btn btn--secondary">Resumen</a>
+        <a href="<?= url('matriculas/nomina/imprimir' . (!empty($baseFiltros) ? '?' . http_build_query($baseFiltros) : '')) ?>"
+           class="btn btn--secondary" target="_blank" rel="noopener">Nómina detallada</a>
         <a href="<?= url('traslados') ?>" class="btn btn--secondary">Traslados</a>
         <a href="<?= url('matriculas/crear') ?>" class="btn btn--primary">+ Nueva matrícula</a>
     </div>

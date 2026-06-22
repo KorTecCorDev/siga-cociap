@@ -194,3 +194,42 @@ $chartData = [
     <script src="<?= url('js/matriculas-resumen.js') ?>"></script>
 
 <?php endif; ?>
+
+<!-- Cuadro de matrícula por grado (panorama de todos los estados) -->
+<?php
+// Filtros activos del cuadro para arrastrarlos al botón de impresión.
+$cuadroQs = http_build_query(array_filter([
+    'anio_id'  => $anioId ?: null,
+    'nivel_id' => ($nivelId ?? null) ?: null,
+]));
+?>
+<div class="card cuadro-card">
+    <div class="card__header card__header--between">
+        <h2 class="card__title">Cuadro de matrícula por grado</h2>
+        <div class="cuadro-card__acciones">
+            <form method="GET" action="<?= url('matriculas/resumen') ?>" class="cuadro-card__filtro">
+                <input type="hidden" name="anio_id" value="<?= (int) $anioId ?>">
+                <label for="nivel_id" class="form-label">Nivel</label>
+                <select name="nivel_id" id="nivel_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">Todos los niveles</option>
+                    <?php foreach (($niveles ?? []) as $nv): ?>
+                        <option value="<?= (int) $nv['id'] ?>" <?= (int) ($nivelId ?? 0) === (int) $nv['id'] ? 'selected' : '' ?>>
+                            <?= e($nv['nombre']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+            <a href="<?= url('matriculas/resumen/imprimir' . ($cuadroQs ? '?' . $cuadroQs : '')) ?>"
+               class="btn btn--secondary btn--sm" target="_blank" rel="noopener">🖨 Imprimir cuadro</a>
+        </div>
+    </div>
+    <div class="card__body">
+        <?php if (empty($cuadro)): ?>
+            <p class="empty-state">No hay matrículas registradas para el año y nivel seleccionados.</p>
+        <?php else: ?>
+            <div class="cuadro-card__scroll">
+                <?php require VIEW_PATH . '/matriculas/_cuadro-matricula.php'; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>

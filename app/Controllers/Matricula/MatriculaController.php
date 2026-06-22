@@ -7,7 +7,9 @@ use App\Models\MatriculaModel;
 use App\Models\ApoderadoModel;
 use App\Models\EstudianteModel;
 use App\Models\TrasladoModel;
+use App\Models\DirectorEbrModel;
 use Core\Session;
+use Core\View;
 
 /**
  * MatriculaController
@@ -145,11 +147,15 @@ class MatriculaController extends BaseController
     {
         $anioActivo = $this->estudiantes->anioActivo();
         $anioFiltro = (int) ($this->query('anio_id') ?: ($anioActivo['id'] ?? 0));
+        $nivelId    = (int) $this->query('nivel_id') ?: null;
 
         $anios   = $this->model->listarAnios();
         $resumen = $anioFiltro
             ? $this->model->getResumen($anioFiltro)
             : ['kpis' => [], 'por_grado' => [], 'por_tipo' => [], 'por_genero' => []];
+
+        // Cuadro cruzado por grado (panorama de todos los estados del año).
+        $cuadro = $anioFiltro ? $this->model->getCuadroMatricula($anioFiltro, $nivelId) : [];
 
         $anioSel = null;
         foreach ($anios as $a) {
@@ -159,10 +165,175 @@ class MatriculaController extends BaseController
         $this->view('matriculas/resumen', [
             'titulo'  => 'Resumen de matrículas',
             'resumen' => $resumen,
+            'cuadro'  => $cuadro,
             'anios'   => $anios,
+            'niveles' => $this->model->listarNiveles(),
             'anioId'  => $anioFiltro,
+            'nivelId' => $nivelId,
             'anioSel' => $anioSel,
         ]);
+    }
+
+    // ── GET /matriculas/resumen/imprimir ─────────────────────────
+    /**
+     * Cuadro de matrícula imprimible (A4 portrait) para el comité directivo.
+     * Solo admin y registro_academico. Panorama por grado del año (filtro
+     * opcional por nivel). Conteo único por matrícula oficial.
+     */
+    public function resumenImprimir(): void
+    {
+        $this->requireRole(['admin', 'registro_academico']);
+
+        $anioActivo = $this->estudiantes->anioActivo();
+        $anioFiltro = (int) ($this->query('anio_id') ?: ($anioActivo['id'] ?? 0));
+        $nivelId    = (int) $this->query('nivel_id') ?: null;
+
+        $cuadro = $anioFiltro ? $this->model->getCuadroMatricula($anioFiltro, $nivelId) : [];
+
+        $anioLabel = '';
+        foreach ($this->model->listarAnios() as $an) {
+            if ((int) $an['id'] === $anioFiltro) { $anioLabel = (string) $an['anio']; break; }
+        }
+        $nivelLabel = 'Todos los niveles';
+        if ($nivelId) {
+            foreach ($this->model->listarNiveles() as $nv) {
+                if ((int) $nv['id'] === $nivelId) { $nivelLabel = $nv['nombre']; break; }
+            }
+        }
+        $directorEbr = $anioFiltro
+            ? (new DirectorEbrModel())->getVigenteEnFecha($anioFiltro)
+            : null;
+
+        View::setLayout('print');
+        $this->view('matriculas/resumen-imprimir', [
+            'titulo'      => 'Cuadro de matrícula',
+            'cuadro'      => $cuadro,
+            'anioLabel'   => $anioLabel,
+            'nivelLabel'  => $nivelLabel,
+            'directorEbr' => $directorEbr,
+        ]);
+    }
+
+    // ── GET /matriculas/nomina/imprimir ──────────────────────────
+    /**
+     * Nómina detallada imprimible (reporte al comité directivo). Solo admin y
+     * registro_academico. Eje global con los MISMOS filtros del index, agrupada
+     * por sección; cada sección cierra con su cuadro resumen. Retorno de grado:
+     * el alumno aparece en su sección oficial Y en la operativa (regla R3).
+     */
+    public function nominaImprimir(): void
+    {
+        $this->requireRole(['admin', 'registro_academico']);
+
+        $anioActivo = $this->estudiantes->anioActivo();
+        $anioFiltro = (int) ($this->query('anio_id') ?: ($anioActivo['id'] ?? 0));
+
+        $filtros = [
+            'anio_id'    => $anioFiltro ?: null,
+            'grado_id'   => (int) $this->query('grado_id') ?: null,
+            'seccion_id' => (int) $this->query('seccion_id') ?: null,
+            'estado'     => $this->query('estado') ?: null,
+            'tipo'       => $this->query('tipo') ?: null,
+            'search'     => trim((string) $this->query('search', '')) ?: null,
+        ];
+
+        $alumnos = $this->model->listarParaNomina($filtros);
+
+        // Agrupar por sección preservando el orden (nivel→grado→sección→apellidos).
+        $grupos = [];
+        foreach ($alumnos as $a) {
+            $sid = (int) ($a['seccion_id'] ?? 0);
+            if (!isset($grupos[$sid])) {
+                $grupos[$sid] = [
+                    'seccion_id'     => $sid,
+                    'nivel_nombre'   => $a['nivel_nombre']   ?? '',
+                    'grado_nombre'   => $a['grado_nombre']   ?? '',
+                    'seccion_nombre' => $a['seccion_nombre'] ?? '',
+                    'alumnos'        => [],
+                ];
+            }
+            $grupos[$sid]['alumnos'][] = $a;
+        }
+        foreach ($grupos as &$g) {
+            $g['resumen'] = $this->resumenSeccionNomina($g['alumnos']);
+        }
+        unset($g);
+
+        // Año del reporte (etiqueta) y sello del Director EBR vigente de ese año.
+        $anioLabel = '';
+        foreach ($this->model->listarAnios() as $an) {
+            if ((int) $an['id'] === $anioFiltro) { $anioLabel = (string) $an['anio']; break; }
+        }
+        $directorEbr = $anioFiltro
+            ? (new DirectorEbrModel())->getVigenteEnFecha($anioFiltro)
+            : null;
+
+        View::setLayout('print');
+        $this->view('matriculas/nomina-imprimir', [
+            'titulo'       => 'Nómina detallada de matrículas',
+            'grupos'       => array_values($grupos),
+            'totalGeneral' => count($alumnos),
+            'filtrosTexto' => $this->describirFiltrosNomina($filtros),
+            'anioLabel'    => $anioLabel,
+            'directorEbr'  => $directorEbr,
+        ]);
+    }
+
+    /**
+     * Cuadro resumen de una sección de la nómina. Cuenta las filas mostradas en
+     * esa sección; el género NO contabiliza a quien no tiene registro (sexo NULL).
+     * Lleva además el detalle de retorno de grado de la sección:
+     *  - cursan_aqui: filas operativas (el alumno cursa en esta aula).
+     *  - informativa: filas oficiales cuyo alumno cursa en otro grado.
+     */
+    private function resumenSeccionNomina(array $alumnos): array
+    {
+        $r = [
+            'total'       => count($alumnos),
+            'tipo'        => ['nuevo' => 0, 'continuador' => 0, 'trasladado' => 0],
+            'estado'      => ['aprobada' => 0, 'pendiente' => 0, 'desactivado' => 0],
+            'genero'      => ['M' => 0, 'F' => 0],
+            'cursan_aqui' => 0,
+            'informativa' => 0,
+        ];
+        foreach ($alumnos as $a) {
+            if (isset($r['tipo'][$a['tipo']]))     { $r['tipo'][$a['tipo']]++; }
+            if (isset($r['estado'][$a['estado']])) { $r['estado'][$a['estado']]++; }
+            if ($a['sexo'] === 'M' || $a['sexo'] === 'F') { $r['genero'][$a['sexo']]++; }
+            if (!empty($a['retorno_oficial_id']))   { $r['cursan_aqui']++; }
+            if (!empty($a['retorno_operativa_id'])) { $r['informativa']++; }
+        }
+        return $r;
+    }
+
+    /** Texto legible de los filtros aplicados, para el encabezado del reporte. */
+    private function describirFiltrosNomina(array $f): string
+    {
+        $estados = ['aprobada' => 'Aprobado', 'pendiente' => 'Pendiente', 'desactivado' => 'Desactivado'];
+        $tipos   = ['nuevo' => 'Nuevo', 'continuador' => 'Continuador', 'trasladado' => 'Trasladado'];
+
+        $partes = [];
+        if (!empty($f['grado_id'])) {
+            foreach ($this->model->listarGrados() as $g) {
+                if ((int) $g['id'] === (int) $f['grado_id']) {
+                    $partes[] = 'Grado: ' . $g['nivel_nombre'] . ' ' . $g['nombre_display'];
+                    break;
+                }
+            }
+        }
+        if (!empty($f['seccion_id']) && !empty($f['anio_id'])) {
+            foreach ($this->model->listarSecciones((int) $f['anio_id']) as $s) {
+                if ((int) $s['id'] === (int) $f['seccion_id']) {
+                    $partes[] = 'Sección: ' . $s['grado_nombre'] . ' ' . $s['nombre'];
+                    break;
+                }
+            }
+        }
+        if (!empty($f['estado'])) { $partes[] = 'Estado: ' . ($estados[$f['estado']] ?? $f['estado']); }
+        if (!empty($f['tipo']))   { $partes[] = 'Tipo: ' . ($tipos[$f['tipo']] ?? $f['tipo']); }
+        if (!empty($f['search'])) { $partes[] = 'Búsqueda: ' . $f['search']; }
+
+        return $partes ? implode(' · ', $partes) : 'Todos los registros del año';
     }
 
     // ── GET /matriculas/crear ────────────────────────────────────
