@@ -729,6 +729,101 @@ registran en el casillero de un área oficial que cede ese tramo de grados.
 - **Rutas** (registradas ANTES de `/director/bloqueos/{id}/desbloquear`):
   `POST /director/bloqueos/conducta/{seccion_id}/{bloquear|cerrar|reabrir}`.
 
+## Nómina del docente — buscador destacado + íconos de sección (22/06/2026)
+
+`/docente/nomina` (`Docente\PanelController::nomina`, vista `resources/views/docente/nomina.php`).
+- **El buscador es la acción principal y va PRIMERO**, destacado: card `.nomina-buscar`
+  (borde de marca + acento lateral `$brand-accent` + fondo `$brand-light` + sombra),
+  campo con ícono de lupa (patrón `.buscador__campo`/`.buscador__icono`/`.buscador__input`),
+  `autofocus`. El panel **Imprimir nómina** baja al final como acción secundaria
+  (`.nomina-imprimir-card`: fondo gris, borde punteado).
+- **Cada sección lleva su ícono de título** (`.nomina-seccion-ico`, mask + currentColor):
+  Buscar → `lupa-look.svg`; Imprimir → `printer.svg`.
+- El `h1` lleva el ícono de concepto wayfinding (ver sección siguiente).
+- SASS en `pages/_docente-panel.scss`. JS `public/js/nomina.js` intacto (todo por ID).
+
+## Wayfinding en el h1 de cada vista del docente (22/06/2026)
+
+> Continuidad card→vista: el `h1` de cada vista a la que lleva una card del
+> dashboard del docente lleva el MISMO glifo que la card, pequeño (`1.05em`) y
+> antes del texto, tintando SOLO el ícono con el tono `-ink` del concepto (texto
+> neutro = subtil). Refuerza el [sistema wayfinding por color](#sistema-de-color-wayfinding-16062026).
+
+- **Punto único de verdad** en `pages/_docente-panel.scss`, junto al mapa de las
+  cards (`.dpanel-card--*`): clase base `.page-title--wf` (icono vía `::before`,
+  mask con `var(--wf-icon)` tintado con `var(--wf-ink)`) + modificadores por concepto.
+- **Mapa concepto → ícono → color** (los `h1` y las cards comparten glifo):
+  | Concepto | Modificador h1 | Ícono | `-ink` |
+  |---|---|---|---|
+  | Mis cargas | `page-title--cargas` | `book-bookmark` | azul |
+  | Tutoría | `page-title--tutoria` | `users-group-rounded` | teal |
+  | Conducta | `page-title--conducta` | `smile` | púrpura |
+  | Nómina | `page-title--nomina` | `childs-students` | naranja |
+  | Orden de mérito | `page-title--merito` | `medal-ribbon-star` | naranja (familia Nómina) |
+  | Ranking por sección | `page-title--ranking` | `ver-resumen` | naranja (familia Nómina) |
+- Aplicado en `mis-cargas`, `tutoria`, `conducta`, `nomina`, `orden-merito`
+  (selector compartido: el modificador se elige por `$rutaBase`) y las dos vistas
+  de periodo de mérito/ranking.
+- **Colisión de íconos resuelta**: `users-group-rounded` quedó EXCLUSIVO de Tutoría.
+  La card Nómina y su acción "Ver nómina" usan `childs-students`; "Buscar estudiante"
+  usa `lupa-look`.
+- **REGLA de coexistencia de colores (opción A — por rol/forma):** el color de
+  CONCEPTO (wayfinding) vive solo en el chrome (cards + `h1`); el color de SECCIÓN
+  (`--sec-*`, paleta por letra A-F en `_dashboard.scss`) vive en chips/anclas
+  (`.seccion-ancla`). Comparten varios hex (Conducta púrpura == Sección B,
+  Tutoría teal == Sección C), pero NO se confunden porque cada sistema vive en
+  una forma/posición distinta. NUNCA pintar un `h1` con color de sección ni un
+  chip de sección con color de concepto.
+
+## Módulo de consulta de calificaciones — solo lectura (22/06/2026)
+
+> Capa de SUPERVISIÓN read-only: ver el detalle criterio-a-criterio de notas ya
+> oficiales, sin editar. La edición sigue en `/rectificaciones` (que audita).
+
+- **Eje:** periodo → sección → área/carga → grilla criterio-a-criterio.
+- **Alcance:** SOLO lo oficial (competencias con bloqueo), mismo criterio que la
+  boleta. Bimestres activos y cerrados.
+- **Controlador:** `app/Controllers/Consulta/ConsultaNotasController.php`
+  (`requireRole(['admin','registro_academico','director_general','director_ebr'])`).
+  3 métodos: `index` (selector de periodo + grid de secciones), `seccion`
+  (áreas/cargas de la sección), `carga` (grillas read-only por competencia).
+- **Sin métodos de modelo nuevos:** navega con
+  `CalificacionModel::getCompetenciasPorPeriodo()` filtrando `bloqueo_id != null`
+  en PHP, y arma el detalle con `getResumenCompetencia()` (+ omisiones/exonerados,
+  igual que el resumen del docente).
+- **Vistas:** `resources/views/consulta-notas/{index,seccion,carga,_tabla}.php`.
+  `_tabla.php` es el parcial read-only (mismo lenguaje visual que el resumen del
+  docente: `.tabla-resumen`, `.nota-numeral`, `.exo-badge`, `.omision-badge`…),
+  SIN inputs ni botones; la conclusión se muestra como texto. `carga.php` lo
+  `require VIEW_PATH . '/consulta-notas/_tabla.php'` por cada competencia.
+- **Rutas:** `/consulta-notas`,
+  `/consulta-notas/{periodo_id}/seccion/{seccion_id}`,
+  `/consulta-notas/{periodo_id}/carga/{carga_id}`.
+- **Entradas:** botón "Consultar notas (lectura)" en `/director/bloqueos`
+  (lleva el periodo actual) y en `/rectificaciones`.
+- **SASS:** `pages/_consulta-notas.scss` (solo las listas de navegación; el detalle
+  reusa estilos existentes). Importado en `app.scss`.
+- **Filtro por nivel del Director EBR: NO aplicado**, igual que `/director/bloqueos`
+  (no existe mapeo usuario→nivel en el sistema). Si se requiere, es un añadido aparte.
+- `getCompetenciasPorPeriodo()` ahora incluye `pu.apellido_materno AS docente_materno`
+  para mostrar el nombre completo del docente (no rompe `/director/bloqueos`).
+
+### Histórico del docente (F2) — bimestres cerrados en solo lectura
+- **Selector de bimestre en `/docente/mis-cargas`**: `<select class="form-select">`
+  con layout compacto `.cargas-periodo` (en `pages/_dashboard.scss`). Default = activo
+  (comportamiento de siempre). `getCargas()` ya recibe `periodoId`.
+- Si el bimestre elegido NO es el activo (`$esHistorico`), las cards enlazan a la
+  vista read-only y el badge del header marca "· solo lectura".
+- **Ruta:** `GET /docente/calificaciones/{carga_id}/historial/{periodo_id}`
+  (5 segmentos: no colisiona con el patrón base de 3, el router ancla `^…$`).
+  Registrada ANTES del patrón base por orden de lectura.
+- **`CalificacionController::historial()`**: valida que la carga sea del docente
+  (`validarCargaDocente`, filtra por usuario → solo SUS cargas), arma sus
+  competencias bloqueadas del periodo y **reutiliza `consulta-notas/_tabla.php`**
+  vía la vista `resources/views/docente/historial-carga.php`.
+- El `formulario` editable sigue clavado al periodo activo (`getPeriodoActivo`);
+  el histórico es una ruta paralela de solo lectura.
+
 ## Módulo Director EBR — historial de cargo (sesión 7)
 
 ### Tabla `director_ebr_historial`
