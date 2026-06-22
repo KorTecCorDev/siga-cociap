@@ -25,7 +25,7 @@ $boletaEtiqueta   = $boletaBorrador
 <div class="page-header">
     <a href="<?= url('docente/inicio') ?>" class="btn btn--secondary btn--sm">← Volver</a>
     <div>
-        <h1 class="page-title">Nómina de matriculados</h1>
+        <h1 class="page-title page-title--wf page-title--nomina">Nómina de matriculados</h1>
         <p class="page-subtitle"><?= $total ?> estudiantes aprobados en tus niveles</p>
     </div>
 </div>

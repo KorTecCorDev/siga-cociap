@@ -124,6 +124,38 @@
 
 }
 
+// ── Wayfinding en el h1 de la vista destino ──────────────────
+// Continuidad card -> vista: el titulo de cada vista a la que llega una card
+// lleva el MISMO glifo que la card, pequeno y antes del texto. Se tinta SOLO el
+// icono con el tono -ink del concepto; el texto del h1 queda neutro (subtil).
+// Comparte el mapa concepto->icono con .dpanel-card--* de arriba (punto unico
+// de verdad). REGLA: el color de CONCEPTO vive solo en el chrome (cards + este
+// h1); el color de SECCION (--sec-*) vive en chips/anclas. No se mezclan.
+.page-title--wf {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+
+    &::before {
+        content: "";
+        flex: 0 0 auto;
+        width: 1.05em;
+        height: 1.05em;
+        background-color: var(--wf-ink, currentColor);
+        -webkit-mask: var(--wf-icon) center / contain no-repeat;
+                mask: var(--wf-icon) center / contain no-repeat;
+    }
+}
+
+.page-title--cargas   { --wf-icon: url("../assets/icons/book-bookmark.svg");       --wf-ink: #{$card-cargas-ink}; }
+.page-title--tutoria  { --wf-icon: url("../assets/icons/users-group-rounded.svg"); --wf-ink: #{$card-tutoria-ink}; }
+.page-title--conducta { --wf-icon: url("../assets/icons/smile.svg");               --wf-ink: #{$card-conducta-ink}; }
+.page-title--nomina   { --wf-icon: url("../assets/icons/childs-students.svg");      --wf-ink: #{$card-nomina-ink}; }
+// Merito y ranking se acceden desde la card Nomina: heredan su tono naranja
+// (misma familia visual) y solo cambian de glifo para distinguir la herramienta.
+.page-title--merito   { --wf-icon: url("../assets/icons/medal-ribbon-star.svg");   --wf-ink: #{$card-nomina-ink}; }
+.page-title--ranking  { --wf-icon: url("../assets/icons/ver-resumen.svg");          --wf-ink: #{$card-nomina-ink}; }
+
 // ── Iconos de los paneles de contenido (Pendientes / Mi horario) ──
 // Tono NEUTRO (currentColor del titulo), SIN color wayfinding: son paneles de
 // contenido, no accesos. El wayfinding por color queda reservado a las cards.
@@ -263,7 +295,7 @@
     -webkit-mask: var(--nsi-icon) center / contain no-repeat;
             mask: var(--nsi-icon) center / contain no-repeat;
 
-    &--buscar { --nsi-icon: url("../assets/icons/users-group-rounded.svg"); }
+    &--buscar { --nsi-icon: url("../assets/icons/lupa-look.svg"); }
     &--print  { --nsi-icon: url("../assets/icons/printer.svg"); }
 }
 
@@ -684,7 +716,7 @@
     }
 
     // Icono propio por accion (mask + currentColor).
-    &--nomina  { --accion-icon: url("../assets/icons/users-group-rounded.svg"); }
+    &--nomina  { --accion-icon: url("../assets/icons/childs-students.svg"); }
     &--merito  { --accion-icon: url("../assets/icons/medal-ribbon-star.svg"); }
     &--seccion { --accion-icon: url("../assets/icons/ver-resumen.svg"); }
 }

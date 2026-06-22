@@ -18,7 +18,7 @@ $pid       = (int) $periodoSel['id'];
 <div class="page-header">
     <a href="<?= url('docente/inicio') ?>" class="btn btn--secondary btn--sm">← Volver</a>
     <div>
-        <h1 class="page-title">Conducta — Sección <?= e($seccion['nombre']) ?></h1>
+        <h1 class="page-title page-title--wf page-title--conducta">Conducta — Sección <?= e($seccion['nombre']) ?></h1>
         <p class="page-subtitle">
             <?= e($seccion['grado_nombre']) ?> <?= e($seccion['nivel_nombre']) ?>
             · <strong><?= e($periodoSel['nombre_display']) ?></strong>

@@ -23,7 +23,7 @@ $pid      = (int) $periodoSel['id'];
     <a href="<?= url('docente/inicio') ?>"
        class="btn btn--secondary btn--sm">← Volver</a>
     <div>
-        <h1 class="page-title">Tutoría — Competencias Transversales</h1>
+        <h1 class="page-title page-title--wf page-title--tutoria">Tutoría — Competencias Transversales</h1>
         <p class="page-subtitle">
             <?= e($seccion['nivel_nombre']) ?> —
             <?= e($seccion['grado_nombre']) ?> —

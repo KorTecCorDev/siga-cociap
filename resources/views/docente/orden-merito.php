@@ -6,11 +6,12 @@
  * @var string $rutaBase  'docente/orden-merito' | 'docente/ranking-seccion'
  * @var string $titulo
  */
+$wfMod = $rutaBase === 'docente/ranking-seccion' ? 'page-title--ranking' : 'page-title--merito';
 ?>
 
 <div class="page-header">
     <a href="<?= url('docente/inicio') ?>" class="btn btn--secondary btn--sm">← Volver</a>
-    <h1 class="page-title"><?= e($titulo) ?></h1>
+    <h1 class="page-title page-title--wf <?= $wfMod ?>"><?= e($titulo) ?></h1>
 </div>
 
 <?php if (empty($periodos)): ?>

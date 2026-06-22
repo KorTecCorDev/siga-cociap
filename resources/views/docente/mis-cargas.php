@@ -9,7 +9,7 @@
 
 <div class="page-header">
     <a href="<?= url('docente/inicio') ?>" class="btn btn--secondary btn--sm">← Volver</a>
-    <h1 class="page-title">Mis cargas académicas</h1>
+    <h1 class="page-title page-title--wf page-title--cargas">Mis cargas académicas</h1>
     <?php if ($tieneAula): ?>
         <span class="badge badge--aula">
             <?= e(rol_aula(auth()['sexo'] ?? null)) ?> — <?= e($aula) ?> Primaria

@@ -12,7 +12,7 @@
 <div class="page-header">
     <a href="<?= url('docente/orden-merito') ?>" class="btn btn--secondary btn--sm">← Volver</a>
     <div>
-        <h1 class="page-title">Orden de mérito <span class="merito-tag merito-tag--grado">del grado</span></h1>
+        <h1 class="page-title page-title--wf page-title--merito">Orden de mérito <span class="merito-tag merito-tag--grado">del grado</span></h1>
         <p class="page-subtitle"><?= e($periodo['nombre_display']) ?> — <?= e($periodo['anio']) ?></p>
     </div>
 </div>

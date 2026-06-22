@@ -12,7 +12,7 @@
 <div class="page-header">
     <a href="<?= url('docente/ranking-seccion') ?>" class="btn btn--secondary btn--sm">← Volver</a>
     <div>
-        <h1 class="page-title">Ranking <span class="merito-tag merito-tag--seccion">por sección</span></h1>
+        <h1 class="page-title page-title--wf page-title--ranking">Ranking <span class="merito-tag merito-tag--seccion">por sección</span></h1>
         <p class="page-subtitle"><?= e($periodo['nombre_display']) ?> — <?= e($periodo['anio']) ?></p>
     </div>
 </div>
