@@ -53,9 +53,38 @@ class CalificacionController extends BaseController
      */
     public function misCargas(): void
     {
-        $user    = Session::user();
-        $periodo = $this->getPeriodoActivo();
-        $cargas  = $this->getCargas($user['id'], $periodo ? (int) $periodo['id'] : 0);
+        $user          = Session::user();
+        $periodoActivo = $this->getPeriodoActivo();
+
+        // Bimestres seleccionables del año vigente: activo + cerrados. Sirven
+        // para que el docente revise sus notas de bimestres pasados (read-only).
+        $periodos = $this->calModel->query("
+            SELECT p.id, p.numero, p.nombre_display, p.estado, a.anio
+            FROM periodos p
+            INNER JOIN anios_academicos a ON a.id = p.anio_id
+            WHERE a.estado = 'activo'
+              AND p.estado IN ('activo', 'cerrado')
+            ORDER BY p.numero ASC
+        ");
+
+        // Periodo seleccionado: el de la query si es valido; si no, el activo.
+        $periodoId = (int) ($this->query('periodo_id') ?? 0);
+        $periodo   = null;
+        foreach ($periodos as $p) {
+            if ((int) $p['id'] === $periodoId) {
+                $periodo = $p;
+                break;
+            }
+        }
+        if (!$periodo) {
+            $periodo = $periodoActivo;
+        }
+
+        // Historico = el periodo elegido NO es el activo (grilla en solo lectura).
+        $esHistorico = $periodo
+            && (!$periodoActivo || (int) $periodo['id'] !== (int) $periodoActivo['id']);
+
+        $cargas = $this->getCargas($user['id'], $periodo ? (int) $periodo['id'] : 0);
 
         // Docente de aula (unidocente): es tutor(a) de aula si alguna carga es de
         // una seccion es_unidocente. La vista marca ESE grupo como "Mi aula"; las
@@ -74,11 +103,99 @@ class CalificacionController extends BaseController
         // Tutoría y Conducta tienen sus propias cards de acceso en el dashboard
         // (/docente/inicio); aquí solo se listan las cargas académicas.
         $this->view('docente/mis-cargas', [
-            'titulo'    => 'Mis cargas académicas',
-            'cargas'    => $cargas,
-            'periodo'   => $periodo,
-            'tieneAula' => $tieneAula,
-            'aula'      => $aula,
+            'titulo'      => 'Mis cargas académicas',
+            'cargas'      => $cargas,
+            'periodo'     => $periodo,
+            'periodos'    => $periodos,
+            'esHistorico' => $esHistorico,
+            'tieneAula'   => $tieneAula,
+            'aula'        => $aula,
+        ]);
+    }
+
+    /**
+     * GET /docente/calificaciones/{carga_id}/historial/{periodo_id}
+     * Grilla criterio-a-criterio de SU carga en un bimestre cerrado, SOLO
+     * LECTURA. Muestra unicamente las competencias oficiales (bloqueadas) y
+     * reutiliza el parcial consulta-notas/_tabla.php. Para corregir se usa
+     * Rectificacion (RA); aqui no hay edicion.
+     */
+    public function historial(string $cargaId, string $periodoId): void
+    {
+        $cargaId   = (int) $cargaId;
+        $periodoId = (int) $periodoId;
+
+        // validarCargaDocente filtra por docente_id = usuario actual: garantiza
+        // que el docente solo abra SUS propias cargas.
+        $carga = $this->validarCargaDocente($cargaId);
+        if (!$carga) {
+            $this->redirectWithError(url('docente/mis-cargas'), 'Carga no encontrada.');
+        }
+
+        $periodo = $this->calModel->queryOne("
+            SELECT p.*, a.anio
+            FROM periodos p
+            INNER JOIN anios_academicos a ON a.id = p.anio_id
+            WHERE p.id = ?
+        ", [$periodoId]);
+        if (!$periodo) {
+            $this->redirectWithError(url('docente/mis-cargas'), 'Periodo no encontrado.');
+        }
+
+        // Competencias OFICIALES (con bloqueo) de la carga en ese periodo.
+        $bloqueadas = $this->calModel->query("
+            SELECT comp.id,
+                   comp.nombre_completo,
+                   comp.codigo_minedu,
+                   (a.tipo = 'transversal') AS es_transversal
+            FROM bloqueos_competencia bc
+            INNER JOIN competencias comp ON comp.id = bc.competencia_id
+            LEFT  JOIN areas a ON a.id = comp.area_id
+            WHERE bc.carga_id   = ?
+              AND bc.periodo_id = ?
+            ORDER BY comp.orden, comp.id
+        ", [$cargaId, $periodoId]);
+
+        $exonerados   = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
+        $competencias = [];
+
+        foreach ($bloqueadas as $b) {
+            $competenciaId = (int) $b['id'];
+            $resumen = $this->calModel->getResumenCompetencia($cargaId, $competenciaId, $periodoId);
+
+            $omisionesPorCriterio = [];
+            foreach ($resumen['criterios'] as $cr) {
+                $omisionesPorCriterio[(int) $cr['id']] =
+                    $this->omisionModel->getPorCriterio((int) $cr['id']);
+            }
+            foreach ($resumen['alumnos'] as &$al) {
+                $al['omisiones_criterios'] = [];
+                $mid = (int) $al['matricula_id'];
+                foreach ($omisionesPorCriterio as $critId => $porMat) {
+                    if (isset($porMat[$mid])) {
+                        $al['omisiones_criterios'][$critId] = $porMat[$mid];
+                    }
+                }
+            }
+            unset($al);
+
+            $competencias[] = [
+                'competencia' => [
+                    'nombre_completo' => $b['nombre_completo'],
+                    'codigo_minedu'   => $b['codigo_minedu'],
+                    'es_transversal'  => $b['es_transversal'],
+                ],
+                'criterios' => $resumen['criterios'],
+                'alumnos'   => $resumen['alumnos'],
+            ];
+        }
+
+        $this->view('docente/historial-carga', [
+            'titulo'       => 'Historial — ' . ($carga['nombre_display'] ?? ''),
+            'carga'        => $carga,
+            'periodo'      => $periodo,
+            'competencias' => $competencias,
+            'exonerados'   => $exonerados,
         ]);
     }
 

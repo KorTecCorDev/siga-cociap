@@ -33,6 +33,8 @@ $coPct   = $coTotal > 0 ? round($coCerr / $coTotal * 100) : 0;
         <h1 class="page-title">Gestión de bloqueos del bimestre</h1>
         <p class="page-subtitle">Controla el permiso de edición de calificaciones por periodo</p>
     </div>
+    <a href="<?= url('consulta-notas' . ($periodoId ? '?periodo_id=' . (int) $periodoId : '')) ?>"
+       class="btn btn--secondary btn--sm">Consultar notas (lectura)</a>
 </div>
 
 <div class="card mb-md">

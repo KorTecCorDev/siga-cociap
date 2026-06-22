@@ -146,6 +146,15 @@ $router->get( '/rectificaciones/editar',          'Rectificacion\RectificacionCo
 $router->post('/rectificaciones/guardar',         'Rectificacion\RectificacionController@guardar');
 $router->get( '/rectificaciones/matricula/{id}',  'Rectificacion\RectificacionController@matricula');
 
+// ─── Consulta de calificaciones (solo lectura) ───────────────
+// Supervision read-only por periodo -> seccion -> area/carga. Solo muestra
+// lo oficial (bloqueado). admin/registro_academico/director (gateado en el
+// controlador). Literales primero; las sub-rutas con dos params no chocan con
+// la literal /consulta-notas por tener mas segmentos.
+$router->get('/consulta-notas',                                   'Consulta\ConsultaNotasController@index');
+$router->get('/consulta-notas/{periodo_id}/seccion/{seccion_id}', 'Consulta\ConsultaNotasController@seccion');
+$router->get('/consulta-notas/{periodo_id}/carga/{carga_id}',     'Consulta\ConsultaNotasController@carga');
+
 // ─── Constancias de traslado (registro oficial) ──────────────
 $router->get( '/traslados',                'Matricula\TrasladoController@index');
 $router->get( '/traslados/{id}/imprimir',  'Matricula\TrasladoController@imprimir');
@@ -169,6 +178,9 @@ $router->get( '/docente/ranking-seccion/{periodo_id}',  'Docente\OrdenMeritoCont
 
 // ─── Calificaciones ──────────────────────────────────────────
 $router->get( '/docente/mis-cargas',                        'Docente\CalificacionController@misCargas');
+// Historico del docente: grilla read-only de SU carga en un bimestre cerrado.
+// 5 segmentos: no colisiona con el patron base de 3 (el router ancla ^...$).
+$router->get( '/docente/calificaciones/{carga_id}/historial/{periodo_id}', 'Docente\CalificacionController@historial');
 $router->get( '/docente/calificaciones/{carga_id}',         'Docente\CalificacionController@formulario');
 $router->post('/docente/calificaciones/{carga_id}/guardar',   'Docente\CalificacionController@guardar');
 $router->post('/docente/calificaciones/{carga_id}/autosave',  'Docente\CalificacionController@autosave');

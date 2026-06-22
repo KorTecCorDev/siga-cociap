@@ -14,6 +14,7 @@
             Busca al estudiante para empezar.
         </p>
     </div>
+    <a href="<?= url('consulta-notas') ?>" class="btn btn--secondary btn--sm">Consultar notas (lectura)</a>
 </div>
 
 <?php if ($flash_success): ?>

@@ -1,7 +1,9 @@
 <?php
 /**
  * @var array      $cargas
- * @var array|null $periodo
+ * @var array|null $periodo      bimestre seleccionado (activo por defecto)
+ * @var array      $periodos     bimestres del año vigente (activo + cerrados)
+ * @var bool       $esHistorico  el bimestre elegido NO es el activo (solo lectura)
  * @var bool       $tieneAula  es tutor(a) de aula (unidocente de alguna seccion)
  * @var string|null $aula      etiqueta del aula (ej. "1° A") cuando tiene aula
  */
@@ -16,14 +18,38 @@
         </span>
     <?php endif; ?>
     <?php if ($periodo): ?>
-        <span class="badge badge--activo">
+        <span class="badge <?= $esHistorico ? 'badge--warning' : 'badge--activo' ?>">
             <?= e($periodo['nombre_display'] ?? 'Periodo activo') ?>
             — <?= e($periodo['anio']) ?>
+            <?= $esHistorico ? ' · solo lectura' : '' ?>
         </span>
     <?php else: ?>
         <span class="badge badge--warning">Sin periodo activo</span>
     <?php endif; ?>
 </div>
+
+<?php if (count($periodos) > 1): ?>
+    <div class="card mb-md">
+        <div class="card__body">
+            <form method="GET" action="<?= url('docente/mis-cargas') ?>" class="cargas-periodo">
+                <label class="form-label" for="periodo_id">Bimestre</label>
+                <select name="periodo_id" id="periodo_id"
+                        class="form-select cargas-periodo__select" onchange="this.form.submit()">
+                    <?php foreach ($periodos as $p): ?>
+                        <option value="<?= (int) $p['id'] ?>"
+                            <?= $periodo && (int) $periodo['id'] === (int) $p['id'] ? 'selected' : '' ?>>
+                            <?= e($p['nombre_display']) ?> <?= e($p['anio']) ?>
+                            (<?= $p['estado'] === 'cerrado' ? 'cerrado' : 'activo' ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="text-sm text-muted cargas-periodo__hint">
+                    Elige un bimestre cerrado para revisar tus notas en solo lectura.
+                </p>
+            </form>
+        </div>
+    </div>
+<?php endif; ?>
 
 <?php if (empty($cargas)): ?>
     <div class="empty-state">
@@ -103,6 +129,15 @@
             ? ' <span class="carga-transversal__icono" aria-hidden="true"></span>'
             : '';
         return [$estado, 'Transversales ' . $bloqueadas . '/' . $total . $icono];
+    };
+
+    // Destino del clic en una carga: en bimestre activo va al flujo editable;
+    // en un bimestre cerrado (historico) va a la grilla de SOLO LECTURA.
+    $cargaUrl = function ($id) use ($esHistorico, $periodo) {
+        $id = (int) $id;
+        return $esHistorico
+            ? url('docente/calificaciones/' . $id . '/historial/' . (int) $periodo['id'])
+            : url('docente/calificaciones/' . $id);
     };
 
     // Agrupar: nivel+grado → seccion_id → area_id → cargas[]
@@ -205,7 +240,7 @@
                                         <?php foreach ($areaCargas as $carga): ?>
                                             <?php [$bloqueadas, $total, $pct, $estado] = $avanceCarga($carga); ?>
                                             <?php [$badgeClase, $badgeTexto] = $estadoBadge($carga); ?>
-                                            <a href="<?= url('docente/calificaciones/' . $carga['id']) ?>"
+                                            <a href="<?= $cargaUrl($carga['id']) ?>"
                                                class="carga-item <?= $periodo ? '' : 'carga-item--disabled' ?>">
 
                                                 <?php if ($esAula && !empty($carga['competencia_corto'])): ?>
@@ -261,7 +296,7 @@
                                 [$bloqueadas, $total, $pct, $estado] = $avanceCarga($carga);
                                 [$badgeClase, $badgeTexto] = $estadoBadge($carga);
                                 ?>
-                                <a href="<?= url('docente/calificaciones/' . $carga['id']) ?>"
+                                <a href="<?= $cargaUrl($carga['id']) ?>"
                                    class="carga-item <?= $esAula ? 'carga-item--aula' : '' ?> <?= $periodo ? '' : 'carga-item--disabled' ?>">
 
                                     <div class="carga-item__nombre">

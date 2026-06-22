@@ -118,6 +118,31 @@
     gap: $spacing-md;
 }
 
+// Filtro de bimestre en /docente/mis-cargas: label + select en una fila,
+// compacto. El select usa .form-select (flecha custom + focus de marca).
+.cargas-periodo {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    flex-wrap: wrap;
+
+    .form-label {
+        margin: 0;
+        white-space: nowrap;
+        font-weight: 600;
+    }
+
+    &__select {
+        min-width: 220px;
+        max-width: 340px;
+    }
+
+    &__hint {
+        flex-basis: 100%;
+        margin: $spacing-xs 0 0;
+    }
+}
+
 .carga-item {
     display: flex;
     flex-direction: column;

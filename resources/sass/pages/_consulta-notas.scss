@@ -1,0 +1,68 @@
+// pages/_consulta-notas.scss — Consulta de calificaciones (solo lectura)
+// Navegacion periodo -> seccion -> area/carga. El detalle (tabla criterio-a-
+// criterio) reutiliza .tabla-resumen del resumen del docente; aqui solo se
+// estilan las dos listas de navegacion.
+
+.consulta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: $spacing-md;
+    margin-top: $spacing-md;
+}
+
+.consulta-card {
+    display: block;
+    text-decoration: none;
+    color: $text-primary;
+    border: 1px solid $border-color;
+    border-left: 4px solid $brand-accent;
+    border-radius: $border-radius-lg;
+    background: $bg-white;
+    padding: $spacing-md;
+    transition: $transition;
+
+    &:hover {
+        box-shadow: $shadow-md;
+        transform: translateY(-2px);
+        text-decoration: none;
+        color: $text-primary;
+    }
+
+    &__titulo { font-weight: 700; font-size: $font-size-lg; }
+    &__nivel  { font-size: $font-size-sm; color: $text-muted; }
+    &__meta   { margin-top: $spacing-sm; font-size: $font-size-sm; color: $text-secondary; }
+}
+
+.consulta-cargas {
+    list-style: none;
+    margin: $spacing-md 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+}
+
+.consulta-carga {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-md;
+    padding: $spacing-md;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-lg;
+    background: $bg-white;
+    text-decoration: none;
+    color: $text-primary;
+    transition: $transition;
+
+    &:hover {
+        border-color: $brand-accent;
+        box-shadow: $shadow-md;
+        text-decoration: none;
+        color: $text-primary;
+    }
+
+    &__area    { font-weight: 600; display: block; }
+    &__docente { font-size: $font-size-sm; color: $text-muted; display: block; }
+    &__meta    { font-size: $font-size-sm; color: $text-secondary; white-space: nowrap; }
+}

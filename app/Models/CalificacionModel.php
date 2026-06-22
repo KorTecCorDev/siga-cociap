@@ -489,6 +489,7 @@ class CalificacionModel extends BaseModel
                 s.nombre             AS seccion_nombre,
                 ud.id                AS docente_id,
                 pu.apellido_paterno  AS docente_apellido,
+                pu.apellido_materno  AS docente_materno,
                 pu.nombres           AS docente_nombres,
                 (
                     SELECT COUNT(*)
