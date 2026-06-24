@@ -187,18 +187,27 @@
     ?>
 
     <?php foreach ($agrupadas as $grupo => $secciones): ?>
-        <?php $esAula = $grupoEsAula($secciones); ?>
-        <div class="card mb-md">
+        <?php
+        $esAula = $grupoEsAula($secciones);
+        // El grado se diferencia por jerarquia tipografica: nivel como
+        // antetitulo + grado en grande. Sin color (los grados son secuenciales).
+        $pc = $primeraDelGrupo($secciones);
+        ?>
+        <div class="card card--grado mb-md">
             <div class="card__header">
                 <?php if ($esAula): ?>
-                    <?php $pc = $primeraDelGrupo($secciones); ?>
-                    <h2 class="card__title">
-                        Mi aula — <?= e($pc['grado_nombre'] . ' ' . $pc['seccion_nombre']) ?>
-                        <?= e($pc['nivel_nombre']) ?>
-                    </h2>
+                    <div class="grado-head">
+                        <span class="grado-head__eyebrow"><?= e($pc['nivel_nombre']) ?></span>
+                        <h2 class="card__title grado-head__title">
+                            Mi aula — <?= e(trim($pc['grado_nombre'] . ' ' . $pc['seccion_nombre'])) ?>
+                        </h2>
+                    </div>
                     <span class="badge badge--aula"><?= e(rol_aula(auth()['sexo'] ?? null)) ?></span>
                 <?php else: ?>
-                    <h2 class="card__title"><?= e($grupo) ?></h2>
+                    <div class="grado-head">
+                        <span class="grado-head__eyebrow"><?= e($pc['nivel_nombre']) ?></span>
+                        <h2 class="card__title grado-head__title"><?= e($pc['grado_nombre']) ?></h2>
+                    </div>
                 <?php endif; ?>
             </div>
             <div class="card__body">
@@ -206,20 +215,17 @@
 
                     <?php foreach ($secciones as $seccionId => $areas): ?>
                         <?php if (!$esAula):
-                            // Ancla de seccion: letra grande + color como guia
-                            // visual para no confundir secciones (1A vs 1B).
+                            // Ancla de seccion: la LETRA es el identificador (unica
+                            // dentro del grado), por eso va grande y SOLA. La letra
+                            // no se repite en texto; el grado ya lo da el encabezado
+                            // del bloque y la palabra "Seccion" solo rotula el glifo.
                             $primerArea = reset($areas);
                             $secC       = $primerArea[0];
                             $secLetra   = mb_strtoupper(mb_substr((string) ($secC['seccion_nombre'] ?? ''), 0, 1));
-                            $secColor   = in_array(mb_strtolower($secLetra), ['a','b','c','d','e','f'], true)
-                                ? mb_strtolower($secLetra) : 'x';
                         ?>
-                            <div class="seccion-ancla seccion-ancla--<?= $secColor ?>">
+                            <div class="seccion-ancla">
+                                <span class="seccion-ancla__rotulo">Sección</span>
                                 <span class="seccion-ancla__letra"><?= e($secLetra ?: '?') ?></span>
-                                <div class="seccion-ancla__texto">
-                                    <span class="seccion-ancla__grado"><?= e(trim($secC['grado_nombre'] . ' ' . $secC['seccion_nombre'])) ?></span>
-                                    <span class="seccion-ancla__nivel"><?= e($secC['nivel_nombre']) ?></span>
-                                </div>
                             </div>
                         <?php endif; ?>
                         <?php foreach ($areas as $areaId => $areaCargas): ?>

@@ -779,3 +779,44 @@ document.querySelectorAll('.btn-guardar-conclusion').forEach(btn => {
         }
     });
 });
+
+// ── "No se evaluó" — cerrar una competencia académica sin notas ──────────────
+// Solo aparece en competencias sin criterios. Reutiliza el endpoint de bloqueo
+// con sin_calificaciones=1 (mismo flujo que "no se trabajó" del resumen). Acción
+// terminal e irreversible: se exige confirmación explícita. Tras el cierre se
+// recarga para reflejar el estado bloqueado ("No evaluada").
+document.querySelectorAll('.btn-no-evaluo').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const cargaId       = btn.dataset.cargaId;
+        const competenciaId = btn.dataset.competenciaId;
+
+        if (!confirm(
+            '¿Confirmar que esta competencia NO se evaluó en el bimestre?\n\n' +
+            'Se cerrará sin registrar calificaciones y no aparecerá en la boleta. ' +
+            'Esta acción no se puede deshacer.'
+        )) return;
+
+        btn.disabled = true;
+        try {
+            const formData = new FormData();
+            formData.append('_csrf_token',       CSRF);
+            formData.append('sin_calificaciones', '1');
+
+            const res  = await fetch(
+                `${BASE}/docente/calificaciones/${cargaId}/bloquear/${competenciaId}`,
+                { method: 'POST', body: formData }
+            );
+            const data = await res.json();
+
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('⚠ ' + (data.mensaje || 'No se pudo completar la acción.'));
+                btn.disabled = false;
+            }
+        } catch (err) {
+            alert('Error de conexión.');
+            btn.disabled = false;
+        }
+    });
+});

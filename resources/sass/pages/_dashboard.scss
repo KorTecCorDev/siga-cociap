@@ -6,6 +6,30 @@
     cursor: not-allowed;
 }
 
+// Acciones de la cabecera de cada competencia (badge + boton).
+.competencia-card__acciones {
+    display: flex;
+    gap: $spacing-sm;
+    align-items: center;
+}
+
+// "No se evaluó" — accion terminal y discreta (no es el camino feliz). Borde
+// punteado y tono apagado para que NO se confunda con "Ver resumen" ni invite
+// al clic por inercia; al pasar el mouse vira a ambar (advertencia).
+.btn-no-evaluo {
+    border: 1px dashed $border-color;
+    background: transparent;
+    color: $text-muted;
+    font-weight: 600;
+
+    &:hover,
+    &:focus-visible {
+        border-color: $color-warning;
+        color: $color-warning;
+        background: transparent;
+    }
+}
+
 // ── Dashboard admin — grid de cards ─────────────────────────
 .welcome {
     margin-bottom: $spacing-xl;
@@ -143,6 +167,37 @@
     }
 }
 
+// ── Encabezado del bloque de grado ───────────────────────────
+// Los grados se diferencian por jerarquia tipografica (nivel como antetitulo +
+// grado en grande), no por color: son secuenciales y un tinte por grado
+// competiria con el azul de "Mis cargas". Un poco mas de aire entre bloques
+// consecutivos refuerza el cambio de contexto.
+.card--grado + .card--grado { margin-top: $spacing-lg; }
+
+.grado-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+
+    &__eyebrow {
+        font-size: $font-size-sm;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: $card-cargas-ink;       // azul "Mis cargas" — identidad de pagina
+    }
+
+    // Convive con .card__title (margin:0); sobrescribe tamano/peso por orden de
+    // import (pages/dashboard carga despues de components/cards).
+    &__title {
+        font-size: $font-size-xl;
+        font-weight: 700;
+        color: $text-primary;
+        line-height: 1.2;
+    }
+}
+
 .carga-item {
     display: flex;
     flex-direction: column;
@@ -265,10 +320,13 @@
 }
 
 // ── Ancla de seccion ─────────────────────────────────────────
-// Banda full-width que separa e identifica cada seccion dentro de una card
-// de grado, con la LETRA en grande + color propio. Pensada para evitar que
-// un docente registre notas en la seccion equivocada (1A vs 1B): la letra y
-// el color son anclas visuales fuertes, utiles para usuarios no tecnicos.
+// Banda full-width que identifica cada seccion dentro de una card de grado.
+// La LETRA es el identificador: dentro de un mismo grado las letras son unicas,
+// asi que el glifo grande basta para distinguir 1A de 1B sin depender del color
+// (util para usuarios no tecnicos: se ubica sin leer). Monocromo en la familia
+// "Mis cargas" (azul) para no competir con los colores de estado ni con el
+// wayfinding de concepto. La letra va SOLA (no se repite en texto): el grado lo
+// da el encabezado del bloque y "Seccion" solo rotula el glifo.
 .seccion-ancla {
     grid-column: 1 / -1;          // ocupa todo el ancho del grid de cargas
     display: flex;
@@ -277,34 +335,40 @@
     padding: $spacing-sm $spacing-md;
     margin-top: $spacing-md;
     border-radius: $border-radius-lg;
-    border-left: 6px solid var(--sec-line, #64748b);
-    background: var(--sec-bg, #f1f5f9);
+    border-left: 4px solid $card-cargas-line;
+    background: $card-cargas-bg;
 
     &:first-child { margin-top: 0; }
 
-    // Letra de la seccion, GRANDE, en un recuadro para maxima legibilidad.
+    // Letra de la seccion, GRANDE, en un recuadro para maxima legibilidad: es
+    // el ancla pre-atentiva (la forma del glifo, no el color, diferencia).
     &__letra {
         flex-shrink: 0;
-        width: 2.1em;
-        height: 2.1em;
+        width: 2.4em;
+        height: 2.4em;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.7rem;
+        font-size: 1.6rem;
         font-weight: 800;
         line-height: 1;
-        color: var(--sec-ink, #475569);
+        color: $card-cargas-ink;
         background: $bg-white;
-        border: 2px solid var(--sec-line, #64748b);
+        border: 2px solid $card-cargas-line;
         border-radius: $border-radius;
     }
 
-    &__texto { display: flex; flex-direction: column; line-height: 1.2; }
-    &__grado { font-weight: 700; font-size: $font-size-lg; color: var(--sec-ink, #475569); }
-    &__nivel { font-size: $font-size-sm; color: $text-muted; }
+    // Rotula el glifo (que es el identificador). Sin repetir la letra.
+    &__rotulo {
+        font-size: $font-size-lg;
+        font-weight: 700;
+        color: $card-cargas-ink;
+    }
 
-    // Paleta por letra (custom properties). Distinguibles entre si y sin
-    // chocar con los colores de estado (rojo/ambar/verde reservados).
+    // Paleta por letra (custom properties --sec-*). Ya NO la consume la base de
+    // .seccion-ancla (monocromo): se conserva porque el acordeon del ranking
+    // (.merito-seccion-acordeon en /docente/ranking) reutiliza la clase
+    // .seccion-ancla--{letra} solo para leer estas variables.
     &--a { --sec-line: #1d4ed8; --sec-bg: #eff6ff; --sec-ink: #1e40af; }
     &--b { --sec-line: #7c3aed; --sec-bg: #f5f3ff; --sec-ink: #6d28d9; }
     &--c { --sec-line: #0d9488; --sec-bg: #f0fdfa; --sec-ink: #0f766e; }

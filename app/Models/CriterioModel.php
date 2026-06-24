@@ -92,6 +92,24 @@ class CriterioModel extends BaseModel
     }
 
     /**
+     * Sella el criterio como CONFIRMADO por el docente (clic en "Confirmar",
+     * endpoint /guardar). El autosave NUNCA llama esto. Solo escribe si aún
+     * está en NULL, para preservar la marca de tiempo de la primera confirmación.
+     * Habilita el botón "Ver resumen" de la competencia de forma persistente.
+     */
+    public function marcarConfirmado(int $id, int $confirmadoPor): bool
+    {
+        return $this->execute(
+            "UPDATE criterios
+             SET confirmado_en  = NOW(),
+                 confirmado_por = ?
+             WHERE id           = ?
+               AND confirmado_en IS NULL",
+            [$confirmadoPor, $id]
+        );
+    }
+
+    /**
      * Soft-delete con auditoría: marca el criterio como eliminado.
      * Funciona aunque el criterio ya tenga calificaciones registradas.
      * Los registros de criterios y calificaciones_criterio se conservan en BD.

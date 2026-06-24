@@ -396,6 +396,12 @@ class CalificacionController extends BaseController
             ], 500);
         }
 
+        // Sella el criterio como CONFIRMADO (clic explícito en "Confirmar").
+        // El autosave (/autosave) nunca pasa por aquí, así que no desbloquea
+        // "Ver resumen": eso evita saltarse el filtro de omisión con el
+        // autoguardado. Es persistente (sobrevive al recargado).
+        $this->critModel->marcarConfirmado($criterioId, Session::user()['id']);
+
         $this->json([
             'success' => true,
             'mensaje' => 'Notas guardadas correctamente.',

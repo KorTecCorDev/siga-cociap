@@ -104,6 +104,27 @@
         $compBloqueada  = in_array($competencia['id'], $bloqueos ?? []);
         $esTransversal  = !empty($competencia['es_transversal']);
 
+        // ── Estado del botón de cabecera de la competencia ───────────
+        //  1) Académica sin criterios          → "No se evaluó" (terminal)
+        //  2) Con criterios, sin "Confirmar"    → "Ver resumen" BLOQUEADO
+        //  3) ≥1 criterio confirmado / aprobada → "Ver resumen" accesible
+        // El desbloqueo NO lo da el autosave: solo el clic en "Confirmar"
+        // sella `criterios.confirmado_en`. El candado de aprobación sigue
+        // viviendo dentro del resumen, en el botón "Aprobar".
+        $criteriosLive   = $competencia['criterios'] ?? [];
+        $tieneCriterios  = !empty($criteriosLive);
+        $tieneConfirmado = false;
+        foreach ($criteriosLive as $cr) {
+            if (!empty($cr['confirmado_en'])) { $tieneConfirmado = true; break; }
+        }
+        $sinNotasBloqueada = $compBloqueada
+            && (int) ($competencia['alumnos_calificados'] ?? 0) === 0;
+        $resumenAccesible  = $compBloqueada || $tieneConfirmado;
+        // "No se evaluó" es una acción de escritura: no se ofrece en un periodo
+        // bloqueado (igual que "Confirmar" y "Agregar criterio").
+        $mostrarNoEvaluo   = !$esTransversal && !$compBloqueada
+            && !$tieneCriterios && !$bloqueado;
+
         // Estado inicial del card transversal: verde si ya tiene notas
         // guardadas en alguno de sus criterios (sin parpadeo al cargar; el JS
         // mantiene el color en vivo al editar/guardar). Espeja --con-notas del
@@ -158,16 +179,29 @@
                         <?= e($competencia['nombre_completo']) ?>
                     </h3>
                 </div>
-                <div style="display:flex;gap:8px;align-items:center">
+                <div class="competencia-card__acciones">
                     <?php if ($compBloqueada): ?>
-                        <span class="badge badge--error">🔒 Aprobada</span>
+                        <?php if ($sinNotasBloqueada): ?>
+                            <span class="badge badge--info">No evaluada</span>
+                        <?php else: ?>
+                            <span class="badge badge--error">🔒 Aprobada</span>
+                        <?php endif; ?>
                     <?php endif; ?>
-                    <a href="<?= url('docente/calificaciones/' . $carga['id'] . '/resumen/' . $competencia['id']) ?>"
-                       class="btn btn--secondary btn--sm<?= !$compBloqueada ? ' btn-ver-resumen--bloqueado' : '' ?>"
-                       <?= !$compBloqueada ? 'tabindex="-1" aria-disabled="true"' : '' ?>>
-                        <span class="btn-icon btn-icon--view" aria-hidden="true"></span>
-                        Ver resumen
-                    </a>
+
+                    <?php if ($mostrarNoEvaluo): ?>
+                        <button type="button" class="btn btn--sm btn-no-evaluo"
+                                data-carga-id="<?= $carga['id'] ?>"
+                                data-competencia-id="<?= $competencia['id'] ?>">
+                            No se evaluó
+                        </button>
+                    <?php else: ?>
+                        <a href="<?= url('docente/calificaciones/' . $carga['id'] . '/resumen/' . $competencia['id']) ?>"
+                           class="btn btn--secondary btn--sm<?= !$resumenAccesible ? ' btn-ver-resumen--bloqueado' : '' ?>"
+                           <?= !$resumenAccesible ? 'tabindex="-1" aria-disabled="true" title="Confirma al menos un criterio para acceder al resumen"' : '' ?>>
+                            <span class="btn-icon btn-icon--view" aria-hidden="true"></span>
+                            Ver resumen
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -177,8 +211,13 @@
                 <?php if ($compBloqueada): ?>
                     <!-- Mensaje de bloqueada — sin botón extra -->
                     <div class="flash flash--warning">
-                        ✅ Esta competencia fue aprobada y bloqueada.
-                        Las notas ya no pueden modificarse.
+                        <?php if ($sinNotasBloqueada): ?>
+                            Esta competencia se marcó como <strong>no evaluada</strong>
+                            en este bimestre: se cierra sin notas y no aparece en la boleta.
+                        <?php else: ?>
+                            ✅ Esta competencia fue aprobada y bloqueada.
+                            Las notas ya no pueden modificarse.
+                        <?php endif; ?>
                     </div>
 
                 <?php else: ?>
