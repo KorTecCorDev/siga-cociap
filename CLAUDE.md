@@ -824,6 +824,78 @@ registran en el casillero de un área oficial que cede ese tramo de grados.
 - El `formulario` editable sigue clavado al periodo activo (`getPeriodoActivo`);
   el histórico es una ruta paralela de solo lectura.
 
+## Botón de competencia: "No se evaluó" / "Ver resumen" (24/06/2026)
+
+> En `/docente/calificaciones/{id}` el botón de cabecera de cada competencia
+> tiene 4 estados. Resuelve el viejo **Catch-22**: para finalizar una competencia
+> SIN notas (casillero cedido SIAGIE / área no usada) había que entrar al resumen,
+> pero "Ver resumen" estaba bloqueado justo por no haber notas → inalcanzable.
+> Implementado, pusheado (commit `6aaaf6d`) y en prod.
+
+### Máquina de 4 estados (vista `calificaciones.php`)
+Variables calculadas por competencia justo tras `$esTransversal` (líneas ~106):
+
+| Estado | Condición | Botón |
+|--------|-----------|-------|
+| Sin criterios (académica) | `!$esTransversal && !$compBloqueada && !$tieneCriterios && !$bloqueado` | **"No se evaluó"** — habilitado, acción terminal con `confirm()` |
+| En progreso | ≥1 criterio, ninguno confirmado | **"Ver resumen"** bloqueado (`.btn-ver-resumen--bloqueado`, tooltip) |
+| Listo | ≥1 criterio confirmado **o** aprobada (`$resumenAccesible`) | **"Ver resumen"** habilitado |
+| No evaluada | bloqueada con `alumnos_calificados == 0` (`$sinNotasBloqueada`) | badge **"No evaluada"** + mensaje propio en el cuerpo |
+
+### Regla central — el autosave NO desbloquea
+- **"Ver resumen" se desbloquea SOLO con el clic en "Confirmar"** (el submit por
+  criterio, endpoint `/guardar`). Ese handler llama
+  `CriterioModel::marcarConfirmado()` que sella `criterios.confirmado_en` (solo si
+  está NULL, para conservar la marca de la primera confirmación).
+- **El autosave (`/autosave`, en `blur`/paste) NUNCA sella `confirmado_en`** → no
+  se puede llegar al resumen salteándose el filtro de omisión ayudándose del
+  autoguardado. (El filtro de omisión sigue obligando el motivo por alumno en
+  blanco vía el modal "Confirmar y guardar".)
+- Al ser una **columna persistida** (no estado de sesión como antes, que el JS
+  quitaba y al recargar volvía), el desbloqueo **sobrevive al recargado**.
+
+### El candado de aprobación sigue en "Aprobar"
+"Ver resumen" abre con UN criterio confirmado; **aprobar** exige el flujo completo
+de siempre dentro del resumen (`errorBloqueoCompetencia`: ≥1 criterio + todos los
+alumnos con nota u omisión). Decisión de diseño: la puerta blanda en "Ver resumen",
+el candado real en "Aprobar".
+
+### "No se evaluó" — acción
+Reusa el endpoint existente `POST /docente/calificaciones/{carga}/bloquear/{comp}`
+con `sin_calificaciones=1` (mismo backend que el botón "no se trabajó" del resumen,
+`errorBloqueoCompetencia` lo acepta solo si NO hay criterios). JS en
+`calificaciones.js` (`.btn-no-evaluo`, con `confirm()` irreversible → recarga).
+Crea un bloqueo `origen='docente'` sin notas. **NO aparece en transversales**
+(no se bloquean individualmente) **ni en periodo bloqueado** (acción de escritura).
+
+### Migración `026_criterios_confirmado.sql`
+- `criterios.confirmado_en DATETIME NULL` + `confirmado_por INT UNSIGNED NULL`.
+  Idempotente (`ADD COLUMN IF NOT EXISTS`).
+- **Backfill**: todo criterio vivo con ≥1 nota queda confirmado (preserva el
+  acceso de quien ya estaba calificando; el distingo autosave/confirmar aplica
+  solo a ediciones futuras). 2308 confirmados / 15 vacíos sin confirmar al aplicar.
+
+### SASS / lectura del estado
+- `getCriterios()` hace `SELECT *` → `confirmado_en` llega solo a cada criterio
+  sin tocar el modelo. La vista calcula `$tieneConfirmado` recorriendo
+  `$competencia['criterios']`.
+- `pages/_dashboard.scss`: `.btn-no-evaluo` (discreto, borde punteado, vira a
+  ámbar en hover) + `.competencia-card__acciones` (reemplazó un `style=""` inline).
+
+## Mis cargas — ancla de sección monocroma + jerarquía de grado (24/06/2026)
+
+En `/docente/mis-cargas` (vista `mis-cargas.php`, SASS `pages/_dashboard.scss`):
+- **Ancla de sección**: la **letra es el identificador** (única dentro del grado,
+  por eso va grande y sola). Pasó a **monocromo** en la familia "Mis cargas" (azul
+  `$card-cargas-*`); se quitó la paleta por letra del ancla y el grado/nivel
+  repetidos. Render `"Sección A"` (rótulo + recuadro de la letra, sin duplicar la
+  letra). La paleta `.seccion-ancla--{letra}` (`--sec-*`) **se conserva** porque la
+  consume el acordeón del ranking (`.merito-seccion-acordeon` en `/docente/ranking`).
+- **Bloque de grado** (`.card--grado` + `.grado-head`): se diferencia por
+  **jerarquía tipográfica** (nivel como antetítulo + grado en grande), NO por color
+  (los grados son secuenciales; un tinte por grado competiría con el azul de la
+  página).
+
 ## Módulo Director EBR — historial de cargo (sesión 7)
 
 ### Tabla `director_ebr_historial`
