@@ -1,18 +1,18 @@
 // ============================================================
-// _boleta.scss — Boleta de calificaciones — A4 landscape
+// _boleta.scss — Boleta de calificaciones — A4 portrait
 // Layout: print.php | Impresora: RICOH MP4054 PCL6
 //
 // Diseño amigable para padres:
 //  · Conclusión descriptiva integrada por bimestre (2 líneas)
 //  · Filas alternas para seguimiento horizontal fácil
 //  · "Logro Anual" destacado como columna separada
-//  · Todo en una sola hoja A4 horizontal
+//  · Todo en una sola hoja A4 vertical
 //
-// Cálculo de espacio (289mm ancho × 202mm alto, márgenes 0.4cm):
-//   Fijo: th-comp 50mm + 4×(nota7+lit7) + th-final 9mm = 115mm
-//   Conclusión: (289-115) / 4 = 43.5mm c/u
-//   Altura: header12 + alumno5 + leyenda3 + thead6 + áreas(12×3.5)
-//           + comps(27×4.1) + footer9 + espacios3 ≈ 193mm ✓
+// Cálculo de espacio (A4 portrait, márgenes 1cm → útil 190mm × 277mm):
+//   Fijo: th-comp 48mm + 4×(nota6mm + lit6mm) + th-final 9mm = 105mm (secundaria)
+//   Conclusión: th-concl auto → (190 − 105) / 4 ≈ 21mm c/u
+//   (Primaria no lleva columna de nota: 48 + 4×6 + 9 = 81mm → conclusión ≈ 27mm c/u)
+//   Altura: el alto útil portrait (277mm) es holgado; todo entra en una hoja.
 // ============================================================
 
 // ── Variables ────────────────────────────────────────────────
@@ -28,6 +28,23 @@ $c-alt-bg: #f8f8f8;
 @page {
     size: A4 portrait;
     margin: 1cm;
+}
+
+// ── Página apaisada (documentos anchos: reporte de orden de mérito) ──
+// Página CSS con nombre: convive con la @page portrait por defecto sin
+// afectar a la boleta. Se activa con la clase `.doc-landscape` que
+// print.php inyecta en el <body> (variable $bodyClass del controlador).
+@page paisaje {
+    size: A4 landscape;
+    margin: 1cm;
+}
+
+body.boleta-body.doc-landscape {
+    page: paisaje;   // al imprimir/guardar PDF usa la página horizontal
+
+    @media screen {
+        max-width: 297mm;   // en pantalla la hoja adopta el ancho A4 horizontal
+    }
 }
 
 // ── Cuerpo ───────────────────────────────────────────────────
@@ -205,11 +222,12 @@ body.boleta-body {
 // ════════════════════════════════════════════════════════════
 // TABLA DE CALIFICACIONES
 //
-// Landscape 289mm × columnas:
-//   th-comp  50mm  — texto envuelve (max 2 líneas con nombre_corto)
-//   th-mini   7mm × 8 = 56mm  (4 notas sec + 4 literales)
-//   th-final  9mm
-//   th-concl auto → (289-50-56-9)/4 ≈ 43.5mm c/u
+// Portrait, ancho útil 190mm (A4 210mm − márgenes 1cm) × columnas:
+//   th-comp  48mm  — texto envuelve (max 2 líneas con nombre_corto)
+//   th-mini   6mm  — secundaria: 4 notas + 4 literales = 8×6 = 48mm
+//                    primaria: solo 4 literales = 4×6 = 24mm
+//   th-final  9mm  — logro anual
+//   th-concl auto → secundaria (190−105)/4 ≈ 21mm c/u
 //
 // Altura por fila: max(comp-wrap, conclusión 2 líneas)
 //   comp 2 líneas @ 5.5pt × 1.2 ≈ 4.7mm

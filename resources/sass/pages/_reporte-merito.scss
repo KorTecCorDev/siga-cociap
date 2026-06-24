@@ -1,6 +1,6 @@
 // ============================================================
 // _reporte-merito.scss — Reporte de Orden de Mérito imprimible
-// Layout: print.php | Orientación: A4 landscape (hereda @page de _boleta.scss)
+// Layout: print.php | Orientación: A4 landscape (vía @page paisaje + body.doc-landscape, en _boleta.scss)
 //
 // Estructura por grado:
 //   Página 1 → Cuadro de Honor General (tabla con todos los estudiantes)

@@ -9,7 +9,7 @@
     <meta name="base-url" content="<?= (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] ?>">
     <link rel="stylesheet" href="<?= url('css/app.css') ?>">
 </head>
-<body class="boleta-body">
+<body class="boleta-body<?= !empty($bodyClass) ? ' ' . e($bodyClass) : '' ?>">
 
     <?= $content ?>
 
@@ -18,5 +18,6 @@
         <button class="btn-boleta btn-boleta--imprimir" onclick="window.print()">🖨 Imprimir</button>
     </div>
 
+    <script src="<?= url('js/print-fit.js') ?>"></script>
 </body>
 </html>

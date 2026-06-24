@@ -154,7 +154,15 @@
       "Bash(php -l app/Controllers/Matricula/MatriculaController.php)",
       "Bash(awk '{print $5, $NF}')",
       "Bash(awk \"/CREATE TABLE \\\\`usuarios\\\\`/{f=1} f{print} f&&/ENGINE=/{exit}\" database/backup_10_06_2026.sql)",
-      "Bash(php *)"
+      "Bash(php *)",
+      "Bash(tasklist)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "PowerShell($d = \"C:\\\\xampp\\\\mysql\\\\data\"; $files = Get-ChildItem $d | Where-Object { $_.Name -match '^master-|^relay-log-|^mysql-relay-bin|^multi-master\\\\.info$|^master\\\\.info$|^relay-log\\\\.info$' }; $files | Group-Object { \\($_.Name -split '-'\\)[0] } | Select-Object Name,Count; Write-Output \\(\"TOTAL: \" + $files.Count + \" archivos, \" + [math]::Round\\(\\($files | Measure-Object Length -Sum\\).Sum/1KB,1\\) + \" KB\"\\))",
+      "PowerShell(Write-Output \"=== Bases de datos ===\"; & \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"SHOW DATABASES;\" 2>&1; Write-Output \"=== Conteo de tablas en siga_cociap ===\"; & \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"SELECT COUNT\\(*\\) AS tablas FROM information_schema.tables WHERE table_schema='siga_cociap';\" 2>&1; Write-Output \"=== Verificacion: matriculas y calificaciones ===\"; & \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"SELECT \\(SELECT COUNT\\(*\\) FROM siga_cociap.matriculas\\) AS matriculas, \\(SELECT COUNT\\(*\\) FROM siga_cociap.calificaciones\\) AS calificaciones;\" 2>&1)",
+      "PowerShell(Select-String *)",
+      "PowerShell($php = \"C:\\\\xampp\\\\php\\\\php.exe\"; $files = @\\(\"app/Models/MatriculaModel.php\",\"app/Controllers/Matricula/MatriculaController.php\",\"resources/views/matriculas/nomina-imprimir.php\",\"resources/views/matriculas/index.php\",\"routes/web.php\"\\); foreach \\($f in $files\\) { & $php -l $f })",
+      "PowerShell($apache = Get-Process httpd -ErrorAction SilentlyContinue; Write-Output \\(\"Apache \\(httpd\\) corriendo: \" + [bool]$apache\\); $p80 = Test-NetConnection -ComputerName localhost -Port 80 -WarningAction SilentlyContinue; Write-Output \\(\"Puerto 80 abierto: \" + $p80.TcpTestSucceeded\\); $mysql = Get-Process mysqld -ErrorAction SilentlyContinue; Write-Output \\(\"MySQL corriendo: \" + [bool]$mysql\\))",
+      "PowerShell($php=\"C:\\\\xampp\\\\php\\\\php.exe\"; & $php -l \"app/Models/MatriculaModel.php\"; & $php -l \"resources/views/matriculas/nomina-imprimir.php\")"
     ]
   }
 }

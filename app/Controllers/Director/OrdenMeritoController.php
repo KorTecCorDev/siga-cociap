@@ -264,6 +264,7 @@ class OrdenMeritoController extends BaseController
         View::setLayout('print');
         $this->view('director/reporte-merito', [
             'titulo'        => 'Orden de mérito — ' . $periodo['nombre_display'] . ' ' . $periodo['anio'],
+            'bodyClass'     => 'doc-landscape',
             'periodo'       => $periodo,
             'ranking'       => $ranking,
             'institucion'   => config('institucion'),

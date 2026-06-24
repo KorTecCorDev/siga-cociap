@@ -1,6 +1,6 @@
 <?php
 /**
- * Vista: boleta anual — A4 landscape, tabla con 4 bimestres + conclusión
+ * Vista: boleta anual — A4 portrait, tabla con 4 bimestres + conclusión
  *
  * @var array  $alumno      { nombre_completo, dni, grado_nombre, seccion_nombre,
  *                            nivel_nombre, escala_boleta, anio_academico }
