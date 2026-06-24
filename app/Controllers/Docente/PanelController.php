@@ -576,6 +576,11 @@ class PanelController extends BaseController
             LEFT  JOIN subareas sa ON sa.id = ca.subarea_id
             LEFT  JOIN areas a     ON a.id  = COALESCE(ca.area_id, sa.area_id)
             WHERE ca.docente_id = ? AND ca.estado = 'activa'
+              -- Excluye la carga transversal independiente (modelo viejo): las
+              -- TIC/GAMA se registran dentro de cada carga; el tutor cierra en
+              -- /docente/tutoria. Sin esto, el conteo de la card del dashboard
+              -- sumaba una carga fantasma al tutor.
+              AND (a.tipo IS NULL OR a.tipo != 'transversal')
             ORDER BY n.id, g.numero, s.nombre, a.orden, sa.orden
         ", [$periodoId, $periodoId, $docenteId]);
     }

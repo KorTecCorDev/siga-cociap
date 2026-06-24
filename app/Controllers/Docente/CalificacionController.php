@@ -223,9 +223,17 @@ class CalificacionController extends BaseController
             );
         }
 
+        // Modelo nuevo: las competencias transversales (TIC/GAMA) las registra
+        // cada docente DENTRO de su propia carga (sección "Competencias
+        // Transversales" más abajo). Una carga transversal independiente es del
+        // modelo viejo: ya no se califica aquí. El tutor solo agrega las
+        // conclusiones y cierra el bimestre desde /docente/tutoria.
         if ($carga['area_tipo'] === 'transversal') {
-            $this->formularioTransversal($carga, $periodo);
-            return;
+            $this->redirectWithSuccess(
+                url('docente/tutoria'),
+                'Las competencias transversales ahora se registran en cada carga. '
+                . 'Como tutor(a), aquí agregas las conclusiones y cierras el bimestre.'
+            );
         }
 
         $bloqueado       = $this->calModel->periodoEstaBloqueado($periodo['id']);
@@ -262,70 +270,6 @@ class CalificacionController extends BaseController
             'bloqueos'        => $bloqueos,
             'exonerados'      => $exonerados,
             'page_scripts'    => ['calificaciones'],
-        ]);
-    }
-
-    /**
-     * Ramificación interna para cargas de tipo transversal.
-     * Auto-crea el criterio único por competencia si no existe y
-     * renderiza la página de ingreso de notas (un input por alumno).
-     * El resumen completo se ve desde el botón "Ver resumen" que
-     * redirige al método resumen() existente.
-     */
-    private function formularioTransversal(array $carga, array $periodo): void
-    {
-        $cargaId   = (int) $carga['id'];
-        $periodoId = (int) $periodo['id'];
-
-        $competencias = $this->calModel->query("
-            SELECT c.id, c.codigo_minedu, c.nombre_corto, c.nombre_completo, c.orden
-            FROM competencias c
-            WHERE c.area_id = ?
-            ORDER BY c.orden
-        ", [(int) $carga['area_id']]);
-
-        // Garantizar un criterio único por cada competencia+periodo
-        $criteriosPorComp = [];
-        foreach ($competencias as $comp) {
-            $compId = (int) $comp['id'];
-            $crit   = $this->critModel->queryOne("
-                SELECT id FROM criterios
-                WHERE carga_id       = ?
-                  AND competencia_id = ?
-                  AND periodo_id     = ?
-                LIMIT 1
-            ", [$cargaId, $compId, $periodoId]);
-
-            if (!$crit) {
-                $this->calModel->execute("
-                    INSERT INTO criterios
-                        (carga_id, competencia_id, periodo_id, nombre, orden)
-                    VALUES (?, ?, ?, ?, 1)
-                ", [$cargaId, $compId, $periodoId, $periodo['nombre_display']]);
-
-                $crit = $this->critModel->queryOne("
-                    SELECT id FROM criterios
-                    WHERE carga_id       = ?
-                      AND competencia_id = ?
-                      AND periodo_id     = ?
-                    LIMIT 1
-                ", [$cargaId, $compId, $periodoId]);
-            }
-
-            $criteriosPorComp[$compId] = $crit ? (int) $crit['id'] : null;
-        }
-
-        $this->view('docente/calificaciones-transversales', [
-            'titulo'           => 'Competencias Transversales — ' . $carga['seccion_nombre'],
-            'carga'            => $carga,
-            'periodo'          => $periodo,
-            'competencias'     => $competencias,
-            'criteriosPorComp' => $criteriosPorComp,
-            'alumnos'          => $this->getAlumnosSeccion((int) $carga['seccion_id']),
-            'notasExistentes'  => $this->getNotasExistentes($cargaId, $periodoId),
-            'bloqueos'         => $this->getBloqueos($cargaId, $periodoId),
-            'bloqueado'        => $this->calModel->periodoEstaBloqueado($periodoId),
-            'page_scripts'     => ['calificaciones'],
         ]);
     }
 
@@ -836,6 +780,11 @@ class CalificacionController extends BaseController
             LEFT  JOIN areas a      ON a.id  = COALESCE(ca.area_id, sa.area_id)
             WHERE ca.docente_id = ?
               AND ca.estado     = 'activa'
+              -- Las TIC/GAMA se registran DENTRO de cada carga normal (sección
+              -- transversal del formulario). Una carga transversal independiente
+              -- (modelo viejo) NO debe listarse como tarjeta: era el ingreso de
+              -- promedios del tutor, hoy reemplazado por /docente/tutoria.
+              AND (a.tipo IS NULL OR a.tipo != 'transversal')
             ORDER BY n.id, g.numero, s.nombre, a.orden, sa.orden
         ", [$periodoId, $periodoId, $periodoId, $periodoId, $docenteId]);
     }

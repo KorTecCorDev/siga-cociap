@@ -119,6 +119,9 @@ class CargaAcademicaModel extends BaseModel
             LEFT JOIN areas a_via         ON a_via.id = sa.area_id
             LEFT JOIN sesiones_horario sh ON sh.carga_id  = ca.id
             LEFT JOIN bloques_horario bh  ON bh.id        = sh.bloque_id
+            -- Oculta las cargas transversales (modelo viejo) — coherente con
+            -- listarPorSeccion/listarSeccionesConCargas.
+            WHERE COALESCE(a_dir.tipo, a_via.tipo) != 'transversal'
             GROUP BY
                 ca.id, ca.horas_semanales, ca.estado,
                 p.apellido_paterno, p.apellido_materno, p.nombres,
@@ -145,7 +148,17 @@ class CargaAcademicaModel extends BaseModel
             INNER JOIN grados g             ON g.id  = s.grado_id
             INNER JOIN niveles n            ON n.id  = g.nivel_id
             INNER JOIN anios_academicos an  ON an.id = s.anio_id
-            LEFT  JOIN cargas_academicas ca ON ca.seccion_id = s.id
+            -- Excluye las cargas transversales (modelo viejo) del conteo: ya no
+            -- se gestionan en /director/cargas (ver listarPorSeccion). Quedan
+            -- inactivas en BD como respaldo de las boletas del I Bimestre.
+            LEFT  JOIN cargas_academicas ca
+                   ON ca.seccion_id = s.id
+                   AND ca.id NOT IN (
+                       SELECT ca_t.id
+                       FROM cargas_academicas ca_t
+                       INNER JOIN areas a_t ON a_t.id = ca_t.area_id
+                       WHERE a_t.tipo = 'transversal'
+                   )
             WHERE an.estado IN ('planificado','activo')
             GROUP BY s.id, s.nombre, g.nombre_display, g.numero,
                      n.id, n.nombre, an.anio
@@ -218,6 +231,13 @@ class CargaAcademicaModel extends BaseModel
             LEFT  JOIN sesiones_horario sh ON sh.carga_id = ca.id
             LEFT  JOIN bloques_horario bh  ON bh.id       = sh.bloque_id
             WHERE ca.seccion_id = ?
+              -- Las cargas transversales (TIC/GAMA) son del modelo VIEJO: hoy
+              -- cada docente registra sus transversales dentro de su propia
+              -- carga y el tutor cierra en /docente/tutoria. NO se gestionan
+              -- aquí (verlas con botón Activar revive el flujo fantasma). Sus
+              -- registros permanecen inactivos en BD como respaldo de las
+              -- boletas del I Bimestre — solo se ocultan de esta vista.
+              AND COALESCE(a_dir.tipo, a_via.tipo) != 'transversal'
             GROUP BY
                 ca.id, ca.horas_semanales, ca.estado,
                 p.apellido_paterno, p.apellido_materno, p.nombres,
