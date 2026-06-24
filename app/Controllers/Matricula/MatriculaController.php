@@ -666,6 +666,12 @@ class MatriculaController extends BaseController
             LIMIT 1
         ", [(int) $id]);
 
+        // Boleta: enlace público por token permanente (solo si la matrícula está
+        // aprobada). Las rutas anónimas por id se retiraron; el acceso es por token.
+        $tokenBoleta = $matricula['estado'] === 'aprobada'
+            ? (new \App\Models\BoletaPublicaModel())->getOCrearToken((int) $id)
+            : null;
+
         $this->view('matriculas/show', [
             'titulo'       => 'Detalle de matrícula',
             'matricula'    => $matricula,
@@ -677,6 +683,7 @@ class MatriculaController extends BaseController
             'traslado'     => $this->traslados->getUltimaPorMatricula((int) $id),
             'puedeGestionar' => has_role(['admin', 'registro_academico']),
             'pendientes'   => $this->pendientesParaActivar($matricula),
+            'tokenBoleta'  => $tokenBoleta,
             'page_scripts' => ['matriculas'],
         ]);
     }

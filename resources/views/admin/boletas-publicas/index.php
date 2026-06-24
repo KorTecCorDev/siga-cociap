@@ -1,6 +1,6 @@
 <?php
 /**
- * @var array  $periodos  [{ id, numero, nombre_display, anio, total_generadas }]
+ * @var array  $periodos  [{ id, numero, nombre_display, anio, total_boletas }]
  * @var string $titulo
  */
 ?>
@@ -9,7 +9,7 @@
     <a href="<?= url('/') ?>" class="btn btn--secondary btn--sm">← Dashboard</a>
     <div>
         <h1 class="page-title">Boletas Públicas</h1>
-        <p class="page-subtitle">Genera y distribuye boletas con código de acceso sin login</p>
+        <p class="page-subtitle">Imprime y distribuye boletas oficiales con QR de acceso permanente (token)</p>
     </div>
 </div>
 
@@ -57,10 +57,10 @@
                 <span class="bp-periodo-card__anio"><?= e($p['anio']) ?></span>
             </div>
             <div class="bp-periodo-card__badge">
-                <?php if ($p['total_generadas'] > 0): ?>
-                <span class="badge badge--success"><?= (int) $p['total_generadas'] ?> generada<?= $p['total_generadas'] != 1 ? 's' : '' ?></span>
+                <?php if ($p['total_boletas'] > 0): ?>
+                <span class="badge badge--success"><?= (int) $p['total_boletas'] ?> boleta<?= $p['total_boletas'] != 1 ? 's' : '' ?></span>
                 <?php else: ?>
-                <span class="badge badge--warning">Sin generar</span>
+                <span class="badge badge--warning">Sin boletas</span>
                 <?php endif; ?>
             </div>
             <div class="bp-periodo-card__arrow">→</div>

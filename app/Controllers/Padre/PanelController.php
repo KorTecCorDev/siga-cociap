@@ -3,6 +3,7 @@
 namespace App\Controllers\Padre;
 
 use App\Controllers\BaseController;
+use App\Models\BoletaPublicaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
 use Core\Session;
@@ -13,14 +14,16 @@ use Core\Session;
  */
 class PanelController extends BaseController
 {
-    private CalificacionModel $calModel;
-    private ConductaModel     $conductaModel;
+    private CalificacionModel  $calModel;
+    private ConductaModel      $conductaModel;
+    private BoletaPublicaModel $bpModel;
 
     public function __construct()
     {
         $this->requireRole(['padre', 'admin', 'registro_academico']);
         $this->calModel      = new CalificacionModel();
         $this->conductaModel = new ConductaModel();
+        $this->bpModel       = new BoletaPublicaModel();
     }
 
     /**
@@ -99,12 +102,17 @@ class PanelController extends BaseController
             }
         }
 
+        // QR/enlace permanente por token (identidad oficial): mismo enlace que el
+        // padre escanea de la boleta impresa, estable todo el año.
+        $tokenBoleta = $this->bpModel->getOCrearToken((int) $hijo['matricula_id']);
+
         $this->view('padre/notas', [
-            'titulo'   => 'Notas de ' . $hijo['nombres'],
-            'hijo'     => $hijo,
-            'periodo'  => $periodo,
-            'areas'    => $areas,
-            'conducta' => $conducta,
+            'titulo'      => 'Notas de ' . $hijo['nombres'],
+            'hijo'        => $hijo,
+            'periodo'     => $periodo,
+            'areas'       => $areas,
+            'conducta'    => $conducta,
+            'tokenBoleta' => $tokenBoleta,
         ]);
     }
 

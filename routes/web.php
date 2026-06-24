@@ -200,10 +200,13 @@ $router->get('/padre/inicio',  'Padre\PanelController@index');
 $router->get('/padre/notas',   'Padre\PanelController@notas');
 $router->get('/padre/alertas', 'Padre\PanelController@alertas');
 
-// ─── Boletas públicas SIN login ──────────────────────────────
-// Registrar ANTES de /boleta/{id} para que el router no capture "publica" como parámetro
-$router->get( '/boleta-publica',            'BoletaPublicaController@formulario');
-$router->post('/boleta-publica/consultar',  'BoletaPublicaController@consultar');
+// ─── Boletas públicas por CÓDIGO — DORMIDO (se conserva para reactivar) ──────
+// El acceso público por código tecleado se jubiló en favor del QR por token
+// (enlace permanente por estudiante). El controlador y las vistas
+// (BoletaPublicaController, boleta-publica/*) se conservan intactos; basta
+// re-registrar estas dos rutas ANTES de /boleta/{id} para reactivarlo:
+//   $router->get( '/boleta-publica',           'BoletaPublicaController@formulario');
+//   $router->post('/boleta-publica/consultar', 'BoletaPublicaController@consultar');
 
 // ─── Firmas/sello del Director EBR (servido público desde almacenamiento externo) ───
 $router->get('/firmas/{archivo}', 'FirmaController@servir');
@@ -212,19 +215,20 @@ $router->get('/firmas/{archivo}', 'FirmaController@servir');
 $router->get( '/admin/boletas-publicas',                             'Admin\BoletaPublicaController@index');
 $router->post('/admin/boletas-publicas/generar-tokens',              'Admin\BoletaPublicaController@generarTokens');
 $router->get( '/admin/boletas-publicas/{periodo_id}',                'Admin\BoletaPublicaController@porPeriodo');
-$router->post('/admin/boletas-publicas/{periodo_id}/generar',        'Admin\BoletaPublicaController@generar');
-$router->post('/admin/boletas-publicas/{periodo_id}/actualizar',     'Admin\BoletaPublicaController@actualizar');
-$router->get( '/admin/boletas-publicas/{periodo_id}/imprimir',       'Admin\BoletaPublicaController@imprimir');
 $router->get( '/admin/boletas-publicas/{periodo_id}/vista-previa',   'Admin\BoletaPublicaController@vistaPrevia');
 $router->get( '/admin/boletas-publicas/{periodo_id}/boletas-alumno', 'Admin\BoletaPublicaController@boletasAlumno');
 $router->get( '/admin/boletas-publicas/{periodo_id}/archivar',       'Admin\BoletaPublicaController@archivar');
+// CÓDIGO dormido (se conserva para reactivar — métodos generar/actualizar/imprimir intactos):
+//   $router->post('/admin/boletas-publicas/{periodo_id}/generar',    'Admin\BoletaPublicaController@generar');
+//   $router->post('/admin/boletas-publicas/{periodo_id}/actualizar', 'Admin\BoletaPublicaController@actualizar');
+//   $router->get( '/admin/boletas-publicas/{periodo_id}/imprimir',   'Admin\BoletaPublicaController@imprimir');
 
-// ─── Boleta de calificaciones ────────────────────────────────
-// Token (1 segmento) antes del patrón de 2 segmentos para evitar captura errónea
-$router->get('/boleta/digital/{token}',                     'Boleta\BoletaController@verDigitalToken');
-$router->get('/boleta/ver/{token}',                         'Boleta\BoletaController@verToken');
-$router->get('/boleta/digital/{matricula_id}/{periodo_id}', 'Boleta\BoletaController@verDigital');
-$router->get('/boleta/{matricula_id}/{periodo_id}',         'Boleta\BoletaController@ver');
+// ─── Boleta de calificaciones — SOLO por token (seguridad) ───
+// Las rutas anónimas por id ({matricula_id}/{periodo_id}) se retiraron: eran
+// enumerables. Todo acceso público es por token permanente (inadivinable).
+// El acceso interno (docente/admin) va por sus rutas autenticadas con alcance.
+$router->get('/boleta/digital/{token}', 'Boleta\BoletaController@verDigitalToken');
+$router->get('/boleta/ver/{token}',     'Boleta\BoletaController@verToken');
 
 // ─── Orden de mérito ─────────────────────────────────────────
 $router->get('/director/orden-merito',                          'Director\OrdenMeritoController@index');

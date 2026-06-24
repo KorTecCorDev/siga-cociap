@@ -400,6 +400,67 @@ registran en el casillero de un área oficial que cede ese tramo de grados.
 - **QR en imprimir**: apunta a `/boleta-publica?codigo=...` vía Google Charts API,
   igual que la boleta digital de sesión 3.
 
+## Boleta: documento único por token (24/06/2026)
+
+> Consolidación de la boleta como **documento oficial único** (digital + imprimible)
+> servido SIEMPRE por token. Se retiraron las rutas anónimas por id (enumerables),
+> se unificó el ensamblado en un solo modelo y el código tecleado quedó dormido.
+
+### Builder único — `app/Models/BoletaModel.php`
+- `armar(int $matriculaId, int $periodoId, bool $soloOficiales = false): ?array` —
+  **fusiona las 3 copias** que vivían en `Boleta\BoletaController`,
+  `BoletaPublicaController` (público) y `Admin\BoletaPublicaController`. Punto ÚNICO
+  de verdad del documento (agregación, transversales, exoneraciones, conducta,
+  asistencia, tutor, directorEbr). Es PURO: data in → array out; la autorización
+  vive en los entry points.
+- **`soloOficiales=true` → solo bimestres `cerrado`** (regla de familias: el BORRADOR
+  de Hito A nunca se expone al público). Lo usan las rutas por token. `false` (docente,
+  salida masiva admin) muestra todos los periodos.
+- **El builder duplicado del controlador público (dormido) NO se tocó** (queda con su
+  propia copia para resurrección; sus rutas están comentadas).
+
+### Render y QR únicos — `Boleta\BoletaController::render()`
+- Entry points DELGADOS: cada uno decide quién + qué periodo, y delega en `render()`.
+- **El QR sale SIEMPRE de `urlBoletaToken()`** (token de la matrícula IDENTIDAD) — una
+  sola fuente, fin de las 6 variantes que causaban el bug del QR. La boleta se ancla a
+  la identidad (`$data['alumno']['matricula_id']`) para coincidir en retorno de grado.
+
+### Direccionamiento (invariante de seguridad)
+- **Cero rutas ANÓNIMAS por id.** Se **borraron** `GET /boleta/{id}/{periodo}` (`ver`) y
+  `GET /boleta/digital/{id}/{periodo}` (`verDigital`) — eran enumerables.
+- **Público (familias):** SIEMPRE por token, solo oficiales:
+  `GET /boleta/digital/{token}` (`verDigitalToken`) y `GET /boleta/ver/{token}` (`verToken`).
+- **Interno (docente/admin):** autenticado por id + alcance (`/docente/boleta/{id}[/imprimir]`),
+  puede ver BORRADOR. Por estar tras login + 403 por alcance NO es enumerable → se queda por id.
+- `padre/notas` y `matriculas/show` ahora enlazan por token (sus controladores resuelven
+  el token vía `getOCrearToken`).
+
+### Tracking de visitas — `matriculas.token_consultas` (migración `028`)
+- `028_boleta_token_tracking.sql`: `token_consultas INT` + `token_ultima_consulta DATETIME`,
+  con **backfill** desde `boletas_publicas.veces_consultada` (preserva el histórico B1).
+- `BoletaPublicaModel::registrarVisitaToken(int $matriculaId)` reescrito: `UPDATE matriculas`
+  (ya NO toca `boletas_publicas`). **Cuenta TODO acceso por token** (escaneo de QR o portal
+  del padre, digital o impreso). El token es por estudiante → conteo por identidad.
+- `BoletaPublicaModel::getOCrearToken(int $matriculaId): string` — token hex-32 permanente,
+  get-or-create idempotente.
+
+### Salida masiva (sobrevive, re-apuntada a token)
+- `Admin\BoletaPublicaController::{vistaPrevia,boletasAlumno,archivar}` iteran
+  `getMatriculasAprobadasParaBoleta` (NO `getPorPeriodo`/código) y arman con
+  `BoletaModel::armar` + `urlBoletaToken`. **Independientes del código.**
+- Hub `porPeriodo` + vista `periodo.php`: ahora token-céntricos
+  (`getEstudiantesParaPeriodo` con `token_consultas`); botones de impresión gated por
+  `total_aprobables > 0`. `index.php` cuenta boletas oficiales (no códigos).
+
+### Código tecleado — DORMIDO (conservado para reactivar)
+- **Borradas** las rutas: público `/boleta-publica` + `/consultar`; admin `/{per}/generar`,
+  `/{per}/actualizar`, `/{per}/imprimir` (hoja de códigos). **Quedan comentadas en
+  `routes/web.php` con el snippet para reactivarlas.**
+- **Conservado intacto** (sin ruta): `BoletaPublicaController` (público), métodos
+  `generar`/`actualizar`/`imprimir` del admin, vistas `boleta-publica/*` e `imprimir.php`,
+  tabla `boletas_publicas` y `BoletaPublicaModel::{generarMasivo,getPorCodigo,...}`.
+- La generación de **token** (`generar-tokens`) sigue activa.
+
 ## Convenciones de código
 - **Namespace:** `App\Controllers\`, `App\Models\`, `Core\`
 - **Rutas:** `$router->get('/ruta', 'Namespace\Controlador@metodo')`

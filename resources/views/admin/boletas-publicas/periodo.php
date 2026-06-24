@@ -1,21 +1,16 @@
 <?php
 /**
- * @var array  $periodo           { id, numero, nombre_display, anio }
- * @var array  $boletas           [{ id, matricula_id, codigo_acceso, nombre_completo,
- *                                   seccion_id, grado_nombre, seccion_nombre, nivel_nombre,
- *                                   token_acceso, veces_consultada, ultima_consulta,
- *                                   generada_en, novedades_count }]
- * @var array  $secciones         [{ seccion_id, seccion_nombre, grado_nombre,
- *                                   nivel_id, nivel_nombre, total_aprobables,
- *                                   total_generadas }]
- * @var int    $totalAprobadas    matrículas con ≥1 competencia bloqueada
- * @var int    $totalConNovedades boletas con competencias nuevas desde la generación
+ * @var array  $periodo          { id, numero, nombre_display, anio }
+ * @var array  $estudiantes      [{ matricula_id, nombre_completo, seccion_id,
+ *                                  seccion_nombre, grado_nombre, nivel_nombre,
+ *                                  token_acceso, token_consultas, token_ultima_consulta }]
+ * @var array  $secciones        [{ seccion_id, seccion_nombre, grado_nombre,
+ *                                  grado_numero, nivel_id, nivel_nombre,
+ *                                  total_aprobables, total_generadas }]
+ * @var int    $totalBoletas     matrículas con boleta oficial (≥1 competencia bloqueada)
+ * @var int    $totalConsultadas boletas con al menos una visita por token
  * @var string $titulo
  */
-$totalGeneradas  = count($boletas);
-$_pendientes     = $totalAprobadas - $totalGeneradas;
-$hayNovedades    = $totalConNovedades > 0;
-$hayPendientes   = $_pendientes > 0;
 
 // Agrupar secciones por nivel para el grid de loteo
 $seccionesPorNivel = [];
@@ -24,93 +19,39 @@ foreach ($secciones ?? [] as $_sec) {
 }
 unset($_sec);
 
-// Agrupar boletas por sección (clave = seccion_id, única) para los acordeones.
-// Un mismo grado/sección existe en primaria y secundaria (ej. 1° A en ambos),
-// por eso agrupamos por seccion_id y mostramos el nivel en la etiqueta.
-$boletasPorSeccion = [];
-foreach ($boletas as $_b) {
-    $_sid = (int) $_b['seccion_id'];
-    if (!isset($boletasPorSeccion[$_sid])) {
-        $boletasPorSeccion[$_sid] = [
-            'label'        => $_b['nivel_nombre'] . ' · ' . $_b['grado_nombre'] . ' "' . $_b['seccion_nombre'] . '"',
-            'estudiantes'  => [],
+// Agrupar estudiantes por sección (clave = seccion_id, única) para los acordeones.
+$estudiantesPorSeccion = [];
+foreach ($estudiantes as $_e) {
+    $_sid = (int) $_e['seccion_id'];
+    if (!isset($estudiantesPorSeccion[$_sid])) {
+        $estudiantesPorSeccion[$_sid] = [
+            'label'       => $_e['nivel_nombre'] . ' · ' . $_e['grado_nombre'] . ' "' . $_e['seccion_nombre'] . '"',
+            'estudiantes' => [],
         ];
     }
-    $boletasPorSeccion[$_sid]['estudiantes'][] = $_b;
+    $estudiantesPorSeccion[$_sid]['estudiantes'][] = $_e;
 }
-unset($_b, $_sid);
+unset($_e, $_sid);
 ?>
 
 <div class="page-header">
     <a href="<?= url('admin/boletas-publicas') ?>" class="btn btn--secondary btn--sm">← Períodos</a>
     <div>
-        <h1 class="page-title">Boletas Públicas — <?= e($periodo['nombre_display']) ?></h1>
-        <p class="page-subtitle"><?= e($periodo['anio']) ?></p>
-    </div>
-    <div class="btn-group">
-        <?php if ($totalGeneradas > 0): ?>
-        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/imprimir") ?>"
-           class="btn btn--secondary btn--sm"
-           target="_blank"
-           title="Imprime los códigos de todo el periodo">
-            🔑 Imprimir códigos
-        </a>
-        <?php endif; ?>
-
-        <?php if ($hayNovedades): ?>
-        <form method="POST"
-              action="<?= url("admin/boletas-publicas/{$periodo['id']}/actualizar") ?>"
-              style="display:inline">
-            <?= csrf_field() ?>
-            <button type="submit" class="btn btn--warning btn--sm"
-                    onclick="return confirm('Actualizar <?= $totalConNovedades ?> boleta(s) con nuevas competencias bloqueadas?\n\nSolo se actualiza la fecha de generacion. El contenido de la boleta digital ya refleja los cambios.')">
-                🔄 Actualizar (<?= $totalConNovedades ?>)
-            </button>
-        </form>
-        <?php endif; ?>
-
-        <form method="POST"
-              action="<?= url("admin/boletas-publicas/{$periodo['id']}/generar") ?>"
-              style="display:inline">
-            <?= csrf_field() ?>
-            <button type="submit"
-                    class="btn btn--sm <?= $hayPendientes ? 'btn--primary' : 'btn--secondary' ?>"
-                    onclick="return confirm('<?= $hayPendientes
-                        ? "Generar codigos para {$_pendientes} boletas pendientes?"
-                        : "No hay boletas pendientes. Ejecutar de todas formas?" ?>')">
-                ⚡ <?= $hayPendientes ? "Generar pendientes ({$_pendientes})" : 'Generar boletas' ?>
-            </button>
-        </form>
+        <h1 class="page-title">Boletas — <?= e($periodo['nombre_display']) ?></h1>
+        <p class="page-subtitle"><?= e($periodo['anio']) ?> · documento oficial por código QR (token)</p>
     </div>
 </div>
 
 <div class="bp-stats-bar">
     <div class="bp-stat">
-        <span class="bp-stat__num"><?= $totalAprobadas ?></span>
-        <span class="bp-stat__label">con notas bloqueadas</span>
+        <span class="bp-stat__num"><?= $totalBoletas ?></span>
+        <span class="bp-stat__label">boletas oficiales</span>
     </div>
-    <div class="bp-stat">
-        <span class="bp-stat__num"><?= $totalGeneradas ?></span>
-        <span class="bp-stat__label">boletas generadas</span>
-    </div>
-    <div class="bp-stat <?= $_pendientes > 0 ? 'bp-stat--warn' : '' ?>">
-        <span class="bp-stat__num"><?= $_pendientes ?></span>
-        <span class="bp-stat__label">pendientes de código</span>
-    </div>
-    <div class="bp-stat <?= $hayNovedades ? 'bp-stat--update' : '' ?>">
-        <span class="bp-stat__num"><?= $totalConNovedades ?></span>
-        <span class="bp-stat__label">con novedades</span>
+    <div class="bp-stat <?= $totalConsultadas > 0 ? 'bp-stat--update' : '' ?>">
+        <span class="bp-stat__num"><?= $totalConsultadas ?></span>
+        <span class="bp-stat__label">consultadas por QR</span>
     </div>
 </div>
-
-<?php if ($hayNovedades): ?>
-<div class="flash flash--warning">
-    <strong><?= $totalConNovedades ?> boleta(s)</strong> tienen competencias aprobadas
-    después de la última generación. La boleta digital ya las muestra correctamente,
-    pero si entregaste copias impresas debes reimprimir esas boletas.
-    Usa <strong>Actualizar</strong> para registrar la fecha de actualización.
-</div>
-<?php endif; ?>
 
 <?php if (!empty($seccionesPorNivel)): ?>
 <section class="bp-secciones">
@@ -118,6 +59,7 @@ unset($_b, $_sid);
         <h2 class="bp-secciones__titulo">Impresión por sección</h2>
         <p class="bp-secciones__sub">
             Procesa las boletas en lotes más pequeños para evitar tiempos de espera largos.
+            Cada boleta lleva su QR permanente; el padre lo escanea para ver la versión digital.
         </p>
     </header>
 
@@ -125,10 +67,9 @@ unset($_b, $_sid);
         <h3 class="bp-secciones__nivel"><?= e($nivel) ?></h3>
         <div class="bp-secciones__grid">
             <?php foreach ($secs as $sec):
-                $sid          = (int) $sec['seccion_id'];
-                $aprobables   = (int) $sec['total_aprobables'];
-                $generadas    = (int) $sec['total_generadas'];
-                $tieneGeneradas = $generadas > 0;
+                $sid        = (int) $sec['seccion_id'];
+                $aprobables = (int) $sec['total_aprobables'];
+                $hayBoletas = $aprobables > 0;
             ?>
                 <article class="bp-seccion-card">
                     <header class="bp-seccion-card__head">
@@ -138,14 +79,8 @@ unset($_b, $_sid);
 
                     <dl class="bp-seccion-card__stats">
                         <div>
-                            <dt>Aprobables</dt>
+                            <dt>Boletas oficiales</dt>
                             <dd><?= $aprobables ?></dd>
-                        </div>
-                        <div>
-                            <dt>Con código</dt>
-                            <dd class="<?= $tieneGeneradas ? '' : 'bp-seccion-card__stat--vacio' ?>">
-                                <?= $generadas ?>
-                            </dd>
                         </div>
                     </dl>
 
@@ -157,18 +92,18 @@ unset($_b, $_sid);
                             👁 Vista previa
                         </a>
 
-                        <?php if ($tieneGeneradas): ?>
+                        <?php if ($hayBoletas): ?>
                         <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/boletas-alumno?seccion_id={$sid}") ?>"
                            class="btn btn--primary btn--sm"
                            target="_blank"
                            title="Imprimir boletas de esta sección">
                             🖨 Boletas
                         </a>
-                        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/imprimir?seccion_id={$sid}") ?>"
+                        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/archivar?seccion_id={$sid}") ?>"
                            class="btn btn--secondary btn--sm"
                            target="_blank"
-                           title="Imprimir códigos de esta sección">
-                            🔑 Códigos
+                           title="Descargar PDFs de esta sección en un ZIP">
+                            🗂 Archivar
                         </a>
                         <?php endif; ?>
                     </div>
@@ -179,22 +114,21 @@ unset($_b, $_sid);
 </section>
 <?php endif; ?>
 
-<?php if (empty($boletas)): ?>
+<?php if (empty($estudiantes)): ?>
 <div class="card">
     <div class="card__body">
         <p class="text-muted text-center">
-            No hay boletas generadas para este período aún.<br>
-            Usa el botón <strong>Generar boletas</strong> para crear los códigos de acceso.
+            No hay boletas oficiales para este período aún.<br>
+            Una boleta aparece cuando el docente aprueba (bloquea) al menos una competencia.
         </p>
     </div>
 </div>
 <?php else: ?>
 
-<?php foreach ($boletasPorSeccion as $grupo):
+<?php foreach ($estudiantesPorSeccion as $grupo):
     $estudiantesSeccion = $grupo['estudiantes'];
-    $totalSec      = count($estudiantesSeccion);
-    $consultasSec  = count(array_filter($estudiantesSeccion, fn($b) => (int) $b['veces_consultada'] > 0));
-    $novedadesSec  = count(array_filter($estudiantesSeccion, fn($b) => (int) $b['novedades_count'] > 0));
+    $totalSec     = count($estudiantesSeccion);
+    $consultasSec = count(array_filter($estudiantesSeccion, fn($e) => (int) $e['token_consultas'] > 0));
 ?>
 <details class="bp-acordeon">
     <summary class="bp-acordeon__header">
@@ -204,9 +138,6 @@ unset($_b, $_sid);
             <span class="bp-acordeon__chip"><?= $totalSec ?> estudiantes</span>
             <?php if ($consultasSec > 0): ?>
             <span class="bp-acordeon__chip bp-acordeon__chip--ok"><?= $consultasSec ?> consultadas</span>
-            <?php endif; ?>
-            <?php if ($novedadesSec > 0): ?>
-            <span class="bp-acordeon__chip bp-acordeon__chip--warn"><?= $novedadesSec ?> con novedades</span>
             <?php endif; ?>
         </div>
     </summary>
@@ -221,22 +152,18 @@ unset($_b, $_sid);
                         <th>Boleta digital</th>
                         <th class="text-center">Consultas</th>
                         <th>Última consulta</th>
-                        <th>Generada</th>
-                        <th class="text-center">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
-                <?php foreach ($estudiantesSeccion as $i => $b):
-                    $novedades = (int) $b['novedades_count'];
-                ?>
-                    <tr class="<?= $novedades > 0 ? 'fila-novedad' : '' ?>">
+                <?php foreach ($estudiantesSeccion as $i => $e): ?>
+                    <tr>
                         <td class="text-sm text-muted"><?= $i + 1 ?></td>
                         <td>
-                            <strong><?= e($b['nombre_completo']) ?></strong>
+                            <strong><?= e($e['nombre_completo']) ?></strong>
                         </td>
                         <td>
-                            <?php if (!empty($b['token_acceso'])): ?>
-                            <a href="<?= url("boleta/digital/{$b['token_acceso']}") ?>"
+                            <?php if (!empty($e['token_acceso'])): ?>
+                            <a href="<?= url("boleta/digital/{$e['token_acceso']}") ?>"
                                target="_blank"
                                class="bp-enlace-digital"
                                title="Abrir boleta digital">
@@ -247,27 +174,14 @@ unset($_b, $_sid);
                             <?php endif; ?>
                         </td>
                         <td class="text-center">
-                            <?php if ($b['veces_consultada'] > 0): ?>
-                            <span class="badge badge--activo"><?= (int) $b['veces_consultada'] ?></span>
+                            <?php if ((int) $e['token_consultas'] > 0): ?>
+                            <span class="badge badge--activo"><?= (int) $e['token_consultas'] ?></span>
                             <?php else: ?>
                             <span class="text-muted">—</span>
                             <?php endif; ?>
                         </td>
                         <td class="text-sm text-muted">
-                            <?= fechaLima($b['ultima_consulta']) ?>
-                        </td>
-                        <td class="text-sm text-muted">
-                            <?= fechaLima($b['generada_en']) ?>
-                        </td>
-                        <td class="text-center">
-                            <?php if ($novedades > 0): ?>
-                                <span class="badge badge--warning"
-                                      title="<?= $novedades ?> competencia(s) aprobada(s) desde la generacion">
-                                    🔄 +<?= $novedades ?>
-                                </span>
-                            <?php else: ?>
-                                <span class="badge badge--activo">Al día</span>
-                            <?php endif; ?>
+                            <?= fechaLima($e['token_ultima_consulta']) ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>

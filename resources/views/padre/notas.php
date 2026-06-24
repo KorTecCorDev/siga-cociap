@@ -3,7 +3,8 @@
  * @var array       $hijo
  * @var array       $periodo
  * @var array       $areas
- * @var string|null $conducta   Literal de conducta del periodo activo (null = sin nota)
+ * @var string|null $conducta    Literal de conducta del periodo activo (null = sin nota)
+ * @var string      $tokenBoleta Token permanente para el enlace público de la boleta
  */
 ?>
 
@@ -21,12 +22,12 @@
         </p>
     </div>
     <div class="btn-group">
-        <a href="<?= url('boleta/digital/' . $hijo['matricula_id'] . '/' . $periodo['id']) ?>"
+        <a href="<?= url('boleta/digital/' . $tokenBoleta) ?>"
            class="btn btn--primary btn--sm"
            target="_blank">
             Ver boleta digital
         </a>
-        <a href="<?= url('boleta/' . $hijo['matricula_id'] . '/' . $periodo['id']) ?>"
+        <a href="<?= url('boleta/ver/' . $tokenBoleta) ?>"
            class="btn btn--secondary btn--sm"
            target="_blank">
             🖨 Imprimir

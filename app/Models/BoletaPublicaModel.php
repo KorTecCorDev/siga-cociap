@@ -118,6 +118,51 @@ class BoletaPublicaModel extends BaseModel
     }
 
     /**
+     * Estudiantes con boleta OFICIAL (≥1 competencia bloqueada) en el periodo,
+     * con su token permanente y el contador de visitas. Reemplaza a
+     * getPorPeriodo (basado en código) para el hub del admin, ahora centrado
+     * en el token. Si se pasa $seccionId, filtra a esa sección (loteo).
+     */
+    public function getEstudiantesParaPeriodo(int $periodoId, ?int $seccionId = null): array
+    {
+        $whereSeccion = $seccionId ? 'AND s.id = ?' : '';
+        $params       = $seccionId ? [$periodoId, $seccionId] : [$periodoId];
+
+        return $this->query("
+            SELECT DISTINCT
+                m.id             AS matricula_id,
+                CONCAT(
+                    per.apellido_paterno, ' ',
+                    per.apellido_materno, ', ',
+                    per.nombres
+                )                AS nombre_completo,
+                s.id             AS seccion_id,
+                s.nombre         AS seccion_nombre,
+                g.nombre_display AS grado_nombre,
+                n.nombre         AS nivel_nombre,
+                m.token_acceso,
+                m.token_consultas,
+                m.token_ultima_consulta
+            FROM matriculas m
+            INNER JOIN estudiantes e ON e.id   = m.estudiante_id
+            INNER JOIN personas per  ON per.id = e.persona_id
+            INNER JOIN secciones s   ON s.id   = m.seccion_id
+            INNER JOIN grados g      ON g.id   = s.grado_id
+            INNER JOIN niveles n     ON n.id   = g.nivel_id
+            INNER JOIN calificaciones cal
+                ON cal.matricula_id = m.id AND cal.periodo_id = ?
+            INNER JOIN bloqueos_competencia bc
+                ON bc.carga_id       = cal.carga_id
+               AND bc.competencia_id = cal.competencia_id
+               AND bc.periodo_id     = cal.periodo_id
+            WHERE m.estado = 'aprobada'
+              {$whereSeccion}
+            ORDER BY n.id, g.numero, s.nombre,
+                     per.apellido_paterno, per.apellido_materno, per.nombres
+        ", $params);
+    }
+
+    /**
      * Secciones del año activo agregadas para el periodo dado, con dos
      * conteos: matrículas aprobables (con ≥1 competencia bloqueada) y
      * boletas ya generadas. Solo devuelve secciones con al menos una
@@ -288,17 +333,54 @@ class BoletaPublicaModel extends BaseModel
     }
 
     /**
-     * Registra una visita a la boleta digital vía token (QR de la boleta impresa).
-     * Solo actualiza si existe registro en boletas_publicas para ese par.
+     * Devuelve el token_acceso PERMANENTE de una matrícula, generándolo si aún
+     * no existe (mismo formato hex-32 único que generarTokensActivos). El token
+     * es estable durante todo el año académico: existe UN solo enlace/QR por
+     * estudiante. Úsese para que la boleta impresa lleve siempre el mismo QR.
      */
-    public function registrarVisitaToken(int $matriculaId, int $periodoId): void
+    public function getOCrearToken(int $matriculaId): string
+    {
+        $row = $this->queryOne(
+            "SELECT token_acceso FROM matriculas WHERE id = ? LIMIT 1",
+            [$matriculaId]
+        );
+
+        if ($row && !empty($row['token_acceso'])) {
+            return $row['token_acceso'];
+        }
+
+        do {
+            $token  = bin2hex(random_bytes(16));
+            $existe = $this->queryOne(
+                "SELECT id FROM matriculas WHERE token_acceso = ? LIMIT 1",
+                [$token]
+            );
+        } while ($existe);
+
+        $this->execute(
+            "UPDATE matriculas SET token_acceso = ? WHERE id = ?",
+            [$token, $matriculaId]
+        );
+
+        return $token;
+    }
+
+    /**
+     * Registra una visita a la boleta vía token (QR de la boleta impresa o
+     * portal del padre). Cuenta por ESTUDIANTE en la propia matrícula —
+     * desacoplado del sistema de código (`boletas_publicas`), que quedó dormido.
+     * El token es uno por estudiante y permanente todo el año, así que la unidad
+     * natural de conteo es la matrícula identidad (no el periodo: el QR es el
+     * mismo token en el papel de B1..B4).
+     */
+    public function registrarVisitaToken(int $matriculaId): void
     {
         $this->execute(
-            "UPDATE boletas_publicas
-             SET veces_consultada = veces_consultada + 1,
-                 ultima_consulta  = NOW()
-             WHERE matricula_id = ? AND periodo_id = ?",
-            [$matriculaId, $periodoId]
+            "UPDATE matriculas
+             SET token_consultas       = token_consultas + 1,
+                 token_ultima_consulta = NOW()
+             WHERE id = ?",
+            [$matriculaId]
         );
     }
 
