@@ -767,10 +767,11 @@
 // Acordeon por seccion dentro del ranking por seccion (details anidado en el
 // details del grado): permite colapsar cada salon individualmente.
 .merito-seccion-acordeon {
-    // El color por seccion llega via las custom props --sec-* (clase
-    // seccion-ancla--{letra}, misma paleta que /docente/mis-cargas).
+    // Distincion de seccion MONOCROMA, identica a la ancla de /docente/mis-cargas:
+    // el identificador es la LETRA (recuadro), no el color. Tono azul fijo de la
+    // familia "Mis cargas" ($card-cargas-*). Se estandariza para no confundir.
     border: 1px solid $border-color;
-    border-left: 4px solid var(--sec-line, #{$border-color});
+    border-left: 4px solid $card-cargas-line;
     border-radius: $border-radius;
     margin-bottom: $spacing-sm;
     overflow: hidden;
@@ -785,10 +786,21 @@
         cursor: pointer;
         list-style: none;
         user-select: none;
-        background: var(--sec-bg, #{$bg-secondary});
+        background: $card-cargas-bg;
 
         &::-webkit-details-marker { display: none; }
         &::marker                 { display: none; }
+
+        // El conteo (y el chevron que le sigue) se empujan a la derecha; la
+        // izquierda queda con "Seccion [A]" sin redundancia.
+        .badge { margin-left: auto; }
+    }
+
+    // Rotula el glifo, IGUAL que la ancla de mis-cargas: "Seccion" + recuadro de
+    // la letra, sin repetir la letra en texto (era "Seccion A" + caja "A").
+    &__rotulo {
+        font-weight: 700;
+        color: $card-cargas-ink;
     }
 
     // Letra de la seccion en recuadro (ancla visual, igual que mis-cargas).
@@ -802,20 +814,13 @@
         font-size: 14px;
         font-weight: 800;
         line-height: 1;
-        color: var(--sec-ink, #{$text-primary});
+        color: $card-cargas-ink;
         background: $bg-white;
-        border: 2px solid var(--sec-line, #{$border-color});
+        border: 2px solid $card-cargas-line;
         border-radius: $border-radius;
     }
 
-    &__titulo {
-        flex: 1;
-        min-width: 0;
-        font-weight: 700;
-        color: var(--sec-ink, #{$text-primary});
-    }
-
-    // Reutiliza el chevron de las cards; toma el tono de la seccion y rota al abrir.
-    > summary .card__chevron { color: var(--sec-ink, #{$text-muted}); }
+    // Reutiliza el chevron de las cards; tono azul de "Mis cargas" y rota al abrir.
+    > summary .card__chevron { color: $card-cargas-ink; }
     &[open] > summary .card__chevron { transform: rotate(180deg); }
 }

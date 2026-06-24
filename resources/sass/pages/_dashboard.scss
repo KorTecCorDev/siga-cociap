@@ -365,17 +365,11 @@
         color: $card-cargas-ink;
     }
 
-    // Paleta por letra (custom properties --sec-*). Ya NO la consume la base de
-    // .seccion-ancla (monocromo): se conserva porque el acordeon del ranking
-    // (.merito-seccion-acordeon en /docente/ranking) reutiliza la clase
-    // .seccion-ancla--{letra} solo para leer estas variables.
-    &--a { --sec-line: #1d4ed8; --sec-bg: #eff6ff; --sec-ink: #1e40af; }
-    &--b { --sec-line: #7c3aed; --sec-bg: #f5f3ff; --sec-ink: #6d28d9; }
-    &--c { --sec-line: #0d9488; --sec-bg: #f0fdfa; --sec-ink: #0f766e; }
-    &--d { --sec-line: #be185d; --sec-bg: #fdf2f8; --sec-ink: #9d174d; }
-    &--e { --sec-line: #4338ca; --sec-bg: #eef2ff; --sec-ink: #3730a3; }
-    &--f { --sec-line: #0e7490; --sec-bg: #ecfeff; --sec-ink: #155e75; }
-    &--x { --sec-line: #64748b; --sec-bg: #f1f5f9; --sec-ink: #475569; } // fallback
+    // NOTA: la antigua paleta por letra (.seccion-ancla--{letra}, custom props
+    // --sec-*) se eliminó. El acordeon del ranking (.merito-seccion-acordeon)
+    // ahora usa el MISMO monocromo azul de "Mis cargas" ($card-cargas-*); la
+    // distincion de seccion es por la LETRA, no por color. No reintroducir colores
+    // por letra: confunde con el wayfinding por concepto.
 }
 
 // ── Barra de progreso — competencias aprobadas ───────────────

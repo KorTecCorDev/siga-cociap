@@ -47,17 +47,15 @@
                     <p class="text-muted">Sin calificaciones registradas.</p>
                 <?php else: ?>
                     <?php $j = 0; foreach ($data['secciones'] as $secNombre => $estudiantes): $j++;
-                        // Mismo color por letra de seccion que en /docente/mis-cargas:
-                        // la clase seccion-ancla--{letra} solo define las custom props
-                        // --sec-line/bg/ink, que el acordeon reutiliza (sin duplicar).
+                        // Distincion de seccion IGUAL que /docente/mis-cargas: la LETRA
+                        // (recuadro) es el identificador; el color es monocromo azul de
+                        // "Mis cargas" (no paleta por letra). Estandariza la lectura.
                         $secLetra = mb_strtoupper(mb_substr((string) $secNombre, 0, 1));
-                        $secColor = in_array(mb_strtolower($secLetra), ['a','b','c','d','e','f'], true)
-                            ? mb_strtolower($secLetra) : 'x';
                     ?>
-                        <details class="merito-seccion-acordeon seccion-ancla--<?= $secColor ?>" <?= $j === 1 ? 'open' : '' ?>>
+                        <details class="merito-seccion-acordeon" <?= $j === 1 ? 'open' : '' ?>>
                             <summary class="merito-seccion-acordeon__head">
+                                <span class="merito-seccion-acordeon__rotulo">Sección</span>
                                 <span class="merito-seccion-acordeon__letra"><?= e($secLetra) ?></span>
-                                <span class="merito-seccion-acordeon__titulo">Sección <?= e($secNombre) ?></span>
                                 <span class="badge badge--info"><?= count($estudiantes) ?> estudiantes</span>
                                 <svg class="card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                                     <polyline points="6,9 12,15 18,9"/>

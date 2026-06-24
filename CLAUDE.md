@@ -950,12 +950,18 @@ En `/docente/mis-cargas` (vista `mis-cargas.php`, SASS `pages/_dashboard.scss`):
   por eso va grande y sola). Pasó a **monocromo** en la familia "Mis cargas" (azul
   `$card-cargas-*`); se quitó la paleta por letra del ancla y el grado/nivel
   repetidos. Render `"Sección A"` (rótulo + recuadro de la letra, sin duplicar la
-  letra). La paleta `.seccion-ancla--{letra}` (`--sec-*`) **se conserva** porque la
-  consume el acordeón del ranking (`.merito-seccion-acordeon` en `/docente/ranking`).
+  letra). La paleta por letra `.seccion-ancla--{letra}` (`--sec-*`) se **ELIMINÓ**
+  (24/06): el acordeón del ranking (`.merito-seccion-acordeon` en
+  `/docente/ranking-seccion`) era su único consumidor y ahora usa el MISMO monocromo
+  azul de "Mis cargas" (`$card-cargas-*`). Distinción de sección = la LETRA, nunca
+  color por letra (confunde con el wayfinding por concepto).
 - **Bloque de grado** (`.card--grado` + `.grado-head`): se diferencia por
   **jerarquía tipográfica** (nivel como antetítulo + grado en grande), NO por color
   (los grados son secuenciales; un tinte por grado competiría con el azul de la
   página).
+- **Ranking por sección estandarizado (24/06):** `ranking-seccion-periodo.php` ya no
+  aplica `seccion-ancla--{letra}`; `.merito-seccion-acordeon` (`pages/_docente-panel.scss`)
+  usa `$card-cargas-*` fijo. Misma lectura que mis-cargas (letra = identificador).
 
 ## Módulo Director EBR — historial de cargo (sesión 7)
 
