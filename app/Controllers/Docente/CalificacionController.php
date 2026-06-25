@@ -257,6 +257,13 @@ class CalificacionController extends BaseController
         $bloqueos        = $this->getBloqueos($cargaId, $periodo['id']);
         $exonerados      = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
 
+        // Piso de carga: si marcar "no se evaluó" dejaría la carga sin ninguna
+        // calificación, no se ofrece el botón (el servidor también lo rechaza).
+        $permiteNoEvaluar = $this->calModel->permiteNoEvaluarEnCarga(
+            $cargaId,
+            (int) $periodo['id']
+        );
+
         $this->view('docente/calificaciones', [
             'titulo'          => 'Calificaciones — ' . (!empty($carga['es_unidocente'])
                 ? ($carga['area_nombre'] ?? '')
@@ -269,6 +276,7 @@ class CalificacionController extends BaseController
             'notasExistentes' => $notasExistentes,
             'bloqueos'        => $bloqueos,
             'exonerados'      => $exonerados,
+            'permiteNoEvaluar' => $permiteNoEvaluar,
             'page_scripts'    => ['calificaciones'],
         ]);
     }
@@ -1058,6 +1066,15 @@ class CalificacionController extends BaseController
 
         $sinCriterios = empty($resumen['criterios']);
         if ($sinCriterios && $confirmaSinNotas) {
+            // Piso de carga: el docente no puede dejar su carga sin ninguna
+            // calificación. Si marcar esta como "no se evaluó" vaciaría la carga,
+            // se rechaza (el director sí puede forzarlo desde el panel de bloqueos).
+            if (!$this->calModel->permiteNoEvaluarEnCarga($cargaId, (int) $periodo['id'])) {
+                return 'No puedes dejar esta carga sin ninguna calificación. '
+                     . 'Registra notas en al menos una competencia. Si el área no se '
+                     . 'evalúa (casillero cedido), el director debe finalizarla desde '
+                     . 'el panel de bloqueos.';
+            }
             return null;
         }
         if ($sinCriterios) {

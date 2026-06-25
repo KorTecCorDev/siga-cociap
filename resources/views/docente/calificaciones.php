@@ -121,9 +121,13 @@
             && (int) ($competencia['alumnos_calificados'] ?? 0) === 0;
         $resumenAccesible  = $compBloqueada || $tieneConfirmado;
         // "No se evaluó" es una acción de escritura: no se ofrece en un periodo
-        // bloqueado (igual que "Confirmar" y "Agregar criterio").
+        // bloqueado (igual que "Confirmar" y "Agregar criterio"). Tampoco se
+        // ofrece si dejaría la carga sin ninguna calificación (piso de carga):
+        // el docente debe evaluar al menos una competencia. El servidor lo
+        // revalida; el director puede forzarlo desde el panel de bloqueos.
         $mostrarNoEvaluo   = !$esTransversal && !$compBloqueada
-            && !$tieneCriterios && !$bloqueado;
+            && !$tieneCriterios && !$bloqueado
+            && ($permiteNoEvaluar ?? true);
 
         // Estado inicial del card transversal: verde si ya tiene notas
         // guardadas en alguno de sus criterios (sin parpadeo al cargar; el JS
@@ -354,7 +358,7 @@
                                     <input
                                         type="text"
                                         class="form-input input-nuevo-criterio"
-                                        placeholder="Ej: Examen escrito, Trabajo grupal..."
+                                        placeholder="Verbo observable + qué evalúa + condición o cualidad esperada"
                                         maxlength="100"
                                     >
                                     <span class="contador-chars" data-contador-de="nombre">0/100</span>

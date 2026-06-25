@@ -449,6 +449,74 @@ class CalificacionModel extends BaseModel
     }
 
     /**
+     * ¿Se puede marcar una competencia académica de esta carga como
+     * "no se evaluó" sin dejar la carga totalmente sin calificaciones?
+     *
+     * Regla de negocio: el docente es autónomo para elegir qué competencias
+     * evaluar, pero su carga NO puede quedar sin ninguna calificación. Solo
+     * cuenta las competencias ACADÉMICAS de la carga (las transversales TIC/GAMA
+     * se gobiernan aparte con el cierre del tutor, no por este piso).
+     *
+     * Devuelve false cuando marcar una "no se evaluó" dejaría la carga vacía y
+     * finalizada, es decir cuando `con_notas == 0 && abiertas <= 1`:
+     *   - con_notas = competencias con al menos un alumno calificado.
+     *   - abiertas  = competencias aún no bloqueadas (pueden recibir notas).
+     * El chequeo es a nivel de carga (no depende de cuál competencia), así que
+     * sirve igual para la validación del servidor y para ocultar el botón.
+     *
+     * El director/admin SÍ puede forzar una carga sin notas desde el panel de
+     * bloqueos (vía bloquearCompetencia, que no pasa por este piso).
+     */
+    public function permiteNoEvaluarEnCarga(int $cargaId, int $periodoId): bool
+    {
+        $r = $this->queryOne("
+            SELECT
+                COALESCE(SUM(CASE WHEN ac.notas    > 0 THEN 1 ELSE 0 END), 0) AS con_notas,
+                COALESCE(SUM(CASE WHEN ac.bloqueada = 0 THEN 1 ELSE 0 END), 0) AS abiertas
+            FROM (
+                SELECT
+                    c.id AS competencia_id,
+                    (
+                        SELECT COUNT(DISTINCT cc.matricula_id)
+                        FROM calificaciones_criterio cc
+                        INNER JOIN criterios cr ON cr.id = cc.criterio_id
+                        WHERE cr.carga_id       = ?
+                          AND cr.competencia_id = c.id
+                          AND cr.periodo_id     = ?
+                          AND cr.eliminado_en   IS NULL
+                    ) AS notas,
+                    (
+                        SELECT COUNT(*)
+                        FROM bloqueos_competencia bc
+                        WHERE bc.carga_id       = ?
+                          AND bc.competencia_id = c.id
+                          AND bc.periodo_id     = ?
+                    ) AS bloqueada
+                FROM (
+                    SELECT comp.id FROM competencias comp
+                    INNER JOIN cargas_academicas ca
+                        ON ca.subarea_id = comp.subarea_id
+                    WHERE ca.id = ? AND comp.subarea_id IS NOT NULL
+                    UNION
+                    SELECT comp.id FROM competencias comp
+                    INNER JOIN cargas_academicas ca
+                        ON ca.area_id = comp.area_id
+                    WHERE ca.id = ? AND comp.area_id IS NOT NULL
+                ) c
+            ) ac
+        ", [
+            $cargaId, $periodoId,
+            $cargaId, $periodoId,
+            $cargaId, $cargaId,
+        ]);
+
+        $conNotas = (int) ($r['con_notas'] ?? 0);
+        $abiertas = (int) ($r['abiertas'] ?? 0);
+
+        return !($conNotas === 0 && $abiertas <= 1);
+    }
+
+    /**
      * Obtiene el resumen de notas de todos los alumnos
      * para una competencia específica.
      */
