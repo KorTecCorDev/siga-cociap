@@ -87,12 +87,39 @@ async function autoguardarCelda(input) {
                     if (btnEliminar) btnEliminar.dataset.tieneCalificaciones = '1';
                 }
             }
+            // Sincronizar "Ver resumen": borrar una nota puede desconfirmar el
+            // criterio (blanco sin motivo) y re-bloquear el acceso al resumen.
+            if (typeof data.resumenAccesible === 'boolean') {
+                sincronizarBotonResumen(competenciaId, data.resumenAccesible);
+            }
         }
     } catch {
         // Silencioso: card queda ámbar, docente reintenta en el siguiente blur
     }
 
     recalcularCambiosForm(form);
+}
+
+// Sincroniza el botón "Ver resumen" de una competencia con la accesibilidad
+// que reporta el servidor (misma apariencia que el render bloqueado de la vista
+// PHP). Evita que el botón mienta tras borrar notas hasta la siguiente recarga.
+function sincronizarBotonResumen(competenciaId, accesible) {
+    const card = document.getElementById('comp-' + competenciaId);
+    if (!card) return;
+    const link = card.querySelector('.competencia-card__acciones a.btn--secondary');
+    if (!link) return;
+
+    if (accesible) {
+        link.classList.remove('btn-ver-resumen--bloqueado');
+        link.removeAttribute('tabindex');
+        link.removeAttribute('aria-disabled');
+        link.removeAttribute('title');
+    } else {
+        link.classList.add('btn-ver-resumen--bloqueado');
+        link.tabIndex = -1;
+        link.setAttribute('aria-disabled', 'true');
+        link.setAttribute('title', 'Confirma al menos un criterio para acceder al resumen');
+    }
 }
 
 // Vista normal: el form vive dentro de .criterio-bloque.

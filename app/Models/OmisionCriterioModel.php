@@ -38,6 +38,21 @@ class OmisionCriterioModel extends BaseModel
     }
 
     /**
+     * ¿El alumno tiene una omisión registrada (motivo) en este criterio?
+     * Se usa en el autosave: borrar una nota cuyo blanco YA está justificado no
+     * rompe la completitud, así que no desconfirma el criterio.
+     */
+    public function tieneOmision(int $criterioId, int $matriculaId): bool
+    {
+        return (bool) $this->queryOne(
+            "SELECT 1 FROM omisiones_criterio
+             WHERE criterio_id = ? AND matricula_id = ?
+             LIMIT 1",
+            [$criterioId, $matriculaId]
+        );
+    }
+
+    /**
      * Retorna omisiones de un criterio indexadas por matricula_id.
      * @return array [matricula_id => motivo]
      */

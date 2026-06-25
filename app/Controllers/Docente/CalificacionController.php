@@ -390,6 +390,15 @@ class CalificacionController extends BaseController
 
         if ($nota === '') {
             $this->calModel->eliminarNotaCriterio($criterioId, $matriculaId);
+
+            // Si el borrado deja un blanco SIN motivo, el criterio ya no está
+            // "completo": se desconfirma para que el latch confirmado_en sea
+            // veraz. Así "Ver resumen" se re-bloquea y el docente debe volver a
+            // Confirmar, que re-dispara el filtro de omisión. Un blanco ya
+            // justificado (con omisión) no rompe la completitud → no desconfirma.
+            if (!$this->omisionModel->tieneOmision($criterioId, $matriculaId)) {
+                $this->critModel->desconfirmar($criterioId);
+            }
         } else {
             $notaInt = max(0, min(20, (int) $nota));
             $this->calModel->guardarNotaCriterio($criterioId, $matriculaId, $notaInt);
@@ -410,7 +419,12 @@ class CalificacionController extends BaseController
             ]);
         }
 
-        $this->json(['success' => true]);
+        // Accesibilidad actual de la competencia, para que el cliente sincronice
+        // el botón "Ver resumen" sin recargar (misma regla que el guard de resumen()).
+        $resumenAccesible = $this->calModel->competenciaBloqueada($cargaId, $competenciaId, $periodo['id'])
+            || $this->critModel->existeConfirmado($cargaId, $competenciaId, $periodo['id']);
+
+        $this->json(['success' => true, 'resumenAccesible' => $resumenAccesible]);
     }
 
     /**
@@ -921,6 +935,20 @@ class CalificacionController extends BaseController
         $bloqueada = $this->calModel->competenciaBloqueada(
             $cargaId, $competenciaId, $periodo['id']
         );
+
+        // Guard de accesibilidad (defensa en profundidad): solo se entra al
+        // resumen si está bloqueada (lectura) o existe ≥1 criterio confirmado
+        // vivo. Cierra el bypass del filtro de omisión cuando se borran notas
+        // tras confirmar (el criterio se desconfirma) o si se fuerza la URL.
+        $accesible = $bloqueada
+            || $this->critModel->existeConfirmado($cargaId, $competenciaId, $periodo['id']);
+        if (!$accesible) {
+            $this->redirectWithError(
+                url('docente/calificaciones/' . $cargaId),
+                'Vuelve a confirmar el criterio: borraste notas que quedaron en blanco '
+                . 'sin motivo, o aún no confirmaste ningún criterio de esta competencia.'
+            );
+        }
 
         // Obtener resumen completo
         $resumen = $this->calModel->getResumenCompetencia(

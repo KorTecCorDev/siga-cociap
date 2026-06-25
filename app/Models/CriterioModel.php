@@ -110,6 +110,45 @@ class CriterioModel extends BaseModel
     }
 
     /**
+     * ¿Existe al menos un criterio vivo y confirmado en la competencia?
+     * Es la base de "resumen accesible": el docente solo llega al resumen si
+     * confirmó (clic en "Confirmar", que pasó por el filtro de omisión) y no
+     * rompió luego la completitud. Lo usan el autosave (sincroniza el botón) y
+     * el guard de resumen() — una sola fuente de verdad.
+     */
+    public function existeConfirmado(int $cargaId, int $competenciaId, int $periodoId): bool
+    {
+        return (bool) $this->queryOne(
+            "SELECT 1 FROM criterios
+             WHERE carga_id       = ?
+               AND competencia_id = ?
+               AND periodo_id     = ?
+               AND eliminado_en   IS NULL
+               AND confirmado_en  IS NOT NULL
+             LIMIT 1",
+            [$cargaId, $competenciaId, $periodoId]
+        );
+    }
+
+    /**
+     * Revierte el sello de confirmación. Se llama cuando un autosave deja un
+     * criterio con un blanco sin motivo (rompe la completitud): el criterio deja
+     * de estar "confirmado", re-bloquea "Ver resumen" y obliga a volver a
+     * Confirmar (que re-dispara el filtro de omisión). Inverso de marcarConfirmado.
+     */
+    public function desconfirmar(int $id): bool
+    {
+        return $this->execute(
+            "UPDATE criterios
+             SET confirmado_en  = NULL,
+                 confirmado_por = NULL
+             WHERE id          = ?
+               AND eliminado_en IS NULL",
+            [$id]
+        );
+    }
+
+    /**
      * Soft-delete con auditoría: marca el criterio como eliminado.
      * Funciona aunque el criterio ya tenga calificaciones registradas.
      * Los registros de criterios y calificaciones_criterio se conservan en BD.
