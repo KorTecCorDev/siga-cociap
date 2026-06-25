@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= e($titulo ?? 'SIGA-COCIAP') ?> — SIGA-COCIAP</title>
+    <title><?= e($titulo ?? 'SIGACOCIAP') ?> — SIGACOCIAP</title>
     <meta name="base-url"   content="<?= rtrim(url(''), '/') ?>">
     <meta name="csrf-token" content="<?= \Core\Session::csrfToken() ?>">
     <meta name="theme-color" content="#1a3a5c">
@@ -19,7 +19,7 @@
         <div class="app-loader__bar"></div>
         <div class="app-loader__overlay">
             <img src="<?= url('assets/img/logo_cociap.png') ?>" alt="" class="app-loader__logo">
-            <span class="app-loader__nombre">SIGA-COCIAP</span>
+            <span class="app-loader__nombre">SIGACOCIAP</span>
             <span class="app-loader__spinner"></span>
         </div>
     </div>
@@ -29,7 +29,7 @@
         <div class="navbar__brand">
             <img src="<?= url('assets/img/logo_cociap.png') ?>
                 "alt="COCIAP" class="navbar__logo">
-            <span class="navbar__nombre">SIGA-COCIAP</span>
+            <span class="navbar__nombre">SIGACOCIAP</span>
         </div>
 
         <div class="navbar__user">
@@ -81,7 +81,7 @@
 
     <footer class="app-footer">
         <span class="app-footer__copy">
-            &copy; <?= date('Y') ?> SIGA-COCIAP &mdash; Todos los derechos reservados.
+            &copy; <?= date('Y') ?> SIGACOCIAP &mdash; Todos los derechos reservados.
         </span>
         <span class="app-footer__meta">
             <span class="app-footer__version">v1.0.0</span>

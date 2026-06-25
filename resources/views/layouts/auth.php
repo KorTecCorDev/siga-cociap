@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= e($titulo ?? 'Iniciar sesión') ?> — SIGA-COCIAP</title>
+    <title><?= e($titulo ?? 'Iniciar sesión') ?> — SIGACOCIAP</title>
     <meta name="theme-color" content="#1a3a5c">
     <link rel="icon" type="image/x-icon" href="<?= url('favicon.ico') ?>">
     <link rel="apple-touch-icon" href="<?= url('assets/img/logo_cociap.png') ?>">
@@ -21,14 +21,14 @@
                     <img src="<?= url('assets/img/logo_cociap.png') ?>" 
                         alt="Logo_COCIAP">
                 </div>
-                <h1 class="auth-brand__sistema">SIGA-COCIAP</h1>
+                <h1 class="auth-brand__sistema">SIGACOCIAP</h1>
                 <p class="auth-brand__nombre">Sistema Integrado de<br>Gestión Académica</p>
                 <div class="auth-brand__divider"></div>
                 <p class="auth-brand__institucion">
                     Colegio de Aplicación<br>
                     <strong>"Víctor Valenzuela Guardia"</strong>
                 </p>
-                <p class="auth-brand__unasam">UNASAM · Huaraz, Ancash</p>
+                <p class="auth-brand__unasam">Todos los derechos reservados.</p>
             </div>
         </div>
 

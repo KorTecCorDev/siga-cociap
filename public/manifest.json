@@ -1,6 +1,6 @@
 {
-    "name": "SIGA-COCIAP",
-    "short_name": "SIGA",
+    "name": "SIGACOCIAP",
+    "short_name": "SIGACOCIAP",
     "description": "Sistema Integrado de Gestión Académica — Colegio de Aplicación Víctor Valenzuela Guardia",
     "start_url": "/",
     "display": "standalone",
