@@ -47,3 +47,48 @@
         setTimeout(ajustar, 200);
     });
 })();
+
+/**
+ * Boton "Volver" robusto.
+ *
+ * Las boletas/reportes A4 se abren con target="_blank" (pestana nueva), donde
+ * NO hay historial: history.back() no hace nada (se nota sobre todo en el
+ * celular). Degradamos: historial si existe -> referrer del mismo origen ->
+ * cerrar la pestana -> inicio (base-url). Si el JS no carga, el href original
+ * (javascript:history.back) sigue como fallback minimo.
+ */
+(function () {
+    var volver = document.querySelector('.btn-boleta--volver');
+    if (!volver) { return; }
+
+    function baseUrl() {
+        var meta = document.querySelector('meta[name="base-url"]');
+        return (meta && meta.getAttribute('content')) || '/';
+    }
+
+    volver.addEventListener('click', function (e) {
+        e.preventDefault();
+
+        // Caso normal (misma pestana): hay a donde retroceder.
+        if (window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+
+        // Pestana nueva: volver a la pagina de origen si es del mismo sitio.
+        var ref = document.referrer;
+        if (ref) {
+            try {
+                if (new URL(ref).origin === window.location.origin) {
+                    window.location.href = ref;
+                    return;
+                }
+            } catch (err) { /* referrer invalido: seguir al fallback */ }
+        }
+
+        // Sin historial ni referrer util: intentar cerrar; si el navegador lo
+        // bloquea (rel=noopener), ir al inicio.
+        window.close();
+        setTimeout(function () { window.location.href = baseUrl(); }, 150);
+    });
+})();

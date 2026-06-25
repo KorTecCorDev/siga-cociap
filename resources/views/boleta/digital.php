@@ -60,6 +60,7 @@ $vistaPrevia = $vistaPrevia ?? false;
         <span>PDF</span>
     </button>
     <a href="javascript:history.back()"
+       id="bdVolver"
        class="bd-fab__btn bd-fab__btn--ghost"
        aria-label="Volver a la página anterior">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

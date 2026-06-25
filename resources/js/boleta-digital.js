@@ -92,4 +92,35 @@
         });
     });
 
+    // ── Boton "Volver" robusto ────────────────────────────────
+    // La boleta digital se abre con target="_blank" (pestana nueva) sin
+    // historial, asi que history.back() no hace nada (se nota en el celular).
+    // Degradamos: historial -> referrer del mismo origen -> cerrar -> inicio.
+    var volver = document.getElementById('bdVolver');
+    if (volver) {
+        volver.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            if (window.history.length > 1) {
+                window.history.back();
+                return;
+            }
+
+            var ref = document.referrer;
+            if (ref) {
+                try {
+                    if (new URL(ref).origin === window.location.origin) {
+                        window.location.href = ref;
+                        return;
+                    }
+                } catch (err) { /* referrer invalido: seguir al fallback */ }
+            }
+
+            var meta = document.querySelector('meta[name="base-url"]');
+            var base = (meta && meta.getAttribute('content')) || '/';
+            window.close();
+            setTimeout(function () { window.location.href = base; }, 150);
+        });
+    }
+
 })();
