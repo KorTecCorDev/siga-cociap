@@ -34,9 +34,12 @@
         align-items: center;
         justify-content: center;
         gap: $spacing-lg;
+        // Fondo claro: el logo lleva azul + naranja + texto, necesita
+        // contraste claro. Radial sutil (blanco al centro → gris muy claro
+        // en los bordes) para suavizar la aparicion sin restar legibilidad.
         background:
             radial-gradient(circle at 50% 40%,
-                rgba($brand-mid, .96), rgba($brand-dark, .98));
+                $bg-white, $bg-body);
         opacity: 0;
         visibility: hidden;
         transition: opacity .25s ease, visibility .25s ease;
@@ -46,22 +49,15 @@
         // Escala fluida: ~80px en móvil chico → tope 128px en desktop/4K.
         width: clamp(80px, 14vw, 128px);
         height: auto;
-        filter: drop-shadow(0 6px 18px rgba(0, 0, 0, .35));
+        filter: drop-shadow(0 6px 18px rgba($brand-dark, .22));
         animation: app-loader-pulso 1.6s ease-in-out infinite;
-    }
-
-    &__nombre {
-        color: $text-white;
-        font-size: $font-size-lg;
-        font-weight: 600;
-        letter-spacing: .08em;
     }
 
     &__spinner {
         width: 34px;
         height: 34px;
-        border: 3px solid rgba($text-white, .25);
-        border-top-color: $brand-accent;
+        border: 3px solid rgba($brand-mid, .22);   // aro azul tenue sobre fondo claro
+        border-top-color: $brand-accent;           // arco naranja de marca
         border-radius: 50%;
         animation: app-loader-girar .6s linear infinite;
     }

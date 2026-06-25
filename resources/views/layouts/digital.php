@@ -8,7 +8,7 @@
     <meta name="base-url" content="<?= rtrim(url(''), '/') ?>">
     <meta name="theme-color" content="#1a3a5c">
     <link rel="icon" type="image/x-icon" href="<?= url('favicon.ico') ?>">
-    <link rel="apple-touch-icon" href="<?= url('assets/img/logo_cociap.png') ?>">
+    <link rel="apple-touch-icon" href="<?= url('siga-cociap-logo-sin-nombre.png') ?>">
     <link rel="manifest" href="<?= url('manifest.json') ?>">
     <link rel="stylesheet" href="<?= url('css/app.css') ?>">
 </head>

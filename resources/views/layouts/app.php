@@ -8,7 +8,7 @@
     <meta name="csrf-token" content="<?= \Core\Session::csrfToken() ?>">
     <meta name="theme-color" content="#1a3a5c">
     <link rel="icon" type="image/x-icon" href="<?= url('favicon.ico') ?>">
-    <link rel="apple-touch-icon" href="<?= url('siga-cociap-logo.png') ?>">
+    <link rel="apple-touch-icon" href="<?= url('siga-cociap-logo-sin-nombre.png') ?>">
     <link rel="manifest" href="<?= url('manifest.json') ?>">
     <link rel="stylesheet" href="<?= url('css/app.css') ?>">
 </head>
@@ -18,8 +18,7 @@
     <div class="app-loader" id="appLoader" aria-hidden="true">
         <div class="app-loader__bar"></div>
         <div class="app-loader__overlay">
-            <img src="<?= url('assets/img/logo_cociap.png') ?>" alt="" class="app-loader__logo">
-            <span class="app-loader__nombre">SIGACOCIAP</span>
+            <img src="<?= url('siga-cociap-logo.png') ?>" alt="SIGACOCIAP" class="app-loader__logo">
             <span class="app-loader__spinner"></span>
         </div>
     </div>
