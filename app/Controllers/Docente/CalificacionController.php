@@ -300,7 +300,11 @@ class CalificacionController extends BaseController
 
         $criterioId    = (int) $this->input('criterio_id');
         $competenciaId = (int) $this->input('competencia_id');
-        $notas         = $this->input('notas', []);
+        $notasRaw      = $this->input('notas', []);
+        $omisionesRaw  = $this->input('omisiones', []);
+
+        if (!is_array($notasRaw))     $notasRaw     = [];
+        if (!is_array($omisionesRaw)) $omisionesRaw = [];
 
         // ── Verificar bloqueo de competencia ────────────────
         if ($this->calModel->competenciaBloqueada(
@@ -312,47 +316,114 @@ class CalificacionController extends BaseController
             ], 403);
         }
 
-        if (!$criterioId || empty($notas)) {
+        if (!$criterioId || !$competenciaId) {
             $this->json([
                 'success' => false,
                 'mensaje' => 'Datos incompletos.',
             ], 400);
         }
 
-        $ok = $this->calModel->guardarNotasMasivas($criterioId, $notas);
-
-        if (!$ok) {
-            $this->json([
-                'success' => false,
-                'mensaje' => 'Error al guardar las notas.',
-            ], 500);
+        // ── Normalizar entradas ─────────────────────────────
+        // Notas válidas: numéricas, recortadas a 0-20. Omisiones válidas: motivo
+        // del catálogo. Si un alumno llega en ambos, manda la nota (la omisión se
+        // descarta) para que las dos colecciones sean disjuntas.
+        $notas = [];
+        foreach ($notasRaw as $mid => $val) {
+            $val = trim((string) $val);
+            if ($val === '' || !is_numeric($val)) continue;
+            $notas[(int) $mid] = max(0, min(20, (int) $val));
+        }
+        $omisiones = [];
+        foreach ($omisionesRaw as $mid => $motivo) {
+            $mid = (int) $mid;
+            if (isset($notas[$mid])) continue;
+            if (!array_key_exists($motivo, OmisionCriterioModel::MOTIVOS)) continue;
+            $omisiones[$mid] = $motivo;
         }
 
+        // ── Validación dura del filtro de omisión (defensa de servidor) ──
+        // Cada alumno del roster (excluidos exonerados) debe tener, para ESTE
+        // criterio, una nota o una omisión (enviada ahora o ya registrada). Sin
+        // esto, el sello de "Ver resumen" sería bypasseable por una petición
+        // directa que omita las omisiones de los blancos.
+        $resumen        = $this->calModel->getResumenCompetencia($cargaId, $competenciaId, (int) $periodo['id']);
+        $exonerados     = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
+        $exoSet         = array_flip(array_map('intval', $exonerados));
+        $omisionPrevia  = $this->omisionModel->getPorCriterio($criterioId);
+
+        $faltantes = 0;
+        foreach ($resumen['alumnos'] as $a) {
+            $mid = (int) $a['matricula_id'];
+            if (isset($exoSet[$mid])) continue;
+            $ok = isset($notas[$mid])
+               || isset($omisiones[$mid])
+               || isset($omisionPrevia[$mid]);
+            if (!$ok) {
+                $faltantes++;
+            }
+        }
+        if ($faltantes > 0) {
+            $this->json([
+                'success' => false,
+                'mensaje' => "Hay {$faltantes} alumno(s) en blanco sin motivo de omisión. "
+                    . 'Registra una nota o justifica la omisión antes de confirmar.',
+            ], 422);
+        }
+
+        // Nada que persistir y nada que justificar → no hay criterio que confirmar.
+        if (empty($notas) && empty($omisiones)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'No hay notas que guardar.',
+            ], 400);
+        }
+
+        // ── Persistencia ATÓMICA ────────────────────────────
+        // Notas + omisiones + reagregación + sello en una sola transacción (PDO
+        // singleton compartido por todos los modelos). Si algo falla, rollback
+        // total y el criterio NO queda sellado. Elimina la ventana de los dos
+        // fetch separados que dejaba "Ver resumen" abierto sin las omisiones.
+        $userId = Session::user()['id'];
+        $this->calModel->beginTransaction();
         try {
+            // 1. Notas con valor (guardarNotaCriterio NO abre transacción propia)
+            foreach ($notas as $mid => $nota) {
+                $this->calModel->guardarNotaCriterio($criterioId, $mid, $nota);
+            }
+            // 2. Omitidos: borrar cualquier nota previa contradictoria + registrar motivo
+            foreach (array_keys($omisiones) as $mid) {
+                $this->calModel->eliminarNotaCriterio($criterioId, $mid);
+            }
+            if (!empty($omisiones)) {
+                $this->omisionModel->guardarLote($criterioId, $omisiones, $userId);
+            }
+            // 3. Alumno con nota no conserva omisión que lo contradiga
+            foreach (array_keys($notas) as $mid) {
+                $this->omisionModel->eliminarOmision($criterioId, $mid);
+            }
+            // 4. Reagregar promedios + limpiar huérfanos (DELETE de filas sin notas)
             $this->calModel->recalcularPromedioSeccion(
-                $cargaId,
-                $competenciaId,
-                $periodo['id'],
-                Session::user()['id']
+                $cargaId, $competenciaId, (int) $periodo['id'], $userId
             );
+            // 5. Sellar como CONFIRMADO (desbloquea "Ver resumen") — SOLO tras
+            //    pasar la validación. El autosave nunca llega aquí.
+            $this->critModel->marcarConfirmado($criterioId, $userId);
+
+            $this->calModel->commit();
         } catch (\Exception $e) {
-            log_error('Error al recalcular promedio', [
+            $this->calModel->rollback();
+            log_error('Error al guardar/confirmar criterio', [
                 'carga_id'       => $cargaId,
                 'competencia_id' => $competenciaId,
+                'criterio_id'    => $criterioId,
                 'periodo_id'     => $periodo['id'],
                 'error'          => $e->getMessage(),
             ]);
             $this->json([
                 'success' => false,
-                'mensaje' => 'Notas guardadas, pero falló el cálculo del promedio. Contacte al administrador.',
+                'mensaje' => 'Error al guardar las notas. Intenta nuevamente.',
             ], 500);
         }
-
-        // Sella el criterio como CONFIRMADO (clic explícito en "Confirmar").
-        // El autosave (/autosave) nunca pasa por aquí, así que no desbloquea
-        // "Ver resumen": eso evita saltarse el filtro de omisión con el
-        // autoguardado. Es persistente (sobrevive al recargado).
-        $this->critModel->marcarConfirmado($criterioId, Session::user()['id']);
 
         $this->json([
             'success' => true,

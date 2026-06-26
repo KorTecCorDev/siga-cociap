@@ -53,6 +53,20 @@ class OmisionCriterioModel extends BaseModel
     }
 
     /**
+     * Elimina la omisión de un alumno en un criterio. Se usa al confirmar cuando
+     * el alumno pasó a tener una nota: no puede conservar una omisión que lo
+     * contradiga. Idempotente (no falla si no existía).
+     */
+    public function eliminarOmision(int $criterioId, int $matriculaId): bool
+    {
+        return $this->execute(
+            "DELETE FROM omisiones_criterio
+             WHERE criterio_id = ? AND matricula_id = ?",
+            [$criterioId, $matriculaId]
+        );
+    }
+
+    /**
      * Retorna omisiones de un criterio indexadas por matricula_id.
      * @return array [matricula_id => motivo]
      */

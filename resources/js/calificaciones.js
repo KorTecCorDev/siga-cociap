@@ -335,12 +335,18 @@ async function ejecutarGuardado(form, criterioId, competenciaId, cargaId, notas,
     mostrarStatus(status, 'loading', 'Guardando...');
 
     try {
+        // Notas + omisiones en UNA sola petición atómica. El servidor valida
+        // que ningún alumno quede en blanco sin motivo antes de sellar el
+        // criterio (el filtro de omisión ya no depende solo de este modal).
         const formData = new FormData();
         formData.append('_csrf_token',    CSRF);
         formData.append('criterio_id',    criterioId);
         formData.append('competencia_id', competenciaId);
         Object.entries(notas).forEach(([id, nota]) => {
             formData.append(`notas[${id}]`, nota);
+        });
+        Object.entries(omisiones).forEach(([id, motivo]) => {
+            formData.append(`omisiones[${id}]`, motivo);
         });
 
         const url = `${BASE}/docente/calificaciones/${cargaId}/guardar`;
@@ -350,20 +356,6 @@ async function ejecutarGuardado(form, criterioId, competenciaId, cargaId, notas,
         if (!data.success) {
             mostrarStatus(status, 'error', '⚠ ' + data.mensaje);
             return;
-        }
-
-        // Guardar omisiones si las hay (segundo fetch, secuencial)
-        if (Object.keys(omisiones).length > 0) {
-            const omData = new FormData();
-            omData.append('_csrf_token',    CSRF);
-            omData.append('criterio_id',    criterioId);
-            omData.append('competencia_id', competenciaId);
-            Object.entries(omisiones).forEach(([id, motivo]) => {
-                omData.append(`omisiones[${id}]`, motivo);
-            });
-            await fetch(`${BASE}/docente/calificaciones/${cargaId}/omisiones`,
-                { method: 'POST', body: omData }
-            );
         }
 
         mostrarStatus(status, 'success', '✓ ' + data.mensaje);
@@ -710,8 +702,7 @@ document.querySelectorAll('.btn-eliminar-criterio').forEach(btn => {
         const mensaje = tieneCals
             ? `¿Eliminar el criterio "${nombre}"?\n\n` +
               `Este criterio tiene notas registradas. ` +
-              `El promedio de los alumnos será recalculado sin este criterio.\n\n` +
-              `Los datos quedan guardados en el sistema para auditoría.`
+              `El promedio de los alumnos será recalculado sin este criterio.\n\n`
             : `¿Eliminar el criterio "${nombre}"?`;
 
         if (!confirm(mensaje)) return;

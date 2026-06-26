@@ -166,6 +166,30 @@ class CalificacionModel extends BaseModel
                 );
             }
         }
+
+        // Limpieza de promedios huérfanos: si un alumno quedó SIN ninguna nota
+        // viva de criterio en esta competencia (borró su última nota, o se
+        // eliminó el único criterio), su fila agregada en `calificaciones` ya no
+        // representa nada. Como `nota_numerica` es NOT NULL, se elimina la fila
+        // (semántica "sin nota": todos los consumidores usan LEFT JOIN). Sin
+        // esto, el promedio anterior quedaba persistido como fantasma y la
+        // boleta/orden de mérito/resumen seguían mostrándolo.
+        $this->execute("
+            DELETE c FROM calificaciones c
+            WHERE c.carga_id       = ?
+              AND c.competencia_id = ?
+              AND c.periodo_id     = ?
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM calificaciones_criterio cc
+                  INNER JOIN criterios cr ON cr.id = cc.criterio_id
+                  WHERE cc.matricula_id   = c.matricula_id
+                    AND cr.carga_id       = c.carga_id
+                    AND cr.competencia_id = c.competencia_id
+                    AND cr.periodo_id     = c.periodo_id
+                    AND cr.eliminado_en   IS NULL
+              )
+        ", [$cargaId, $competenciaId, $periodoId]);
     }
 
     /**
