@@ -215,7 +215,8 @@ class CalificacionController extends BaseController
      * por orden de subárea (la primera es la DUEÑA de las transversales). Cada
      * fila trae meta de sección/área/nivel. Vacío si el docente no dicta esa
      * área en esa sección. Base de la vista de área unidocente (formularioArea/
-     * historialArea); el caller valida `es_unidocente` con la primera fila.
+     * historialArea); el caller valida `es_aula` (requester es el tutor) con la
+     * primera fila.
      */
     private function getCargasAreaDocente(int $seccionId, int $areaId, int $usuarioId): array
     {
@@ -226,6 +227,11 @@ class CalificacionController extends BaseController
                 sa.orden           AS subarea_orden,
                 sa.nombre          AS subarea_nombre,
                 s.es_unidocente,
+                -- es_aula: este docente es el TUTOR de la seccion unidocente. La
+                -- vista de area consolidada es del aula; un especialista (que solo
+                -- dicta un area-curso) no debe abrirla aunque la seccion sea
+                -- unidocente.
+                (s.es_unidocente = 1 AND s.tutor_id = ca.docente_id) AS es_aula,
                 s.nombre           AS seccion_nombre,
                 g.nombre_display   AS grado_nombre,
                 n.id               AS nivel_id,
@@ -269,7 +275,7 @@ class CalificacionController extends BaseController
         }
 
         $cargasArea = $this->getCargasAreaDocente($seccionId, $areaId, $user['id']);
-        if (empty($cargasArea) || empty($cargasArea[0]['es_unidocente'])) {
+        if (empty($cargasArea) || empty($cargasArea[0]['es_aula'])) {
             $this->redirectWithError(
                 url('docente/mis-cargas'),
                 'Vista de área no disponible para esta sección.'
@@ -378,7 +384,7 @@ class CalificacionController extends BaseController
         $user      = Session::user();
 
         $cargasArea = $this->getCargasAreaDocente($seccionId, $areaId, $user['id']);
-        if (empty($cargasArea) || empty($cargasArea[0]['es_unidocente'])) {
+        if (empty($cargasArea) || empty($cargasArea[0]['es_aula'])) {
             $this->redirectWithError(
                 url('docente/mis-cargas'),
                 'Vista de área no disponible para esta sección.'

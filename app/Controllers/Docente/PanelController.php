@@ -42,8 +42,10 @@ class PanelController extends BaseController
 
         $cargas  = $pid ? $this->getCargasResumen($did, $pid) : [];
 
-        // Docente de aula (unidocente): si alguna carga pertenece a una seccion
-        // es_unidocente, dicta TODAS las areas de esa aula y es su tutor.
+        // Docente de aula (unidocente): solo si es el TUTOR de una seccion
+        // es_unidocente (es_aula), donde dicta TODAS las areas core. Un
+        // especialista (Ingles, Ed. Fisica) que dicta en secciones unidocentes
+        // NO es aula: es_unidocente por si solo no alcanza.
         //   - tieneAula: es tutor(a) de aula (para el badge de identidad).
         //   - soloAula : el aula es TODA su carga (habilita el rotulo "Mi aula").
         // Caso mixto (unidocente de una seccion + especialista en otra, p.ej. el
@@ -56,7 +58,7 @@ class PanelController extends BaseController
         $areasAula  = [];
         $seccionesAula = [];   // labels unicos de aulas unidocentes (para los chips)
         foreach ($cargas as $c) {
-            if (!empty($c['es_unidocente'])) {
+            if (!empty($c['es_aula'])) {
                 $tieneAula = true;
                 $label     = trim($c['grado_nombre'] . ' ' . $c['seccion_nombre']);
                 $aula    ??= $label;
@@ -540,6 +542,10 @@ class PanelController extends BaseController
             SELECT ca.id, ca.horas_semanales,
                    s.nombre          AS seccion_nombre,
                    s.es_unidocente,
+                   -- Mi aula = la seccion es unidocente Y este docente es su tutor.
+                   -- Un especialista (Ingles, Ed. Fisica) que dicta en una seccion
+                   -- unidocente NO es aula; es_unidocente por si solo no alcanza.
+                   (s.es_unidocente = 1 AND s.tutor_id = ca.docente_id) AS es_aula,
                    g.nombre_display  AS grado_nombre,
                    n.nombre          AS nivel_nombre,
                    a.id              AS area_id,
