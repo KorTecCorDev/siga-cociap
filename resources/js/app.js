@@ -78,7 +78,9 @@ document.addEventListener('submit', function(e) {
     var loader = document.getElementById('appLoader');
     if (!loader) return;
 
-    var OVERLAY_DELAY  = 400;    // ms hasta mostrar el overlay con logo
+    var OVERLAY_DELAY  = 800;    // ms hasta mostrar el overlay con logo (solo en
+                                 // navegaciones realmente lentas; la barra superior
+                                 // ya da feedback inmediato en cada navegacion)
     var SAFETY_TIMEOUT = 8000;   // ms de seguridad por si no se navega
     var overlayTimer = null;
     var safetyTimer  = null;
