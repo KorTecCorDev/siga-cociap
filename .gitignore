@@ -28,6 +28,9 @@ nul
 *.swp
 *.swo
 
+# Config local de Claude Code (permisos por maquina, no versionar)
+.claude/settings.local.json
+
 # PHP
 *.cache
 
