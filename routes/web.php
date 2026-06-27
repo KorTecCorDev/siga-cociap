@@ -180,6 +180,11 @@ $router->get( '/docente/ranking-seccion/{periodo_id}',  'Docente\OrdenMeritoCont
 
 // ─── Calificaciones ──────────────────────────────────────────
 $router->get( '/docente/mis-cargas',                        'Docente\CalificacionController@misCargas');
+// Vista de AREA (solo secciones unidocente): una pantalla por area con TODAS
+// las subarea-cargas del area + transversales. La literal "area" distingue del
+// patron base {carga_id}; las literales/largas van ANTES por orden de lectura.
+$router->get( '/docente/calificaciones/area/{seccion_id}/{area_id}/historial/{periodo_id}', 'Docente\CalificacionController@historialArea');
+$router->get( '/docente/calificaciones/area/{seccion_id}/{area_id}', 'Docente\CalificacionController@formularioArea');
 // Historico del docente: grilla read-only de SU carga en un bimestre cerrado.
 // 5 segmentos: no colisiona con el patron base de 3 (el router ancla ^...$).
 $router->get( '/docente/calificaciones/{carga_id}/historial/{periodo_id}', 'Docente\CalificacionController@historial');

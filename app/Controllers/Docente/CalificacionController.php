@@ -142,7 +142,26 @@ class CalificacionController extends BaseController
             $this->redirectWithError(url('docente/mis-cargas'), 'Periodo no encontrado.');
         }
 
-        // Competencias OFICIALES (con bloqueo) de la carga en ese periodo.
+        // Competencias OFICIALES (bloqueadas) de la carga en ese periodo.
+        $exonerados   = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
+        $competencias = $this->bloquesBloqueadosDeCarga($cargaId, $periodoId);
+
+        $this->view('docente/historial-carga', [
+            'titulo'       => 'Historial — ' . ($carga['nombre_display'] ?? ''),
+            'carga'        => $carga,
+            'periodo'      => $periodo,
+            'competencias' => $competencias,
+            'exonerados'   => $exonerados,
+        ]);
+    }
+
+    /**
+     * Bloques read-only {competencia, criterios, alumnos} de las competencias
+     * OFICIALES (bloqueadas) de una carga en un periodo. Compartido por el
+     * histórico de carga (historial) y el histórico de área (historialArea).
+     */
+    private function bloquesBloqueadosDeCarga(int $cargaId, int $periodoId): array
+    {
         $bloqueadas = $this->calModel->query("
             SELECT comp.id,
                    comp.nombre_completo,
@@ -156,9 +175,7 @@ class CalificacionController extends BaseController
             ORDER BY comp.orden, comp.id
         ", [$cargaId, $periodoId]);
 
-        $exonerados   = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
-        $competencias = [];
-
+        $bloques = [];
         foreach ($bloqueadas as $b) {
             $competenciaId = (int) $b['id'];
             $resumen = $this->calModel->getResumenCompetencia($cargaId, $competenciaId, $periodoId);
@@ -179,7 +196,7 @@ class CalificacionController extends BaseController
             }
             unset($al);
 
-            $competencias[] = [
+            $bloques[] = [
                 'competencia' => [
                     'nombre_completo' => $b['nombre_completo'],
                     'codigo_minedu'   => $b['codigo_minedu'],
@@ -189,9 +206,220 @@ class CalificacionController extends BaseController
                 'alumnos'   => $resumen['alumnos'],
             ];
         }
+        return $bloques;
+    }
+
+    /**
+     * Subárea-cargas ACTIVAS del docente para un área en una sección, ordenadas
+     * por orden de subárea (la primera es la DUEÑA de las transversales). Cada
+     * fila trae meta de sección/área/nivel. Vacío si el docente no dicta esa
+     * área en esa sección. Base de la vista de área unidocente (formularioArea/
+     * historialArea); el caller valida `es_unidocente` con la primera fila.
+     */
+    private function getCargasAreaDocente(int $seccionId, int $areaId, int $usuarioId): array
+    {
+        return $this->calModel->query("
+            SELECT
+                ca.id              AS carga_id,
+                ca.subarea_id,
+                sa.orden           AS subarea_orden,
+                sa.nombre          AS subarea_nombre,
+                s.es_unidocente,
+                s.nombre           AS seccion_nombre,
+                g.nombre_display   AS grado_nombre,
+                n.id               AS nivel_id,
+                n.nombre           AS nivel_nombre,
+                n.codigo           AS nivel_codigo,
+                n.escala_boleta,
+                a.id               AS area_id,
+                a.nombre           AS area_nombre,
+                a.tipo             AS area_tipo
+            FROM cargas_academicas ca
+            INNER JOIN secciones s  ON s.id  = ca.seccion_id
+            INNER JOIN grados g     ON g.id  = s.grado_id
+            INNER JOIN niveles n    ON n.id  = g.nivel_id
+            LEFT  JOIN subareas sa  ON sa.id = ca.subarea_id
+            INNER JOIN areas a      ON a.id  = COALESCE(ca.area_id, sa.area_id)
+            WHERE ca.seccion_id = ?
+              AND ca.docente_id = ?
+              AND ca.estado     = 'activa'
+              AND a.id          = ?
+            ORDER BY COALESCE(sa.orden, 0), ca.id
+        ", [$seccionId, $usuarioId, $areaId]);
+    }
+
+    /**
+     * GET /docente/calificaciones/area/{seccion_id}/{area_id}
+     * Vista UNIFICADA de un área para una sección UNIDOCENTE: una sola pantalla
+     * con TODAS las competencias de las subárea-cargas del área + las
+     * transversales (una vez, en la carga dueña). Reutiliza la vista
+     * calificaciones.php — cada card lleva su propio carga_id, así que los
+     * endpoints de guardar/confirmar/aprobar siguen siendo por carga.
+     */
+    public function formularioArea(string $seccionId, string $areaId): void
+    {
+        $seccionId = (int) $seccionId;
+        $areaId    = (int) $areaId;
+        $user      = Session::user();
+        $periodo   = $this->getPeriodoActivo();
+
+        if (!$periodo) {
+            $this->redirectWithError(url('docente/mis-cargas'), 'No hay un periodo activo.');
+        }
+
+        $cargasArea = $this->getCargasAreaDocente($seccionId, $areaId, $user['id']);
+        if (empty($cargasArea) || empty($cargasArea[0]['es_unidocente'])) {
+            $this->redirectWithError(
+                url('docente/mis-cargas'),
+                'Vista de área no disponible para esta sección.'
+            );
+        }
+
+        $bloqueado = $this->calModel->periodoEstaBloqueado($periodo['id']);
+        $meta      = $cargasArea[0];
+        $nivelId   = (int) $meta['nivel_id'];
+
+        // Dueña de las transversales del área a nivel SECCIÓN (misma regla que
+        // getCargas/estadoCargasSeccion): la subárea-carga activa de menor orden.
+        // Se exige que pertenezca a este docente (en una sección unidocente real
+        // todas las subáreas del área son suyas) para adjuntarle las TIC/GAMA;
+        // así el bloqueo vive donde el conteo del cierre lo espera.
+        $idsArea      = array_map(static fn($c) => (int) $c['carga_id'], $cargasArea);
+        $duenaCargaId = $this->calModel->cargaDuenaTransversales($seccionId, $areaId);
+        $duenaPropia  = $duenaCargaId !== null && in_array($duenaCargaId, $idsArea, true);
+
+        // Acumula competencias (cada una con su carga_id), notas, bloqueos y
+        // exonerados de TODAS las subárea-cargas del área. Las claves de notas
+        // (criterio_id) y los ids de competencia son únicos por carga, así que la
+        // unión no colisiona.
+        $competencias    = [];
+        $notasExistentes = [];
+        $bloqueos        = [];
+        $exonerados      = [];
+
+        foreach ($cargasArea as $cr) {
+            $cid   = (int) $cr['carga_id'];
+            $comps = $this->critModel->getCompetenciasConCriterios($cid, $periodo['id']);
+            foreach ($comps as $comp) {
+                $comp['carga_id'] = $cid;
+                $competencias[]   = $comp;
+            }
+            $notasExistentes += $this->getNotasExistentes($cid, $periodo['id']);
+            foreach ($this->getBloqueos($cid, $periodo['id']) as $b) {
+                $bloqueos[] = (int) $b;
+            }
+            foreach ($this->exoModel->getActivasParaCarga($cid, (int) $periodo['anio_id']) as $ex) {
+                $exonerados[] = (int) $ex;
+            }
+        }
+        $exonerados = array_values(array_unique($exonerados));
+
+        // Transversales TIC/GAMA: una sola vez por área, en la carga dueña. Sus
+        // notas y bloqueos ya entraron arriba (la dueña es una de las cargas).
+        if ($duenaPropia) {
+            $transversales = $this->critModel->getCompetenciasTransversalesConCriterios(
+                $duenaCargaId, $periodo['id'], $nivelId
+            );
+            foreach ($transversales as $t) {
+                $t['carga_id']  = $duenaCargaId;
+                $competencias[] = $t;
+            }
+        }
+
+        $alumnos = $this->getAlumnosSeccion($seccionId);
+
+        // Piso de "no se evaluó": área-aware (cubre todas las subárea-cargas del
+        // área en la sección unidocente). Da igual qué carga del área se pase.
+        $permiteNoEvaluar = $this->calModel->permiteNoEvaluarEnCarga(
+            (int) $meta['carga_id'], (int) $periodo['id']
+        );
+
+        // Carga sintética: la vista lee el título por área (es_unidocente) y usa
+        // `id` solo como fallback (cada card ya trae su carga_id real).
+        $carga = [
+            'id'             => (int) $meta['carga_id'],
+            'es_unidocente'  => 1,
+            'area_nombre'    => $meta['area_nombre'],
+            'nombre_display' => $meta['area_nombre'],
+            'nivel_nombre'   => $meta['nivel_nombre'],
+            'nivel_codigo'   => $meta['nivel_codigo'],
+            'grado_nombre'   => $meta['grado_nombre'],
+            'seccion_nombre' => $meta['seccion_nombre'],
+            'seccion_id'     => $seccionId,
+        ];
+
+        $this->view('docente/calificaciones', [
+            'titulo'           => 'Calificaciones — ' . ($meta['area_nombre'] ?? ''),
+            'carga'            => $carga,
+            'periodo'          => $periodo,
+            'competencias'     => $competencias,
+            'alumnos'          => $alumnos,
+            'bloqueado'        => $bloqueado,
+            'notasExistentes'  => $notasExistentes,
+            'bloqueos'         => $bloqueos,
+            'exonerados'       => $exonerados,
+            'permiteNoEvaluar' => $permiteNoEvaluar,
+            'page_scripts'     => ['calificaciones'],
+        ]);
+    }
+
+    /**
+     * GET /docente/calificaciones/area/{seccion_id}/{area_id}/historial/{periodo_id}
+     * Histórico de área (solo lectura) para una sección UNIDOCENTE: reúne las
+     * competencias OFICIALES (bloqueadas) de todas las subárea-cargas del área
+     * en un bimestre cerrado y reutiliza la vista del histórico de carga.
+     */
+    public function historialArea(string $seccionId, string $areaId, string $periodoId): void
+    {
+        $seccionId = (int) $seccionId;
+        $areaId    = (int) $areaId;
+        $periodoId = (int) $periodoId;
+        $user      = Session::user();
+
+        $cargasArea = $this->getCargasAreaDocente($seccionId, $areaId, $user['id']);
+        if (empty($cargasArea) || empty($cargasArea[0]['es_unidocente'])) {
+            $this->redirectWithError(
+                url('docente/mis-cargas'),
+                'Vista de área no disponible para esta sección.'
+            );
+        }
+
+        $periodo = $this->calModel->queryOne("
+            SELECT p.*, a.anio
+            FROM periodos p
+            INNER JOIN anios_academicos a ON a.id = p.anio_id
+            WHERE p.id = ?
+        ", [$periodoId]);
+        if (!$periodo) {
+            $this->redirectWithError(url('docente/mis-cargas'), 'Periodo no encontrado.');
+        }
+
+        $meta         = $cargasArea[0];
+        $competencias = [];
+        $exonerados   = [];
+
+        foreach ($cargasArea as $cr) {
+            $cid = (int) $cr['carga_id'];
+            foreach ($this->bloquesBloqueadosDeCarga($cid, $periodoId) as $bloque) {
+                $competencias[] = $bloque;
+            }
+            foreach ($this->exoModel->getActivasParaCarga($cid, (int) $periodo['anio_id']) as $ex) {
+                $exonerados[] = (int) $ex;
+            }
+        }
+        $exonerados = array_values(array_unique($exonerados));
+
+        $carga = [
+            'nombre_display' => $meta['area_nombre'],
+            'area_nombre'    => $meta['area_nombre'],
+            'grado_nombre'   => $meta['grado_nombre'],
+            'seccion_nombre' => $meta['seccion_nombre'],
+            'nivel_nombre'   => $meta['nivel_nombre'],
+            'nivel_codigo'   => $meta['nivel_codigo'],
+        ];
 
         $this->view('docente/historial-carga', [
-            'titulo'       => 'Historial — ' . ($carga['nombre_display'] ?? ''),
+            'titulo'       => 'Historial — ' . ($meta['area_nombre'] ?? ''),
             'carga'        => $carga,
             'periodo'      => $periodo,
             'competencias' => $competencias,
@@ -245,12 +473,27 @@ class CalificacionController extends BaseController
         // Competencias transversales (TIC/GAMA): cada docente las registra
         // en su propia carga con el mismo mecanismo de criterios y notas.
         // Se bloquean junto con la última competencia propia (Variante 1).
-        $transversales = $this->critModel->getCompetenciasTransversalesConCriterios(
-            $cargaId,
-            $periodo['id'],
-            (int) $carga['nivel_id']
-        );
-        $competencias = array_merge($competencias, $transversales);
+        //
+        // UNIDOCENTE: el mismo docente dicta todas las subáreas, así que las
+        // TIC/GAMA se adjuntan UNA sola vez por área —en la carga dueña (subárea
+        // de menor orden)— y no se duplican en cada subárea. Para especialistas
+        // (no unidocente) cada carga lleva las suyas, como siempre.
+        $adjuntarTransversales = true;
+        if (!empty($carga['es_unidocente'])) {
+            $duena = $this->calModel->cargaDuenaTransversales(
+                (int) $carga['seccion_id'],
+                (int) $carga['area_resuelta_id']
+            );
+            $adjuntarTransversales = ($duena === $cargaId);
+        }
+        if ($adjuntarTransversales) {
+            $transversales = $this->critModel->getCompetenciasTransversalesConCriterios(
+                $cargaId,
+                $periodo['id'],
+                (int) $carga['nivel_id']
+            );
+            $competencias = array_merge($competencias, $transversales);
+        }
 
         $alumnos         = $this->getAlumnosSeccion($carga['seccion_id']);
         $notasExistentes = $this->getNotasExistentes($cargaId, $periodo['id']);
@@ -839,32 +1082,70 @@ class CalificacionController extends BaseController
                 -- el area transversal del nivel (n.id). Se bloquean junto a la
                 -- ultima competencia propia (Variante 1). 3 estados en la vista:
                 -- bloqueadas==total -> completas; con_criterios>0 -> en progreso.
-                (
-                    SELECT COUNT(*)
-                    FROM competencias compt
-                    INNER JOIN areas at2 ON at2.id = compt.area_id
-                    WHERE at2.tipo     = 'transversal'
-                      AND at2.nivel_id = n.id
-                ) AS total_transversales,
-                (
-                    SELECT COUNT(*)
-                    FROM bloqueos_competencia bct
-                    INNER JOIN competencias compt ON compt.id = bct.competencia_id
-                    INNER JOIN areas at2 ON at2.id = compt.area_id AND at2.tipo = 'transversal'
-                    WHERE bct.carga_id   = ca.id
-                      AND bct.periodo_id = ?
-                      AND at2.nivel_id   = n.id
-                ) AS transversales_bloqueadas,
-                (
-                    SELECT COUNT(DISTINCT crt.competencia_id)
-                    FROM criterios crt
-                    INNER JOIN competencias compt ON compt.id = crt.competencia_id
-                    INNER JOIN areas at2 ON at2.id = compt.area_id AND at2.tipo = 'transversal'
-                    WHERE crt.carga_id     = ca.id
-                      AND crt.periodo_id   = ?
-                      AND crt.eliminado_en IS NULL
-                      AND at2.nivel_id     = n.id
-                ) AS transversales_con_criterios
+                --
+                -- UNIDOCENTE: las TIC/GAMA se registran UNA vez por area (en la
+                -- carga dueña = subarea de menor orden); las demas subareas del
+                -- area muestran 0 transversales para no contarlas N veces. Para
+                -- especialistas (no unidocente) cada carga cuenta las suyas.
+                CASE WHEN s.es_unidocente = 1
+                          AND ca.id <> (
+                              SELECT cad.id FROM cargas_academicas cad
+                              LEFT JOIN subareas sad ON sad.id = cad.subarea_id
+                              WHERE cad.seccion_id = ca.seccion_id
+                                AND cad.estado     = 'activa'
+                                AND COALESCE(cad.area_id, sad.area_id) = COALESCE(ca.area_id, sa.area_id)
+                              ORDER BY COALESCE(sad.orden, 0), cad.id LIMIT 1
+                          )
+                     THEN 0
+                     ELSE (
+                        SELECT COUNT(*)
+                        FROM competencias compt
+                        INNER JOIN areas at2 ON at2.id = compt.area_id
+                        WHERE at2.tipo     = 'transversal'
+                          AND at2.nivel_id = n.id
+                     )
+                END AS total_transversales,
+                CASE WHEN s.es_unidocente = 1
+                          AND ca.id <> (
+                              SELECT cad.id FROM cargas_academicas cad
+                              LEFT JOIN subareas sad ON sad.id = cad.subarea_id
+                              WHERE cad.seccion_id = ca.seccion_id
+                                AND cad.estado     = 'activa'
+                                AND COALESCE(cad.area_id, sad.area_id) = COALESCE(ca.area_id, sa.area_id)
+                              ORDER BY COALESCE(sad.orden, 0), cad.id LIMIT 1
+                          )
+                     THEN 0
+                     ELSE (
+                        SELECT COUNT(*)
+                        FROM bloqueos_competencia bct
+                        INNER JOIN competencias compt ON compt.id = bct.competencia_id
+                        INNER JOIN areas at2 ON at2.id = compt.area_id AND at2.tipo = 'transversal'
+                        WHERE bct.carga_id   = ca.id
+                          AND bct.periodo_id = ?
+                          AND at2.nivel_id   = n.id
+                     )
+                END AS transversales_bloqueadas,
+                CASE WHEN s.es_unidocente = 1
+                          AND ca.id <> (
+                              SELECT cad.id FROM cargas_academicas cad
+                              LEFT JOIN subareas sad ON sad.id = cad.subarea_id
+                              WHERE cad.seccion_id = ca.seccion_id
+                                AND cad.estado     = 'activa'
+                                AND COALESCE(cad.area_id, sad.area_id) = COALESCE(ca.area_id, sa.area_id)
+                              ORDER BY COALESCE(sad.orden, 0), cad.id LIMIT 1
+                          )
+                     THEN 0
+                     ELSE (
+                        SELECT COUNT(DISTINCT crt.competencia_id)
+                        FROM criterios crt
+                        INNER JOIN competencias compt ON compt.id = crt.competencia_id
+                        INNER JOIN areas at2 ON at2.id = compt.area_id AND at2.tipo = 'transversal'
+                        WHERE crt.carga_id     = ca.id
+                          AND crt.periodo_id   = ?
+                          AND crt.eliminado_en IS NULL
+                          AND at2.nivel_id     = n.id
+                     )
+                END AS transversales_con_criterios
             FROM cargas_academicas ca
             INNER JOIN secciones s  ON s.id  = ca.seccion_id
             INNER JOIN grados g     ON g.id  = s.grado_id
@@ -897,7 +1178,8 @@ class CalificacionController extends BaseController
                 n.escala_boleta,
                 COALESCE(sa.nombre, a.nombre) AS nombre_display,
                 a.nombre          AS area_nombre,
-                a.tipo            AS area_tipo
+                a.tipo            AS area_tipo,
+                COALESCE(ca.area_id, sa.area_id) AS area_resuelta_id
             FROM cargas_academicas ca
             INNER JOIN secciones s  ON s.id  = ca.seccion_id
             INNER JOIN grados g     ON g.id  = s.grado_id

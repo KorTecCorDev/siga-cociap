@@ -291,11 +291,32 @@ class TransversalModel extends BaseModel
                        OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL
                            AND c2.area_id = ca.area_id)
                 ) + (
-                    SELECT COUNT(*)
-                    FROM competencias ct
-                    INNER JOIN areas at2 ON at2.id = ct.area_id
-                    WHERE at2.tipo     = 'transversal'
-                      AND at2.nivel_id = nv.id
+                    -- Transversales TIC/GAMA: cada docente las registra en su
+                    -- carga, asi que cada carga suma +N (su universo TIC/GAMA).
+                    -- UNIDOCENTE: el mismo docente dicta todas las subareas de un
+                    -- area, asi que las TIC/GAMA cuentan UNA vez por area (en la
+                    -- carga dueña = subarea de menor orden); las demas subareas
+                    -- suman 0, o el cierre del tutor nunca cuadraria (se exigiria
+                    -- bloquear TIC/GAMA en cada subarea cuando solo viven en la
+                    -- dueña). Para polidocente cada carga suma las suyas.
+                    CASE WHEN s.es_unidocente = 1
+                              AND ca.id <> (
+                                  SELECT cad.id FROM cargas_academicas cad
+                                  LEFT JOIN subareas sad ON sad.id = cad.subarea_id
+                                  WHERE cad.seccion_id = ca.seccion_id
+                                    AND cad.estado     = 'activa'
+                                    AND COALESCE(cad.area_id, sad.area_id) = COALESCE(ca.area_id, sa.area_id)
+                                  ORDER BY COALESCE(sad.orden, 0), cad.id LIMIT 1
+                              )
+                         THEN 0
+                         ELSE (
+                            SELECT COUNT(*)
+                            FROM competencias ct
+                            INNER JOIN areas at2 ON at2.id = ct.area_id
+                            WHERE at2.tipo     = 'transversal'
+                              AND at2.nivel_id = nv.id
+                         )
+                    END
                 ) AS total_comp,
                 (
                     SELECT COUNT(*)

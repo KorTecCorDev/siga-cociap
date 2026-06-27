@@ -104,6 +104,12 @@
         $compBloqueada  = in_array($competencia['id'], $bloqueos ?? []);
         $esTransversal  = !empty($competencia['es_transversal']);
 
+        // carga_id de ESTA competencia. En la vista de área (unidocente) cada
+        // card pertenece a una subárea-carga distinta; en la vista de carga
+        // única todas comparten $carga['id'] (fallback). Los endpoints de
+        // guardar/confirmar/aprobar/resumen siguen siendo por carga.
+        $compCargaId = (int) ($competencia['carga_id'] ?? $carga['id']);
+
         // ── Estado del botón de cabecera de la competencia ───────────
         //  1) Académica sin criterios          → "No se evaluó" (terminal)
         //  2) Con criterios, sin "Confirmar"    → "Ver resumen" BLOQUEADO
@@ -194,12 +200,12 @@
 
                     <?php if ($mostrarNoEvaluo): ?>
                         <button type="button" class="btn btn--sm btn-no-evaluo"
-                                data-carga-id="<?= $carga['id'] ?>"
+                                data-carga-id="<?= $compCargaId ?>"
                                 data-competencia-id="<?= $competencia['id'] ?>">
                             No se evaluó
                         </button>
                     <?php else: ?>
-                        <a href="<?= url('docente/calificaciones/' . $carga['id'] . '/resumen/' . $competencia['id']) ?>"
+                        <a href="<?= url('docente/calificaciones/' . $compCargaId . '/resumen/' . $competencia['id']) ?>"
                            class="btn btn--secondary btn--sm<?= !$resumenAccesible ? ' btn-ver-resumen--bloqueado' : '' ?>"
                            <?= !$resumenAccesible ? 'tabindex="-1" aria-disabled="true" title="Confirma al menos un criterio para acceder al resumen"' : '' ?>>
                             <span class="btn-icon btn-icon--view" aria-hidden="true"></span>
@@ -282,7 +288,7 @@
                                     <form class="form-notas"
                                           data-criterio-id="<?= $criterio['id'] ?>"
                                           data-competencia-id="<?= $competencia['id'] ?>"
-                                          data-carga-id="<?= $carga['id'] ?>">
+                                          data-carga-id="<?= $compCargaId ?>">
                                         <?= csrf_field() ?>
 
                                         <div class="tabla-notas-wrapper">
@@ -365,7 +371,7 @@
                                 </div>
                                 <button
                                     class="btn btn--primary btn-agregar-criterio"
-                                    data-carga-id="<?= $carga['id'] ?>"
+                                    data-carga-id="<?= $compCargaId ?>"
                                     data-competencia-id="<?= $competencia['id'] ?>">
                                     + Agregar criterio
                                 </button>

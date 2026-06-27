@@ -140,6 +140,15 @@
             : url('docente/calificaciones/' . $id);
     };
 
+    // Destino de la card de AREA (unidocente, area con subareas): una sola
+    // pantalla con todas las subareas + transversales. Historico -> solo lectura.
+    $areaUrl = function ($seccionId, $areaId) use ($esHistorico, $periodo) {
+        $base = 'docente/calificaciones/area/' . (int) $seccionId . '/' . (int) $areaId;
+        return $esHistorico
+            ? url($base . '/historial/' . (int) $periodo['id'])
+            : url($base);
+    };
+
     // Agrupar: nivel+grado → seccion_id → area_id → cargas[]
     $agrupadas = [];
     foreach ($cargas as $carga) {
@@ -234,7 +243,82 @@
                             $esGrupo  = count($areaCargas) > 1;
                             ?>
 
-                            <?php if ($esGrupo): ?>
+                            <?php if ($esGrupo && $esAula): ?>
+
+                                <?php
+                                // UNIDOCENTE: el area con subareas se presenta como UNA card
+                                // (ej. "Matematica") que abre la vista de area unificada, en
+                                // vez de una sub-item por subarea. Avance AGREGADO sobre las
+                                // subarea-cargas + transversales (contadas una vez, A.3).
+                                $aBloq = $aTot = $aConCrit = 0;
+                                $trTot = $trBloq = $trCrit = 0;
+                                foreach ($areaCargas as $cc) {
+                                    [$b, $t] = $avanceCarga($cc);
+                                    $aBloq    += $b;
+                                    $aTot     += $t;
+                                    $aConCrit += (int) ($cc['competencias_con_criterios'] ?? 0);
+                                    $trTot    += (int) ($cc['total_transversales'] ?? 0);
+                                    $trBloq   += (int) ($cc['transversales_bloqueadas'] ?? 0);
+                                    $trCrit   += (int) ($cc['transversales_con_criterios'] ?? 0);
+                                }
+                                $aPct    = $aTot > 0 ? (int) round($aBloq / $aTot * 100) : 0;
+                                $aEstado = $aPct >= 100 ? 'completo' : ($aPct > 0 ? 'parcial' : 'vacio');
+                                if ($aTot === 0 || ($aBloq === 0 && $aConCrit === 0 && $trCrit === 0)) {
+                                    $aBadgeClase = 'badge--error';  $aBadgeTexto = 'Sin criterios';
+                                } elseif ($aBloq === $aTot) {
+                                    $aBadgeClase = 'badge--activo';
+                                    $aBadgeTexto = 'Bloqueada <span class="badge__icono" aria-hidden="true"></span>';
+                                } elseif ($aBloq > 0) {
+                                    $aBadgeClase = 'badge--warning'; $aBadgeTexto = 'Parcial';
+                                } else {
+                                    $aBadgeClase = 'badge--warning'; $aBadgeTexto = 'Pendiente';
+                                }
+                                ?>
+                                <a href="<?= $areaUrl($seccionId, $areaId) ?>"
+                                   class="carga-item carga-item--aula <?= $periodo ? '' : 'carga-item--disabled' ?>">
+
+                                    <div class="carga-item__nombre">
+                                        <?= e($primeraC['area_nombre']) ?>
+                                    </div>
+
+                                    <span class="badge <?= $aBadgeClase ?> carga-item__badge">
+                                        <?= $aBadgeTexto ?>
+                                    </span>
+
+                                    <div class="carga-item__horas">
+                                        <?= count($areaCargas) ?> subáreas
+                                    </div>
+
+                                    <div class="carga-progreso">
+                                        <div class="carga-progreso__track">
+                                            <div class="carga-progreso__fill carga-progreso__fill--<?= $aEstado ?>"
+                                                 style="--pct: <?= $aPct ?>%"></div>
+                                        </div>
+                                        <div class="carga-progreso__meta">
+                                            <span><?= $aBloq ?>/<?= $aTot ?> aprobadas</span>
+                                            <span class="carga-progreso__valor carga-progreso__valor--<?= $aEstado ?>">
+                                                <?= $aPct ?>%
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <?php if ($trTot > 0): ?>
+                                        <?php
+                                        $trEstado = $trBloq >= $trTot
+                                            ? 'completo'
+                                            : (($trBloq > 0 || $trCrit > 0) ? 'progreso' : 'pendiente');
+                                        $trIcono = $trEstado === 'completo'
+                                            ? ' <span class="carga-transversal__icono" aria-hidden="true"></span>'
+                                            : '';
+                                        ?>
+                                        <span class="carga-transversal carga-transversal--<?= $trEstado ?>">
+                                            Transversales <?= $trBloq ?>/<?= $trTot ?><?= $trIcono ?>
+                                        </span>
+                                    <?php endif; ?>
+
+                                </a>
+
+                            <?php elseif ($esGrupo): ?>
 
                                 <div class="carga-area <?= $esAula ? 'carga-area--aula' : '' ?>">
                                     <div class="carga-area__header">

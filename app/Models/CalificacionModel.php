@@ -568,6 +568,32 @@ class CalificacionModel extends BaseModel
     }
 
     /**
+     * Carga DUEÑA de las competencias transversales (TIC/GAMA) de un área en
+     * una sección: la subárea-carga ACTIVA de menor orden (un área-curso es su
+     * única carga, así que es su propia dueña). Determinista (desempata por id).
+     *
+     * En una sección UNIDOCENTE el mismo docente dicta todas las subáreas de un
+     * área, así que las TIC/GAMA se registran y cuentan UNA sola vez por área
+     * —en esta carga— en lugar de duplicarse en cada subárea. Devuelve null si
+     * el área no tiene cargas activas en la sección.
+     */
+    public function cargaDuenaTransversales(int $seccionId, int $areaId): ?int
+    {
+        $r = $this->queryOne("
+            SELECT ca.id
+            FROM cargas_academicas ca
+            LEFT JOIN subareas sa ON sa.id = ca.subarea_id
+            WHERE ca.seccion_id = ?
+              AND ca.estado     = 'activa'
+              AND COALESCE(ca.area_id, sa.area_id) = ?
+            ORDER BY COALESCE(sa.orden, 0), ca.id
+            LIMIT 1
+        ", [$seccionId, $areaId]);
+
+        return $r ? (int) $r['id'] : null;
+    }
+
+    /**
      * Obtiene el resumen de notas de todos los alumnos
      * para una competencia específica.
      */
