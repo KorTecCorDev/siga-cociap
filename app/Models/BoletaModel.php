@@ -177,10 +177,15 @@ class BoletaModel extends BaseModel
                 $compId = $nota['competencia_id'];
 
                 if (!isset($areas[$nombreArea][$compId])) {
-                    $prefijoSubarea = '';
-                    if (($nota['area_tipo'] ?? '') === 'con_subareas' && !empty($nota['subarea_nombre'])) {
-                        $prefijoSubarea = $nota['subarea_nombre'] . ' — ';
-                    }
+                    // En secciones unidocentes (1°-3° primaria) el área se muestra
+                    // como bloque área-curso: cada competencia por su código MINEDU
+                    // + nombre, SIN prefijo ni etiqueta de subárea (afecta boleta
+                    // imprimible y digital). Para especialistas (4°-6° y secundaria)
+                    // se conserva el prefijo/etiqueta "Aritmética — …".
+                    $muestraSubarea = empty($nota['es_unidocente'])
+                        && ($nota['area_tipo'] ?? '') === 'con_subareas'
+                        && !empty($nota['subarea_nombre']);
+                    $prefijoSubarea = $muestraSubarea ? $nota['subarea_nombre'] . ' — ' : '';
                     $areas[$nombreArea][$compId] = [
                         'nombre'            => trim(
                             $prefijoSubarea .
@@ -188,7 +193,7 @@ class BoletaModel extends BaseModel
                             ($nota['nombre_corto'] ?? $nota['competencia_nombre'] ?? '')
                         ),
                         'nombre_largo'      => trim($prefijoSubarea . ($nota['competencia_nombre'] ?? '')),
-                        'subarea_nombre'    => ($nota['area_tipo'] ?? '') === 'con_subareas' ? ($nota['subarea_nombre'] ?? '') : '',
+                        'subarea_nombre'    => $muestraSubarea ? ($nota['subarea_nombre'] ?? '') : '',
                         'competencia_texto' => $nota['competencia_nombre'] ?? '',
                         'bimestres'         => [],
                     ];

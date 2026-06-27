@@ -21,9 +21,9 @@ $mid = (int) $matricula['id'];
     <strong><?= e(($matricula['grado_nombre'] ?? '') . ' ' . ($matricula['seccion_nombre'] ?? '')) ?></strong>.
     El grado operativo
     <strong><?= e(($retorno['grado_destino'] ?? '—') . ' ' . ($retorno['seccion_destino'] ?? '')) ?></strong>
-    se desactivará (queda solo para auditoría). La boleta siempre muestra el
+    se desactivará. La boleta siempre muestra el
     grado/sección oficial y consolida automáticamente las notas de los bimestres
-    cursados en el grado operativo. Esta acción queda registrada y es auditable.
+    cursados en el grado operativo.
 </div>
 
 <div class="card">

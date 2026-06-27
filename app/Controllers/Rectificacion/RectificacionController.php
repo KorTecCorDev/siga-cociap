@@ -258,7 +258,7 @@ class RectificacionController extends BaseController
         }
 
         $this->redirectWithSuccess($volverLista,
-            'Rectificación aplicada y registrada en auditoría.' . $avisoEmpate);
+            'Rectificación aplicada.' . $avisoEmpate);
     }
 
     /** Respuesta 404 estándar del proyecto. */

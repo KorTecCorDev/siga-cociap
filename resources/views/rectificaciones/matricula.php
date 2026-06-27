@@ -40,8 +40,7 @@ $labelComp = static function (array $c): string {
     <div class="card__body">
         <p class="rect-aviso">
             Solo aparecen las competencias <strong>bloqueadas o de un bimestre cerrado</strong>
-            (fuera del flujo normal del docente). Toda rectificación queda registrada en auditoría
-            con su motivo y regenera el orden de mérito del bimestre.
+            .
         </p>
     </div>
 </div>

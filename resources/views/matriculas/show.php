@@ -375,7 +375,7 @@ $labelDoc = [
         <div class="mat-accion">
             <div class="mat-accion__info">
                 <span class="mat-accion__titulo">Rectificar calificaciones</span>
-                <span class="mat-accion__desc">Corrige notas de bimestres cerrados o competencias bloqueadas dejando traza de auditoría con el motivo. Regenera el orden de mérito del bimestre.</span>
+                <span class="mat-accion__desc">Corrige notas de bimestres aprobados o competencias bloqueadas. Regenera el orden de mérito del bimestre.</span>
             </div>
             <div class="mat-accion__control">
                 <a href="<?= url('rectificaciones/matricula/' . $mid) ?>" class="btn btn--secondary">Rectificar notas</a>

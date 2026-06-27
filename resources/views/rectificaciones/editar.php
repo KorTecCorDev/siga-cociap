@@ -120,7 +120,7 @@ $volver = url('rectificaciones/matricula/' . (int) $info['matricula_id']);
         <div class="form-group">
             <label class="form-label" for="motivo">Motivo de la rectificación <span class="text-danger">*</span></label>
             <textarea id="motivo" name="motivo" class="form-input" rows="3" required
-                      placeholder="Fundamenta el porqué de la corrección (queda registrado en auditoría)."></textarea>
+                      placeholder="Fundamenta el porqué de la corrección."></textarea>
         </div>
 
         <div class="btn-group form-actions">

@@ -321,6 +321,7 @@ class CalificacionModel extends BaseModel
                 a.alias_boleta,
                 a.tipo               AS area_tipo,
                 sa.nombre            AS subarea_nombre,
+                s.es_unidocente,
                 ca.id                AS carga_id
             FROM calificaciones cal
             INNER JOIN cargas_academicas ca    ON ca.id   = cal.carga_id
@@ -330,6 +331,7 @@ class CalificacionModel extends BaseModel
                                                AND bc.periodo_id     = cal.periodo_id
             LEFT  JOIN subareas sa             ON sa.id  = ca.subarea_id
             LEFT  JOIN areas a                 ON a.id   = COALESCE(ca.area_id, sa.area_id)
+            LEFT  JOIN secciones s             ON s.id   = ca.seccion_id
             WHERE cal.matricula_id = ?
               AND cal.periodo_id   = ?
               -- La transversalidad se decide por el área de la COMPETENCIA
@@ -488,6 +490,17 @@ class CalificacionModel extends BaseModel
      * El chequeo es a nivel de carga (no depende de cuál competencia), así que
      * sirve igual para la validación del servidor y para ocultar el botón.
      *
+     * UNIDOCENTE (área-aware): cuando la sección es `es_unidocente`, el mismo
+     * docente dicta TODAS las áreas, así que el "piso" se mide a nivel de ÁREA,
+     * no de carga: cuenta las competencias de TODAS las cargas activas de la
+     * misma área en la sección (resolviendo el área vía
+     * COALESCE(area_id, subarea→area_id)). Así una subárea de una sola
+     * competencia (p. ej. Aritmética) acepta "No se evaluó" mientras quede ≥1
+     * subárea de Matemática evaluada. Para especialistas (no unidocente) el
+     * alcance se reduce a la propia carga → comportamiento idéntico al anterior
+     * (la regla "subárea de 1 competencia = obligatoria" sigue viva en 4°-6° y
+     * en secundaria).
+     *
      * El director/admin SÍ puede forzar una carga sin notas desde el panel de
      * bloqueos (vía bloquearCompetencia, que no pasa por este piso).
      */
@@ -499,39 +512,53 @@ class CalificacionModel extends BaseModel
                 COALESCE(SUM(CASE WHEN ac.bloqueada = 0 THEN 1 ELSE 0 END), 0) AS abiertas
             FROM (
                 SELECT
-                    c.id AS competencia_id,
+                    sc.carga_id,
+                    comp.id AS competencia_id,
                     (
                         SELECT COUNT(DISTINCT cc.matricula_id)
                         FROM calificaciones_criterio cc
                         INNER JOIN criterios cr ON cr.id = cc.criterio_id
-                        WHERE cr.carga_id       = ?
-                          AND cr.competencia_id = c.id
+                        WHERE cr.carga_id       = sc.carga_id
+                          AND cr.competencia_id = comp.id
                           AND cr.periodo_id     = ?
                           AND cr.eliminado_en   IS NULL
                     ) AS notas,
                     (
                         SELECT COUNT(*)
                         FROM bloqueos_competencia bc
-                        WHERE bc.carga_id       = ?
-                          AND bc.competencia_id = c.id
+                        WHERE bc.carga_id       = sc.carga_id
+                          AND bc.competencia_id = comp.id
                           AND bc.periodo_id     = ?
                     ) AS bloqueada
                 FROM (
-                    SELECT comp.id FROM competencias comp
-                    INNER JOIN cargas_academicas ca
-                        ON ca.subarea_id = comp.subarea_id
-                    WHERE ca.id = ? AND comp.subarea_id IS NOT NULL
-                    UNION
-                    SELECT comp.id FROM competencias comp
-                    INNER JOIN cargas_academicas ca
-                        ON ca.area_id = comp.area_id
-                    WHERE ca.id = ? AND comp.area_id IS NOT NULL
-                ) c
+                    -- Cargas dentro del alcance: la propia carga SIEMPRE; si la
+                    -- sección es unidocente, además todas las cargas activas de
+                    -- la misma área en esa sección.
+                    SELECT ca2.id AS carga_id, ca2.subarea_id, ca2.area_id
+                    FROM cargas_academicas ca0
+                    INNER JOIN secciones s    ON s.id   = ca0.seccion_id
+                    LEFT  JOIN subareas  sa0  ON sa0.id = ca0.subarea_id
+                    INNER JOIN cargas_academicas ca2 ON (
+                        ca2.id = ca0.id
+                        OR (
+                            s.es_unidocente = 1
+                            AND ca2.seccion_id = ca0.seccion_id
+                            AND ca2.estado     = 'activa'
+                            AND COALESCE(
+                                    ca2.area_id,
+                                    (SELECT sax.area_id FROM subareas sax WHERE sax.id = ca2.subarea_id)
+                                ) = COALESCE(ca0.area_id, sa0.area_id)
+                        )
+                    )
+                    WHERE ca0.id = ?
+                ) sc
+                INNER JOIN competencias comp ON (
+                    (sc.subarea_id IS NOT NULL AND comp.subarea_id = sc.subarea_id)
+                    OR (sc.area_id IS NOT NULL AND comp.area_id = sc.area_id)
+                )
             ) ac
         ", [
-            $cargaId, $periodoId,
-            $cargaId, $periodoId,
-            $cargaId, $cargaId,
+            $periodoId, $periodoId, $cargaId,
         ]);
 
         $conNotas = (int) ($r['con_notas'] ?? 0);

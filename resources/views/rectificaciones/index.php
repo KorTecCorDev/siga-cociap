@@ -10,7 +10,7 @@
     <div>
         <h1 class="page-title">Rectificación de calificaciones</h1>
         <p class="page-subtitle">
-            Corrige, con auditoría obligatoria, notas ya cerradas o bloqueadas.
+            Corrige, notas ya aprobadas o bloqueadas.
             Busca al estudiante para empezar.
         </p>
     </div>
