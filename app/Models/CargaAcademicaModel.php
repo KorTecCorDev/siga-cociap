@@ -466,6 +466,34 @@ class CargaAcademicaModel extends BaseModel
         ", [$id]);
     }
 
+    /**
+     * ¿La carga tiene trabajo (criterios vivos o calificaciones agregadas) en el
+     * bimestre ACTIVO? Base del blindaje al desactivar: si lo hay, desactivar
+     * exige motivo. No considera bimestres cerrados (ya son oficiales/inmutables).
+     */
+    public function tieneTrabajoEnPeriodoActivo(int $cargaId): bool
+    {
+        return $this->queryOne("
+            SELECT 1
+            FROM periodos p
+            WHERE p.estado = 'activo'
+              AND (
+                  EXISTS (
+                      SELECT 1 FROM criterios cr
+                      WHERE cr.carga_id     = ?
+                        AND cr.periodo_id   = p.id
+                        AND cr.eliminado_en IS NULL
+                  )
+                  OR EXISTS (
+                      SELECT 1 FROM calificaciones cal
+                      WHERE cal.carga_id   = ?
+                        AND cal.periodo_id = p.id
+                  )
+              )
+            LIMIT 1
+        ", [$cargaId, $cargaId]) !== null;
+    }
+
     public function existeCarga(
         int  $seccionId,
         ?int $subareaId,

@@ -134,3 +134,14 @@
         min-width: unset;
     }
 }
+
+// ── Reporte de auditoria de reemplazo de docente ──────────────
+// Separador de bimestre dentro del snapshot (solo lectura).
+.reemplazo-periodo-titulo {
+    margin: $spacing-lg 0 $spacing-sm;
+    font-size: $font-size-lg;
+    font-weight: 700;
+    color: $text-primary;
+    border-bottom: 2px solid $border-color;
+    padding-bottom: $spacing-xs;
+}

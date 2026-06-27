@@ -99,6 +99,12 @@ $router->get( '/director/cargas/seccion/{seccion_id}',     'Director\CargaAcadem
 $router->get( '/director/cargas/{id}/editar',              'Director\CargaAcademicaController@edit');
 $router->post('/director/cargas/{id}/editar', 'Director\CargaAcademicaController@update');
 $router->post('/director/cargas/{id}/estado', 'Director\CargaAcademicaController@toggleEstado');
+// Reemplazo de docente en carga activa (auditoria por snapshot). Literales
+// "reemplazar"/"reemplazos" distintas de editar/estado -> sin colision.
+$router->get( '/director/cargas/{id}/reemplazar', 'Director\ReemplazoDocenteController@form');
+$router->post('/director/cargas/{id}/reemplazar', 'Director\ReemplazoDocenteController@reemplazar');
+$router->get( '/director/cargas/{id}/reemplazos', 'Director\ReemplazoDocenteController@historial');
+$router->get( '/director/reemplazos/{id}/snapshot', 'Director\ReemplazoDocenteController@verSnapshot');
 
 // ─── Matrícula ───────────────────────────────────────────────
 $router->get( '/secretaria/matriculas',             'Secretaria\MatriculaController@index');

@@ -4,6 +4,7 @@ namespace App\Controllers\Director;
 
 use App\Controllers\BaseController;
 use App\Models\CargaAcademicaModel;
+use Core\Session;
 
 class CargaAcademicaController extends BaseController
 {
@@ -162,6 +163,18 @@ class CargaAcademicaController extends BaseController
             $this->redirectWithError(url("director/cargas/{$id}/editar"), $error);
         }
 
+        // Blindaje: el cambio de docente NO se hace por edicion (perderia la
+        // auditoria del trabajo del saliente). Se deriva al proceso oficial de
+        // Reemplazo de docente, que congela un snapshot antes de reasignar.
+        if ((int) $datosCarga['docente_id'] !== (int) $carga['docente_id']) {
+            $this->redirectWithError(
+                url("director/cargas/{$id}/reemplazar"),
+                'Para cambiar el docente usa el proceso de Reemplazo de docente: '
+                . 'conserva la auditoria del trabajo del saliente. Aqui solo se edita '
+                . 'area, subarea y horario.'
+            );
+        }
+
         if ($this->model->existeCarga(
             $datosCarga['seccion_id'],
             $datosCarga['subarea_id'],
@@ -209,6 +222,30 @@ class CargaAcademicaController extends BaseController
         $carga = $this->model->findById($id);
         if (!$carga) {
             $this->redirectWithError(url('director/cargas'), 'Carga no encontrada.');
+        }
+
+        // Blindaje al DESACTIVAR una carga que ya tiene trabajo (criterios/notas)
+        // en el bimestre activo: se permite, pero exige un motivo (confirmacion)
+        // y deja traza. Cubre el caso legitimo (carga creada por error con notas
+        // de prueba) sin abrir un atajo silencioso. Para CAMBIAR de docente el
+        // camino es Reemplazo, no desactivar.
+        $desactivando = $carga['estado'] === 'activa';
+        if ($desactivando && $this->model->tieneTrabajoEnPeriodoActivo($id)) {
+            $motivo = trim((string) $this->input('motivo', ''));
+            if ($motivo === '') {
+                $this->redirectWithError(
+                    url('director/cargas/seccion/' . (int) $carga['seccion_id']),
+                    'Esta carga ya tiene notas en el bimestre activo. Para desactivarla '
+                    . 'indica un motivo en la confirmacion. Si solo cambia el docente, '
+                    . 'usa Reemplazo de docente.'
+                );
+            }
+            log_error('Carga desactivada con trabajo en bimestre activo', [
+                'carga_id'   => $id,
+                'seccion_id' => (int) $carga['seccion_id'],
+                'usuario_id' => Session::user()['id'] ?? null,
+                'motivo'     => $motivo,
+            ]);
         }
 
         $this->model->toggleEstado($id);

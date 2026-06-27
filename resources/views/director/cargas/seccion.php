@@ -86,10 +86,25 @@ $badgeEstado = fn(string $e): string => $e === 'activa' ? 'badge--activo' : 'bad
                         <div class="td-acciones">
                             <a href="<?= url('director/cargas/' . $c['id'] . '/editar') ?>"
                                class="btn btn--secondary btn--sm">Editar</a>
+                            <?php if ($activa): ?>
+                                <a href="<?= url('director/cargas/' . $c['id'] . '/reemplazar') ?>"
+                                   class="btn btn--secondary btn--sm">Reemplazar docente</a>
+                            <?php endif; ?>
+                            <a href="<?= url('director/cargas/' . $c['id'] . '/reemplazos') ?>"
+                               class="btn btn--secondary btn--sm">Reemplazos</a>
+                            <?php
+                            // Al DESACTIVAR pedimos un motivo (el servidor lo exige solo si
+                            // la carga ya tiene notas en el bimestre activo; aqui lo pedimos
+                            // siempre para no fallar el primer intento). Cancelar aborta.
+                            $onSubmit = $activa
+                                ? "var m=prompt('Motivo para desactivar esta carga (obligatorio si ya tiene notas):',''); if(m===null)return false; this.motivo.value=m; return true;"
+                                : "return confirm('¿Activar esta carga?')";
+                            ?>
                             <form method="POST"
                                   action="<?= url('director/cargas/' . $c['id'] . '/estado') ?>"
-                                  onsubmit="return confirm('¿<?= $activa ? 'Desactivar' : 'Activar' ?> esta carga?')">
+                                  onsubmit="<?= $onSubmit ?>">
                                 <?= csrf_field() ?>
+                                <input type="hidden" name="motivo" value="">
                                 <button type="submit"
                                         class="btn btn--sm <?= $activa ? 'btn--danger' : 'btn--secondary' ?>">
                                     <?= $activa ? 'Desactivar' : 'Activar' ?>

@@ -64,6 +64,11 @@
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <p class="form-hint">
+                        Para <strong>cambiar el docente</strong> de esta carga usa el
+                        <a href="<?= url('director/cargas/' . $carga['id'] . '/reemplazar') ?>">proceso de Reemplazo de docente</a>:
+                        conserva la auditoria del trabajo del saliente. Editar el docente aqui sera rechazado.
+                    </p>
                 </div>
 
                 <div class="form-group">
