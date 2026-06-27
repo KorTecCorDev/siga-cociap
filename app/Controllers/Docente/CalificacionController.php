@@ -86,14 +86,15 @@ class CalificacionController extends BaseController
 
         $cargas = $this->getCargas($user['id'], $periodo ? (int) $periodo['id'] : 0);
 
-        // Docente de aula (unidocente): es tutor(a) de aula si alguna carga es de
-        // una seccion es_unidocente. La vista marca ESE grupo como "Mi aula"; las
-        // demas secciones (caso mixto: ademas especialista en otro grado) se
-        // listan normalmente con su propio encabezado.
+        // Docente de aula (unidocente): es tutor(a) de aula solo si es el TUTOR de
+        // una seccion es_unidocente (es_aula). Un especialista (Ingles, Ed. Fisica)
+        // que dicta en secciones unidocentes NO es aula. La vista marca ESE grupo
+        // como "Mi aula"; las demas secciones (caso mixto: ademas especialista en
+        // otro grado) se listan normalmente con su propio encabezado.
         $tieneAula = false;
         $aula      = null;
         foreach ($cargas as $c) {
-            if (!empty($c['es_unidocente'])) {
+            if (!empty($c['es_aula'])) {
                 $tieneAula = true;
                 $aula      = trim($c['grado_nombre'] . ' ' . $c['seccion_nombre']);
                 break;
@@ -1007,6 +1008,11 @@ class CalificacionController extends BaseController
                 ca.seccion_id,
                 s.nombre          AS seccion_nombre,
                 s.es_unidocente,
+                -- Mi aula = la seccion es unidocente Y este docente es su tutor
+                -- (el unidocente que dicta todas las areas core). Un especialista
+                -- (Ingles, Ed. Fisica) que dicta en una seccion unidocente NO es
+                -- el aula: es_unidocente por si solo no alcanza para etiquetarlo.
+                (s.es_unidocente = 1 AND s.tutor_id = ca.docente_id) AS es_aula,
                 g.nombre_display  AS grado_nombre,
                 n.nombre          AS nivel_nombre,
                 n.codigo          AS nivel_codigo,

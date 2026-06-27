@@ -156,13 +156,15 @@
         $agrupadas[$ng][$carga['seccion_id']][$carga['area_id']][] = $carga;
     }
 
-    // ¿El grupo es el AULA del docente? (alguna de sus cargas es de una seccion
-    // es_unidocente). Sirve para destacar su encabezado como "Mi aula".
+    // ¿El grupo es el AULA del docente? Solo si es el TUTOR de una seccion
+    // es_unidocente (es_aula). Un especialista (Ingles, Ed. Fisica) que dicta en
+    // una seccion unidocente NO es su aula. Sirve para destacar el encabezado
+    // como "Mi aula" y para presentar las areas con subareas como una sola card.
     $grupoEsAula = function (array $secciones): bool {
         foreach ($secciones as $areas) {
             foreach ($areas as $areaCargas) {
                 foreach ($areaCargas as $c) {
-                    if (!empty($c['es_unidocente'])) {
+                    if (!empty($c['es_aula'])) {
                         return true;
                     }
                 }
