@@ -96,11 +96,7 @@ class CargaAcademicaController extends BaseController
             );
         }
 
-        $conflictos = $this->model->verificarConflictos(
-            array_column($sesiones, 'bloque_id'),
-            $datosCarga['seccion_id'],
-            $datosCarga['docente_id']
-        );
+        $conflictos = $this->model->verificarSolapes($sesiones);
         if ($conflictos) {
             $this->redirectWithError(url('director/cargas/crear'), $this->msgConflicto($conflictos[0]));
         }
@@ -129,10 +125,13 @@ class CargaAcademicaController extends BaseController
             $this->redirectWithError(url('director/cargas'), 'Carga no encontrada.');
         }
 
+        // sesionesMap por día como LISTA de rangos (una carga puede tener varios
+        // bloques no consecutivos el mismo día). getSesionesDeCarga ya ordena por
+        // día y hora_inicio, así que los rangos llegan ordenados.
         $sesiones    = $this->model->getSesionesDeCarga((int) $id);
         $sesionesMap = [];
         foreach ($sesiones as $s) {
-            $sesionesMap[$s['dia_semana']] = [
+            $sesionesMap[$s['dia_semana']][] = [
                 'hora_inicio' => $s['hora_inicio'],
                 'hora_fin'    => $s['hora_fin'],
             ];
@@ -187,12 +186,7 @@ class CargaAcademicaController extends BaseController
             );
         }
 
-        $conflictos = $this->model->verificarConflictos(
-            array_column($sesiones, 'bloque_id'),
-            $datosCarga['seccion_id'],
-            $datosCarga['docente_id'],
-            $id
-        );
+        $conflictos = $this->model->verificarSolapes($sesiones, $id);
         if ($conflictos) {
             $this->redirectWithError(
                 url("director/cargas/{$id}/editar"),
@@ -378,38 +372,67 @@ class CargaAcademicaController extends BaseController
             return [null, null, 'Debes seleccionar al menos un día con horario.'];
         }
 
-        $sesiones     = [];
+        $sesiones       = [];
         $minutosTotales = 0;
-        $configId     = null;
+        $configId       = null;
 
         foreach (self::DIAS as $dia) {
             if (!in_array($dia, $diasSeleccionados, true)) continue;
 
-            $horaInicio = trim($horasInicio[$dia] ?? '');
-            $horaFin    = trim($horasFin[$dia]    ?? '');
+            // N bloques por día: los inputs llegan como arreglos paralelos
+            // hora_inicio[dia][] / hora_fin[dia][]. Una fila totalmente vacía se
+            // ignora (el docente agregó un bloque y no lo usó); una a medias es error.
+            $inicios = (array) ($horasInicio[$dia] ?? []);
+            $fines   = (array) ($horasFin[$dia]    ?? []);
 
-            if ($horaInicio === '' || $horaFin === '') {
-                return [null, null, "Falta hora de inicio o fin para el día " . ucfirst($dia) . "."];
-            }
-            if ($horaFin <= $horaInicio) {
-                return [null, null, "La hora de fin debe ser mayor a la de inicio (" . ucfirst($dia) . ")."];
+            $rangosDia = [];
+            foreach ($inicios as $idx => $hi) {
+                $horaInicio = trim((string) $hi);
+                $horaFin    = trim((string) ($fines[$idx] ?? ''));
+
+                if ($horaInicio === '' && $horaFin === '') continue;
+                if ($horaInicio === '' || $horaFin === '') {
+                    return [null, null, "Falta hora de inicio o fin en un bloque del día " . ucfirst($dia) . "."];
+                }
+                if ($horaFin <= $horaInicio) {
+                    return [null, null, "La hora de fin debe ser mayor a la de inicio (" . ucfirst($dia) . ")."];
+                }
+                $rangosDia[] = ['inicio' => $horaInicio, 'fin' => $horaFin];
             }
 
-            [$h1, $m1] = array_map('intval', explode(':', $horaInicio));
-            [$h2, $m2] = array_map('intval', explode(':', $horaFin));
-            $minutosTotales += ($h2 * 60 + $m2) - ($h1 * 60 + $m1);
+            if (empty($rangosDia)) {
+                return [null, null, "Debes ingresar al menos un bloque horario para el día " . ucfirst($dia) . "."];
+            }
+
+            // Regla (a): los rangos del MISMO día no se pueden solapar entre sí.
+            if ($sol = $this->solapeInterno($rangosDia)) {
+                return [null, null, "El día " . ucfirst($dia) . " tiene bloques que se solapan entre sí ({$sol['a']} y {$sol['b']})."];
+            }
 
             if ($configId === null) {
                 $configId = $this->model->getOrCreateConfiguracion($anioId);
             }
 
-            $bloqueId = $this->model->getOrCreateBloque($configId, $dia, $horaInicio, $horaFin);
+            foreach ($rangosDia as $r) {
+                [$h1, $m1] = array_map('intval', explode(':', $r['inicio']));
+                [$h2, $m2] = array_map('intval', explode(':', $r['fin']));
+                $minutosTotales += ($h2 * 60 + $m2) - ($h1 * 60 + $m1);
 
-            $sesiones[] = [
-                'bloque_id'  => $bloqueId,
-                'seccion_id' => $seccionId,
-                'docente_id' => $docenteId,
-            ];
+                $bloqueId = $this->model->getOrCreateBloque($configId, $dia, $r['inicio'], $r['fin']);
+
+                // Se arrastran dia/hora/config para que verificarSolapes pueda
+                // comparar por tiempo (no solo por bloque_id). crearConHorario /
+                // actualizarConHorario solo leen bloque_id/seccion_id/docente_id.
+                $sesiones[] = [
+                    'bloque_id'   => $bloqueId,
+                    'seccion_id'  => $seccionId,
+                    'docente_id'  => $docenteId,
+                    'dia'         => $dia,
+                    'hora_inicio' => $r['inicio'],
+                    'hora_fin'    => $r['fin'],
+                    'config_id'   => $configId,
+                ];
+            }
         }
 
         if (empty($sesiones)) {
@@ -426,6 +449,29 @@ class CargaAcademicaController extends BaseController
         ];
 
         return [$datosCarga, $sesiones, null];
+    }
+
+    /**
+     * Detecta el primer par de rangos que se solapan dentro de un mismo día
+     * (mismo envío). Solape ESTRICTO: contiguos no cuentan. Devuelve los dos
+     * rangos en conflicto como texto, o null si no hay solape.
+     */
+    private function solapeInterno(array $rangos): ?array
+    {
+        $n = count($rangos);
+        for ($i = 0; $i < $n; $i++) {
+            for ($j = $i + 1; $j < $n; $j++) {
+                $a = $rangos[$i];
+                $b = $rangos[$j];
+                if ($a['inicio'] < $b['fin'] && $b['inicio'] < $a['fin']) {
+                    return [
+                        'a' => $a['inicio'] . '-' . $a['fin'],
+                        'b' => $b['inicio'] . '-' . $b['fin'],
+                    ];
+                }
+            }
+        }
+        return null;
     }
 
     private function msgConflicto(array $c): string

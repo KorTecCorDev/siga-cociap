@@ -295,6 +295,8 @@ class CargaAcademicaModel extends BaseModel
             SELECT
                 sh.id,
                 sh.bloque_id,
+                sh.seccion_id,
+                bh.config_id,
                 bh.dia_semana,
                 TIME_FORMAT(bh.hora_inicio,'%H:%i') AS hora_inicio,
                 TIME_FORMAT(bh.hora_fin,'%H:%i')    AS hora_fin,
@@ -358,20 +360,28 @@ class CargaAcademicaModel extends BaseModel
     }
 
     /**
-     * Verifica si alguno de los bloques ya está ocupado para la sección o el docente.
-     * Al editar, excluye los registros de la propia carga.
+     * Verifica SOLAPES de horario (no solo bloque exacto) para los rangos
+     * propuestos. Por cada sesión {dia, hora_inicio, hora_fin, config_id} busca
+     * si la SECCIÓN o el DOCENTE ya tienen otra clase que se cruce en el tiempo
+     * ese mismo día. Solape ESTRICTO: dos rangos chocan solo si se traslapan de
+     * verdad; los contiguos (fin == inicio del otro) NO cuentan como conflicto.
+     * Se acota al mismo config_id (año) para no comparar entre años distintos.
+     * Al editar, excluye las sesiones de la propia carga.
+     *
+     * Cada $sesion debe traer: dia, hora_inicio ('HH:MM'), hora_fin ('HH:MM'),
+     * seccion_id, docente_id, config_id.
      */
-    public function verificarConflictos(
-        array $bloqueIds,
-        int   $seccionId,
-        int   $docenteId,
-        ?int  $excluirCargaId = null
+    public function verificarSolapes(
+        array $sesiones,
+        ?int  $excluirCargaId = null,
+        array $tipos = ['seccion', 'docente']
     ): array {
         $conflictos = [];
 
-        foreach ($bloqueIds as $bloqueId) {
-            foreach (['seccion' => $seccionId, 'docente' => $docenteId] as $tipo => $filterId) {
-                $col = $tipo === 'seccion' ? 'seccion_id' : 'docente_id';
+        foreach ($sesiones as $s) {
+            foreach ($tipos as $tipo) {
+                $col      = $tipo === 'seccion' ? 'seccion_id' : 'docente_id';
+                $filterId = $tipo === 'seccion' ? $s['seccion_id'] : $s['docente_id'];
                 $sql = "
                     SELECT bh.dia_semana,
                            TIME_FORMAT(bh.hora_inicio,'%H:%i') AS hora_inicio,
@@ -379,9 +389,13 @@ class CargaAcademicaModel extends BaseModel
                            '{$tipo}' AS tipo_conflicto
                     FROM sesiones_horario sh
                     INNER JOIN bloques_horario bh ON bh.id = sh.bloque_id
-                    WHERE sh.{$col} = ? AND sh.bloque_id = ?
+                    WHERE sh.{$col}       = ?
+                      AND bh.config_id    = ?
+                      AND bh.dia_semana   = ?
+                      AND ?               < bh.hora_fin
+                      AND bh.hora_inicio  < ?
                 ";
-                $params = [$filterId, $bloqueId];
+                $params = [$filterId, $s['config_id'], $s['dia'], $s['hora_inicio'], $s['hora_fin']];
 
                 if ($excluirCargaId !== null) {
                     $sql    .= " AND sh.carga_id != ?";
@@ -391,7 +405,7 @@ class CargaAcademicaModel extends BaseModel
                 $conf = $this->queryOne($sql . " LIMIT 1", $params);
                 if ($conf) {
                     $conflictos[] = $conf;
-                    break; // un conflicto por bloque es suficiente
+                    break; // un conflicto por rango es suficiente
                 }
             }
         }

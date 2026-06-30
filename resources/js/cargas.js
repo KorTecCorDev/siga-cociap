@@ -6,6 +6,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     initDiasToggle();
+    initBloques();
     initAreaFilter();
     initDocenteHint();
 });
@@ -16,19 +17,81 @@ function initDiasToggle() {
     document.querySelectorAll('.dia-check').forEach(cb => {
         cb.addEventListener('change', () => toggleDia(cb));
         if (cb.checked) {
-            document.getElementById('dia-row-' + cb.value)?.classList.add('dia-row--activo');
+            const row = document.getElementById('dia-row-' + cb.value);
+            row?.classList.add('dia-row--activo');
+            if (row) refrescarQuitar(row);
         }
     });
 }
 
 function toggleDia(cb) {
-    const row    = document.getElementById('dia-row-' + cb.value);
-    const inputs = row.querySelectorAll('input[type="time"]');
-    inputs.forEach(input => {
-        input.disabled = !cb.checked;
-        if (!cb.checked) input.value = '';
+    const row = document.getElementById('dia-row-' + cb.value);
+    if (!row) return;
+    const activo = cb.checked;
+
+    // Al DESMARCAR el día: colapsar a un solo rango vacío (quita los clonados).
+    if (!activo) {
+        row.querySelectorAll('.bloque-rango').forEach((b, i) => { if (i > 0) b.remove(); });
+    }
+
+    row.querySelectorAll('input[type="time"]').forEach(input => {
+        input.disabled = !activo;
+        if (!activo) input.value = '';
     });
-    row.classList.toggle('dia-row--activo', cb.checked);
+
+    const addBtn = row.querySelector('.bloque-agregar');
+    if (addBtn) addBtn.disabled = !activo;
+
+    refrescarQuitar(row);
+    row.classList.toggle('dia-row--activo', activo);
+}
+
+// ── Bloques de horario por día (N rangos no consecutivos) ─────
+
+function initBloques() {
+    const grid = document.querySelector('.horario-grid');
+    if (!grid) return;
+    grid.addEventListener('click', (e) => {
+        const add = e.target.closest('.bloque-agregar');
+        if (add && !add.disabled) { agregarBloque(add.dataset.dia); return; }
+        const del = e.target.closest('.bloque-quitar');
+        if (del) { quitarBloque(del); }
+    });
+}
+
+// El botón "Quitar" solo se ve cuando el día tiene más de un rango.
+function refrescarQuitar(row) {
+    const rangos = row.querySelectorAll('.bloque-rango');
+    const varios = rangos.length > 1;
+    rangos.forEach(r => {
+        const q = r.querySelector('.bloque-quitar');
+        if (q) q.hidden = !varios;
+    });
+}
+
+// Clona el primer rango del día, lo deja vacío y habilitado, y lo inserta
+// antes del hint (que precede al botón "Agregar bloque").
+function agregarBloque(dia) {
+    const cont = document.getElementById('bloques-' + dia);
+    if (!cont) return;
+    const base = cont.querySelector('.bloque-rango');
+    if (!base) return;
+
+    const nuevo = base.cloneNode(true);
+    nuevo.querySelectorAll('input[type="time"]').forEach(i => { i.value = ''; i.disabled = false; });
+
+    const hint = document.getElementById('hint-' + dia);
+    cont.insertBefore(nuevo, hint);
+
+    refrescarQuitar(document.getElementById('dia-row-' + dia));
+}
+
+function quitarBloque(btn) {
+    const rango = btn.closest('.bloque-rango');
+    const row   = btn.closest('.dia-row');
+    if (!rango || !row) return;
+    rango.remove();
+    refrescarQuitar(row);
 }
 
 // ── Lectura de datos embebidos ────────────────────────────────

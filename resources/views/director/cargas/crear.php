@@ -118,24 +118,28 @@
                             <?= ucfirst($dia) ?>
                         </label>
                     </div>
-                    <div class="dia-row__times">
-                        <div class="form-group">
-                            <label class="form-label" for="hi_<?= $dia ?>">Inicio</label>
-                            <input type="time"
-                                   id="hi_<?= $dia ?>"
-                                   name="hora_inicio[<?= $dia ?>]"
-                                   class="form-input form-input--time"
-                                   disabled>
-                            <small id="hint-<?= $dia ?>" class="dia-row__hint" hidden></small>
+                    <div class="dia-row__bloques" id="bloques-<?= $dia ?>">
+                        <div class="bloque-rango">
+                            <div class="form-group">
+                                <label class="form-label">Inicio</label>
+                                <input type="time"
+                                       name="hora_inicio[<?= $dia ?>][]"
+                                       class="form-input form-input--time bloque-inicio"
+                                       disabled>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Fin</label>
+                                <input type="time"
+                                       name="hora_fin[<?= $dia ?>][]"
+                                       class="form-input form-input--time bloque-fin"
+                                       disabled>
+                            </div>
+                            <button type="button" class="btn btn--danger btn--sm bloque-quitar"
+                                    title="Quitar bloque" tabindex="-1" hidden>&times;</button>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label" for="hf_<?= $dia ?>">Fin</label>
-                            <input type="time"
-                                   id="hf_<?= $dia ?>"
-                                   name="hora_fin[<?= $dia ?>]"
-                                   class="form-input form-input--time"
-                                   disabled>
-                        </div>
+                        <small id="hint-<?= $dia ?>" class="dia-row__hint" hidden></small>
+                        <button type="button" class="btn btn--secondary btn--sm bloque-agregar"
+                                data-dia="<?= $dia ?>" disabled>+ Agregar bloque</button>
                     </div>
                 </div>
                 <?php endforeach; ?>

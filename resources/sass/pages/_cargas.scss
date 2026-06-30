@@ -45,7 +45,7 @@
 
 .dia-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;   // el lado derecho puede tener varios rangos apilados
     gap: $spacing-md;
     padding: $spacing-sm $spacing-md;
     border: 1.5px solid $border-color;
@@ -82,10 +82,19 @@
     user-select: none;
 }
 
-.dia-row__times {
+// Columna de rangos del día: uno o varios bloques no consecutivos apilados.
+.dia-row__bloques {
     display: flex;
-    gap: $spacing-md;
+    flex-direction: column;
+    gap: $spacing-sm;
     flex: 1;
+    min-width: 0;
+}
+
+.bloque-rango {
+    display: flex;
+    align-items: flex-end;   // botón "quitar" alineado al pie de los inputs
+    gap: $spacing-md;
 
     .form-group {
         flex: 1;
@@ -100,6 +109,15 @@
         border-color: $border-color;
         cursor: not-allowed;
     }
+}
+
+.bloque-quitar {
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.bloque-agregar {
+    align-self: flex-start;
 }
 
 .form-input--time {
@@ -124,11 +142,11 @@
         align-items: flex-start;
     }
 
-    .dia-row__times {
+    .dia-row__bloques {
         width: 100%;
-
-        .form-group { max-width: 100%; }
     }
+
+    .bloque-rango .form-group { max-width: 100%; }
 
     .dia-row__check {
         min-width: unset;

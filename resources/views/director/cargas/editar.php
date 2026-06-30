@@ -111,9 +111,14 @@
 
             <div class="horario-grid">
                 <?php foreach ($dias as $dia):
-                    $tieneHorario = isset($sesionesMap[$dia]);
-                    $hi = $tieneHorario ? $sesionesMap[$dia]['hora_inicio'] : '';
-                    $hf = $tieneHorario ? $sesionesMap[$dia]['hora_fin']    : '';
+                    $rangos       = $sesionesMap[$dia] ?? [];
+                    $tieneHorario = !empty($rangos);
+                    // Día sin clases: igual se pinta un rango vacío (deshabilitado)
+                    // para que exista la plantilla a clonar y se active al marcar.
+                    if (!$tieneHorario) {
+                        $rangos = [['hora_inicio' => '', 'hora_fin' => '']];
+                    }
+                    $varios = count($rangos) > 1;
                 ?>
                 <div class="dia-row <?= $tieneHorario ? 'dia-row--activo' : '' ?>" id="dia-row-<?= $dia ?>">
                     <div class="dia-row__check">
@@ -127,25 +132,32 @@
                             <?= ucfirst($dia) ?>
                         </label>
                     </div>
-                    <div class="dia-row__times">
-                        <div class="form-group">
-                            <label class="form-label" for="hi_<?= $dia ?>">Inicio</label>
-                            <input type="time"
-                                   id="hi_<?= $dia ?>"
-                                   name="hora_inicio[<?= $dia ?>]"
-                                   class="form-input form-input--time"
-                                   value="<?= e($hi) ?>"
-                                   <?= !$tieneHorario ? 'disabled' : '' ?>>
+                    <div class="dia-row__bloques" id="bloques-<?= $dia ?>">
+                        <?php foreach ($rangos as $r): ?>
+                        <div class="bloque-rango">
+                            <div class="form-group">
+                                <label class="form-label">Inicio</label>
+                                <input type="time"
+                                       name="hora_inicio[<?= $dia ?>][]"
+                                       class="form-input form-input--time bloque-inicio"
+                                       value="<?= e($r['hora_inicio']) ?>"
+                                       <?= !$tieneHorario ? 'disabled' : '' ?>>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Fin</label>
+                                <input type="time"
+                                       name="hora_fin[<?= $dia ?>][]"
+                                       class="form-input form-input--time bloque-fin"
+                                       value="<?= e($r['hora_fin']) ?>"
+                                       <?= !$tieneHorario ? 'disabled' : '' ?>>
+                            </div>
+                            <button type="button" class="btn btn--danger btn--sm bloque-quitar"
+                                    title="Quitar bloque" tabindex="-1" <?= $varios ? '' : 'hidden' ?>>&times;</button>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label" for="hf_<?= $dia ?>">Fin</label>
-                            <input type="time"
-                                   id="hf_<?= $dia ?>"
-                                   name="hora_fin[<?= $dia ?>]"
-                                   class="form-input form-input--time"
-                                   value="<?= e($hf) ?>"
-                                   <?= !$tieneHorario ? 'disabled' : '' ?>>
-                        </div>
+                        <?php endforeach; ?>
+                        <small id="hint-<?= $dia ?>" class="dia-row__hint" hidden></small>
+                        <button type="button" class="btn btn--secondary btn--sm bloque-agregar"
+                                data-dia="<?= $dia ?>" <?= !$tieneHorario ? 'disabled' : '' ?>>+ Agregar bloque</button>
                     </div>
                 </div>
                 <?php endforeach; ?>

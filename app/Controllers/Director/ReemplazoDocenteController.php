@@ -76,13 +76,20 @@ class ReemplazoDocenteController extends BaseController
             );
         }
 
-        // El entrante hereda el MISMO horario de la carga: debe estar libre en
-        // esos bloques (sesiones_horario es UNIQUE por docente+bloque, y un choque
-        // seria una clase superpuesta). Se excluye la propia carga.
-        $bloques = array_column($this->cargas->getSesionesDeCarga($id), 'bloque_id');
-        $conflictos = $this->cargas->verificarConflictos(
-            $bloques, (int) $carga['seccion_id'], $entranteId, $id
-        );
+        // El entrante hereda el MISMO horario de la carga: debe estar libre (sin
+        // SOLAPES) en esos rangos. Solo se chequea al DOCENTE entrante (la sección
+        // conserva sus mismos horarios; solo cambia el docente). Se excluye la
+        // propia carga.
+        $sesionesChk = array_map(fn($s) => [
+            'dia'         => $s['dia_semana'],
+            'hora_inicio' => $s['hora_inicio'],
+            'hora_fin'    => $s['hora_fin'],
+            'seccion_id'  => (int) $carga['seccion_id'],
+            'docente_id'  => $entranteId,
+            'config_id'   => (int) $s['config_id'],
+        ], $this->cargas->getSesionesDeCarga($id));
+
+        $conflictos = $this->cargas->verificarSolapes($sesionesChk, $id, ['docente']);
         if ($conflictos) {
             $this->redirectWithError(
                 url("director/cargas/{$id}/reemplazar"),
