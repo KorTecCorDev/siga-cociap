@@ -12,6 +12,161 @@ Proyecto de tesis para obtener el título de Ingeniero de Sistemas e Informátic
 - **Build tool:** Gulp (SASS → CSS, BrowserSync)
 - **Control de versiones:** Git + GitHub
 - **Objetivo futuro:** Migrar a Laravel
+## Filosofía de Trabajo (OBLIGATORIO)
+
+Estas reglas son de cumplimiento obligatorio durante todo el ciclo de desarrollo. En caso de conflicto entre reglas, aplica el siguiente orden de prioridad:
+
+1. No romper funcionalidades existentes.
+2. Preguntar antes de asumir cualquier comportamiento.
+3. Respetar la arquitectura MVP del proyecto.
+4. Mantener la compatibilidad con el sistema.
+5. Realizar únicamente los cambios mínimos necesarios.
+6. Mantener la calidad, seguridad y legibilidad del código.
+
+---
+
+### Principio de Incertidumbre
+
+No debes tomar decisiones de diseño, arquitectura o implementación cuando exista información insuficiente, ambigua o contradictoria.
+
+Si existe cualquier duda, por mínima que sea, debes detener la implementación y solicitar aclaraciones al usuario.
+
+Nunca debes asumir:
+
+- Reglas de negocio.
+- Comportamientos esperados.
+- Estructuras de datos.
+- Relaciones entre módulos.
+- Flujo de ejecución.
+- Interfaces públicas.
+- Convenciones no documentadas.
+- Preferencias de implementación.
+
+---
+
+### Obligación ante la Incertidumbre
+
+Antes de modificar cualquier archivo debes verificar si existe alguna incertidumbre.
+
+Si detectas cualquier duda, debes:
+
+1. Detener inmediatamente la implementación.
+2. Enumerar claramente todas las dudas.
+3. Explicar por qué cada una afecta la implementación.
+4. Esperar la respuesta del usuario.
+
+No continúes hasta recibir las aclaraciones correspondientes.
+
+---
+
+### Decisiones Técnicas
+
+Si existen dos o más alternativas técnicamente válidas para resolver un problema:
+
+- No elijas una automáticamente.
+- Presenta todas las alternativas relevantes.
+- Explica las ventajas y desventajas de cada una.
+- Recomienda una opción con su justificación técnica.
+- Espera la aprobación del usuario antes de implementarla.
+
+---
+
+### Alcance de la Implementación
+
+Limítate estrictamente al alcance solicitado.
+
+No implementes mejoras adicionales, optimizaciones, refactorizaciones, cambios de arquitectura o nuevas funcionalidades que no hayan sido solicitadas explícitamente.
+
+Si detectas oportunidades de mejora, infórmalas al finalizar como recomendaciones, pero no las implementes sin autorización del usuario.
+
+---
+
+### Arquitectura
+
+Respetar estrictamente la arquitectura MVP del proyecto.
+
+- Model: acceso a datos y lógica de negocio.
+- Presenter: coordinación entre Model y View.
+- View: presentación e interacción con el usuario.
+
+Nunca mezclar responsabilidades entre capas.
+
+Mantener la estructura actual del proyecto.
+
+---
+
+### Modificaciones
+
+Toda modificación debe ser incremental y localizada.
+
+- Nunca sobrescribas archivos completos si basta con modificar una sección.
+- Nunca elimines funcionalidades existentes sin autorización explícita.
+- Nunca cambies interfaces públicas sin autorización.
+- Reutiliza componentes existentes antes de crear nuevos.
+- Conserva el estilo y organización del proyecto.
+- Realiza únicamente los cambios indispensables para cumplir el objetivo solicitado.
+
+---
+
+### Seguridad
+
+Toda implementación debe respetar las siguientes prácticas:
+
+- Consultas preparadas (PDO).
+- Protección contra SQL Injection.
+- Protección contra XSS.
+- Validación tanto en cliente como en servidor.
+- Escape correcto de la salida.
+- Manejo seguro de sesiones y autenticación cuando corresponda.
+
+Nunca sacrifiques seguridad por rapidez de implementación.
+
+---
+
+### Estilo del Código
+
+Respeta siempre:
+
+- Convenciones de nombres existentes.
+- Organización de carpetas.
+- Estructura del proyecto.
+- Estilo de codificación.
+- Patrones ya utilizados.
+- Consistencia con el resto del sistema.
+
+El código nuevo debe integrarse naturalmente con el código existente.
+
+---
+
+### Protocolo Obligatorio antes de Implementar
+
+Antes de escribir cualquier línea de código debes:
+
+1. Leer completamente el Plan de Implementación.
+2. Comprender el objetivo funcional.
+3. Analizar la arquitectura relacionada.
+4. Identificar todos los archivos involucrados.
+5. Analizar dependencias directas e indirectas.
+6. Evaluar posibles riesgos de regresión.
+7. Verificar que no existan ambigüedades.
+
+Si existe cualquier duda, vuelve al apartado **Principio de Incertidumbre**.
+
+---
+
+### Verificación Obligatoria
+
+Antes de finalizar una implementación debes verificar que:
+
+- No se rompieron funcionalidades existentes.
+- No existen errores de sintaxis.
+- No se modificaron interfaces públicas sin autorización.
+- La arquitectura MVP continúa respetándose.
+- El cambio mantiene compatibilidad con el resto del sistema.
+- Solo se modificaron los archivos estrictamente necesarios.
+- No existen efectos secundarios conocidos derivados de la implementación.
+
+No finalices una tarea hasta completar esta verificación.
 
 ## Arquitectura de carpetas
 ```
@@ -123,54 +278,12 @@ director_ebr_historial  ← NUEVO (sesión 7)
 12. migrations/020_bloqueos_origen.sql        ← origen del bloqueo (docente/cierre)
 
 
-## Seed de demostración para presentación (sesión 4)
-```
-database/seeds/003_demo_boletas.sql
-```
-Ejecutar UNA SOLA VEZ sobre la BD restaurada desde **backup_18_05_2026.sql**.
-Cubre tres escenarios completos (boleta imprimible + digital):
-- **E1** Sec 1 (1°P A, unidocente user 21) → matriculas 1-5, periodo 1. Notas curadas AD/A/B/C.
-- **E2** Sec 13 (1°S A, Taller Raz. Mat.) → matriculas 78-82, periodo 1. Notas REALES de docentes. Solo agrega Economía, Ed. Religiosa y bloqueo EPT.
-- **E3** Sec 20 (4°S A, Arte=Raz.Mat.) → matriculas 106-110, periodo 1. Notas curadas AD/A/B/C.
-URLs de boleta: `/boleta/{mat_id}/1` y `/boleta/digital/{mat_id}/1`
-También corrige bloqueos erróneos de carga 38 (comp 54/55 → 56/57).
-
-### Correcciones estructurales del seed (sesión 5 — backup 18/05)
-- **cargas_academicas sin UNIQUE KEY** → usa `INSERT INTO ... WHERE NOT EXISTS` para todas las cargas
-- **E1 docente correcto**: user 21 (no 4); carga 44 ya existe como transversal de sec 1
-- **E2 cargas hardcodeadas**: usa IDs reales del backup (1-12, 17, 20, 21, 26, 28, 29, 42, 43). Solo inserta Economía (subarea 13) y Ed. Religiosa (area 14) como cargas nuevas
-- **Bug carga 8 corregido**: carga 8 pertenece a sec 23 (5°S B), no a sec 13. Se eliminó toda referencia cruzada errónea
-- **E2 calificaciones preservadas**: las notas reales ingresadas el 16-17/05 se mantienen via INSERT IGNORE
-
-## Migración de limpieza (solo sobre DB existente, no en setup desde cero)
-```
-migrations/004_limpiar_datos_semilla.sql
-```
-Elimina criterios, calificaciones y bloqueos con FK inválidas generados
-por seeds aplicados con FOREIGN_KEY_CHECKS=0. No afecta datos reales
-(cargas 10/14, competencias 41-43, bloqueos válidos del docente SOTELO).
-
-## Roles del sistema
-| Código | Nombre | Acceso |
-|--------|--------|--------|
-| admin | Administrador | Todo |
-| registro_academico | Registro Académico | Matrículas, traslados, documentos |
-| director_general | Director General | Todos los niveles |
-| director_ebr | Director EBR | Su nivel educativo |
-| secretaria | Secretaria | Matrículas |
-| docente | Docente | Sus cargas académicas |
-| padre | Padre de Familia | Notas y alertas de su hijo |
-
-## Usuarios de prueba (desarrollo)
-- **Admin:** DNI `00000000` / pass `admin1234`
-- **Docente:** DNI `12345678` / pass `admin1234`
-- **Padre:** DNI `99999999` / pass `admin1234`
-
 ## Estructura curricular
 - **Área con subáreas:** cada subárea tiene 1 competencia y 1 docente
 - **Área-curso:** sin subáreas, 1 docente dicta todas las competencias
 - **Unidocente:** primaria 1°-3°, flag `es_unidocente` en tabla secciones
-- **Competencias transversales:** a cargo del tutor de sección
+  -Todas las áreas son un área-curso, todas las cargas que deberían ser subáreas se integran al área y se evalúa como un área-curso.
+- **Competencias transversales:** las registran cada docente por carga académica y las conclusiones descriptivas, aprobación y bloqueo de notas queda a cargo del tutor de sección.
 
 ## Escala de calificaciones
 - **Notas:** siempre numéricas 00-20 en BD
@@ -370,35 +483,6 @@ NUNCA CSS inline en PHP (convención del proyecto).
 - Vista pública sin sesión, sin navbar, sin datos de otros alumnos.
 - CSRF con `$this->validateCsrf()` en `POST /boleta-publica/consultar`.
 
-### Reglas especiales SIAGIE (secundaria)
-Los talleres propios de COCIAP no son áreas oficiales del MINEDU: sus notas se
-registran en el casillero de un área oficial que cede ese tramo de grados.
-- **Taller de Razonamiento Matemático** → se registra en **Ed. Religiosa (1°-4°)**
-  y en **Arte y Cultura (5°)**.
-- **Taller de Pre Cálculo** (solo 5°) → se registra en **Educación para el Trabajo**.
-- **Áreas oficiales que ceden su casillero** (solo registran sus notas reales en el tramo libre):
-  - **Educación Religiosa:** notas reales solo en **5°** (1°-4° lo ocupa RazMat).
-  - **Arte y Cultura:** notas reales solo en **1°-4°** (5° lo ocupa RazMat).
-  - **Educación para el Trabajo:** notas reales solo en **1°-4°** (5° lo ocupa Pre Cálculo).
-- **Alias:** únicamente **Ed. Religiosa de 5° secundaria** se muestra como "(Ética y Valores)".
-  Ningún otro área lleva alias (EPT ya NO usa "(Habilidades Pedagógicas)").
-
-## Decisiones de implementación — sesión 6 (boletas públicas)
-- **Sin herencia cruzada**: `BoletaPublicaController` (público) duplica `buildAreasConBimestres()`
-  y las queries privadas de `BoletaController` en lugar de extenderlo, para mantener los
-  contextos de auth completamente separados.
-- **Vista `boleta-publica/boleta.php`** usa `require VIEW_PATH . '/boleta/digital.php'`
-  directamente: reutiliza el componente `.bd-` sin duplicar HTML.
-- **`getPorCodigo` actualiza estadísticas** antes de retornar el registro; el contador
-  se incrementa en cada consulta real (POST), no en escaneos de QR previos.
-- **`generarMasivo` es idempotente**: verifica si ya existe `(matricula_id, periodo_id)`
-  antes de insertar → se puede llamar varias veces sin duplicar.
-- **Código formato** `COCIAP-{anio}-B{num}-XXXXXX` con 32 caracteres alfanuméricos
-  sin ambigüedad (sin O/0/I/1/L). `random_int()` garantiza entropía criptográfica.
-- **Rutas públicas** registradas antes de `/boleta/{id}/{id}` en `routes/web.php`
-  y en `AuthMiddleware::$publicRoutes` para que no requieran sesión.
-- **QR en imprimir**: apunta a `/boleta-publica?codigo=...` vía Google Charts API,
-  igual que la boleta digital de sesión 3.
 
 ## Boleta: documento único por token (24/06/2026)
 
@@ -613,27 +697,12 @@ registran en el casillero de un área oficial que cede ese tramo de grados.
 > DESACTIVADA (sus datos B1 siguen legibles). El tutor solo agrega conclusiones
 > y cierra el bimestre desde `/docente/tutoria`.
 
-### Migración `019_transversales_docente.sql`
-- Tabla `conclusiones_transversales` (UNIQUE matricula+competencia+periodo) —
-  conclusión del TUTOR, independiente de las cargas.
-- Tabla `cierres_transversales` (seccion+periodo; vigente = `anulado_en IS NULL`;
-  anulación con `anulado_por`/`motivo_anulacion`).
-- Sellado retroactivo B1: cierre por cada sección cuya carga transversal del tutor
-  quedó totalmente bloqueada (20 de 23 secciones; las otras 3 no tenían transversales).
-- Migra las conclusiones B1 del tutor (33) a la tabla nueva.
-- Desactiva las cargas transversales (`estado='inactiva'`).
 
 ### Registro por docente (Variante 1 de bloqueo)
 - `formulario()` añade a cada carga la sección "Competencias Transversales"
   (`CriterioModel::getCompetenciasTransversalesConCriterios`) — mismo mecanismo
   de criterios/notas; flag `es_transversal` en la vista
   (`.competencia-card--transversal`, separador `.transversales-separador`).
-- **`bloquear()` — Variante 1:** al bloquear la ÚLTIMA competencia propia valida
-  que TIC/GAMA estén completas (mensaje claro con el detalle) y bloquea TODO
-  junto en transacción. Las transversales NO se bloquean individualmente (400).
-  Exonerados de la carga quedan excluidos (mismo tratamiento que el área).
-- En el resumen de una transversal: sin botón aprobar ni textareas de conclusión
-  ("La registra el tutor al cierre del bimestre").
 
 ### Agregación y boletas — REGLA ÚNICA
 - `CalificacionModel::getBoletaAlumno()` EXCLUYE las filas crudas transversales
@@ -899,11 +968,14 @@ Variables calculadas por competencia justo tras `$esTransversal` (líneas ~106):
 | Estado | Condición | Botón |
 |--------|-----------|-------|
 | Sin criterios (académica) | `!$esTransversal && !$compBloqueada && !$tieneCriterios && !$bloqueado` | **"No se evaluó"** — habilitado, acción terminal con `confirm()` |
-| En progreso | ≥1 criterio, ninguno confirmado | **"Ver resumen"** bloqueado (`.btn-ver-resumen--bloqueado`, tooltip) |
-| Listo | ≥1 criterio confirmado **o** aprobada (`$resumenAccesible`) | **"Ver resumen"** habilitado |
+| En progreso | ≥1 criterio y **alguno pendiente** (`!$todosConfirmados`) | **"Ver resumen"** bloqueado (`.btn-ver-resumen--bloqueado`, tooltip) |
+| Listo | ≥1 criterio y **TODOS confirmados** (`$todosConfirmados`) **o** aprobada (`$resumenAccesible`) | **"Ver resumen"** habilitado |
 | No evaluada | bloqueada con `alumnos_calificados == 0` (`$sinNotasBloqueada`) | badge **"No evaluada"** + mensaje propio en el cuerpo |
 
-### Regla central — el autosave NO desbloquea
+> **Endurecimiento (30/06/2026):** "Listo" pasó de `≥1 criterio confirmado` a
+> `TODOS los criterios confirmados`. Ver "Resumen = solo confirmados" más abajo.
+
+### Regla central — el autosave NO desbloquea (y AHORA re-bloquea)
 - **"Ver resumen" se desbloquea SOLO con el clic en "Confirmar"** (el submit por
   criterio, endpoint `/guardar`). Ese handler llama
   `CriterioModel::marcarConfirmado()` que sella `criterios.confirmado_en` (solo si
@@ -912,14 +984,21 @@ Variables calculadas por competencia justo tras `$esTransversal` (líneas ~106):
   se puede llegar al resumen salteándose el filtro de omisión ayudándose del
   autoguardado. (El filtro de omisión sigue obligando el motivo por alumno en
   blanco vía el modal "Confirmar y guardar".)
+- **(30/06/2026) AHORA cualquier cambio del criterio DESCONFIRMA**
+  (`CriterioModel::desconfirmar`): autosave de una nota (set o blank), omisión
+  (`guardarOmisiones`) o edición de nombre/descripción (`renombrarCriterio`)
+  vuelven el criterio a "pendiente". Antes solo desconfirmaba un blanco sin
+  motivo. Ver "Resumen = solo confirmados".
 - Al ser una **columna persistida** (no estado de sesión como antes, que el JS
   quitaba y al recargar volvía), el desbloqueo **sobrevive al recargado**.
 
-### El candado de aprobación sigue en "Aprobar"
-"Ver resumen" abre con UN criterio confirmado; **aprobar** exige el flujo completo
-de siempre dentro del resumen (`errorBloqueoCompetencia`: ≥1 criterio + todos los
-alumnos con nota u omisión). Decisión de diseño: la puerta blanda en "Ver resumen",
-el candado real en "Aprobar".
+### El candado de aprobación
+> **Actualizado 30/06/2026** (ver "Resumen = solo confirmados"): se retiró la
+> "puerta blanda". "Ver resumen" exige AHORA todos los criterios confirmados, y
+> `errorBloqueoCompetencia` añadió la misma puerta (`competenciaListaParaResumen`)
+> ANTES del chequeo por alumno. **Aprobar** sigue exigiendo además ≥1 criterio +
+> todos los alumnos con nota u omisión. El camino "No se evaluó" (sin criterios)
+> se evalúa antes de la puerta y no se ve afectado.
 
 ### "No se evaluó" — acción
 Reusa el endpoint existente `POST /docente/calificaciones/{carga}/bloquear/{comp}`
@@ -938,10 +1017,66 @@ Crea un bloqueo `origen='docente'` sin notas. **NO aparece en transversales**
 
 ### SASS / lectura del estado
 - `getCriterios()` hace `SELECT *` → `confirmado_en` llega solo a cada criterio
-  sin tocar el modelo. La vista calcula `$tieneConfirmado` recorriendo
-  `$competencia['criterios']`.
+  sin tocar el modelo. La vista calcula `$todosConfirmados` recorriendo
+  `$competencia['criterios']` (30/06/2026: era `$tieneConfirmado` ≥1).
 - `pages/_dashboard.scss`: `.btn-no-evaluo` (discreto, borde punteado, vira a
   ámbar en hover) + `.competencia-card__acciones` (reemplazó un `style=""` inline).
+
+## Resumen = solo confirmados — confirmación como única verdad (30/06/2026)
+
+> El resumen (`/docente/calificaciones/{id}/resumen/{id}`) y el promedio agregado
+> SOLO reflejan criterios CONFIRMADOS. Se retiró la "puerta blanda". `confirmado_en`
+> (por criterio) es la única fuente de verdad de "esto es oficial". Sin migración
+> (reusa 026). Commit `5d08463` en `dev`.
+
+### Las tres reglas (alineadas)
+1. **Promedio agregado = solo criterios confirmados.** `CalificacionModel::calcularPromedio`
+   y `recalcularPromedioSeccion` (query de descubrimiento + DELETE de huérfanos)
+   filtran `AND cr.confirmado_en IS NOT NULL`. Un criterio pendiente no cuenta; si
+   era el único confirmado, la fila de `calificaciones` se borra (promedio desaparece
+   hasta re-confirmar).
+2. **Resumen (entrar + mostrar) = ≥1 criterio y TODOS confirmados.**
+   `CriterioModel::competenciaListaParaResumen(cargaId, compId, periodoId)` (≥1 vivo
+   y 0 pendientes; un criterio vacío cuenta como pendiente). El guard de `resumen()`
+   y el `resumenAccesible` del autosave/guardar/omisiones/renombrar la usan (reemplazó
+   a `existeConfirmado`, conservado sin uso en estos sitios). `getResumenCompetencia`
+   recibe `soloConfirmados` (true solo desde `resumen()`; los demás callers — validación
+   de `guardar`, `errorBloqueoCompetencia`, ConsultaNotas, histórico — en false).
+3. **Aprobar = todos confirmados.** `errorBloqueoCompetencia` añadió la puerta
+   `competenciaListaParaResumen` ANTES del chequeo por alumno (evita que un retoque
+   no confirmado se pierda silenciosamente del promedio bloqueado). El branch
+   "No se evaluó" (sin criterios) se resuelve antes y no se ve afectado.
+
+### Desconfirmado en cascada — CUALQUIER cambio del criterio
+Regla: cualquier mutación del criterio tras confirmarlo lo vuelve "pendiente".
+- `autosave`: tras escribir/borrar la nota, llama `desconfirmar($criterioId)`
+  **incondicional** y ANTES de `recalcularPromedioSeccion` (así el recalc lo excluye).
+- `guardarOmisiones`: también desconfirma (registrar/cambiar omisión = cambio de
+  composición) y devuelve `resumenAccesible`.
+- `renombrarCriterio` (nombre **y** descripción; incluye "Mover a descripción"):
+  desconfirma + recalcula + devuelve `resumenAccesible`; el JS sincroniza "Ver
+  resumen" tras el éxito. **Guard:** si la competencia ya está aprobada/bloqueada,
+  el renombrado se RECHAZA (criterio INMUTABLE para el docente, parejo con
+  `eliminarCriterio`); para corregir un typo hay que reabrir el bimestre.
+- `crearCriterio`: el nuevo criterio nace pendiente; su handler JS **recarga la
+  página**, así que la vista recalcula `$todosConfirmados` sin lógica extra.
+  **Guard nuevo:** rechaza agregar criterios a una competencia bloqueada.
+- `guardar` (Confirmar): **orden crítico** — `marcarConfirmado` va ANTES de
+  `recalcularPromedioSeccion` (con promedio solo-confirmados, el sello debe existir
+  para que el criterio entre al cálculo). Devuelve `resumenAccesible`.
+
+### Frontend
+- Vista `calificaciones.php`: el estado "Listo" calcula `$todosConfirmados`
+  (recorre `confirmado_en` de cada criterio; antes era `$tieneConfirmado` ≥1).
+- `resources/js/calificaciones.js`: `ejecutarGuardado` (Confirmar) y el handler de
+  renombrar sincronizan vía `sincronizarBotonResumen(competenciaId,
+  data.resumenAccesible)`; el autosave ya lo hacía. Recompilar con `gulp build`.
+
+### Sin impacto retroactivo
+Las competencias YA bloqueadas no se recalculan (no hay más edits), y el backfill de
+026 selló todo criterio con notas → ninguna boleta/orden de mérito histórico cambia.
+La completitud de transversales / piso de carga cuenta notas crudas en
+`calificaciones_criterio` (no el promedio), así que no se altera.
 
 ## Mis cargas — ancla de sección monocroma + jerarquía de grado (24/06/2026)
 
@@ -1366,117 +1501,3 @@ datos a servicios externos.
   (prod) o `storage/firmas/` (local), con nombres `firma_{historial_id}_{timestamp}.png`.
   Se sirven por `GET /firmas/{archivo}` (`FirmaController`). Subir desde `/admin/director-ebr`
   — se validan por contenido real (no solo extensión). Ya NO se usa `public/assets/img/firmas/`.
-
-## Listado de áreas o áreas-curso con sus respectivas subáreas o competencias.
-# Áreas Curriculares y Competencias - Modelo SIAGIE - NIVEL PRIMARIA
-* IMPORTANTE.
-  Solo desde el primer grado al tercer grado todas las areas son manejadas por un solo docente (UNIDOCENTE), todas las areas se convierten en area-curso.
-  Las compentencias transversales son llenadas solo por el TUTOR de la sección.
-* Personal Social (area-curso)
-- Competencias
-  1. Construye su identidad
-  2. Convive y participa democráticamente en la búsqueda del bien común.
-  3. Construye interpretaciones históricas.
-  4. Gestiona responsablemente el espacio y el ambiente.
-  5. Gestiona responsablemente los recursos económicos.
-* Educación Física (area-curso)
-- Competencias
-  1. Se desenvuelve de manera autónoma a través de su motricidad.
-  2. Asume una vida saludable.
-  3. Interactúa a través de sus habilidades sociomotrices.
-* Arte y Cultura (area-curso)
-- Competencias
-  Aprecia de manera crítica manifestaciones artístico-culturales
-  Crea proyectos desde los lenguajes artísticos
-* Comunicación (area)
-- Competencias
-  1. Se comunica oralmente en su lengua materna (subarea -> Gramática-Competencia Lingüística)
-  2. Lee diversos tipos de textos escritos en su lengua materna (subarea -> Plan lector)
-  3. Escribe diversos tipos de textos en su lengua materna (subarea -> Razonamiento verbal)
-* Inglés como lengua extranjera (area-curso)
-- Competencias
-  1. Se comunica oralmente en inglés como lengua extranjera.
-  2. Lee diversos tipos de textos escritos en inglés como lengua extranjera.
-  3. Escribe diversos tipos de textos eninglés como lengua extranjera.
-* Matemática (area)
-- Competencias
-  1. Resuelve problemas de cantidad. (subarea -> Aritmética)
-  2. Resuelve problemas de regularidad, equivalencia y cambio. (subarea -> Álgebra)
-  3. Resuelve problemas de forma,movimiento y localización. (subarea -> Geometría)
-  4. Resuelve problemas de gestión de datos e incertidumbre. (subarea -> Razonamiento Matemático)
-* Ciencia y Tecnología (area)
-- Competencias
-  1. Indaga mediante métodos científicos para construir sus conocimientos. (subarea -> Química)
-  2. Explica el mundo físico basándoseen conocimientos sobre los seresvivos; materia y energía; biodiversidad, Tierra y Universo. (subarea -> Biología)
-  3. Diseña y construye soluciones tecnológicas para resolver problemas de su entorno. (subarea -> Física)
-* Educación Religiosa (area-curso)
-- Competencias
-  1. Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas.
-  2. Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa.
-* Competencias Transversales (caso especial) - Calificaciones registradas por el tutor
-- Competencia TIC
-  1. Se desenvuelve en entornos virtuales generados por las TIC
-- Competencia GAMA
-  1. Gestiona su Aprendizaje de manera autónoma
-### Áreas Curriculares y Competencias - Modelo SIAGIE - NIVEL SECUNDARIA
--IMPORTANTE. Un curso puede ser equivalente a un area-curso con varias competencias o una subarea vinculada a una sola competencia.
-* Desarrollo Personal, Ciudadanía y Cívica (area-curso)
-- Competencias
-    1. Construye su identidad.
-    2. Convive y participa democráticamente en la búsqueda del bien común.
-* Ciencias Sociales (area)
-  Se maneja a Geografía/Economía como una sola subárea con dos competencias en las cargas.
-- Competencias
-    1. Construye interpretaciones históricas. (subarea -> Historia)
-    2. Gestiona responsablemente el espacio y el ambiente. (subarea -> Geografía)
-    3. Gestiona responsablemente los recursos económicos. (subarea -> Economía)
-* Educación Física (area-curso)
-- Competencias
-    1. Se desenvuelve de manera autónoma a través de su motricidad
-    2. Asume una vida saludable
-    3. Interactúa a través de sus habilidades sociomotrices
-* Arte y Cultura (area-curso) (Para SIAGIE: Solo del 1ero al 4to, en el 5to se registran las notas del area-curso de Taller de Razonamiento matemático)
-- Competencias
-    1. Aprecia de manera crítica manifestaciones artístico-culturales
-    2. Crea proyectos desde los lenguajes artísticos
-* Comunicación (area)
-- Competencias
-    1. Se comunica oralmente en su lengua materna. (subarea -> Razonamiento Verbal)
-    2. Lee diversos tipos de textos escritos en su lengua materna. (subarea -> Literatura)
-    3. Escribe diversos tipos de textos en su lengua materna. (subarea -> Lenguaje)
-* Inglés (area-curso)
-- Competencias
-    1. Se comunica oralmente en Inglés.
-    2. Lee diversos tipos de textos escritos en Inglés.
-    3. Escribe diversos tipos de textos en Inglés.
-* Matemática (area)
-- Competencias
-    1. Resuelve problemas de cantidad. (subarea -> Aritmética)
-    2. Resuelve problemas de regularidad, equivalencia y cambio. (subarea -> Álgebra)
-    3. Resuelve problemas de forma, movimiento y localización. (subarea -> Geometría)
-    4. Resuelve problemas de gestión de datos e incertidumbre. (subarea -> Trigonometría)
-* Taller de Razonamiento Matemático (area-curso) (Para SIAGIE: se registran desde el 1er al 4to grado en el area-curso de Educación Religiosa, para 5to se registran las notas en el area-curso de Arte y Cultura)
-- Competencias
-    1. Resuelve problemas de cantidad.
-    2. Resuelve problemas de regularidad, equivalencia y cambio.
-* Taller de Pre Cálculo (area-curso) (Para SIAGIE: las notas se registran en el area-curso de Educación para el trabajo)
-- Competencias
-    1. Resuelve problemas de regularidad, equivalencia y cambio.
-* Ciencia y Tecnología (area)
-- Competencias
-  1. Indaga mediante métodos científicos para construir sus conocimientos (subarea -> Química)
-  2. Explica el mundo físico basándose en conocimientos sobre los seres vivos, materia y energía, biodiversidad, Tierra y Universo (subarea -> Biología)
-  3. Diseña y construye soluciones tecnológicas para resolver problemas de su entorno (subarea -> Física)
-* Educación Religiosa (area-curso) (Para SIAGIE: del 1ero al 4to registra las notas del Taller de Razonamiento Matemático; en 5to registra sus propias notas con el alias "(Ética y Valores)")
-- Competencias
-  1. Construye su identidad como persona humana, amada por Dios, digna, libre y trascendente, comprendiendo la doctrina de su propia religión, abierto al diálogo con las que le son cercanas.
-  2. Asume la experiencia del encuentro personal y comunitario con Dios en su proyecto de vida en coherencia con su creencia religiosa.
-* Educación para el Trabajo (area-curso) (Para SIAGIE: Desde el 1ero al 4to, en el 5to grado se llenan las notas de Taller de Pre Cálculo)
-- Competencias
-  1. Gestiona proyectos de emprendimiento económico o social.
-* Competencias Transversales (caso especial) - Calificaciones registradas por el tutor
-- Competencias Transversales / No Asociadas a Áreas
-  Competencia TIC
-  1. Se desenvuelve en entornos virtuales generados por las TIC
-  Competencia GAMA
-  1. Gestiona su aprendizaje de manera autónoma
