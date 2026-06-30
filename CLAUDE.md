@@ -1497,6 +1497,64 @@ datos a servicios externos.
 - **`mod_rewrite`**: los planes compartidos de Hostinger lo incluyen, pero si se usa
   un plan VPS hay que habilitarlo manualmente (`a2enmod rewrite`).
 
+## Módulo de horarios — múltiples bloques por día + solapes (30/06/2026)
+
+> Una carga académica puede tener varios bloques NO consecutivos el MISMO día
+> (p. ej. una materia que se dicta dos veces el lunes con un hueco). La BD ya lo
+> soportaba (`sesiones_horario` admite N filas por carga; `bloques_horario` tiene
+> varios bloques por día vía `numero_bloque`); la limitación era de la aplicación,
+> que asumía "un bloque por día". Commit `55f3918` (en `dev` y `main`).
+
+### Formulario (`crear.php` / `editar.php`, `cargas.js`)
+- Inputs como arreglos por día: `hora_inicio[dia][]` / `hora_fin[dia][]`. Cada día
+  tiene una lista de `.bloque-rango` con "+ Agregar bloque" y quitar por fila.
+- `cargas.js`: `agregarBloque`/`quitarBloque` (delegación de clic en `.horario-grid`),
+  `toggleDia` habilita/inhabilita TODOS los inputs del día + el botón (al desmarcar
+  colapsa a un solo rango), `refrescarQuitar` muestra el quitar solo si hay >1 rango.
+- `editar.php`: `sesionesMap[$dia]` ahora es **LISTA** de rangos (pre-rellena todos).
+  Esto **corrige el riesgo de pérdida** del 2.º bloque que tenía el mapa antiguo
+  indexado por día (sobrescribía).
+- SASS en `pages/_cargas.scss`: `.dia-row__bloques` (columna), `.bloque-rango` (fila),
+  `.bloque-agregar`/`.bloque-quitar`. Reemplazó a `.dia-row__times`.
+
+### Detección de solapes — `CargaAcademicaModel::verificarSolapes()`
+- **Reemplazó a `verificarConflictos`** (que solo detectaba bloque EXACTO; eliminado).
+- Solape ESTRICTO por día: `propInicio < bh.hora_fin AND bh.hora_inicio < propFin`,
+  acotado al `config_id` del año. Los **contiguos** (fin == inicio del otro) **NO** chocan.
+- Firma: `verificarSolapes(array $sesiones, ?int $excluirCargaId = null, array $tipos = ['seccion','docente'])`.
+  Cada sesión trae `dia/hora_inicio/hora_fin/seccion_id/docente_id/config_id`.
+- **Tres reglas, todas rechazan** (confirmadas por el usuario): (a) rangos del mismo
+  envío que se pisan → `CargaAcademicaController::solapeInterno`; (b) otra carga del
+  mismo DOCENTE ese día/hora; (c) otra carga de la misma SECCIÓN ese día/hora → (b/c)
+  vía `verificarSolapes`.
+- `procesarFormulario` itera N rangos/día, ignora filas vacías, valida cada uno
+  (`fin > inicio`), rechaza solape interno, suma `horas_semanales` de TODOS los bloques.
+- `getSesionesDeCarga` ahora expone `seccion_id` y `config_id` (para el chequeo por tiempo).
+- **Reemplazo de docente** (`ReemplazoDocenteController`) migró a
+  `verificarSolapes(..., ['docente'])` (el entrante hereda el horario; solo se valida
+  que él no se solape; la sección conserva sus mismos slots).
+- **Efecto retroactivo ACEPTADO:** editar una carga antigua que ya se solapaba se
+  **bloquea** hasta resolverlo (decisión del usuario: datos correctos > comodidad).
+- **Sin migración** (la BD ya soportaba N bloques/día).
+
+## Calificaciones — feedback en vivo del docente (30/06/2026)
+
+> Dos detalles de UX en `/docente/calificaciones/{carga}` que antes solo se
+> reflejaban al recargar. Commit `3ceb300` (en `dev` y `main`). Solo front
+> (`calificaciones.js` + `_dashboard.scss`), sin BD ni endpoints.
+
+- **Chip "X de Y" (alumnos con nota guardada)** del criterio se actualiza sin
+  recargar: `actualizarProgresoCriterio(form)` cuenta los `.input-nota` con
+  `data-nota-inicial` no vacío (lo PERSISTIDO, no `value` → un autosave fallido no
+  infla el conteo); total = nº de inputs (alumnos no exonerados, los `EXO` no
+  renderizan input). Se llama en `autoguardarCelda` y `ejecutarGuardado`.
+- **Punto "pendiente de confirmar"** (`.criterio-bloque__estado--pendiente`):
+  círculo ámbar al inicio del `.criterio-bloque__header`, visible SOLO si
+  `confirmado_en` es null. `actualizarEstadoCriterio(bloque, pendiente)` lo enciende
+  al editar/omitir/renombrar (desconfirma) y lo apaga al Confirmar. Solo se renderiza
+  en competencias editables (`!$compBloqueada && !$bloqueado`). Ámbar = acción
+  pendiente; no choca con `--con-cambios` (ese pinta el borde durante el tipeo).
+
 ## Notas importantes
 - `config/database.php` SÍ está en Git pero es un cargador SIN secretos: en prod lee
   las credenciales de `~/siga_secrets/database.php` (fuera del repo); en local usa el
