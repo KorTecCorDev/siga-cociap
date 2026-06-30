@@ -77,6 +77,9 @@ async function autoguardarCelda(input) {
 
         if (data.success) {
             input.dataset.notaInicial = nota;
+            actualizarProgresoCriterio(form);
+            // Editar una nota desconfirma el criterio en el servidor → pendiente.
+            actualizarEstadoCriterio(form.closest('.criterio-bloque'), true);
             const tieneAlgunaNota = Array.from(form.querySelectorAll('.input-nota'))
                 .some(i => i.value.trim() !== '');
             const info = obtenerContenedorIluminacion(form);
@@ -157,6 +160,36 @@ function actualizarCardTransversal(el) {
     const hayNotas   = !!card.querySelector('.criterio-bloque--con-notas');
     card.classList.toggle('competencia-card--con-cambios', hayCambios);
     card.classList.toggle('competencia-card--con-notas', hayNotas);
+}
+
+// Actualiza en vivo el chip "X de Y" (Alumnos con nota guardada) del criterio.
+// Cuenta sobre `data-nota-inicial` (lo PERSISTIDO, no `value`): así un autosave
+// fallido no infla el conteo. El total = nº de inputs = alumnos no exonerados
+// (los EXO no renderizan input), que coincide con $totalAlumnos del servidor.
+// Solo aplica a forms dentro de un .criterio-bloque; en otra estructura es no-op.
+function actualizarProgresoCriterio(form) {
+    const bloque = form.closest('.criterio-bloque');
+    if (!bloque) return;
+    const chip = bloque.querySelector('.criterio-bloque__progreso');
+    if (!chip) return;
+    const inputs  = form.querySelectorAll('.input-nota');
+    const total   = inputs.length;
+    const conNota = Array.from(inputs)
+        .filter(i => (i.dataset.notaInicial ?? '').trim() !== '').length;
+    chip.textContent = `${conNota} de ${total}`;
+    chip.classList.toggle(
+        'criterio-bloque__progreso--completo',
+        total > 0 && conNota >= total
+    );
+}
+
+// Enciende/apaga el punto "pendiente de confirmar" (Opción A) de un criterio.
+// `pendiente=true` al editar/omitir/renombrar (desconfirma); `false` al Confirmar.
+// Espeja el estado server-side de `criterios.confirmado_en` sin recargar.
+function actualizarEstadoCriterio(bloque, pendiente) {
+    const dot = bloque?.querySelector('.criterio-bloque__estado');
+    if (!dot) return;
+    dot.classList.toggle('criterio-bloque__estado--pendiente', pendiente);
 }
 
 // ── Pegado masivo desde Excel / portapapeles ─────────────────
@@ -381,6 +414,9 @@ async function ejecutarGuardado(form, criterioId, competenciaId, cargaId, notas,
         form.querySelectorAll('.input-nota').forEach(i => {
             i.dataset.notaInicial = i.value;
         });
+        actualizarProgresoCriterio(form);
+        // Confirmar selló el criterio en el servidor → ya no está pendiente.
+        actualizarEstadoCriterio(form.closest('.criterio-bloque'), false);
         recalcularCambiosForm(form);
 
     } catch (err) {
@@ -678,6 +714,8 @@ document.querySelectorAll('.btn-renombrar-criterio').forEach(btn => {
                     if (card && typeof data.resumenAccesible === 'boolean') {
                         sincronizarBotonResumen(card.id.replace('comp-', ''), data.resumenAccesible);
                     }
+                    // Renombrar desconfirma el criterio → pendiente.
+                    actualizarEstadoCriterio(bloque, true);
                     cancelar();
                 } else {
                     alert(data.mensaje);

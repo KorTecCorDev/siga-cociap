@@ -251,6 +251,11 @@
 
                                 <div class="criterio-bloque__header">
                                     <div class="criterio-bloque__titulo">
+                                        <?php if (!$compBloqueada && !$bloqueado): ?>
+                                            <span class="criterio-bloque__estado<?= empty($criterio['confirmado_en']) ? ' criterio-bloque__estado--pendiente' : '' ?>"
+                                                  title="Falta confirmar este criterio"
+                                                  aria-hidden="true"></span>
+                                        <?php endif; ?>
                                         <span class="criterio-bloque__caret"></span>
                                         <div class="criterio-bloque__identidad">
                                             <h4 class="criterio-bloque__nombre">

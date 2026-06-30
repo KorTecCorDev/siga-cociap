@@ -595,6 +595,25 @@
         }
     }
 
+    // Punto de estado (Opción A): marca SOLO los criterios PENDIENTES de
+    // confirmar. Oculto por defecto; el modificador --pendiente lo muestra. El
+    // JS lo togglea en vivo: confirmar lo apaga, editar/omitir/renombrar lo
+    // enciende. Ambar = accion pendiente; no choca con --con-cambios (ese pinta
+    // el borde durante el tipeo; este marca "guardado pero sin confirmar").
+    &__estado {
+        flex-shrink: 0;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        display: none;
+
+        &--pendiente {
+            display: block;
+            background: $color-warning;
+            box-shadow: 0 0 0 3px rgba($color-warning, 0.18);
+        }
+    }
+
     &__caret {
         display: inline-flex;
         align-items: center;
