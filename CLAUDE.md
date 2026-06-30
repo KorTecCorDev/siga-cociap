@@ -1031,10 +1031,22 @@ Crea un bloqueo `origen='docente'` sin notas. **NO aparece en transversales**
 
 ### Las tres reglas (alineadas)
 1. **Promedio agregado = solo criterios confirmados.** `CalificacionModel::calcularPromedio`
-   y `recalcularPromedioSeccion` (query de descubrimiento + DELETE de huérfanos)
-   filtran `AND cr.confirmado_en IS NOT NULL`. Un criterio pendiente no cuenta; si
-   era el único confirmado, la fila de `calificaciones` se borra (promedio desaparece
-   hasta re-confirmar).
+   y la query de descubrimiento de `recalcularPromedioSeccion` filtran
+   `AND cr.confirmado_en IS NOT NULL`. Un criterio pendiente no cuenta para el promedio.
+   **Existencia de la fila (DELETE de huérfanos) ≠ promedio:** el DELETE borra la fila de
+   `calificaciones` (incluida su `conclusion_descriptiva`) si y solo si el alumno NO tiene
+   **ninguna nota viva** en la competencia — mira solo `cr.eliminado_en IS NULL`, **NO**
+   `confirmado_en`. Así: (a) si el alumno conserva alguna nota, la fila y su conclusión se
+   conservan aunque un criterio quede momentáneamente desconfirmado tras editarlo (retiene
+   su `nota_numerica` anterior hasta re-confirmar; ese promedio transitorio no se muestra:
+   el resumen exige todos confirmados y el resto de consumidores leen solo bloqueadas);
+   (b) si el alumno se queda sin nota (borró la nota, omisión sin nota, o se eliminó el
+   único criterio), la fila se elimina con su conclusión — una conclusión sin calificación
+   NO debe persistir ni dejar un promedio fantasma en el resumen.
+   > Historia: el 30/06 el DELETE filtraba `confirmado_en` → borraba la fila de un alumno
+   > que SÍ tenía nota desconfirmada (data-loss de la conclusión). Un parche que conservaba
+   > la fila "si tiene conclusión" produjo el bug inverso (fila fantasma de un alumno YA
+   > sin nota). La regla correcta y final es **fila = existe nota viva**.
 2. **Resumen (entrar + mostrar) = ≥1 criterio y TODOS confirmados.**
    `CriterioModel::competenciaListaParaResumen(cargaId, compId, periodoId)` (≥1 vivo
    y 0 pendientes; un criterio vacío cuenta como pendiente). El guard de `resumen()`

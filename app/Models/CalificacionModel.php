@@ -176,13 +176,23 @@ class CalificacionModel extends BaseModel
             }
         }
 
-        // Limpieza de promedios huérfanos: si un alumno quedó SIN ninguna nota
-        // viva de criterio CONFIRMADO en esta competencia (borró su última nota,
-        // se eliminó el único criterio, o el único criterio quedó pendiente tras
-        // editarlo), su fila agregada en `calificaciones` ya no representa nada.
-        // Como `nota_numerica` es NOT NULL, se elimina la fila (semántica "sin
-        // nota": todos los consumidores usan LEFT JOIN). Mismo filtro
-        // confirmado_en que arriba para no dejar fantasmas de criterios pendientes.
+        // Limpieza de filas huérfanas: una fila de `calificaciones` debe existir
+        // si y solo si el alumno tiene AL MENOS UNA nota viva en la competencia
+        // (confirmada o no). Si quedó SIN ninguna nota viva (borró su última nota,
+        // se le marcó omisión sin nota, o se eliminó el único criterio), su fila
+        // agregada ya no representa nada y se elimina — INCLUIDA su
+        // `conclusion_descriptiva`: una conclusión sin calificación no debe
+        // persistir. Como `nota_numerica` es NOT NULL, no hay fila "vacía": o hay
+        // nota o no hay fila (semántica "sin nota": los consumidores usan LEFT JOIN).
+        //
+        // El filtro NO mira `confirmado_en`: basta UNA nota viva para conservar la
+        // fila. Así la conclusión se conserva mientras el alumno tenga calificación,
+        // aunque un criterio esté momentáneamente desconfirmado tras editarlo (la
+        // fila guarda su `nota_numerica` anterior hasta re-confirmar; ese promedio
+        // transitorio NO se muestra: el resumen exige TODOS los criterios
+        // confirmados para entrar y el resto de consumidores leen solo competencias
+        // bloqueadas). El promedio agregado sigue contando solo confirmados
+        // (`calcularPromedio` + la query de descubrimiento de arriba, intactas).
         $this->execute("
             DELETE c FROM calificaciones c
             WHERE c.carga_id       = ?
@@ -197,7 +207,6 @@ class CalificacionModel extends BaseModel
                     AND cr.competencia_id = c.competencia_id
                     AND cr.periodo_id     = c.periodo_id
                     AND cr.eliminado_en   IS NULL
-                    AND cr.confirmado_en  IS NOT NULL
               )
         ", [$cargaId, $competenciaId, $periodoId]);
     }
