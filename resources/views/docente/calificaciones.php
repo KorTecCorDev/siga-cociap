@@ -111,21 +111,23 @@
         $compCargaId = (int) ($competencia['carga_id'] ?? $carga['id']);
 
         // ── Estado del botón de cabecera de la competencia ───────────
-        //  1) Académica sin criterios          → "No se evaluó" (terminal)
-        //  2) Con criterios, sin "Confirmar"    → "Ver resumen" BLOQUEADO
-        //  3) ≥1 criterio confirmado / aprobada → "Ver resumen" accesible
-        // El desbloqueo NO lo da el autosave: solo el clic en "Confirmar"
-        // sella `criterios.confirmado_en`. El candado de aprobación sigue
-        // viviendo dentro del resumen, en el botón "Aprobar".
-        $criteriosLive   = $competencia['criterios'] ?? [];
-        $tieneCriterios  = !empty($criteriosLive);
-        $tieneConfirmado = false;
+        //  1) Académica sin criterios            → "No se evaluó" (terminal)
+        //  2) Con criterios, alguno pendiente    → "Ver resumen" BLOQUEADO
+        //  3) ≥1 criterio y TODOS confirmados    → "Ver resumen" accesible
+        // El desbloqueo NO lo da el autosave: solo el clic en "Confirmar" sella
+        // `criterios.confirmado_en`. Editar u omitir un criterio confirmado lo
+        // vuelve pendiente y re-bloquea el botón hasta re-Confirmar. Un criterio
+        // vacío (sin confirmar) también lo mantiene bloqueado. El candado de
+        // aprobación sigue viviendo dentro del resumen, en el botón "Aprobar".
+        $criteriosLive    = $competencia['criterios'] ?? [];
+        $tieneCriterios   = !empty($criteriosLive);
+        $todosConfirmados = $tieneCriterios;
         foreach ($criteriosLive as $cr) {
-            if (!empty($cr['confirmado_en'])) { $tieneConfirmado = true; break; }
+            if (empty($cr['confirmado_en'])) { $todosConfirmados = false; break; }
         }
         $sinNotasBloqueada = $compBloqueada
             && (int) ($competencia['alumnos_calificados'] ?? 0) === 0;
-        $resumenAccesible  = $compBloqueada || $tieneConfirmado;
+        $resumenAccesible  = $compBloqueada || $todosConfirmados;
         // "No se evaluó" es una acción de escritura: no se ofrece en un periodo
         // bloqueado (igual que "Confirmar" y "Agregar criterio"). Tampoco se
         // ofrece si dejaría la carga sin ninguna calificación (piso de carga):
@@ -207,7 +209,7 @@
                     <?php else: ?>
                         <a href="<?= url('docente/calificaciones/' . $compCargaId . '/resumen/' . $competencia['id']) ?>"
                            class="btn btn--secondary btn--sm<?= !$resumenAccesible ? ' btn-ver-resumen--bloqueado' : '' ?>"
-                           <?= !$resumenAccesible ? 'tabindex="-1" aria-disabled="true" title="Confirma al menos un criterio para acceder al resumen"' : '' ?>>
+                           <?= !$resumenAccesible ? 'tabindex="-1" aria-disabled="true" title="Confirma todos los criterios (sin pendientes ni vacíos) para acceder al resumen"' : '' ?>>
                             <span class="btn-icon btn-icon--view" aria-hidden="true"></span>
                             Ver resumen
                         </a>

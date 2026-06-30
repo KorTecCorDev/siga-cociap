@@ -118,7 +118,7 @@ function sincronizarBotonResumen(competenciaId, accesible) {
         link.classList.add('btn-ver-resumen--bloqueado');
         link.tabIndex = -1;
         link.setAttribute('aria-disabled', 'true');
-        link.setAttribute('title', 'Confirma al menos un criterio para acceder al resumen');
+        link.setAttribute('title', 'Confirma todos los criterios (sin pendientes ni vacíos) para acceder al resumen');
     }
 }
 
@@ -360,10 +360,12 @@ async function ejecutarGuardado(form, criterioId, competenciaId, cargaId, notas,
 
         mostrarStatus(status, 'success', '✓ ' + data.mensaje);
 
-        // Desbloquear "Ver resumen" de esta competencia (el docente ya confirmó)
-        form.closest('.competencia-card')
-            ?.querySelector('.btn-ver-resumen--bloqueado')
-            ?.classList.remove('btn-ver-resumen--bloqueado');
+        // Sincronizar "Ver resumen": confirmar ESTE criterio solo desbloquea el
+        // acceso si ya no quedan criterios pendientes/vacíos en la competencia.
+        // El servidor lo calcula (competenciaListaParaResumen) y lo devuelve.
+        if (typeof data.resumenAccesible === 'boolean') {
+            sincronizarBotonResumen(competenciaId, data.resumenAccesible);
+        }
 
         const tieneAlgunaNota = Array.from(form.querySelectorAll('.input-nota'))
             .some(i => i.value.trim() !== '');
@@ -669,6 +671,13 @@ document.querySelectorAll('.btn-renombrar-criterio').forEach(btn => {
 
                     const btnEliminar = acciones.querySelector('.btn-eliminar-criterio');
                     if (btnEliminar) btnEliminar.dataset.nombre = data.nombre;
+
+                    // Renombrar desconfirma el criterio → re-bloquea "Ver resumen"
+                    // hasta re-Confirmar. Sincronizar el botón de la competencia.
+                    const card = btn.closest('.competencia-card');
+                    if (card && typeof data.resumenAccesible === 'boolean') {
+                        sincronizarBotonResumen(card.id.replace('comp-', ''), data.resumenAccesible);
+                    }
                     cancelar();
                 } else {
                     alert(data.mensaje);

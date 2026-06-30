@@ -84,6 +84,10 @@ class CalificacionModel extends BaseModel
         int $competenciaId,
         int $periodoId
     ): ?float {
+        // Solo criterios CONFIRMADOS entran al promedio agregado. Un criterio
+        // editado/omitido tras confirmar queda pendiente (confirmado_en = NULL)
+        // y deja de contar hasta re-confirmarlo. Punto único de verdad: la nota
+        // final solo refleja lo confirmado.
         $resultado = $this->queryOne("
             SELECT ROUND(AVG(cc.nota), 0) AS promedio
             FROM calificaciones_criterio cc
@@ -93,6 +97,7 @@ class CalificacionModel extends BaseModel
               AND cr.competencia_id = ?
               AND cr.periodo_id     = ?
               AND cr.eliminado_en   IS NULL
+              AND cr.confirmado_en  IS NOT NULL
         ", [$matriculaId, $cargaId, $competenciaId, $periodoId]);
 
         return isset($resultado['promedio'])
@@ -137,6 +142,9 @@ class CalificacionModel extends BaseModel
         int $periodoId,
         int $registradoPor
     ): void {
+        // Universo de alumnos a reagregar: solo los que tienen nota en algún
+        // criterio CONFIRMADO. Mismo filtro que calcularPromedio para que el
+        // descubrimiento y el cálculo cuadren (un criterio pendiente no aporta).
         $alumnos = $this->query("
             SELECT DISTINCT cc.matricula_id
             FROM calificaciones_criterio cc
@@ -145,6 +153,7 @@ class CalificacionModel extends BaseModel
               AND cr.competencia_id = ?
               AND cr.periodo_id     = ?
               AND cr.eliminado_en   IS NULL
+              AND cr.confirmado_en  IS NOT NULL
         ", [$cargaId, $competenciaId, $periodoId]);
 
         foreach ($alumnos as $alumno) {
@@ -168,12 +177,12 @@ class CalificacionModel extends BaseModel
         }
 
         // Limpieza de promedios huérfanos: si un alumno quedó SIN ninguna nota
-        // viva de criterio en esta competencia (borró su última nota, o se
-        // eliminó el único criterio), su fila agregada en `calificaciones` ya no
-        // representa nada. Como `nota_numerica` es NOT NULL, se elimina la fila
-        // (semántica "sin nota": todos los consumidores usan LEFT JOIN). Sin
-        // esto, el promedio anterior quedaba persistido como fantasma y la
-        // boleta/orden de mérito/resumen seguían mostrándolo.
+        // viva de criterio CONFIRMADO en esta competencia (borró su última nota,
+        // se eliminó el único criterio, o el único criterio quedó pendiente tras
+        // editarlo), su fila agregada en `calificaciones` ya no representa nada.
+        // Como `nota_numerica` es NOT NULL, se elimina la fila (semántica "sin
+        // nota": todos los consumidores usan LEFT JOIN). Mismo filtro
+        // confirmado_en que arriba para no dejar fantasmas de criterios pendientes.
         $this->execute("
             DELETE c FROM calificaciones c
             WHERE c.carga_id       = ?
@@ -188,6 +197,7 @@ class CalificacionModel extends BaseModel
                     AND cr.competencia_id = c.competencia_id
                     AND cr.periodo_id     = c.periodo_id
                     AND cr.eliminado_en   IS NULL
+                    AND cr.confirmado_en  IS NOT NULL
               )
         ", [$cargaId, $competenciaId, $periodoId]);
     }
@@ -671,9 +681,15 @@ class CalificacionModel extends BaseModel
     public function getResumenCompetencia(
         int $cargaId,
         int $competenciaId,
-        int $periodoId
+        int $periodoId,
+        bool $soloConfirmados = false
     ): array {
-        // Obtener criterios activos (excluye eliminados)
+        // Obtener criterios activos (excluye eliminados). Con $soloConfirmados
+        // se restringe a los confirmados: la vista de resumen solo debe mostrar
+        // criterios sellados (nunca uno vacío ni notas autoguardadas sin
+        // confirmar). Los callers que necesitan ver TODOS los criterios para
+        // validar (p. ej. la puerta de aprobación) lo dejan en false.
+        $filtroConfirmado = $soloConfirmados ? 'AND confirmado_en IS NOT NULL' : '';
         $criterios = $this->query("
             SELECT id, nombre, descripcion, orden
             FROM criterios
@@ -681,6 +697,7 @@ class CalificacionModel extends BaseModel
             AND competencia_id = ?
             AND periodo_id     = ?
             AND eliminado_en   IS NULL
+            {$filtroConfirmado}
             ORDER BY orden, id
         ", [$cargaId, $competenciaId, $periodoId]);
 

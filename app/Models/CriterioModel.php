@@ -131,10 +131,40 @@ class CriterioModel extends BaseModel
     }
 
     /**
-     * Revierte el sello de confirmación. Se llama cuando un autosave deja un
-     * criterio con un blanco sin motivo (rompe la completitud): el criterio deja
-     * de estar "confirmado", re-bloquea "Ver resumen" y obliga a volver a
-     * Confirmar (que re-dispara el filtro de omisión). Inverso de marcarConfirmado.
+     * ¿La competencia está LISTA para el resumen? Es decir: tiene ≥1 criterio
+     * vivo y TODOS están confirmados (ninguno pendiente). Un criterio vacío
+     * —que no se puede confirmar— cuenta como pendiente y la deja "no lista".
+     *
+     * Endurece la regla anterior (bastaba ≥1 confirmado): editar u omitir
+     * cualquier criterio lo desconfirma y, hasta re-confirmarlo, el botón
+     * "Ver resumen" se deshabilita y la aprobación se rechaza. Garantiza que el
+     * resumen y el promedio agregado solo reflejen criterios confirmados.
+     */
+    public function competenciaListaParaResumen(int $cargaId, int $competenciaId, int $periodoId): bool
+    {
+        $r = $this->queryOne(
+            "SELECT
+                 COUNT(*)                              AS total,
+                 SUM(confirmado_en IS NULL)            AS pendientes
+             FROM criterios
+             WHERE carga_id       = ?
+               AND competencia_id = ?
+               AND periodo_id     = ?
+               AND eliminado_en   IS NULL",
+            [$cargaId, $competenciaId, $periodoId]
+        );
+
+        return (int) ($r['total'] ?? 0) > 0
+            && (int) ($r['pendientes'] ?? 0) === 0;
+    }
+
+    /**
+     * Revierte el sello de confirmación. Se llama ante CUALQUIER cambio en el
+     * criterio tras confirmarlo: autosave de una nota (set o blank), registro/
+     * cambio de una omisión, o edición del nombre/descripción (renombrar). El
+     * criterio deja de estar "confirmado", re-bloquea "Ver resumen", lo saca del
+     * promedio agregado y obliga a volver a Confirmar (que re-dispara el filtro
+     * de omisión). Inverso de marcarConfirmado.
      */
     public function desconfirmar(int $id): bool
     {

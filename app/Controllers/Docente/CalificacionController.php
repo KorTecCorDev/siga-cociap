@@ -651,13 +651,17 @@ class CalificacionController extends BaseController
             foreach (array_keys($notas) as $mid) {
                 $this->omisionModel->eliminarOmision($criterioId, $mid);
             }
-            // 4. Reagregar promedios + limpiar huérfanos (DELETE de filas sin notas)
+            // 4. Sellar como CONFIRMADO (desbloquea "Ver resumen") — SOLO tras
+            //    pasar la validación. El autosave nunca llega aquí. DEBE ir ANTES
+            //    de reagregar: el promedio ahora solo cuenta criterios
+            //    confirmados, así que el sello tiene que existir para que este
+            //    criterio entre en el cálculo.
+            $this->critModel->marcarConfirmado($criterioId, $userId);
+            // 5. Reagregar promedios + limpiar huérfanos (DELETE de filas sin
+            //    notas confirmadas). Con el criterio ya sellado, su nota cuenta.
             $this->calModel->recalcularPromedioSeccion(
                 $cargaId, $competenciaId, (int) $periodo['id'], $userId
             );
-            // 5. Sellar como CONFIRMADO (desbloquea "Ver resumen") — SOLO tras
-            //    pasar la validación. El autosave nunca llega aquí.
-            $this->critModel->marcarConfirmado($criterioId, $userId);
 
             $this->calModel->commit();
         } catch (\Exception $e) {
@@ -675,9 +679,17 @@ class CalificacionController extends BaseController
             ], 500);
         }
 
+        // El criterio quedó sellado (marcarConfirmado dentro de la transacción).
+        // Devolvemos la accesibilidad para que el cliente re-habilite "Ver
+        // resumen" si ya no quedan criterios pendientes en la competencia.
+        $resumenAccesible = $this->critModel->competenciaListaParaResumen(
+            $cargaId, $competenciaId, (int) $periodo['id']
+        );
+
         $this->json([
-            'success' => true,
-            'mensaje' => 'Notas guardadas correctamente.',
+            'success'          => true,
+            'mensaje'          => 'Notas guardadas correctamente.',
+            'resumenAccesible' => $resumenAccesible,
         ]);
     }
 
@@ -711,19 +723,18 @@ class CalificacionController extends BaseController
 
         if ($nota === '') {
             $this->calModel->eliminarNotaCriterio($criterioId, $matriculaId);
-
-            // Si el borrado deja un blanco SIN motivo, el criterio ya no está
-            // "completo": se desconfirma para que el latch confirmado_en sea
-            // veraz. Así "Ver resumen" se re-bloquea y el docente debe volver a
-            // Confirmar, que re-dispara el filtro de omisión. Un blanco ya
-            // justificado (con omisión) no rompe la completitud → no desconfirma.
-            if (!$this->omisionModel->tieneOmision($criterioId, $matriculaId)) {
-                $this->critModel->desconfirmar($criterioId);
-            }
         } else {
             $notaInt = max(0, min(20, (int) $nota));
             $this->calModel->guardarNotaCriterio($criterioId, $matriculaId, $notaInt);
         }
+
+        // Cualquier edición por autosave (set o blank) desconfirma el criterio:
+        // su contenido cambió respecto al último estado confirmado, así que debe
+        // volver a "pendiente". Esto re-bloquea "Ver resumen", lo saca del
+        // promedio agregado (recalcular abajo ya filtra confirmado_en) y obliga a
+        // volver a Confirmar (que re-dispara el filtro de omisión). El autosave
+        // NUNCA sella; solo "Confirmar" (endpoint /guardar) marca confirmado.
+        $this->critModel->desconfirmar($criterioId);
 
         try {
             $this->calModel->recalcularPromedioSeccion(
@@ -741,9 +752,10 @@ class CalificacionController extends BaseController
         }
 
         // Accesibilidad actual de la competencia, para que el cliente sincronice
-        // el botón "Ver resumen" sin recargar (misma regla que el guard de resumen()).
+        // el botón "Ver resumen" sin recargar (misma regla que el guard de
+        // resumen()): bloqueada, o todos los criterios confirmados.
         $resumenAccesible = $this->calModel->competenciaBloqueada($cargaId, $competenciaId, $periodo['id'])
-            || $this->critModel->existeConfirmado($cargaId, $competenciaId, $periodo['id']);
+            || $this->critModel->competenciaListaParaResumen($cargaId, $competenciaId, $periodo['id']);
 
         $this->json(['success' => true, 'resumenAccesible' => $resumenAccesible]);
     }
@@ -780,7 +792,20 @@ class CalificacionController extends BaseController
 
         $this->omisionModel->guardarLote($criterioId, $omisiones, Session::user()['id']);
 
-        $this->json(['success' => true, 'mensaje' => 'Omisiones registradas.']);
+        // Registrar/cambiar una omisión altera la composición del criterio, así
+        // que lo desconfirma igual que editar una nota: vuelve a "pendiente" y
+        // obliga a re-Confirmar antes de poder ver el resumen o aprobar.
+        $this->critModel->desconfirmar($criterioId);
+
+        $resumenAccesible = $this->critModel->competenciaListaParaResumen(
+            $cargaId, $competenciaId, $periodo['id']
+        );
+
+        $this->json([
+            'success'          => true,
+            'mensaje'          => 'Omisiones registradas.',
+            'resumenAccesible' => $resumenAccesible,
+        ]);
     }
 
     /**
@@ -817,6 +842,16 @@ class CalificacionController extends BaseController
             $this->json([
                 'success' => false,
                 'mensaje' => 'Periodo bloqueado.',
+            ], 403);
+        }
+
+        // Competencia aprobada/bloqueada → inmutable: tampoco se le pueden AGREGAR
+        // criterios (parejo con renombrar/eliminar). Defensa de servidor por si se
+        // fuerza la petición; la UI no ofrece "Agregar criterio" en una bloqueada.
+        if ($this->calModel->competenciaBloqueada($cargaId, $competenciaId, $periodo['id'])) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Esta competencia ya fue aprobada y bloqueada. No se pueden agregar criterios.',
             ], 403);
         }
 
@@ -862,7 +897,8 @@ class CalificacionController extends BaseController
         }
 
         $criterio = $this->critModel->queryOne(
-            "SELECT id, periodo_id FROM criterios WHERE id = ?",
+            "SELECT id, carga_id, competencia_id, periodo_id
+             FROM criterios WHERE id = ? AND eliminado_en IS NULL",
             [$id]
         );
 
@@ -870,17 +906,51 @@ class CalificacionController extends BaseController
             $this->json(['success' => false, 'mensaje' => 'Criterio no encontrado.'], 404);
         }
 
-        if ($this->calModel->periodoEstaBloqueado((int) $criterio['periodo_id'])) {
+        $periodoId     = (int) $criterio['periodo_id'];
+        $cargaId       = (int) $criterio['carga_id'];
+        $competenciaId = (int) $criterio['competencia_id'];
+
+        if ($this->calModel->periodoEstaBloqueado($periodoId)) {
             $this->json(['success' => false, 'mensaje' => 'Periodo bloqueado.'], 403);
+        }
+
+        // Competencia aprobada/bloqueada → criterio INMUTABLE para el docente
+        // (parejo con eliminarCriterio). Para corregir un typo hay que reabrir el
+        // bimestre desde el panel del director.
+        if ($this->calModel->competenciaBloqueada($cargaId, $competenciaId, $periodoId)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Esta competencia ya fue aprobada y bloqueada. No se puede editar el criterio.',
+            ], 403);
         }
 
         $this->critModel->renombrar($id, $nombre, $descripcion !== '' ? $descripcion : null);
 
+        // Cambiar nombre/descripción ES un cambio en el criterio → se desconfirma
+        // igual que editar una nota u omisión: vuelve a "pendiente", sale del
+        // promedio agregado y obliga a re-Confirmar antes de verlo en el resumen o
+        // aprobar. Recalcular para que el promedio refleje de inmediato su salida.
+        $userId = Session::user()['id'];
+        $this->critModel->desconfirmar($id);
+        try {
+            $this->calModel->recalcularPromedioSeccion($cargaId, $competenciaId, $periodoId, $userId);
+        } catch (\Exception $e) {
+            log_error('Renombrar criterio: error recalculando promedio', [
+                'criterio_id' => $id,
+                'error'       => $e->getMessage(),
+            ]);
+        }
+
+        $resumenAccesible = $this->critModel->competenciaListaParaResumen(
+            $cargaId, $competenciaId, $periodoId
+        );
+
         $this->json([
-            'success'     => true,
-            'nombre'      => $nombre,
-            'descripcion' => $descripcion,
-            'mensaje'     => 'Criterio actualizado.',
+            'success'          => true,
+            'nombre'           => $nombre,
+            'descripcion'      => $descripcion,
+            'mensaje'          => 'Criterio actualizado.',
+            'resumenAccesible' => $resumenAccesible,
         ]);
     }
 
@@ -1302,22 +1372,26 @@ class CalificacionController extends BaseController
         );
 
         // Guard de accesibilidad (defensa en profundidad): solo se entra al
-        // resumen si está bloqueada (lectura) o existe ≥1 criterio confirmado
-        // vivo. Cierra el bypass del filtro de omisión cuando se borran notas
-        // tras confirmar (el criterio se desconfirma) o si se fuerza la URL.
+        // resumen si está bloqueada (lectura) o la competencia está LISTA, es
+        // decir tiene ≥1 criterio y TODOS confirmados. Cierra el bypass del
+        // filtro de omisión cuando se edita/omite tras confirmar (el criterio se
+        // desconfirma) o si se fuerza la URL con criterios pendientes/vacíos.
         $accesible = $bloqueada
-            || $this->critModel->existeConfirmado($cargaId, $competenciaId, $periodo['id']);
+            || $this->critModel->competenciaListaParaResumen($cargaId, $competenciaId, $periodo['id']);
         if (!$accesible) {
             $this->redirectWithError(
                 url('docente/calificaciones/' . $cargaId),
-                'Vuelve a confirmar el criterio: borraste notas que quedaron en blanco '
-                . 'sin motivo, o aún no confirmaste ningún criterio de esta competencia.'
+                'Tienes criterios sin confirmar o vacíos en esta competencia. '
+                . 'Vuelve a la grilla, confírmalos (o elimina los vacíos) antes de ver el resumen.'
             );
         }
 
-        // Obtener resumen completo
+        // Obtener resumen completo. soloConfirmados=true: la vista nunca muestra
+        // un criterio pendiente ni notas autoguardadas sin confirmar (cuando no
+        // está bloqueada). Si está bloqueada, todos sus criterios ya están
+        // confirmados, así que el filtro es inocuo (defensa en profundidad).
         $resumen = $this->calModel->getResumenCompetencia(
-            $cargaId, $competenciaId, $periodo['id']
+            $cargaId, $competenciaId, $periodo['id'], true
         );
 
         // Añadir omisiones por criterio a cada alumno
@@ -1472,6 +1546,16 @@ class CalificacionController extends BaseController
         }
         if ($sinCriterios) {
             return 'sin criterios ni notas registradas.';
+        }
+
+        // Puerta de confirmación: TODOS los criterios deben estar confirmados.
+        // Un criterio editado/omitido tras confirmar (o uno vacío que nunca pudo
+        // confirmarse) deja la competencia "no lista": su nota no entraría en el
+        // promedio bloqueado → pérdida silenciosa. Se exige re-confirmar antes de
+        // aprobar. El camino "No se evaluó" (sin criterios) ya se resolvió arriba.
+        if (!$this->critModel->competenciaListaParaResumen($cargaId, $competenciaId, (int) $periodo['id'])) {
+            return 'Tienes criterios sin confirmar o vacíos. En la grilla, '
+                 . 'confírmalos (o elimina los vacíos) antes de aprobar.';
         }
 
         $matriculasConOmision = $this->omisionModel->getMatriculasConOmisionEnCompetencia(
