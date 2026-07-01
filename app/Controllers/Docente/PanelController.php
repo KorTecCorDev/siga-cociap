@@ -384,14 +384,20 @@ class PanelController extends BaseController
             'viernes'   => 'Viernes',
         ];
 
-        // Franjas horarias distintas (clave compartida entre días) ordenadas.
-        $inicioPorFranja = [];
+        // Eje de tiempo por PUNTOS DE CORTE: se reúnen todos los inicios y
+        // fines distintos de las sesiones y se ordenan. Cada par consecutivo de
+        // puntos define un segmento (fila mínima) de la grilla. Un bloque que
+        // abarca varios segmentos se fusiona luego con rowspan, de modo que un
+        // bloque largo de un día y dos bloques cortos de otro día quedan
+        // ALINEADOS en el mismo eje (corrige la desalineación por franja exacta).
+        $puntosSet = [];
         foreach ($sesiones as $s) {
-            $clave = $s['hora_inicio'] . '|' . $s['hora_fin'];
-            $inicioPorFranja[$clave] = $s['hora_inicio'];
+            $puntosSet[$s['hora_inicio']] = true;
+            $puntosSet[$s['hora_fin']]    = true;
         }
-        asort($inicioPorFranja);
-        $franjas = array_keys($inicioPorFranja);
+        $puntos = array_keys($puntosSet);
+        sort($puntos, SORT_STRING); // "HH:MM:SS" ordena cronológicamente como texto
+        $indice = array_flip($puntos); // hora → índice de punto
 
         // Color por SECCIÓN + MATERIA: la misma materia dictada en una misma
         // sección comparte color aunque esté repartida en más de una carga o en
@@ -414,9 +420,15 @@ class PanelController extends BaseController
                     'horas'          => 0,
                 ];
             }
-            // Cada bloque dictado = una hora pedagógica.
-            $grupos[$key]['horas']++;
-            $totalHoras++;
+            // Horas académicas del bloque: cada hora pedagógica dura 45 min, así
+            // que un bloque cuenta round(duración / 45) horas (45→1, 90→2, 180→4;
+            // un doble de 95 min → 2). Contar bloques sobreestimaba los dobles.
+            $minutos = (int) round(
+                (strtotime($s['hora_fin']) - strtotime($s['hora_inicio'])) / 60
+            );
+            $horasBloque = (int) round($minutos / 45);
+            $grupos[$key]['horas'] += $horasBloque;
+            $totalHoras            += $horasBloque;
         }
 
         // Orden: primaria antes que secundaria, luego grado 1→N, sección y materia.
@@ -448,24 +460,38 @@ class PanelController extends BaseController
             ];
         }
 
-        // Matriz de la tabla: color por grupo (sección + materia).
-        $matriz = [];
+        // Ubicación de cada bloque en el eje de segmentos, con su rowspan.
+        // $startAt[dia][fila] = celda que ARRANCA en esa fila (con rowspan).
+        // $covered[dia][fila] = fila ocupada por un bloque (inicio o
+        // continuación) → en las filas continuadas no se dibuja <td>.
+        $startAt = [];
+        $covered = [];
         foreach ($sesiones as $s) {
-            $key   = $s['seccion_id'] . '|' . $s['area_nombre'];
-            $clave = $s['hora_inicio'] . '|' . $s['hora_fin'];
-            $matriz[$clave][$s['dia_semana']] = [
+            $dia  = $s['dia_semana'];
+            $r0   = $indice[$s['hora_inicio']];
+            $r1   = $indice[$s['hora_fin']];
+            $span = $r1 - $r0;
+            if ($span < 1) {
+                continue; // salvaguarda: fin <= inicio (no debería ocurrir)
+            }
+            $key = $s['seccion_id'] . '|' . $s['area_nombre'];
+            $startAt[$dia][$r0] = [
                 'area'    => $s['area_nombre'],
                 'seccion' => $s['grado_nombre'] . ' ' . $s['seccion_nombre'],
                 'nivel'   => $s['nivel_codigo'],
                 'color'   => $colorPorGrupo[$key],
+                'rowspan' => $span,
             ];
+            for ($r = $r0; $r < $r1; $r++) {
+                $covered[$dia][$r] = true;
+            }
         }
 
-        // Descripción de cada franja: "Nª hora" → rango horario almacenado.
-        $bloques = [];
-        foreach ($franjas as $clave) {
-            [$ini, $fin] = explode('|', $clave);
-            $bloques[]   = ['inicio' => $ini, 'fin' => $fin];
+        // Filas de la grilla: un segmento por cada par de puntos consecutivos.
+        $segmentos = [];
+        $n = count($puntos);
+        for ($i = 0; $i < $n - 1; $i++) {
+            $segmentos[] = ['inicio' => $puntos[$i], 'fin' => $puntos[$i + 1]];
         }
 
         // Documento → nombre legal completo del docente (no el nombre corto).
@@ -487,9 +513,9 @@ class PanelController extends BaseController
             'docente'     => $docente,
             'anio'        => $anio,
             'dias'        => $dias,
-            'franjas'     => $franjas,
-            'matriz'      => $matriz,
-            'bloques'     => $bloques,
+            'segmentos'   => $segmentos,
+            'startAt'     => $startAt,
+            'covered'     => $covered,
             'leyenda'     => array_values($leyenda),
             'totalHoras'  => $totalHoras,
             'directorEbr' => $directorEbr,

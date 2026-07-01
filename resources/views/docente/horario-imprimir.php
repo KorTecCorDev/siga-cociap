@@ -5,11 +5,11 @@
  * y leyenda de cargas al final. Layout: print.
  * @var string     $docente
  * @var array|null $anio     { anio }
- * @var array      $dias     [clave => Label]
- * @var array      $franjas  claves de franja ordenadas (hora_inicio|hora_fin)
- * @var array      $matriz   [clave_franja][dia_clave] = { area, seccion, nivel, color }
- * @var array      $bloques  [{ inicio, fin }]  alineado al orden de $franjas
- * @var array      $leyenda  [{ color, nivel, seccion, areas[], horas }]
+ * @var array      $dias      [clave => Label]
+ * @var array      $segmentos [{ inicio, fin }]  filas del eje de tiempo (puntos de corte)
+ * @var array      $startAt   [dia_clave][fila] = { area, seccion, nivel, color, rowspan }
+ * @var array      $covered   [dia_clave][fila] = true  (fila ocupada por un bloque)
+ * @var array      $leyenda   [{ color, nivel, seccion, areas[], horas }]
  * @var int        $totalHoras
  * @var array|null $directorEbr { sello_path }
  */
@@ -41,13 +41,12 @@ $nivelAbrev = ['prim' => 'PRI', 'sec' => 'SEC'];
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($franjas as $i => $clave): ?>
+            <?php foreach ($segmentos as $r => $seg): ?>
                 <tr>
-                    <th class="horario-print__hora-col"><?= ($i + 1) ?>ª hora</th>
+                    <th class="horario-print__hora-col"><?= e(substr($seg['inicio'], 0, 5)) ?>–<?= e(substr($seg['fin'], 0, 5)) ?></th>
                     <?php foreach (array_keys($dias) as $diaKey): ?>
-                        <?php $celda = $matriz[$clave][$diaKey] ?? null; ?>
-                        <?php if ($celda): ?>
-                            <td class="horario-celda" style="--hbg: <?= e($celda['color']) ?>">
+                        <?php if (isset($startAt[$diaKey][$r])): $celda = $startAt[$diaKey][$r]; ?>
+                            <td class="horario-celda" rowspan="<?= (int) $celda['rowspan'] ?>" style="--hbg: <?= e($celda['color']) ?>">
                                 <span class="horario-celda__area"><?= e($celda['area']) ?></span>
                                 <span class="horario-celda__sec">
                                     <?= e($celda['seccion']) ?>
@@ -56,6 +55,8 @@ $nivelAbrev = ['prim' => 'PRI', 'sec' => 'SEC'];
                                     <?php endif; ?>
                                 </span>
                             </td>
+                        <?php elseif (isset($covered[$diaKey][$r])): ?>
+                            <?php /* celda continuada por rowspan del bloque de arriba: no se dibuja */ ?>
                         <?php else: ?>
                             <td class="horario-celda horario-celda--vacia"></td>
                         <?php endif; ?>
@@ -67,26 +68,6 @@ $nivelAbrev = ['prim' => 'PRI', 'sec' => 'SEC'];
 
     <div class="horario-bottom">
     <div class="horario-refs">
-        <section class="horario-leyenda">
-            <h2 class="horario-leyenda__titulo">Bloques horarios</h2>
-            <table class="horario-leyenda__tabla">
-                <thead>
-                    <tr>
-                        <th class="horario-leyenda__num">Hora</th>
-                        <th>Horario</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($bloques as $i => $b): ?>
-                        <tr>
-                            <td class="horario-leyenda__num"><?= $i + 1 ?>ª</td>
-                            <td><?= e(substr($b['inicio'], 0, 5)) ?>–<?= e(substr($b['fin'], 0, 5)) ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </section>
-
         <section class="horario-leyenda">
             <h2 class="horario-leyenda__titulo">Cargas y secciones</h2>
             <table class="horario-leyenda__tabla">

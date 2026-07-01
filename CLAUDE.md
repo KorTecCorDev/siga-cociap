@@ -1537,6 +1537,51 @@ datos a servicios externos.
   **bloquea** hasta resolverlo (decisión del usuario: datos correctos > comodidad).
 - **Sin migración** (la BD ya soportaba N bloques/día).
 
+## Horario imprimible — grilla alineada por rowspan + horas académicas reales (01/07/2026)
+
+> Dos correcciones en `GET /docente/horario/imprimir` (`Docente\PanelController::horarioImprimir`
+> + `resources/views/docente/horario-imprimir.php`). Solo esa vista/método (+ un
+> ajuste SASS); no toca el panel `/docente/inicio` (que ya listaba bien por día) ni
+> el guardado de horarios. Sin migración.
+
+### 1. Desalineación de la tabla de doble entrada → eje por puntos de corte + rowspan
+- **Bug:** las filas se armaban por **franja exacta** (`hora_inicio|hora_fin`) y se
+  etiquetaban "Nª hora". Con días heterogéneos (multi-bloque o mezcla primaria/
+  secundaria, que tienen fronteras de bloque distintas) un bloque largo de un día
+  (p. ej. 90 min) NO se alineaba con dos bloques cortos de otro día → filas sueltas
+  y numeración sin sentido. Solo pasa **entre días** (en el mismo día un bloque
+  contenido en otro sería solape, ya rechazado por `verificarSolapes`).
+- **Fix:** eje de tiempo por **puntos de corte** — se reúnen todos los `hora_inicio`
+  y `hora_fin` distintos de las sesiones, se ordenan (`sort SORT_STRING`), y cada par
+  consecutivo es un **segmento** (fila mínima). Cada bloque se ancla en la fila de su
+  inicio con `rowspan = índice(fin) − índice(inicio)`. Estructuras nuevas que pasan a
+  la vista: `$segmentos` (filas), `$startAt[dia][fila]` (celda que arranca ahí, con
+  `rowspan`) y `$covered[dia][fila]` (filas ocupadas → en las continuadas NO se dibuja
+  `<td>`). Reemplazaron a `$franjas`/`$matriz`/`$bloques`.
+- La columna **Hora** ahora muestra el **rango real del segmento** (`13:10–14:40`) en
+  vez de "Nª hora". SASS: `&__hora-col` de `56px → 72px` en `pages/_docente-panel.scss`.
+- **Se eliminó la leyenda "Bloques horarios"** (mapeaba "Nª hora → horario"): quedó
+  redundante al mostrar la hora directa en la tabla. Se conservan "Cargas y secciones"
+  y "Niveles". Los huecos entre bloques (futuros recreos) salen como filas vacías.
+
+### 2. Horas/sem por duración real (no por conteo de bloques)
+- **Bug:** la columna "Horas/sem" de la leyenda "Cargas y secciones" y el total hacían
+  `$grupos[key]['horas']++` por sesión → **1 bloque = 1 hora**, aunque un doble de
+  90 min son 2 horas pedagógicas.
+- **Fix:** cada hora académica dura **45 min**, así que un bloque cuenta
+  `round(duración_min / 45)` horas (`strtotime(fin) − strtotime(inicio)`). 45→1,
+  90→2, 180→4; un doble atípico de 95 min → 2 (**redondeo normal, confirmado por el
+  usuario**). Se acumula en `$grupos[key]['horas']` y `$totalHoras`.
+- **Dato conocido:** hay ~200 bloques de **1 minuto** en uso (probable data de prueba,
+  horas `00:00–00:01`) que con esta fórmula cuentan **0 h**. No se tocaron; si resultan
+  reales hay que revisarlos aparte.
+
+### Recreos — PENDIENTE (diferido por el usuario)
+El recreo NO está modelado (no hay `tipo`/`es_recreo` en `bloques_horario`; hoy es solo
+el hueco entre bloques). Primaria tiene 2 recreos y secundaria 1, en horas distintas;
+el caso "docente en ambos niveles" choca con el eje de fila única (un recreo tendría que
+ser por columna/día, no una fila uniforme). Se analizará al final.
+
 ## Calificaciones — feedback en vivo del docente (30/06/2026)
 
 > Dos detalles de UX en `/docente/calificaciones/{carga}` que antes solo se
