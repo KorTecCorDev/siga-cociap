@@ -1653,6 +1653,28 @@ ser por columna/día, no una fila uniforme). Se analizará al final.
 - **Solape real preexistente conocido (NO tocado):** CLEMENTE ANGELES, lunes,
   1°C (14:40-16:10) vs 5°B (15:45-17:20) — debe resolverlo el colegio.
 
+### Estado al cierre de sesión (01/07/2026, turno tarde) — checklist para retomar
+- **Código:** `dev` y `main` en `ee041a6`, todo pusheado (auto-deploy publicado).
+  El working tree local solo tiene `public/js/calificaciones.js` con cambio de
+  fin de línea SIN contenido (diff vacío) — ignorable.
+- **BD LOCAL:** migraciones 030 y 031 APLICADAS y verificadas (0 sesiones
+  cruzadas, 0 bloques ≤1 min, horas académicas recalculadas).
+- **BD PROD:** el usuario quedó corriendo 030 y 031 (phpMyAdmin con el usuario
+  de BD `u761410128_ktcdev`, NO la cuenta Hostinger). **Al retomar, VERIFICAR:**
+  `SELECT COUNT(*) FROM sesiones_horario sh INNER JOIN cargas_academicas ca ON
+  ca.id=sh.carga_id WHERE sh.seccion_id != ca.seccion_id;` → 0, y que no queden
+  bloques ≤1 min. Según notas de sesiones previas también estarían pendientes en
+  prod las migraciones 023/024/028 — confirmar antes de asumir.
+- **Digitación de horarios pendiente (la hace el usuario en prod):** 1°A
+  secundaria (11 cursos "sin horario propio" tras la 031) y las áreas que
+  quedaron sin bloques reales tras la 030 (CyT/Matemática de primaria 4°-6°,
+  Arte y Cultura 1°A prim., etc.). 3°B secundaria YA quedó completo.
+- **Por coordinar con el colegio:** el solape real de CLEMENTE ANGELES (arriba).
+- **Hallazgo NO implementado (tarea futura si se pide):** "Reemplazar docente"
+  en sección unidocente no actualiza `secciones.tutor_id` ni opera sobre todas
+  las cargas del tutor → el entrante pierde `es_aula` (vista consolidada,
+  Tutoría/Conducta). También pendiente de siempre: modelado de recreos.
+
 ## Calificaciones — feedback en vivo del docente (30/06/2026)
 
 > Dos detalles de UX en `/docente/calificaciones/{carga}` que antes solo se
