@@ -1638,6 +1638,21 @@ ser por columna/día, no una fila uniforme). Se analizará al final.
 - Las áreas que quedaron sin ningún bloque real (CyT/Matemática 4°-6°, etc.)
   permanecen "sin horario": los horarios reales se registrarán en producción.
 
+### Migración `031_reparar_sesiones_cruzadas.sql` (01/07/2026)
+- 11 sesiones antiguas apuntaban a cargas de **1°A secundaria** pero su
+  `seccion_id` desnormalizado decía **3°B** (era el horario REAL de 3°B colgado
+  de las cargas equivocadas). Bloqueaba registrar el horario de 3°B
+  (`verificarSolapes` las encontraba por sección y por docente → "docente
+  ocupado") y el imprimible del docente las mostraba como 3°B.
+- La migración las mueve DINÁMICAMENTE a su carga gemela (misma sección declarada
+  + mismo docente + misma área/subárea + activa; detecta el estado roto por
+  `sh.seccion_id != ca.seccion_id`, sin IDs hardcodeados) y recalcula
+  `horas_semanales` (mismo UPDATE de 030). Idempotente.
+- Resultado: 3°B quedó con su horario completo; 11 cargas de 1°A secundaria
+  quedaron "sin horario propio" — **PENDIENTE digitar el horario real de 1°A**.
+- **Solape real preexistente conocido (NO tocado):** CLEMENTE ANGELES, lunes,
+  1°C (14:40-16:10) vs 5°B (15:45-17:20) — debe resolverlo el colegio.
+
 ## Calificaciones — feedback en vivo del docente (30/06/2026)
 
 > Dos detalles de UX en `/docente/calificaciones/{carga}` que antes solo se
