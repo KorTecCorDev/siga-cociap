@@ -24,6 +24,65 @@
     line-height: 1.6;
 }
 
+// Carga guardada sin sesiones: se dicta dentro del horario de otra carga del
+// área o su horario aún no se registra.
+.carga-sin-horario {
+    font-size: $font-size-sm;
+    color: $text-muted;
+    font-style: italic;
+}
+
+// ── Sección unidocente (vista por sección) ────────────────────
+
+.seccion-unidocente {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    margin-top: $spacing-xs;
+
+    &__tutor {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+    }
+}
+
+// Cabecera de área: agrupa las subárea-cargas del aula (el horario real del
+// área puede vivir en cualquiera de ellas; aquí se muestra consolidado).
+.fila-area-grupo {
+    background: $bg-secondary;
+
+    td { border-bottom: 2px solid $border-color; }
+
+    &__nombre {
+        font-weight: 600;
+        color: $text-primary;
+    }
+
+    &__meta {
+        margin-left: $spacing-sm;
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+}
+
+// Subárea listada bajo su cabecera de área.
+.carga-subarea--indent {
+    margin-top: 0;
+    padding-left: $spacing-md;
+}
+
+// Carga de una sección unidocente dictada por un docente distinto al tutor.
+.carga-especialista {
+    display: inline-block;
+    margin-top: 2px;
+    padding: 1px 6px;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    color: $color-info;
+    background: $color-info-bg;
+    border-radius: $border-radius;
+}
+
 // ── Formulario — grid superior ────────────────────────────────
 
 .form-hint {
@@ -36,11 +95,44 @@
 
 // ── Horario semanal ───────────────────────────────────────────
 
+// Checkbox "Sin horario propio" (crear/editar carga): guarda la carga sin
+// sesiones; el JS deshabilita la grilla de días mientras esté marcado.
+.sin-horario-check {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-md;
+    cursor: pointer;
+
+    input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin-top: 2px;
+        accent-color: $brand-accent;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    &__texto {
+        strong { color: $text-primary; font-weight: 600; }
+        small  {
+            display: block;
+            font-size: $font-size-sm;
+            color: $text-muted;
+        }
+    }
+}
+
 .horario-grid {
     display: flex;
     flex-direction: column;
     gap: $spacing-sm;
     margin-bottom: $spacing-xl;
+
+    &--deshabilitado {
+        opacity: 0.55;
+    }
 }
 
 .dia-row {

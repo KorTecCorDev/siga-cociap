@@ -105,6 +105,18 @@
                 </div>
 
                 <p class="form-section-title">Horario semanal</p>
+
+                <?php // Carga sin sesiones = registrada "sin horario propio". ?>
+                <label class="sin-horario-check" for="sin_horario">
+                    <input type="checkbox" id="sin_horario" name="sin_horario" value="1"
+                           <?= empty($sesionesMap) ? 'checked' : '' ?>>
+                    <span class="sin-horario-check__texto">
+                        <strong>Sin horario propio</strong>
+                        <small>La carga se dicta dentro del horario de otra carga del área
+                        (subáreas con el mismo docente) o su horario aún no se registra.</small>
+                    </span>
+                </label>
+
                 <p class="form-hint">Marca los días de clase e ingresa la hora de inicio y fin de cada sesión.</p>
 
             </div><!-- /.form-grid -->

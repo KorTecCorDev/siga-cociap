@@ -1568,19 +1568,75 @@ datos a servicios externos.
 - **Bug:** la columna "Horas/sem" de la leyenda "Cargas y secciones" y el total hacían
   `$grupos[key]['horas']++` por sesión → **1 bloque = 1 hora**, aunque un doble de
   90 min son 2 horas pedagógicas.
-- **Fix:** cada hora académica dura **45 min**, así que un bloque cuenta
-  `round(duración_min / 45)` horas (`strtotime(fin) − strtotime(inicio)`). 45→1,
-  90→2, 180→4; un doble atípico de 95 min → 2 (**redondeo normal, confirmado por el
-  usuario**). Se acumula en `$grupos[key]['horas']` y `$totalHoras`.
-- **Dato conocido:** hay ~200 bloques de **1 minuto** en uso (probable data de prueba,
-  horas `00:00–00:01`) que con esta fórmula cuentan **0 h**. No se tocaron; si resultan
-  reales hay que revisarlos aparte.
+- **Fix:** cada bloque cuenta `round(duración_min / hora_académica)` horas
+  (`strtotime(fin) − strtotime(inicio)`). Con hora de 45 min: 45→1, 90→2, 180→4;
+  un doble atípico de 95 min → 2 (**redondeo normal, confirmado por el usuario**).
+  Se acumula en `$grupos[key]['horas']` y `$totalHoras`. **(01/07/2026)** la
+  duración ya NO se hardcodea: se lee de `configuracion_horario.duracion_hora_min`
+  del año activo (hoy 45), fallback 45.
+- **Resuelto (01/07/2026):** los "~200 bloques de 1 minuto" NO eran data de prueba:
+  eran el workaround para registrar subáreas que comparten el horario del área
+  (el sistema exigía horario por carga y prohibía compartirlo). La migración `030`
+  los eliminó; ver "Cargas sin horario propio" más abajo.
 
 ### Recreos — PENDIENTE (diferido por el usuario)
 El recreo NO está modelado (no hay `tipo`/`es_recreo` en `bloques_horario`; hoy es solo
 el hueco entre bloques). Primaria tiene 2 recreos y secundaria 1, en horas distintas;
 el caso "docente en ambos niveles" choca con el eje de fila única (un recreo tendría que
 ser por columna/día, no una fila uniforme). Se analizará al final.
+
+## Cargas sin horario propio + limpieza de bloques falsos + vista unidocente (01/07/2026)
+
+> El horario real del colegio se define por ÁREA, pero el sistema exigía bloques
+> propios por CARGA (subárea) y prohibía compartirlos (solape por sección Y
+> docente). Cuando un docente dicta varias subáreas de la misma área en la misma
+> sección (unidocente 1°-3°, especialistas de primaria 4°-6°, CCSS de secundaria)
+> la única salida era inventar **bloques falsos de 1 minuto a medianoche** (~189
+> en toda la BD, escalonados 00:06, 00:08… para esquivar `verificarSolapes`).
+
+### Regla general: una carga puede existir SIN horario propio
+- Checkbox **"Sin horario propio"** (`name="sin_horario"`) en `crear.php`/`editar.php`
+  de cargas; en editar viene marcado si la carga no tiene sesiones.
+- `CargaAcademicaController::procesarFormulario()`: con `sin_horario=1` retorna
+  `sesiones=[]` + `horas_semanales=0` y salta la validación de días (los días del
+  POST se ignoran; el JS los deshabilita — `initSinHorario`/`aplicarSinHorario`
+  en `cargas.js`, clase `.horario-grid--deshabilitado`).
+- `verificarSolapes([])`, `crearConHorario(.., [])` y `actualizarConHorario`
+  toleran el arreglo vacío sin cambios (editar con el checkbox borra las sesiones).
+
+### Migración `030_limpieza_bloques_falsos.sql` (aplicada en LOCAL; FALTA PROD)
+- Borra las sesiones cuyo bloque dura ≤1 min y los bloques ≤1 min huérfanos.
+- Recalcula `horas_semanales` de TODAS las cargas en **horas académicas**:
+  `SUM(ROUND(min/duracion_hora_min))` con redondeo POR BLOQUE (igual que el
+  imprimible). Cargas sin sesiones → 0. Idempotente.
+
+### horas_semanales = HORAS ACADÉMICAS (antes horas reloj `round(min/60)`)
+- Al guardar: `procesarFormulario` acumula `round(min/duracion)` por bloque con
+  `CargaAcademicaModel::getDuracionHoraMin(configId)` (fallback 45).
+- El imprimible (`horarioImprimir`) lee la duración de `configuracion_horario`
+  del año activo. OJO: `getOrCreateConfiguracion` inserta 50 por defecto en años
+  nuevos; el año 2026 tiene 45.
+
+### Vista `/director/cargas/seccion/{id}`
+- **Unidocente:** filas agrupadas por ÁREA — cabecera `.fila-area-grupo` (solo si
+  el área tiene >1 carga) con horario consolidado (unión de `horario_resumen` de
+  sus cargas) y suma de horas; debajo las subáreas (`.carga-subarea--indent`) con
+  sus acciones intactas. Header con badge "Unidocente" + Tutor(a) de aula.
+  Etiqueta `.carga-especialista` cuando `docente_id != tutor_id`.
+- **Ambos casos:** carga sin bloques → "Sin horario propio" (`.carga-sin-horario`)
+  y Hrs "—". Polidocente sigue con filas planas.
+- `listarPorSeccion` expone `docente_id`, `area_real_id` y `subarea_orden`
+  (ORDER BY área, orden de subárea); `findSeccion` trae el nombre del tutor.
+  El agrupado `$grupos` se arma en `porSeccion()`. SASS en `pages/_cargas.scss`.
+- `mis-cargas.php` (docente): "—" en vez de "0 hrs/semana".
+
+### Reglas de negocio (decididas por el usuario)
+- El horario del área se registra hacia adelante en la carga "dueña" (subárea de
+  menor orden, misma convención que las TIC/GAMA), pero la vista muestra la unión
+  de los bloques estén en la carga que estén — los existentes NO se movieron
+  (en 1A el bloque real de CyT vive en Biología, orden 2).
+- Las áreas que quedaron sin ningún bloque real (CyT/Matemática 4°-6°, etc.)
+  permanecen "sin horario": los horarios reales se registrarán en producción.
 
 ## Calificaciones — feedback en vivo del docente (30/06/2026)
 

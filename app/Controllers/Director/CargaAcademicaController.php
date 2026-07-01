@@ -46,10 +46,37 @@ class CargaAcademicaController extends BaseController
 
         $cargas = $this->model->listarPorSeccion($seccionId);
 
+        // Sección unidocente: se agrupa por ÁREA (misma lectura que el docente
+        // de aula, que ve el área consolidada). Cada grupo suma las horas y
+        // reúne los horarios de sus cargas — el horario real del área puede
+        // vivir en cualquiera de sus subárea-cargas (las demás quedan "sin
+        // horario propio"). En polidocente la vista lista filas planas.
+        $grupos = null;
+        if (!empty($seccion['es_unidocente'])) {
+            $grupos = [];
+            foreach ($cargas as $c) {
+                $aid = (int) $c['area_real_id'];
+                if (!isset($grupos[$aid])) {
+                    $grupos[$aid] = [
+                        'area_nombre' => $c['area_nombre'],
+                        'cargas'      => [],
+                        'total_horas' => 0,
+                        'horarios'    => [],
+                    ];
+                }
+                $grupos[$aid]['cargas'][] = $c;
+                $grupos[$aid]['total_horas'] += (int) $c['horas_semanales'];
+                if (!empty($c['horario_resumen'])) {
+                    $grupos[$aid]['horarios'][] = $c['horario_resumen'];
+                }
+            }
+        }
+
         $this->view('director/cargas/seccion', [
             'titulo'  => 'Cargas — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
             'seccion' => $seccion,
             'cargas'  => $cargas,
+            'grupos'  => $grupos,
         ]);
     }
 
@@ -368,13 +395,31 @@ class CargaAcademicaController extends BaseController
         if (!$seccion) return [null, null, 'Sección no válida.'];
         $anioId = (int) $seccion['anio_id'];
 
+        $datosCarga = [
+            'docente_id'      => $docenteId,
+            'seccion_id'      => $seccionId,
+            'anio_id'         => $anioId,
+            'subarea_id'      => $vincSubareaId,
+            'area_id'         => $vincAreaId,
+            'horas_semanales' => 0,
+        ];
+
+        // Sin horario propio: la carga se dicta dentro del horario de otra
+        // carga del área (subáreas que comparten bloques con el mismo docente)
+        // o su horario aún no se registra. Se guarda sin sesiones; los días
+        // del POST se ignoran (el JS los deshabilita al marcar el checkbox).
+        if ((int) $this->input('sin_horario', 0) === 1) {
+            return [$datosCarga, [], null];
+        }
+
         if (empty($diasSeleccionados)) {
             return [null, null, 'Debes seleccionar al menos un día con horario.'];
         }
 
-        $sesiones       = [];
-        $minutosTotales = 0;
-        $configId       = null;
+        $sesiones        = [];
+        $horasAcademicas = 0;
+        $configId        = null;
+        $duracionHora    = 45;
 
         foreach (self::DIAS as $dia) {
             if (!in_array($dia, $diasSeleccionados, true)) continue;
@@ -410,13 +455,18 @@ class CargaAcademicaController extends BaseController
             }
 
             if ($configId === null) {
-                $configId = $this->model->getOrCreateConfiguracion($anioId);
+                $configId     = $this->model->getOrCreateConfiguracion($anioId);
+                $duracionHora = $this->model->getDuracionHoraMin($configId);
             }
 
             foreach ($rangosDia as $r) {
                 [$h1, $m1] = array_map('intval', explode(':', $r['inicio']));
                 [$h2, $m2] = array_map('intval', explode(':', $r['fin']));
-                $minutosTotales += ($h2 * 60 + $m2) - ($h1 * 60 + $m1);
+                $minutos = ($h2 * 60 + $m2) - ($h1 * 60 + $m1);
+                // Horas académicas: redondeo POR BLOQUE según la duración de la
+                // hora configurada (45→1, 90→2). Misma regla que el horario
+                // imprimible y la migración 030.
+                $horasAcademicas += (int) round($minutos / $duracionHora);
 
                 $bloqueId = $this->model->getOrCreateBloque($configId, $dia, $r['inicio'], $r['fin']);
 
@@ -439,14 +489,7 @@ class CargaAcademicaController extends BaseController
             return [null, null, 'Debes seleccionar al menos un día con horario.'];
         }
 
-        $datosCarga = [
-            'docente_id'      => $docenteId,
-            'seccion_id'      => $seccionId,
-            'anio_id'         => $anioId,
-            'subarea_id'      => $vincSubareaId,
-            'area_id'         => $vincAreaId,
-            'horas_semanales' => (int) round($minutosTotales / 60),
-        ];
+        $datosCarga['horas_semanales'] = $horasAcademicas;
 
         return [$datosCarga, $sesiones, null];
     }

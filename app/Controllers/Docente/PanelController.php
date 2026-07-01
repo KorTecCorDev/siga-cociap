@@ -384,6 +384,15 @@ class PanelController extends BaseController
             'viernes'   => 'Viernes',
         ];
 
+        // Duración de la hora académica según la configuración de horario del
+        // año activo (no se hardcodea; fallback 45 si falta la configuración).
+        $anio = $this->getAnioActivo();
+        $cfg  = $anio ? $this->calModel->queryOne(
+            "SELECT duracion_hora_min FROM configuracion_horario WHERE anio_id = ? LIMIT 1",
+            [(int) $anio['id']]
+        ) : null;
+        $duracionHora = (int) ($cfg['duracion_hora_min'] ?? 0) ?: 45;
+
         // Eje de tiempo por PUNTOS DE CORTE: se reúnen todos los inicios y
         // fines distintos de las sesiones y se ordenan. Cada par consecutivo de
         // puntos define un segmento (fila mínima) de la grilla. Un bloque que
@@ -420,13 +429,15 @@ class PanelController extends BaseController
                     'horas'          => 0,
                 ];
             }
-            // Horas académicas del bloque: cada hora pedagógica dura 45 min, así
-            // que un bloque cuenta round(duración / 45) horas (45→1, 90→2, 180→4;
-            // un doble de 95 min → 2). Contar bloques sobreestimaba los dobles.
+            // Horas académicas del bloque: cada bloque cuenta
+            // round(duración / hora académica) horas (con hora de 45 min:
+            // 45→1, 90→2, 180→4; un doble de 95 min → 2). La duración de la
+            // hora sale de configuracion_horario del año activo. Contar
+            // bloques sobreestimaba los dobles.
             $minutos = (int) round(
                 (strtotime($s['hora_fin']) - strtotime($s['hora_inicio'])) / 60
             );
-            $horasBloque = (int) round($minutos / 45);
+            $horasBloque = (int) round($minutos / $duracionHora);
             $grupos[$key]['horas'] += $horasBloque;
             $totalHoras            += $horasBloque;
         }
@@ -502,7 +513,6 @@ class PanelController extends BaseController
         );
 
         // Sello del Director EBR vigente del año académico activo.
-        $anio        = $this->getAnioActivo();
         $directorEbr = $anio
             ? (new DirectorEbrModel())->getVigenteEnFecha((int) $anio['id'])
             : null;

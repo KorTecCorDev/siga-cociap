@@ -353,7 +353,9 @@
                                                 </span>
 
                                                 <div class="carga-item__horas">
-                                                    <?= e($carga['horas_semanales']) ?> hrs/semana
+                                                    <?= (int) $carga['horas_semanales'] > 0
+                                                        ? e($carga['horas_semanales']) . ' hrs/semana'
+                                                        : '—' ?>
                                                 </div>
 
                                                 <div class="carga-progreso">
@@ -400,7 +402,9 @@
                                     </span>
 
                                     <div class="carga-item__horas">
-                                        <?= e($carga['horas_semanales']) ?> hrs/semana
+                                        <?= (int) $carga['horas_semanales'] > 0
+                                            ? e($carga['horas_semanales']) . ' hrs/semana'
+                                            : '—' ?>
                                     </div>
 
                                     <div class="carga-progreso">

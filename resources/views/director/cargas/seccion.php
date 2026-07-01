@@ -1,11 +1,39 @@
 <?php
 /**
- * @var array  $seccion  [id, seccion_nombre, grado_nombre, nivel_nombre, anio]
- * @var array  $cargas
- * @var array  $auth_user
+ * @var array      $seccion  [id, seccion_nombre, grado_nombre, nivel_nombre, anio,
+ *                            es_unidocente, tutor_id, tutor_paterno, tutor_materno, tutor_nombres]
+ * @var array      $cargas
+ * @var array|null $grupos   Solo unidocente: cargas agrupadas por área (ver controlador)
+ * @var array      $auth_user
  */
 
 $badgeEstado = fn(string $e): string => $e === 'activa' ? 'badge--activo' : 'badge--error';
+
+$esUnidocente = !empty($seccion['es_unidocente']);
+$tutorId      = (int) ($seccion['tutor_id'] ?? 0);
+$tutorNombre  = !empty($seccion['tutor_paterno'])
+    ? mb_strtoupper($seccion['tutor_paterno'] . ' ' . $seccion['tutor_materno'])
+      . ', ' . ucwords(mb_strtolower($seccion['tutor_nombres']))
+    : null;
+
+// Filas a renderizar: en unidocente, cabecera de área (solo si el área tiene
+// varias subárea-cargas) seguida de sus cargas; en polidocente, filas planas.
+$filas = [];
+if ($esUnidocente && $grupos) {
+    foreach ($grupos as $g) {
+        $varias = count($g['cargas']) > 1;
+        if ($varias) {
+            $filas[] = ['tipo' => 'area', 'g' => $g];
+        }
+        foreach ($g['cargas'] as $c) {
+            $filas[] = ['tipo' => 'carga', 'c' => $c, 'sub' => $varias];
+        }
+    }
+} else {
+    foreach ($cargas as $c) {
+        $filas[] = ['tipo' => 'carga', 'c' => $c, 'sub' => false];
+    }
+}
 ?>
 
 <div class="page-header">
@@ -18,6 +46,14 @@ $badgeEstado = fn(string $e): string => $e === 'activa' ? 'badge--activo' : 'bad
             <?= e($seccion['nivel_nombre']) ?> · <?= e($seccion['anio']) ?>
             · <?= count($cargas) ?> carga<?= count($cargas) !== 1 ? 's' : '' ?>
         </p>
+        <?php if ($esUnidocente): ?>
+            <p class="seccion-unidocente">
+                <span class="badge badge--info">Unidocente</span>
+                <?php if ($tutorNombre): ?>
+                    <span class="seccion-unidocente__tutor">Tutor(a) de aula: <?= e($tutorNombre) ?></span>
+                <?php endif; ?>
+            </p>
+        <?php endif; ?>
     </div>
     <a href="<?= url('director/cargas/crear?seccion_id=' . $seccion['id']) ?>" class="btn btn--primary">+ Nueva carga</a>
 </div>
@@ -46,21 +82,55 @@ $badgeEstado = fn(string $e): string => $e === 'activa' ? 'badge--activo' : 'bad
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($cargas as $c):
-                    $nombre = mb_strtoupper($c['apellido_paterno'] . ' ' . $c['apellido_materno'])
-                            . ', ' . ucwords(mb_strtolower($c['docente_nombres']));
-                    $activa = $c['estado'] === 'activa';
+                <?php foreach ($filas as $fila): ?>
+
+                <?php if ($fila['tipo'] === 'area'): $g = $fila['g']; ?>
+                <tr class="fila-area-grupo">
+                    <td colspan="2">
+                        <span class="fila-area-grupo__nombre"><?= e($g['area_nombre']) ?></span>
+                        <span class="fila-area-grupo__meta"><?= count($g['cargas']) ?> subáreas</span>
+                    </td>
+                    <td>
+                        <?php if ($g['horarios']): ?>
+                            <div class="carga-horario"><?= e(implode(' | ', $g['horarios'])) ?></div>
+                        <?php else: ?>
+                            <span class="carga-sin-horario">Sin horario registrado</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-center text-sm">
+                        <?= $g['total_horas'] > 0 ? $g['total_horas'] . 'h' : '—' ?>
+                    </td>
+                    <td colspan="2"></td>
+                </tr>
+                <?php continue; endif; ?>
+
+                <?php
+                $c = $fila['c'];
+                $nombre = mb_strtoupper($c['apellido_paterno'] . ' ' . $c['apellido_materno'])
+                        . ', ' . ucwords(mb_strtolower($c['docente_nombres']));
+                $activa = $c['estado'] === 'activa';
+                // Solo tiene sentido señalar al especialista en una sección
+                // unidocente: es la carga que NO dicta el tutor de aula.
+                $esEspecialista = $esUnidocente && $tutorId > 0
+                    && (int) $c['docente_id'] !== $tutorId;
                 ?>
-                <tr class="<?= !$activa ? 'fila-inactiva' : '' ?>">
+                <tr class="<?= !$activa ? 'fila-inactiva' : '' ?><?= $fila['sub'] ? ' fila-carga--sub' : '' ?>">
 
                     <td>
                         <div class="td-usuario__nombre"><?= e($nombre) ?></div>
+                        <?php if ($esEspecialista): ?>
+                            <span class="carga-especialista">Especialista</span>
+                        <?php endif; ?>
                     </td>
 
                     <td>
-                        <div class="carga-area"><?= e($c['area_nombre']) ?></div>
-                        <?php if ($c['subarea_nombre']): ?>
-                            <div class="carga-subarea"><?= e($c['subarea_nombre']) ?></div>
+                        <?php if ($fila['sub']): ?>
+                            <div class="carga-subarea carga-subarea--indent"><?= e($c['subarea_nombre']) ?></div>
+                        <?php else: ?>
+                            <div class="carga-area"><?= e($c['area_nombre']) ?></div>
+                            <?php if ($c['subarea_nombre']): ?>
+                                <div class="carga-subarea"><?= e($c['subarea_nombre']) ?></div>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </td>
 
@@ -68,12 +138,12 @@ $badgeEstado = fn(string $e): string => $e === 'activa' ? 'badge--activo' : 'bad
                         <?php if ($c['horario_resumen']): ?>
                             <div class="carga-horario"><?= e($c['horario_resumen']) ?></div>
                         <?php else: ?>
-                            <span class="text-muted">—</span>
+                            <span class="carga-sin-horario">Sin horario propio</span>
                         <?php endif; ?>
                     </td>
 
                     <td class="text-center text-sm">
-                        <?= $c['horas_semanales'] ?>h
+                        <?= (int) $c['horas_semanales'] > 0 ? $c['horas_semanales'] . 'h' : '—' ?>
                     </td>
 
                     <td class="text-center">

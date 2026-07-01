@@ -174,6 +174,9 @@ class CargaAcademicaModel extends BaseModel
                 s.nombre            AS seccion_nombre,
                 s.es_unidocente,
                 s.tutor_id,
+                pt.apellido_paterno AS tutor_paterno,
+                pt.apellido_materno AS tutor_materno,
+                pt.nombres          AS tutor_nombres,
                 g.nombre_display    AS grado_nombre,
                 g.numero            AS grado_numero,
                 n.nombre            AS nivel_nombre,
@@ -182,6 +185,8 @@ class CargaAcademicaModel extends BaseModel
             INNER JOIN grados g            ON g.id  = s.grado_id
             INNER JOIN niveles n           ON n.id  = g.nivel_id
             INNER JOIN anios_academicos an ON an.id = s.anio_id
+            LEFT  JOIN usuarios ut         ON ut.id = s.tutor_id
+            LEFT  JOIN personas pt         ON pt.id = ut.persona_id
             WHERE s.id = ?
             LIMIT 1
         ", [$id]);
@@ -194,6 +199,7 @@ class CargaAcademicaModel extends BaseModel
                 ca.id,
                 ca.horas_semanales,
                 ca.estado,
+                ca.docente_id,
                 p.apellido_paterno,
                 p.apellido_materno,
                 p.nombres           AS docente_nombres,
@@ -201,11 +207,13 @@ class CargaAcademicaModel extends BaseModel
                 g.nombre_display    AS grado_nombre,
                 n.nombre            AS nivel_nombre,
                 an.anio,
+                COALESCE(ca.area_id, sa.area_id) AS area_real_id,
                 CASE
                     WHEN ca.area_id IS NOT NULL THEN a_dir.nombre
                     ELSE a_via.nombre
                 END                 AS area_nombre,
                 sa.nombre           AS subarea_nombre,
+                sa.orden            AS subarea_orden,
                 GROUP_CONCAT(
                     CONCAT(
                         UPPER(LEFT(bh.dia_semana,1)),
@@ -239,11 +247,14 @@ class CargaAcademicaModel extends BaseModel
               -- boletas del I Bimestre — solo se ocultan de esta vista.
               AND COALESCE(a_dir.tipo, a_via.tipo) != 'transversal'
             GROUP BY
-                ca.id, ca.horas_semanales, ca.estado,
+                ca.id, ca.horas_semanales, ca.estado, ca.docente_id,
                 p.apellido_paterno, p.apellido_materno, p.nombres,
                 s.nombre, g.nombre_display, n.nombre, an.anio,
-                a_dir.nombre, a_via.nombre, sa.nombre
-            ORDER BY a_dir.nombre, a_via.nombre, sa.nombre
+                ca.area_id, sa.area_id, a_dir.nombre, a_via.nombre,
+                sa.nombre, sa.orden
+            -- Áreas por nombre y, dentro del área, subáreas por su orden
+            -- curricular (la vista agrupa por área en secciones unidocentes).
+            ORDER BY COALESCE(a_dir.nombre, a_via.nombre), sa.orden
         ", [$seccionId]);
     }
 
@@ -325,6 +336,20 @@ class CargaAcademicaModel extends BaseModel
             [$anioId]
         );
         return (int) $this->db->lastInsertId();
+    }
+
+    /**
+     * Duración de la hora académica (en minutos) según la configuración de
+     * horario. Fallback 45 si la configuración no existe o trae 0/NULL.
+     */
+    public function getDuracionHoraMin(int $configId): int
+    {
+        $cfg = $this->queryOne(
+            "SELECT duracion_hora_min FROM configuracion_horario WHERE id = ? LIMIT 1",
+            [$configId]
+        );
+        $duracion = (int) ($cfg['duracion_hora_min'] ?? 0);
+        return $duracion > 0 ? $duracion : 45;
     }
 
     public function getOrCreateBloque(

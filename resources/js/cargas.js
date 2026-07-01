@@ -7,9 +7,40 @@
 document.addEventListener('DOMContentLoaded', () => {
     initDiasToggle();
     initBloques();
+    initSinHorario();
     initAreaFilter();
     initDocenteHint();
 });
+
+// ── Sin horario propio ────────────────────────────────────────
+// La carga se dicta dentro del horario de otra carga del área (subáreas con
+// el mismo docente) o su horario aún no se registra. Al marcar el checkbox se
+// desmarcan y deshabilitan los días; el servidor guarda la carga sin sesiones.
+
+function initSinHorario() {
+    const cb = document.getElementById('sin_horario');
+    if (!cb) return;
+    cb.addEventListener('change', aplicarSinHorario);
+    // Inicializar (editar: viene marcado si la carga no tiene sesiones)
+    aplicarSinHorario();
+}
+
+function aplicarSinHorario() {
+    const cb = document.getElementById('sin_horario');
+    if (!cb) return;
+    const sin = cb.checked;
+
+    document.querySelectorAll('.dia-check').forEach(dc => {
+        if (sin && dc.checked) {
+            dc.checked = false;
+            toggleDia(dc); // colapsa rangos, limpia y deshabilita los inputs
+        }
+        dc.disabled = sin;
+    });
+
+    const grid = document.querySelector('.horario-grid');
+    if (grid) grid.classList.toggle('horario-grid--deshabilitado', sin);
+}
 
 // ── Dias ──────────────────────────────────────────────────────
 
