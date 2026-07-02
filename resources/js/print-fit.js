@@ -49,46 +49,42 @@
 })();
 
 /**
- * Boton "Volver" robusto.
+ * Boton "Cerrar" del documento.
  *
- * Las boletas/reportes A4 se abren con target="_blank" (pestana nueva), donde
- * NO hay historial: history.back() no hace nada (se nota sobre todo en el
- * celular). Degradamos: historial si existe -> referrer del mismo origen ->
- * cerrar la pestana -> inicio (base-url). Si el JS no carga, el href original
- * (javascript:history.back) sigue como fallback minimo.
+ * Las boletas/reportes A4 se abren en ventana nueva por script (window.open en
+ * app.js), asi que window.close() las cierra de forma fiable y se vuelve a la
+ * ventana de origen. Fallback por si la ventana NO fue abierta por script (el
+ * usuario abrio la pestana a mano) y el navegador bloquea close(): historial ->
+ * referrer del mismo origen -> inicio (base-url).
  */
 (function () {
-    var volver = document.querySelector('.btn-boleta--volver');
-    if (!volver) { return; }
+    var cerrar = document.querySelector('.btn-boleta--cerrar');
+    if (!cerrar) { return; }
 
-    function baseUrl() {
-        var meta = document.querySelector('meta[name="base-url"]');
-        return (meta && meta.getAttribute('content')) || '/';
-    }
-
-    volver.addEventListener('click', function (e) {
+    cerrar.addEventListener('click', function (e) {
         e.preventDefault();
 
-        // Caso normal (misma pestana): hay a donde retroceder.
-        if (window.history.length > 1) {
-            window.history.back();
-            return;
-        }
-
-        // Pestana nueva: volver a la pagina de origen si es del mismo sitio.
-        var ref = document.referrer;
-        if (ref) {
-            try {
-                if (new URL(ref).origin === window.location.origin) {
-                    window.location.href = ref;
-                    return;
-                }
-            } catch (err) { /* referrer invalido: seguir al fallback */ }
-        }
-
-        // Sin historial ni referrer util: intentar cerrar; si el navegador lo
-        // bloquea (rel=noopener), ir al inicio.
+        // Ventana abierta por script: cierra directo (la pagina desaparece y el
+        // setTimeout de abajo nunca corre).
         window.close();
-        setTimeout(function () { window.location.href = baseUrl(); }, 150);
+
+        // Si seguimos aqui, close() fue bloqueado: degradar.
+        setTimeout(function () {
+            if (window.history.length > 1) {
+                window.history.back();
+                return;
+            }
+            var ref = document.referrer;
+            if (ref) {
+                try {
+                    if (new URL(ref).origin === window.location.origin) {
+                        window.location.href = ref;
+                        return;
+                    }
+                } catch (err) { /* referrer invalido: seguir al fallback */ }
+            }
+            var meta = document.querySelector('meta[name="base-url"]');
+            window.location.href = (meta && meta.getAttribute('content')) || '/';
+        }, 120);
     });
 })();

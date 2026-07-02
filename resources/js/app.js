@@ -140,3 +140,31 @@ document.addEventListener('submit', function(e) {
     window.addEventListener('pageshow', detener);
     window.addEventListener('pagehide', detener);
 })();
+
+// ── Documentos en ventana nueva: abrir por script (autocerrables) ─────
+// Los documentos (boletas, reportes A4, nóminas) se abren con target="_blank".
+// Si el navegador crea la pestaña, ESTA no fue abierta por script y su
+// window.close() queda bloqueado → el botón "Cerrar" del documento no puede
+// cerrarla y en el celular se acumulan pestañas (lentitud). Al abrirlas
+// nosotros con window.open(), la ventana es autocerrable desde su botón
+// "Cerrar". target="_blank" se conserva como fallback si este JS no carga.
+(function () {
+    document.addEventListener('click', function (e) {
+        if (e.defaultPrevented) return;
+        // Respeta clic-medio / con modificadores (abrir en 2.º plano a voluntad).
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+        var a = e.target.closest('a[target="_blank"]');
+        if (!a) return;
+
+        var href = a.getAttribute('href');
+        if (!href || href.charAt(0) === '#') return;
+        if (a.hasAttribute('download')) return;
+        if (/^(mailto:|tel:|javascript:)/i.test(href)) return;
+        // Solo documentos internos (mismo origen); externos → comportamiento nativo.
+        if (a.origin && a.origin !== window.location.origin) return;
+
+        e.preventDefault();
+        window.open(a.href, '_blank');
+    });
+})();

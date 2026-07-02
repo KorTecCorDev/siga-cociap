@@ -14,7 +14,7 @@
     <?= $content ?>
 
     <div class="boleta-acciones">
-        <a href="javascript:history.back()" class="btn-boleta btn-boleta--volver">← Volver</a>
+        <a href="#" id="btnCerrarDoc" class="btn-boleta btn-boleta--cerrar" aria-label="Cerrar esta ventana">✕ Cerrar</a>
         <button class="btn-boleta btn-boleta--imprimir" onclick="window.print()">🖨 Imprimir</button>
     </div>
 

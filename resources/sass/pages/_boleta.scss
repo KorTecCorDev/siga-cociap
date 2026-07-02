@@ -95,7 +95,7 @@ body.boleta-body {
 
         &:hover { text-decoration: none; }
         &--imprimir { background: $brand-mid; color: #fff; }
-        &--volver   { background: #fff; color: $text-primary; border: 1.5px solid $border-color; }
+        &--cerrar   { background: #fff; color: $text-primary; border: 1.5px solid $border-color; }
     }
 }
 
