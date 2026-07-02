@@ -129,6 +129,24 @@
     font-style: italic;
 }
 
+// ── Marca de DNI provisional (código temporal, pendiente de regularizar) ──
+// Es un marcador de ESTADO (falta de dato), por eso usa el ámbar de advertencia
+// reservado para estados — no es identidad de un acceso (wayfinding).
+.badge-provisional {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 20px;
+    background: $color-warning-bg;
+    color: $color-warning;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
 // ── Motivo visible del estado (junto al badge) ───────────────
 .matricula-motivo {
     display: block;

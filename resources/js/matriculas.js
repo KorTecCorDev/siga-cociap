@@ -7,6 +7,27 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Alta provisional (crear): al marcar "sin DNI" se oculta el campo DNI y se
+    // relaja la obligatoriedad (DNI y serie). El servidor es la autoridad; esto
+    // es solo mejora de UX. El input DNI se deshabilita para no enviarse.
+    const provToggle = document.querySelector('[data-provisional-toggle]');
+    if (provToggle) {
+        const dniGroup = document.querySelector('[data-dni-group]');
+        const dniInput = dniGroup ? dniGroup.querySelector('input[name="dni"]') : null;
+        const serie    = document.querySelector('input[name="serie_recibo"]');
+        const hint     = document.querySelector('[data-provisional-hint]');
+
+        const aplicar = () => {
+            const on = provToggle.checked;
+            if (dniGroup) dniGroup.hidden = on;
+            if (dniInput) { dniInput.disabled = on; dniInput.required = !on; }
+            if (serie)    serie.required = !on;
+            if (hint)     hint.hidden = !on;
+        };
+        provToggle.addEventListener('change', aplicar);
+        aplicar(); // estado inicial (por si el navegador conserva el check)
+    }
+
     // Editar datos personales del estudiante.
     document.querySelectorAll('[data-editar-form]').forEach((form) => {
         const card    = form.closest('.card__body');

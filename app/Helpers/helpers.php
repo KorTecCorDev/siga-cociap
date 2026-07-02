@@ -64,6 +64,16 @@ function rol_aula(?string $sexo): string
     };
 }
 
+/**
+ * ¿El DNI es un código PROVISIONAL? Un DNI real son 8 dígitos numéricos; el
+ * alta provisional (estudiante sin DNI todavía) usa 'P' + 7 dígitos (P0000042).
+ * Punto único de verdad para distinguirlos en controladores y vistas.
+ */
+function es_dni_provisional(?string $dni): bool
+{
+    return $dni !== null && $dni !== '' && strtoupper($dni[0]) === 'P';
+}
+
 /** Escapa HTML para prevenir XSS */
 function e(string $value): string
 {

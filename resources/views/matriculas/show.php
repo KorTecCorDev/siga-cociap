@@ -57,7 +57,7 @@ $labelDoc = [
                 <?php endif; ?>
             </div>
             <div class="info-grid">
-                <div class="info-item"><span class="info-item__label">DNI</span><span class="info-item__value"><?= e($matricula['dni']) ?></span></div>
+                <div class="info-item"><span class="info-item__label">DNI</span><span class="info-item__value"><?= e($matricula['dni']) ?><?php if (es_dni_provisional($matricula['dni'])): ?> <span class="badge-provisional" title="Código temporal — reemplázalo por el DNI real para poder activar la matrícula">Provisional</span><?php endif; ?></span></div>
                 <div class="info-item"><span class="info-item__label">Sexo</span><span class="info-item__value"><?= $matricula['sexo'] === 'F' ? 'Femenino' : ($matricula['sexo'] === 'M' ? 'Masculino' : '—') ?></span></div>
                 <div class="info-item"><span class="info-item__label">Nivel / Grado</span><span class="info-item__value"><?= e(($matricula['nivel_nombre'] ?? '—') . ' · ' . ($matricula['grado_nombre'] ?? '')) ?></span></div>
                 <div class="info-item"><span class="info-item__label">Sección</span><span class="info-item__value"><?= e($matricula['seccion_nombre'] ?? '—') ?></span></div>

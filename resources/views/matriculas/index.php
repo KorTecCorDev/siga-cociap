@@ -198,7 +198,7 @@ $thOrden = function (string $key, string $label, string $thClass = '') use ($ord
                 <tr class="<?= $esOperativaRetorno ? 'mat-fila-operativa' : '' ?>">
                     <td class="text-sm"><?= $i ?></td>
                     <td><?= e($m['nombre_completo']) ?></td>
-                    <td class="text-sm"><?= e($m['dni']) ?></td>
+                    <td class="text-sm"><?= e($m['dni']) ?><?php if (es_dni_provisional($m['dni'])): ?> <span class="badge-provisional" title="DNI provisional — pendiente de regularizar">prov.</span><?php endif; ?></td>
                     <td class="text-sm">
                         <?= e(($m['grado_nombre'] ?? '—') . ' ' . ($m['seccion_nombre'] ?? '')) ?>
                     </td>

@@ -79,7 +79,25 @@ $pasos = [1 => 'Estudiante', 2 => 'Apoderado', 3 => 'Documentos'];
                 <?php else: ?>
                     <!-- Estudiante nuevo -->
                     <p class="form-section-title">Datos del estudiante nuevo</p>
-                    <div class="form-group">
+
+                    <!-- Alta provisional: el estudiante aún no tiene DNI. Genera
+                         un código temporal y deja la matrícula en 'pendiente'
+                         (aparece para calificar; se regulariza antes de activar). -->
+                    <div class="form-group form-group--full">
+                        <label class="form-check">
+                            <input type="checkbox" id="provisional" name="provisional" value="1"
+                                   data-provisional-toggle>
+                            <span>El estudiante aún no tiene DNI (registro provisional)</span>
+                        </label>
+                        <span class="pass-hint" data-provisional-hint hidden>
+                            Se generará un código provisional. La matrícula quedará
+                            <strong>pendiente</strong>: aparecerá en la lista del docente para
+                            calificar, pero deberás registrar el DNI real y los documentos antes
+                            de activarla.
+                        </span>
+                    </div>
+
+                    <div class="form-group" data-dni-group>
                         <label class="form-label" for="dni">DNI <span class="text-danger">*</span></label>
                         <input type="text" id="dni" name="dni" class="form-input" maxlength="8" pattern="\d{8}"
                                inputmode="numeric" value="<?= e($dni) ?>" placeholder="12345678" required>

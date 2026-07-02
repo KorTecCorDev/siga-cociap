@@ -370,6 +370,7 @@ class MatriculaController extends BaseController
             'estudiante'      => $estudiante,
             'yaMatriculado'   => $yaMatriculado,
             'seccionSugerida' => $seccionSugerida,
+            'page_scripts'    => ['matriculas'],
         ]);
     }
 
@@ -390,6 +391,61 @@ class MatriculaController extends BaseController
             ? $this->input('tipo') : 'continuador';
         $serieRecibo  = trim((string) $this->input('serie_recibo', ''));
         $seccionPost  = (int) $this->input('seccion_id');
+        $provisional  = (bool) $this->input('provisional');
+
+        // ── Alta PROVISIONAL (estudiante sin DNI todavía) ────────────────
+        // El padre matricula al hijo pero no dejó el DNI ni los documentos de
+        // traslado. Se registra con un código provisional para que el docente
+        // pueda calificarlo (la matrícula 'pendiente' aparece en su grilla); el
+        // DNI real y los documentos se regularizan antes de activar. La serie
+        // del recibo es OPCIONAL aquí (se exige antes de activar).
+        if ($provisional) {
+            if (!$gradoId) {
+                $this->redirectWithError(url('matriculas/crear'),
+                    'Selecciona el grado de destino.');
+            }
+            $apePat  = mb_strtoupper(trim((string) $this->input('apellido_paterno')));
+            $nombres = mb_strtoupper(trim((string) $this->input('nombres')));
+            if ($apePat === '' || $nombres === '') {
+                $this->redirectWithError(url('matriculas/crear'),
+                    'El registro provisional requiere al menos apellido paterno y nombres.');
+            }
+
+            $datosPersona = [
+                'apellido_paterno' => $apePat,
+                'apellido_materno' => mb_strtoupper(trim((string) $this->input('apellido_materno'))),
+                'nombres'          => $nombres,
+                'fecha_nacimiento' => $this->input('fecha_nacimiento') ?: null,
+                'sexo'             => in_array($this->input('sexo'), ['M', 'F'], true)
+                    ? $this->input('sexo') : null,
+            ];
+            try {
+                $estudianteId = $this->model->crearEstudianteProvisional($datosPersona);
+            } catch (\Exception $e) {
+                log_error('Error al crear estudiante provisional', ['error' => $e->getMessage()]);
+                $this->redirectWithError(url('matriculas/crear'),
+                    'No se pudo registrar al estudiante provisional.');
+            }
+
+            $seccionId = $seccionPost ?: $this->resolverSeccion($estudianteId, $gradoId, $anioId, $tipo);
+
+            $matriculaId = $this->model->crear([
+                'estudiante_id'  => $estudianteId,
+                'seccion_id'     => $seccionId,
+                'anio_id'        => $anioId,
+                'tipo'           => $tipo,
+                'serie_recibo'   => $serieRecibo !== '' ? $serieRecibo : null,
+                'registrado_por' => (int) (Session::user()['id'] ?? 0),
+            ]);
+            $this->model->update($matriculaId, [
+                'motivo_estado' => 'Registro provisional — pendiente de DNI y documentos',
+            ]);
+
+            $this->redirectWithSuccess(
+                url('matriculas/' . $matriculaId . '/apoderado'),
+                'Matrícula provisional creada sin DNI. Regulariza el DNI real y los documentos antes de activarla.'
+            );
+        }
 
         // Serie del recibo obligatoria SIEMPRE.
         if ($serieRecibo === '') {
@@ -721,7 +777,9 @@ class MatriculaController extends BaseController
             $this->redirectWithError($volver, 'DNI inválido (8 dígitos).');
         }
         if ($this->model->dniEnUsoPorOtra($dni, $personaId)) {
-            $this->redirectWithError($volver, 'Ese DNI ya pertenece a otra persona.');
+            $this->redirectWithError($volver,
+                'Ese DNI ya pertenece a otra persona registrada. Verifica si el estudiante '
+                . 'ya existía en el sistema; la fusión de registros debe hacerse manualmente.');
         }
 
         $datos = [
@@ -754,6 +812,13 @@ class MatriculaController extends BaseController
     {
         $faltan = [];
         $id     = (int) $matricula['id'];
+
+        // 0) DNI real: un alta provisional (código 'P…') no puede activarse hasta
+        //    reemplazar el código por el DNI real del estudiante. Esto impide que
+        //    un DNI falso llegue a boletas / orden de mérito.
+        if (es_dni_provisional($matricula['dni'] ?? null)) {
+            $faltan[] = 'Reemplazar el DNI provisional por el DNI real del estudiante';
+        }
 
         // 1) Al menos un apoderado vinculado.
         if (empty($this->apoderados->getVinculos((int) $matricula['estudiante_id']))) {

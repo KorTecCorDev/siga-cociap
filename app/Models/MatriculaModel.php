@@ -672,6 +672,67 @@ class MatriculaModel extends BaseModel
     }
 
     /**
+     * Genera el siguiente código de DNI PROVISIONAL: 'P' + 7 dígitos correlativos
+     * (p. ej. P0000042). Cabe en personas.dni (varchar(8)) y es inconfundible con
+     * un DNI real (siempre 8 dígitos numéricos). Punto único de generación.
+     */
+    public function generarDniProvisional(): string
+    {
+        // Ancho fijo (P + 7 dígitos) → el MAX lexicográfico coincide con el
+        // máximo numérico, así que basta leer el mayor código provisional.
+        $row = $this->queryOne(
+            "SELECT MAX(dni) AS max_dni FROM personas WHERE dni LIKE 'P%'"
+        );
+        $ultimo = ($row && !empty($row['max_dni']))
+            ? (int) substr((string) $row['max_dni'], 1)
+            : 0;
+        return 'P' . str_pad((string) ($ultimo + 1), 7, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Crea un estudiante PROVISIONAL (persona + estudiante) sin DNI real: le
+     * asigna un código provisional único. Reintenta si dos altas simultáneas
+     * calcularan el mismo correlativo (el UNIQUE de personas.dni rechaza el
+     * duplicado). Retorna estudiante_id. Los datos NO deben incluir 'dni'.
+     */
+    public function crearEstudianteProvisional(array $datosPersona): int
+    {
+        unset($datosPersona['dni']); // el código lo asigna este método
+        $intentos = 0;
+
+        while (true) {
+            $dni = $this->generarDniProvisional();
+            $this->beginTransaction();
+            try {
+                $datos = ['dni' => $dni] + $datosPersona;
+                $cols  = implode(', ', array_keys($datos));
+                $ph    = implode(', ', array_fill(0, count($datos), '?'));
+                $this->execute(
+                    "INSERT INTO personas ({$cols}) VALUES ({$ph})",
+                    array_values($datos)
+                );
+                $personaId = (int) $this->db->lastInsertId();
+
+                $this->execute(
+                    "INSERT INTO estudiantes (persona_id) VALUES (?)",
+                    [$personaId]
+                );
+                $estudianteId = (int) $this->db->lastInsertId();
+
+                $this->commit();
+                return $estudianteId;
+            } catch (\PDOException $e) {
+                $this->rollback();
+                // 23000 = violación de UNIQUE (colisión del código). Reintenta.
+                if ($e->getCode() === '23000' && ++$intentos < 5) {
+                    continue;
+                }
+                throw $e;
+            }
+        }
+    }
+
+    /**
      * ¿El DNI ya pertenece a OTRA persona (distinta de $personaId)? Se usa al
      * editar los datos personales para no romper la unicidad del DNI.
      */
