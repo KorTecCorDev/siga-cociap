@@ -1699,7 +1699,7 @@ ser por columna/día, no una fila uniforme). Se analizará al final.
 - **Migración `032_area_tutoria.sql`**: amplía `areas.tipo` a
   `enum('area_curso','con_subareas','transversal','tutoria')` e inserta el área
   **"Tutoría (TOE)" por nivel** (primaria id 23, secundaria id 24 en local; idempotente
-  con `NOT EXISTS`). **Aplicada en LOCAL; FALTA PROD.**
+  con `NOT EXISTS`). **Aplicada y verificada en LOCAL y PROD (02/07/2026).**
 - **Los dos ejes del sistema** (ver también horarios): "aparecer en horario" = ser
   carga con bloques (`getHorario` NO filtra por tipo); "tener notas" = que el área
   tenga **competencias**. Tutoría = carga con bloque + área sin competencias →
