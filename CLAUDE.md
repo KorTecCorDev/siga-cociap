@@ -625,6 +625,58 @@ NUNCA CSS inline en PHP (convención del proyecto).
   `BoletaPublicaController` dormido NO arma asistencia → no se toca. Los métodos
   `AsistenciaModel::getAcumuladoAnual*` quedan sin uso desde la boleta (se conservan).
 
+## Documentos en ventana nueva — botón "Cerrar" autocerrable (02/07/2026)
+
+> **Bug corregido:** todos los documentos que abren en ventana aparte (boletas,
+> reportes A4, nóminas) tenían un botón **"Volver"** que, en móvil, en vez de
+> regresar a la ventana original **creaba una copia** del origen y las pestañas
+> se **acumulaban** → lentitud en celulares. Reemplazado por **"✕ Cerrar"** que
+> cierra la ventana de verdad. Commit `8d56103` en `dev` (pendiente merge a `main`).
+
+### Causa raíz
+- Los documentos se abren con `<a target="_blank" rel="noopener">` → la pestaña la
+  crea el NAVEGADOR (no un script). Una pestaña recién abierta con `_blank` tiene
+  `history.length === 1`, así que el "Volver" (`history.back()`) no aplicaba y caía
+  a su *fallback*: **navegar al `document.referrer`** → una copia del listado de
+  origen. La pestaña original seguía viva debajo. Cada documento abierto desde ahí
+  dejaba otra pestaña `_blank` → acumulación.
+- `window.close()` (que el *fallback* también intentaba) está **bloqueado** por el
+  navegador cuando `window.opener` es `null`, y `rel="noopener"` justamente lo
+  anula. Por eso "Cerrar" solo funciona si controlamos **cómo se abre** la ventana.
+
+### Solución (Opción A — decidida por el usuario)
+Una ventana **abierta por script** (`window.open`) SÍ es autocerrable con
+`window.close()` desde su propio botón, aunque no se conserve el handle. Todas las
+páginas son del **mismo origen** (el riesgo de `noopener` aquí es nulo).
+
+- **Origen — interceptor global en `resources/js/app.js`** (cargado por
+  `layouts/app.php` en toda vista interna): delegación de clic que captura
+  `a[target="_blank"]` **del mismo origen**, hace `e.preventDefault()` +
+  `window.open(href, '_blank')`. Respeta clic-medio/ctrl/cmd/shift/alt (abrir en
+  2.º plano a voluntad), ignora `href="#"`, `download`, `mailto:`/`tel:`/`javascript:`
+  y enlaces externos. **NO edita ninguno de los ~15 enlaces**; `target="_blank"`
+  queda como *fallback* sin-JS. Hoy TODOS los `_blank` internos son exactamente
+  estos documentos, así que el interceptor global == el conjunto objetivo.
+- **Destino — botón "✕ Cerrar"** (reemplaza "Volver") en los **dos únicos** layouts
+  de documento:
+  - `layouts/print.php` (`.btn-boleta--cerrar`, id `btnCerrarDoc`) — cubre boleta
+    imprimible, traslado, orden de mérito, desempates, nómina detallada, cuadro
+    resumen, horario, y las 3 de admin boletas (`vista-previa`/`boletas-alumno`/`archivar`).
+  - `boleta/digital.php` (id `bdCerrar`, ícono X) — boleta digital.
+- **JS de cierre** en `print-fit.js` y `boleta-digital.js`: `window.close()` y, si
+  quedó bloqueado (ventana abierta a mano, no por script), *fallback*
+  `history.back()` → referrer del mismo origen → `base-url`.
+- **SASS:** modificador `.btn-boleta--volver` → `.btn-boleta--cerrar` en
+  `pages/_boleta.scss` (misma apariencia). Recompilar con `gulp build`.
+
+### Alcance verificado
+- Inventario de destinos: **todos** caen en `layouts/print.php` o
+  `layouts/digital.php` (el botón solo vivía en esos 2 sitios) → el cambio es
+  centralizado. No hay otras vistas de impresión con back propio.
+- **Pendiente de validar en móvil real** (Chrome Android / Safari iOS): abrir
+  varias boletas seguidas y confirmar que "✕ Cerrar" cierra la pestaña y no se
+  acumulan. Es comportamiento de ventanas del navegador, no simulable por CLI.
+
 ## Convenciones de código
 - **Namespace:** `App\Controllers\`, `App\Models\`, `Core\`
 - **Rutas:** `$router->get('/ruta', 'Namespace\Controlador@metodo')`
