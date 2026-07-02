@@ -226,6 +226,52 @@
     &--conflicto { color: $color-error; }   // docente: ocupado
 }
 
+// Ayuda: icono ℹ con tooltip de bloques libres (docente ∩ seccion)
+.dia-row__ayuda {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-top: 3px;
+    align-self: flex-start;
+}
+
+.dia-row__ayuda-btn {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 0;
+    background: $brand-accent;
+    cursor: help;
+    -webkit-mask: url("../assets/icons/info-circle.svg") center / contain no-repeat;
+    mask: url("../assets/icons/info-circle.svg") center / contain no-repeat;
+}
+
+.dia-row__ayuda-tip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    z-index: 20;
+    min-width: 160px;
+    max-width: 280px;
+    padding: $spacing-xs $spacing-sm;
+    border-radius: $border-radius-sm;
+    background: $text-primary;
+    color: $bg-white;
+    font-size: $font-size-sm;
+    font-weight: 500;
+    line-height: 1.35;
+    box-shadow: $shadow-md;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .12s ease;
+}
+
+.dia-row__ayuda:hover .dia-row__ayuda-tip,
+.dia-row__ayuda:focus-within .dia-row__ayuda-tip {
+    opacity: 1;
+    visibility: visible;
+}
+
 // ── Responsive ────────────────────────────────────────────────
 
 @media (max-width: 640px) {

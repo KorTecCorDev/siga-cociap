@@ -149,6 +149,52 @@ function ultimaFinDocente(docenteId, dia) {
 }
 
 /**
+ * Calcula los huecos libres del dia entre la hora oficial de inicio y el
+ * ultimo bloque ocupado, considerando la union de bloques del DOCENTE y de la
+ * SECCION (asi el tooltip refleja lo que verificarSolapes aceptara). Devuelve
+ * una lista de intervalos crudos "HH:MM-HH:MM"; vacia si no hay huecos.
+ */
+function huecosLibres(docenteId, seccionId, anioId, dia) {
+    const rangosDoc = docenteId
+        ? ((getDato('bloquesDocentes')[docenteId] || {})[dia] || []) : [];
+    const rangosSec = seccionId
+        ? ((getDato('bloquesSeccion')[seccionId] || {})[dia] || []) : [];
+
+    // Union de ocupados como pares [inicio, fin]
+    const ocupados = rangosDoc.concat(rangosSec)
+        .map(r => r.split('-'))
+        .filter(p => p.length === 2 && p[0] && p[1])
+        .map(p => [p[0], p[1]])
+        .sort((a, b) => a[0].localeCompare(b[0]));
+
+    if (!ocupados.length) return [];
+
+    // Fusiona solapes/contiguos (comparacion lexicografica valida para HH:MM)
+    const fusion = [ocupados[0].slice()];
+    for (let i = 1; i < ocupados.length; i++) {
+        const ult = fusion[fusion.length - 1];
+        if (ocupados[i][0] <= ult[1]) {
+            if (ocupados[i][1] > ult[1]) ult[1] = ocupados[i][1];
+        } else {
+            fusion.push(ocupados[i].slice());
+        }
+    }
+
+    // Limite inferior: hora oficial de inicio del año de la seccion (si existe)
+    const inicioOficial = (getDato('horaInicio')[anioId]) || null;
+    let cursor = inicioOficial && inicioOficial < fusion[0][0]
+        ? inicioOficial : fusion[0][0];
+
+    const huecos = [];
+    fusion.forEach(bloque => {
+        if (cursor < bloque[0]) huecos.push(cursor + '-' + bloque[0]);
+        if (bloque[1] > cursor) cursor = bloque[1];
+    });
+    // No se lista el tramo posterior al ultimo bloque: lo cubre "Libre desde".
+    return huecos;
+}
+
+/**
  * Muestra "Libre desde HH:MM" usando el maximo entre la ultima hora
  * ocupada de la seccion y la ultima hora ocupada del docente.
  * Ambas restricciones deben cumplirse; el limite efectivo es el mayor.
@@ -158,6 +204,8 @@ function actualizarHints() {
     const seccionSel = document.getElementById('seccion_id');
     const docenteId  = docenteSel?.value || '';
     const seccionId  = seccionSel?.value  || '';
+    const seccionOpt = seccionSel?.options[seccionSel.selectedIndex];
+    const anioId     = seccionOpt?.dataset?.anioId || '';
 
     DIAS.forEach(dia => {
         const hint = document.getElementById('hint-' + dia);
@@ -177,6 +225,20 @@ function actualizarHints() {
             hint.hidden      = false;
         } else {
             hint.hidden = true;
+        }
+
+        // Tooltip de huecos libres interiores/matinales (docente ∩ seccion)
+        const ayuda = document.getElementById('ayuda-' + dia);
+        const tip   = document.getElementById('ayuda-tip-' + dia);
+        if (ayuda && tip) {
+            const huecos = huecosLibres(docenteId, seccionId, anioId, dia);
+            if (huecos.length) {
+                tip.textContent = 'Bloques libres: ' +
+                    huecos.map(h => h.replace('-', '–')).join(' · ');
+                ayuda.hidden = false;
+            } else {
+                ayuda.hidden = true;
+            }
         }
     });
 }

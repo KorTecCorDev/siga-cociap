@@ -13,6 +13,8 @@
 <div id="cargasData"
      data-ocupadas="<?= e(json_encode($ocupadas)) ?>"
      data-bloques-docentes="<?= e(json_encode($bloquesDocentes)) ?>"
+     data-bloques-seccion="<?= e(json_encode($bloquesSeccion)) ?>"
+     data-hora-inicio="<?= e(json_encode($horaInicioClases)) ?>"
      hidden></div>
 
 <div class="page-header">
@@ -168,6 +170,11 @@
                         </div>
                         <?php endforeach; ?>
                         <small id="hint-<?= $dia ?>" class="dia-row__hint" hidden></small>
+                        <span class="dia-row__ayuda" id="ayuda-<?= $dia ?>" hidden>
+                            <button type="button" class="dia-row__ayuda-btn"
+                                    aria-label="Ver bloques libres del <?= ucfirst($dia) ?>"></button>
+                            <span class="dia-row__ayuda-tip" id="ayuda-tip-<?= $dia ?>" role="tooltip"></span>
+                        </span>
                         <button type="button" class="btn btn--secondary btn--sm bloque-agregar"
                                 data-dia="<?= $dia ?>" <?= !$tieneHorario ? 'disabled' : '' ?>>+ Agregar bloque</button>
                     </div>

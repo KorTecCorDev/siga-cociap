@@ -346,15 +346,57 @@ class CargaAcademicaController extends BaseController
             $bloquesDocentes[$did][$dia][] = $rango;
         }
 
+        // Bloques COMPLETOS por seccion/dia (para el tooltip de huecos libres).
+        // Analogo a $bloquesDocentes pero agrupado por seccion; $horarios (arriba)
+        // conserva solo el MAX(hora_fin) que alimenta el hint "Libre desde".
+        $rawBloquesSeccion = $this->model->query("
+            SELECT ca.seccion_id, bh.dia_semana,
+                   bh.hora_inicio, bh.hora_fin
+            FROM cargas_academicas ca
+            INNER JOIN sesiones_horario sh ON sh.carga_id = ca.id
+            INNER JOIN bloques_horario bh  ON bh.id       = sh.bloque_id
+            INNER JOIN secciones s         ON s.id        = ca.seccion_id
+            INNER JOIN anios_academicos a  ON a.id        = s.anio_id
+            WHERE ca.estado = 'activa'
+              AND a.estado  IN ('planificado', 'activo')
+              AND ca.id     != ?
+            ORDER BY ca.seccion_id, bh.dia_semana, bh.hora_inicio
+        ", [$excludeCargaId]);
+
+        $bloquesSeccion = [];
+        foreach ($rawBloquesSeccion as $b) {
+            $sid   = (int) $b['seccion_id'];
+            $dia   = $b['dia_semana'];
+            $rango = substr($b['hora_inicio'], 0, 5) . '-' . substr($b['hora_fin'], 0, 5);
+            $bloquesSeccion[$sid][$dia][] = $rango;
+        }
+
+        // Hora oficial de inicio de clases por año (limite inferior del tooltip).
+        $rawInicio = $this->model->query("
+            SELECT c.anio_id, TIME_FORMAT(c.hora_inicio_clases, '%H:%i') AS inicio
+            FROM configuracion_horario c
+            INNER JOIN anios_academicos a ON a.id = c.anio_id
+            WHERE a.estado IN ('planificado', 'activo')
+        ");
+
+        $horaInicioClases = [];
+        foreach ($rawInicio as $r) {
+            if ($r['inicio'] !== null) {
+                $horaInicioClases[(int) $r['anio_id']] = $r['inicio'];
+            }
+        }
+
         return [
-            'secciones'       => $this->model->listarSecciones(),
-            'docentes'        => $this->model->listarDocentes(),
-            'areas'           => $this->model->listarAreas(),
-            'subareas'        => $this->model->listarSubareas(),
-            'dias'            => self::DIAS,
-            'ocupadas'        => $ocupadas,
-            'horarios'        => $horarios,
-            'bloquesDocentes' => $bloquesDocentes,
+            'secciones'        => $this->model->listarSecciones(),
+            'docentes'         => $this->model->listarDocentes(),
+            'areas'            => $this->model->listarAreas(),
+            'subareas'         => $this->model->listarSubareas(),
+            'dias'             => self::DIAS,
+            'ocupadas'         => $ocupadas,
+            'horarios'         => $horarios,
+            'bloquesDocentes'  => $bloquesDocentes,
+            'bloquesSeccion'   => $bloquesSeccion,
+            'horaInicioClases' => $horaInicioClases,
         ];
     }
 
