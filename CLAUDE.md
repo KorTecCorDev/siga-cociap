@@ -588,6 +588,43 @@ NUNCA CSS inline en PHP (convención del proyecto).
   valor erróneo. La vista `boleta/{digital,alumno}.php` ya lee `literal_final` (sin
   cambios).
 
+## Boleta — asistencia por cada bimestre cerrado + Total (02/07/2026)
+
+> **Bug corregido:** la tabla de asistencia de la boleta mostraba solo el bimestre
+> activo (el último cerrado) con datos. En la imprimible las demás columnas salían
+> "—"; en la digital solo había `[{bim} | Acum. anual]`. Debía mostrar **una columna
+> por cada bimestre CERRADO** (todos los registrados) **+ una columna Total** con las
+> sumas.
+
+### Causa
+- `BoletaModel::armar()` entregaba `asistencia = { bimestre: getDelBimestreUnion(
+  $periodoId), anual: getAcumuladoAnualUnion($periodoId) }` — SOLO el periodo activo
+  + un acumulado, sin desglose por bimestre.
+- `boleta/alumno.php` YA tenía el andamiaje de columnas por periodo, pero solo podía
+  llenar la del activo (el resto "—") porque el builder no daba datos por periodo.
+
+### Regla nueva (decisiones del usuario)
+1. **Una columna por cada bimestre CERRADO** (todos los registrados) + **Total**.
+2. **Solo cerrados** en TODAS las boletas (familias e interna del docente),
+   independiente de `$soloOficiales`.
+3. **Total = suma de los bimestres mostrados** (NO `getAcumuladoAnual` por `numero<=`,
+   que podría incluir un bimestre no mostrado si uno intermedio se reabriera).
+
+### Implementación (sin migración, sin cambio de esquema)
+- `BoletaModel::armar()`: nueva estructura
+  `asistencia = ['bimestres' => [ ['id','numero','datos'=>counters], … ], 'total' => sumas]`.
+  Itera `getPeriodosDelAnio($anioId, true)` (cerrados, siempre) y acumula el total.
+  Reemplaza las claves `bimestre`/`anual`.
+- Vistas `boleta/digital.php` y `boleta/alumno.php`: la tabla itera
+  `$asistencia['bimestres']` (una columna por bimestre, cada una con SU dato) + columna
+  **Total** = `$asistencia['total']`. El guard pasa a `!empty($asistencia['bimestres'])`
+  (sin cerrados → la tabla no se muestra). La imprimible dejó de pintar "—".
+- SASS `_boleta-digital.scss`: `table-layout: auto`, `.bd-asistencia__scroll`
+  (overflow-x en móvil, hasta 4 bim + Total) y `--total` con borde izquierdo.
+- **Consumidores:** solo esas 2 vistas + el builder (verificado). El
+  `BoletaPublicaController` dormido NO arma asistencia → no se toca. Los métodos
+  `AsistenciaModel::getAcumuladoAnual*` quedan sin uso desde la boleta (se conservan).
+
 ## Convenciones de código
 - **Namespace:** `App\Controllers\`, `App\Models\`, `Core\`
 - **Rutas:** `$router->get('/ruta', 'Namespace\Controlador@metodo')`

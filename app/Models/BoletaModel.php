@@ -85,6 +85,19 @@ class BoletaModel extends BaseModel
         $exoData = $this->exoModel->getConCompetenciasParaBoletaUnion($fuentes, $anioId);
         $areas   = ExoneracionModel::inyectarEnAreas($areas, $exoData, $periodos);
 
+        // Asistencia: una columna por bimestre CERRADO (todos los registrados) +
+        // total. Solo cerrados (misma regla en la boleta de familias y la interna,
+        // independiente de $soloOficiales). El total SUMA los bimestres mostrados
+        // (no un acumulado por numero<=, que podria incluir uno no mostrado).
+        $periodosCerrados = $this->getPeriodosDelAnio($anioId, true);
+        $asisBimestres = [];
+        $asisTotal = ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0];
+        foreach ($periodosCerrados as $pc) {
+            $datos = $this->asistenciaModel->getDelBimestreUnion($fuentes, (int) $pc['id']);
+            $asisBimestres[] = ['id' => (int) $pc['id'], 'numero' => (int) $pc['numero'], 'datos' => $datos];
+            foreach ($asisTotal as $k => $_) { $asisTotal[$k] += (int) $datos[$k]; }
+        }
+
         return [
             'alumno'            => $alumno,
             'periodos'          => $periodos,
@@ -92,8 +105,8 @@ class BoletaModel extends BaseModel
             'areas'             => $areas,
             'conducta'          => $this->conductaModel->getParaBoletaUnion($fuentes, $anioId),
             'asistencia'        => [
-                'bimestre' => $this->asistenciaModel->getDelBimestreUnion($fuentes, $periodoId),
-                'anual'    => $this->asistenciaModel->getAcumuladoAnualUnion($fuentes, $periodoId),
+                'bimestres' => $asisBimestres,
+                'total'     => $asisTotal,
             ],
             'omisiones'   => $this->omisionModel->getPorMatriculaAnioUnion($fuentes, $anioId),
             'institucion' => config('institucion'),

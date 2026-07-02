@@ -401,46 +401,41 @@ $vistaPrevia = $vistaPrevia ?? false;
         </section>
         <?php endif; ?>
 
-        <?php if (!empty($asistencia)):
-            $aB         = $asistencia['bimestre'];
-            $aA         = $asistencia['anual'];
-            $pActivo    = array_values(array_filter($periodos, fn($p) => $p['id'] == $periodo_activo_id));
-            $numBim     = $pActivo[0]['numero'] ?? 1;
-            $romanoBim  = $romanos[$numBim - 1] ?? 'I';
+        <?php if (!empty($asistencia['bimestres'])):
+            $asisTotal = $asistencia['total'];
+            $camposAsis = [
+                'faltas'                 => 'Faltas',
+                'faltas_justificadas'    => 'Faltas justificadas',
+                'tardanzas'              => 'Tardanzas',
+                'tardanzas_justificadas' => 'Tardanzas justificadas',
+            ];
         ?>
         <section class="bd-asistencia" aria-label="Asistencia">
             <h2 class="bd-asistencia__titulo">Asistencia</h2>
+            <div class="bd-asistencia__scroll">
             <table class="bd-asistencia__tabla">
                 <thead>
                     <tr>
                         <th class="bd-asistencia__th-tipo">Tipo</th>
-                        <th class="bd-asistencia__th-num"><?= $romanoBim ?> Bim.</th>
-                        <th class="bd-asistencia__th-num">Acum. anual</th>
+                        <?php foreach ($asistencia['bimestres'] as $bim): ?>
+                            <th class="bd-asistencia__th-num"><?= ($romanos[$bim['numero'] - 1] ?? $bim['numero']) ?> Bim.</th>
+                        <?php endforeach; ?>
+                        <th class="bd-asistencia__th-num bd-asistencia__th--total">Total</th>
                     </tr>
                 </thead>
                 <tbody>
+                    <?php foreach ($camposAsis as $clave => $etiqueta): ?>
                     <tr>
-                        <td>Faltas</td>
-                        <td class="bd-asistencia__num"><?= $aB['faltas'] ?></td>
-                        <td class="bd-asistencia__num"><?= $aA['faltas'] ?></td>
+                        <td><?= $etiqueta ?></td>
+                        <?php foreach ($asistencia['bimestres'] as $bim): ?>
+                            <td class="bd-asistencia__num"><?= (int) $bim['datos'][$clave] ?></td>
+                        <?php endforeach; ?>
+                        <td class="bd-asistencia__num bd-asistencia__num--total"><?= (int) $asisTotal[$clave] ?></td>
                     </tr>
-                    <tr>
-                        <td>Faltas justificadas</td>
-                        <td class="bd-asistencia__num"><?= $aB['faltas_justificadas'] ?></td>
-                        <td class="bd-asistencia__num"><?= $aA['faltas_justificadas'] ?></td>
-                    </tr>
-                    <tr>
-                        <td>Tardanzas</td>
-                        <td class="bd-asistencia__num"><?= $aB['tardanzas'] ?></td>
-                        <td class="bd-asistencia__num"><?= $aA['tardanzas'] ?></td>
-                    </tr>
-                    <tr>
-                        <td>Tardanzas justificadas</td>
-                        <td class="bd-asistencia__num"><?= $aB['tardanzas_justificadas'] ?></td>
-                        <td class="bd-asistencia__num"><?= $aA['tardanzas_justificadas'] ?></td>
-                    </tr>
+                    <?php endforeach; ?>
                 </tbody>
             </table>
+            </div>
         </section>
         <?php endif; ?>
     </main>

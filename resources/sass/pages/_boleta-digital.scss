@@ -1172,7 +1172,7 @@ $bd-asis-border: #cbd5e1;
 
     &__tabla {
         width: 100%;
-        table-layout: fixed;
+        table-layout: auto;
         border-collapse: collapse;
         font-size: 13px;
         background: #fff;
@@ -1207,8 +1207,8 @@ $bd-asis-border: #cbd5e1;
     &__th-tipo { text-align: left !important; }
 
     &__th-num {
-        width: 28%;
         text-align: center !important;
+        white-space: nowrap;
     }
 
     &__num {
@@ -1217,6 +1217,17 @@ $bd-asis-border: #cbd5e1;
         font-size: 15px;
         color: $bd-asis-color;
         font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    // Scroll horizontal cuando hay muchos bimestres (hasta 4 + Total) en movil.
+    &__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+    // Columna Total: separada con un borde a la izquierda para distinguirla.
+    &__th--total  { border-left: 2px solid $bd-asis-border; }
+    &__num--total {
+        border-left: 2px solid $bd-asis-border;
+        color: $bd-asis-color;
     }
 
     @media print {

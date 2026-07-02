@@ -228,22 +228,21 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
 
 <!-- ── Bloque inferior: asistencia + QR alineados horizontalmente ─ -->
 <?php
-$mostrarAsistencia = !empty($asistencia);
+$mostrarAsistencia = !empty($asistencia['bimestres']);
 $mostrarQr         = !$vistaPrevia && !empty($url_boleta);
 ?>
 <?php if ($mostrarAsistencia || $mostrarQr): ?>
 <div class="boleta-info">
 
     <?php if ($mostrarAsistencia):
-        $aB = $asistencia['bimestre'];
-        $aA = $asistencia['anual'];
+        $asisTotal = $asistencia['total'];
         $campos = [
             'faltas'                 => 'Faltas',
             'faltas_justificadas'    => 'F. justificadas',
             'tardanzas'              => 'Tardanzas',
             'tardanzas_justificadas' => 'T. justificadas',
         ];
-        $colspanTotal = count($periodos) + 2;
+        $colspanTotal = count($asistencia['bimestres']) + 2;
     ?>
     <section class="boleta-asistencia">
         <table class="boleta-asistencia__tabla">
@@ -255,12 +254,11 @@ $mostrarQr         = !$vistaPrevia && !empty($url_boleta);
                 </tr>
                 <tr>
                     <th class="boleta-asistencia__th-tipo"></th>
-                    <?php foreach ($periodos as $p):
-                        $num = (int) $p['numero'];
-                        $esActivo = ((int) $p['id'] === (int) $periodo_activo_id);
+                    <?php foreach ($asistencia['bimestres'] as $bim):
+                        $esActivo = ((int) $bim['id'] === (int) $periodo_activo_id);
                     ?>
                         <th class="boleta-asistencia__th-num <?= $esActivo ? 'boleta-asistencia__th--activo' : '' ?>">
-                            <?= ($romanos[$num - 1] ?? $num) ?> Bim.
+                            <?= ($romanos[$bim['numero'] - 1] ?? $bim['numero']) ?> Bim.
                         </th>
                     <?php endforeach; ?>
                     <th class="boleta-asistencia__th-num boleta-asistencia__th--anual">Total</th>
@@ -270,18 +268,14 @@ $mostrarQr         = !$vistaPrevia && !empty($url_boleta);
                 <?php foreach ($campos as $clave => $etiqueta): ?>
                 <tr>
                     <td><?= $etiqueta ?></td>
-                    <?php foreach ($periodos as $p):
-                        $esActivo = ((int) $p['id'] === (int) $periodo_activo_id);
+                    <?php foreach ($asistencia['bimestres'] as $bim):
+                        $esActivo = ((int) $bim['id'] === (int) $periodo_activo_id);
                     ?>
-                        <?php if ($esActivo): ?>
-                            <td class="boleta-asistencia__num boleta-asistencia__num--activo">
-                                <?= $aB[$clave] ?>
-                            </td>
-                        <?php else: ?>
-                            <td class="boleta-asistencia__num boleta-asistencia__num--pendiente">&mdash;</td>
-                        <?php endif; ?>
+                        <td class="boleta-asistencia__num <?= $esActivo ? 'boleta-asistencia__num--activo' : '' ?>">
+                            <?= (int) $bim['datos'][$clave] ?>
+                        </td>
                     <?php endforeach; ?>
-                    <td class="boleta-asistencia__num boleta-asistencia__num--anual"><?= $aA[$clave] ?></td>
+                    <td class="boleta-asistencia__num boleta-asistencia__num--anual"><?= (int) $asisTotal[$clave] ?></td>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
