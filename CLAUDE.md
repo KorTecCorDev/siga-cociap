@@ -1389,10 +1389,10 @@ códigos). **NO se usa `chart.googleapis.com` en ningún lado**; no se filtran c
 terceros. (Las menciones a Google Charts en este documento quedaron obsoletas.)
 
 ### PENDIENTES de seguridad (próximas sesiones)
-- [ ] **Fase 3:** auditar interpolaciones SQL (`ORDER BY`/`LIMIT`/`LIKE`), validar
-  longitud/charset de entradas públicas, reforzar subida de imágenes.
-- [ ] **Fase 4:** mover `error_log` fuera del docroot, revisar permisos de archivos,
-  auditoría de accesos (aprovechar `veces_consultada`/`ultima_consulta` de `boletas_publicas`).
+- [x] **Fase 3 (CERRADA, en prod):** interpolaciones SQL auditadas, longitud/charset
+  de entradas públicas validados, subida de imágenes reforzada.
+- [x] **Fase 4 (CERRADA, en prod):** `error_log` fuera del docroot (via config
+  `log_path`, verificado por SSH), permisos revisados, auditoría de accesos.
 - [ ] **CSP:** pasada dedicada — auditar estilos inline (`style="--pct:..."`) y el QR
   antes de aplicar `Content-Security-Policy`.
 - [ ] **Limpieza menor:** quitar del `.gitignore` las reglas obsoletas de
@@ -1604,7 +1604,7 @@ ser por columna/día, no una fila uniforme). Se analizará al final.
 - `verificarSolapes([])`, `crearConHorario(.., [])` y `actualizarConHorario`
   toleran el arreglo vacío sin cambios (editar con el checkbox borra las sesiones).
 
-### Migración `030_limpieza_bloques_falsos.sql` (aplicada en LOCAL; FALTA PROD)
+### Migración `030_limpieza_bloques_falsos.sql` (aplicada en LOCAL y PROD)
 - Borra las sesiones cuyo bloque dura ≤1 min y los bloques ≤1 min huérfanos.
 - Recalcula `horas_semanales` de TODAS las cargas en **horas académicas**:
   `SUM(ROUND(min/duracion_hora_min))` con redondeo POR BLOQUE (igual que el
@@ -1653,22 +1653,16 @@ ser por columna/día, no una fila uniforme). Se analizará al final.
 - **Solape real preexistente conocido (NO tocado):** CLEMENTE ANGELES, lunes,
   1°C (14:40-16:10) vs 5°B (15:45-17:20) — debe resolverlo el colegio.
 
-### Estado al cierre de sesión (01/07/2026, turno tarde) — checklist para retomar
-- **Código:** `dev` y `main` en `ee041a6`, todo pusheado (auto-deploy publicado).
-  El working tree local solo tiene `public/js/calificaciones.js` con cambio de
-  fin de línea SIN contenido (diff vacío) — ignorable.
-- **BD LOCAL:** migraciones 030 y 031 APLICADAS y verificadas (0 sesiones
-  cruzadas, 0 bloques ≤1 min, horas académicas recalculadas).
-- **BD PROD:** el usuario quedó corriendo 030 y 031 (phpMyAdmin con el usuario
-  de BD `u761410128_ktcdev`, NO la cuenta Hostinger). **Al retomar, VERIFICAR:**
+### Pendientes vivos de horarios (al 01/07/2026)
+- **Migraciones 030 y 031:** APLICADAS en LOCAL y PROD. LOCAL verificada (0 sesiones
+  cruzadas, 0 bloques ≤1 min, horas académicas recalculadas). Query de verificación:
   `SELECT COUNT(*) FROM sesiones_horario sh INNER JOIN cargas_academicas ca ON
-  ca.id=sh.carga_id WHERE sh.seccion_id != ca.seccion_id;` → 0, y que no queden
-  bloques ≤1 min. Según notas de sesiones previas también estarían pendientes en
-  prod las migraciones 023/024/028 — confirmar antes de asumir.
-- **Digitación de horarios pendiente (la hace el usuario en prod):** 1°A
-  secundaria (11 cursos "sin horario propio" tras la 031) y las áreas que
-  quedaron sin bloques reales tras la 030 (CyT/Matemática de primaria 4°-6°,
-  Arte y Cultura 1°A prim., etc.). 3°B secundaria YA quedó completo.
+  ca.id=sh.carga_id WHERE sh.seccion_id != ca.seccion_id;` → 0.
+- **Migraciones 023/024/028 en prod:** sin confirmar — verificar antes de asumir aplicadas.
+- **Digitación de horarios (la hace el usuario en prod):** 1°A secundaria (11 cursos
+  "sin horario propio" tras la 031) y las áreas que quedaron sin bloques reales tras
+  la 030 (CyT/Matemática de primaria 4°-6°, Arte y Cultura 1°A prim., etc.). 3°B
+  secundaria YA quedó completo.
 - **Por coordinar con el colegio:** el solape real de CLEMENTE ANGELES (arriba).
 - **Hallazgo NO implementado (tarea futura si se pide):** "Reemplazar docente"
   en sección unidocente no actualiza `secciones.tutor_id` ni opera sobre todas
