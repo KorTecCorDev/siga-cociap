@@ -65,6 +65,13 @@ class BoletaModel extends BaseModel
         $anioId   = (int) $periodo['anio_id'];
         $periodos = $this->getPeriodosDelAnio($anioId, $soloOficiales);
 
+        // Logro anual = nota del ULTIMO bimestre del anio (mayor numero), visible
+        // SOLO cuando ese bimestre esta cerrado. NO es el ultimo bimestre CERRADO
+        // ni un promedio: es el nivel alcanzado al final del anio (competencias).
+        $ultimoBim        = $this->getUltimoBimestreDelAnio($anioId);
+        $ultimoBimestreId = $ultimoBim ? (int) $ultimoBim['id'] : 0;
+        $ultimoCerrado    = $ultimoBim !== null && $ultimoBim['estado'] === 'cerrado';
+
         $datosPorPeriodo = [];
         foreach ($periodos as $p) {
             $rows = [];
@@ -74,7 +81,7 @@ class BoletaModel extends BaseModel
             $datosPorPeriodo[$p['id']] = $rows;
         }
 
-        $areas   = $this->buildAreasConBimestres($datosPorPeriodo, $periodos);
+        $areas   = $this->buildAreasConBimestres($datosPorPeriodo, $periodos, $ultimoBimestreId, $ultimoCerrado);
         $exoData = $this->exoModel->getConCompetenciasParaBoletaUnion($fuentes, $anioId);
         $areas   = ExoneracionModel::inyectarEnAreas($areas, $exoData, $periodos);
 
@@ -160,13 +167,34 @@ class BoletaModel extends BaseModel
     }
 
     /**
+     * Ultimo bimestre del anio: el periodo de mayor `numero` (dinamico, no
+     * hardcodea la cantidad). Su cierre habilita el logro anual. Retorna
+     * id/numero/estado o null si el anio no tiene periodos.
+     */
+    private function getUltimoBimestreDelAnio(int $anioId): ?array
+    {
+        return $this->queryOne("
+            SELECT id, numero, estado
+            FROM periodos
+            WHERE anio_id = ?
+            ORDER BY numero DESC
+            LIMIT 1
+        ", [$anioId]);
+    }
+
+    /**
      * Reorganiza los datos planos por periodo en una estructura
      * areas[nombre_area][comp_id] = { nombre, bimestres[periodo_id], literal_final }.
+     * `literal_final` (logro anual) sale de la nota del ULTIMO bimestre del anio,
+     * solo si ese bimestre esta cerrado (ver getUltimoBimestreDelAnio).
      */
-    private function buildAreasConBimestres(array $datosPorPeriodo, array $periodos): array
-    {
-        $areas     = [];
-        $periodIds = array_column($periodos, 'id');
+    private function buildAreasConBimestres(
+        array $datosPorPeriodo,
+        array $periodos,
+        int $ultimoBimestreId,
+        bool $ultimoCerrado
+    ): array {
+        $areas = [];
 
         foreach ($datosPorPeriodo as $periodoId => $notas) {
             foreach ($notas as $nota) {
@@ -208,25 +236,16 @@ class BoletaModel extends BaseModel
             }
         }
 
-        // Calcular literal_final solo cuando los 4 bimestres tienen nota
+        // Logro anual = literal de la nota del ULTIMO bimestre del anio, y SOLO si
+        // ese bimestre esta cerrado. No se promedian los bimestres ni se usa el
+        // ultimo CERRADO: es el nivel final del anio (modelo por competencias).
+        // Sin cierre del ultimo bimestre => null (el chip "Anual" muestra —).
         foreach ($areas as &$comps) {
             foreach ($comps as &$comp) {
-                $notasAnuales = [];
-                foreach ($periodIds as $pid) {
-                    $b = $comp['bimestres'][$pid] ?? null;
-                    if ($b === null || $b['nota'] === null) {
-                        $notasAnuales = null;
-                        break;
-                    }
-                    $notasAnuales[] = $b['nota'];
-                }
-
-                if ($notasAnuales !== null && count($notasAnuales) === count($periodIds)) {
-                    $prom = (int) round(array_sum($notasAnuales) / count($notasAnuales));
-                    $comp['literal_final'] = CalificacionModel::toLiteral($prom);
-                } else {
-                    $comp['literal_final'] = null;
-                }
+                $b = $ultimoCerrado ? ($comp['bimestres'][$ultimoBimestreId] ?? null) : null;
+                $comp['literal_final'] = ($b !== null && $b['nota'] !== null)
+                    ? $b['literal']
+                    : null;
             }
         }
         unset($comps, $comp);

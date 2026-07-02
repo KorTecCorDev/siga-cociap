@@ -136,7 +136,12 @@ class BoletaPublicaController extends BaseController
         }
 
         $anioId = (int) $periodo['anio_id'];
-        $areas  = $this->buildAreasConBimestres($datosPorPeriodo, $periodos);
+        // Logro anual = nota del ULTIMO bimestre del anio, visible solo si esta
+        // cerrado (paridad con BoletaModel; ver getUltimoBimestreDelAnio).
+        $ultimoBim        = $this->getUltimoBimestreDelAnio($anioId);
+        $ultimoBimestreId = $ultimoBim ? (int) $ultimoBim['id'] : 0;
+        $ultimoCerrado    = $ultimoBim !== null && $ultimoBim['estado'] === 'cerrado';
+        $areas  = $this->buildAreasConBimestres($datosPorPeriodo, $periodos, $ultimoBimestreId, $ultimoCerrado);
         $exoData = $this->exoModel->getConCompetenciasParaBoletaUnion($fuentes, $anioId);
         $areas  = ExoneracionModel::inyectarEnAreas($areas, $exoData, $periodos);
 
@@ -244,10 +249,28 @@ class BoletaPublicaController extends BaseController
         ", [$anioId]);
     }
 
-    private function buildAreasConBimestres(array $datosPorPeriodo, array $periodos): array
+    /**
+     * Ultimo bimestre del anio (mayor `numero`, dinamico). Su cierre habilita el
+     * logro anual. Paridad con BoletaModel::getUltimoBimestreDelAnio().
+     */
+    private function getUltimoBimestreDelAnio(int $anioId): ?array
     {
-        $areas     = [];
-        $periodIds = array_column($periodos, 'id');
+        return $this->calModel->queryOne("
+            SELECT id, numero, estado
+            FROM periodos
+            WHERE anio_id = ?
+            ORDER BY numero DESC
+            LIMIT 1
+        ", [$anioId]);
+    }
+
+    private function buildAreasConBimestres(
+        array $datosPorPeriodo,
+        array $periodos,
+        int $ultimoBimestreId,
+        bool $ultimoCerrado
+    ): array {
+        $areas = [];
 
         foreach ($datosPorPeriodo as $periodoId => $notas) {
             foreach ($notas as $nota) {
@@ -284,26 +307,17 @@ class BoletaPublicaController extends BaseController
             }
         }
 
+        // Logro anual = literal de la nota del ULTIMO bimestre del anio, SOLO si
+        // ese bimestre esta cerrado (paridad con BoletaModel). No se promedia.
         foreach ($areas as &$comps) {
             foreach ($comps as &$comp) {
-                $notasAnuales = [];
-                foreach ($periodIds as $pid) {
-                    $b = $comp['bimestres'][$pid] ?? null;
-                    if ($b === null || $b['nota'] === null) {
-                        $notasAnuales = null;
-                        break;
-                    }
-                    $notasAnuales[] = $b['nota'];
-                }
-
-                if ($notasAnuales !== null && count($notasAnuales) === count($periodIds)) {
-                    $prom = (int) round(array_sum($notasAnuales) / count($notasAnuales));
-                    $comp['literal_final'] = CalificacionModel::toLiteral($prom);
-                } else {
-                    $comp['literal_final'] = null;
-                }
+                $b = $ultimoCerrado ? ($comp['bimestres'][$ultimoBimestreId] ?? null) : null;
+                $comp['literal_final'] = ($b !== null && $b['nota'] !== null)
+                    ? $b['literal']
+                    : null;
             }
         }
+        unset($comps, $comp);
 
         return $areas;
     }

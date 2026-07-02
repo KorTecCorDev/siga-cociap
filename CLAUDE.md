@@ -545,6 +545,49 @@ NUNCA CSS inline en PHP (convención del proyecto).
   tabla `boletas_publicas` y `BoletaPublicaModel::{generarMasivo,getPorCodigo,...}`.
 - La generación de **token** (`generar-tokens`) sigue activa.
 
+## Logro anual = nota del último bimestre, solo al cerrarlo (02/07/2026)
+
+> **Bug corregido:** el chip "Anual" (logro final del año) de las boletas mostraba
+> el **promedio de los bimestres cerrados** y aparecía apenas se cerraba CUALQUIER
+> bimestre — p. ej. con B1/B2 cerrados y B3 activo, mostraba un "anual" que en
+> realidad era el promedio de B1-B2. Debe ser la **nota del ÚLTIMO bimestre del año**
+> (el 4.º) y aparecer **solo al cerrar ese último bimestre**.
+
+### Causa raíz
+- `BoletaModel::armar(soloOficiales=true)` (boleta por token/QR de familias) filtra
+  los periodos a `estado='cerrado'` (`getPeriodosDelAnio`), así que `$periodos` NO
+  eran los 4 del año sino "los cerrados hasta ahora".
+- `buildAreasConBimestres` calculaba `literal_final` promediando sobre ESOS periodos
+  (`array_column($periodos,'id')`). Con un solo bimestre cerrado, el chequeo "tiene
+  nota en todos los periodos" pasaba trivialmente y el promedio de 1-2 bimestres se
+  mostraba como logro anual. El comentario "solo cuando los 4 bimestres tienen nota"
+  reflejaba la INTENCIÓN, no el código.
+
+### Regla nueva (decisiones del usuario)
+1. **Logro anual = literal de la nota del ÚLTIMO bimestre del año** (mayor `numero`),
+   NO un promedio y NO el último bimestre CERRADO (modelo por competencias: el nivel
+   alcanzado al final del año).
+2. **Solo aparece al cerrar ese último bimestre**; mientras no, el chip "Anual" = `—`.
+3. **"Último bimestre" es dinámico** por `MAX(numero)` (no hardcodea 4).
+4. **Aplica a TODAS las boletas** (builder único): digital, imprimible, token e interna.
+
+### Implementación (sin migración, sin cambio de vista)
+- `BoletaModel::getUltimoBimestreDelAnio(int $anioId): ?array` — `ORDER BY numero
+  DESC LIMIT 1` (id/numero/estado).
+- `armar()` deriva `$ultimoBimestreId` + `$ultimoCerrado = estado==='cerrado'` y los
+  pasa a `buildAreasConBimestres(..., $ultimoBimestreId, $ultimoCerrado)`.
+- `buildAreasConBimestres`: `literal_final = $comp['bimestres'][$ultimoBimestreId]
+  ['literal']` **solo si `$ultimoCerrado`** y hay nota; si no → `null`. Se eliminó el
+  promedio y la variable `$periodIds`.
+- **Duplicado dormido** `BoletaPublicaController::buildAreasConBimestres` (código
+  tecleado dormido, sin rutas) parcheado con la MISMA regla para paridad futura.
+- **EXO intacto:** `ExoneracionModel::inyectarEnAreas` setea su propio
+  `literal_final='EXO'` DESPUÉS y respeta el ya calculado.
+- **Retroactivo nulo:** al 02/07/2026 ningún año está completo (el IV bimestre nunca
+  se cerró), así que no había logro anual correcto previo — el fix solo elimina el
+  valor erróneo. La vista `boleta/{digital,alumno}.php` ya lee `literal_final` (sin
+  cambios).
+
 ## Convenciones de código
 - **Namespace:** `App\Controllers\`, `App\Models\`, `Core\`
 - **Rutas:** `$router->get('/ruta', 'Namespace\Controlador@metodo')`
