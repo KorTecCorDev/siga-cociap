@@ -1329,6 +1329,72 @@ queda como traza de auditoría histórica. Se muestra junto al badge en `index` 
   desactivar, y `.matricula-motivo` bajo el badge. SASS en `_matriculas.scss`
   (`.matricula-motivo`, `.mat-desactivar-form`; enum de badges reducido a 3 estados).
 
+## Alta provisional sin DNI — estudiante en trámite (02/07/2026)
+
+> Un padre matricula a su hijo pero no dejó el DNI ni los documentos de traslado,
+> y el docente ya necesita calificarlo. Se permite dar de alta al estudiante SIN
+> DNI real con un **código provisional**; la matrícula nace `pendiente` (ya
+> calificable) y se regulariza antes de activar. Commit `24099b4` en `dev`.
+> **Sin migración** (el código cabe en `personas.dni`).
+
+### La premisa que lo hace de bajo riesgo (dos hechos del sistema)
+- **Calificar NO exige `aprobada`:** `Docente\CalificacionController::getAlumnosSeccion`
+  trae a TODOS los matriculados de la sección (`aprobada`, `pendiente` e incluso
+  `desactivado`); el único excluido es `tipo='trasladado'` + casos de retorno. Una
+  matrícula `pendiente` YA aparece en la grilla del docente.
+- **`pendiente` no contamina documentos oficiales:** boleta exige `aprobada`+bloqueo
+  y orden de mérito exige `aprobada`. El provisional queda fuera hasta regularizar.
+
+### Código provisional — formato y punto único de verdad
+- Formato **`P` + 7 dígitos** (`P0000001`, `P0000002`…). Cabe en `personas.dni`
+  (`varchar(8) NOT NULL UNIQUE`) e es inconfundible con un DNI real (8 dígitos
+  numéricos). El primero será `P0000001` (0 provisionales en BD al implementar).
+- **`es_dni_provisional(?string $dni): bool`** en `app/Helpers/helpers.php` —
+  verdadero si empieza con `P`. Lo usan controlador y vistas para distinguirlo.
+- **`MatriculaModel::generarDniProvisional()`** — `MAX(dni) WHERE dni LIKE 'P%'` +1
+  (ancho fijo → el MAX lexicográfico == máximo numérico).
+- **`MatriculaModel::crearEstudianteProvisional(array $datos)`** — persona +
+  estudiante en transacción, con **reintento ante colisión** del código por
+  concurrencia (el UNIQUE de `personas.dni` rechaza el duplicado, SQLSTATE 23000 →
+  regenera, máx 5). Los datos NO deben incluir `dni` (lo asigna el método).
+
+### Alta (`MatriculaController::store`, rama `provisional=1`)
+- Ignora el DNI; exige **apellido paterno + nombres** (materno/fecha/sexo opcionales).
+- **Serie de recibo OPCIONAL** en el alta provisional (el padre no dejó recibo); se
+  sigue exigiendo antes de activar (la reclama `pendientesParaActivar`).
+- Crea la matrícula `pendiente` con `motivo_estado = "Registro provisional —
+  pendiente de DNI y documentos"`. Sección sugerida igual que el alta normal.
+- La rama redirige y termina ANTES de la validación normal (con DNI), que queda
+  intacta. Roles: los 4 del módulo pueden crear provisional.
+
+### Candado de aprobación (integridad)
+- `pendientesParaActivar()` agrega, si `es_dni_provisional($matricula['dni'])`:
+  *"Reemplazar el DNI provisional por el DNI real"*. Como `activar()` bloquea con
+  la lista no vacía, **un DNI falso NUNCA llega a `aprobada`** (ni a boleta/mérito).
+  Aparece como requisito faltante en `show.php`.
+
+### Regularización (cuando llega el DNI real)
+- Se reemplaza el código por el DNI real desde **"Editar datos"** del detalle
+  (`actualizarEstudiante`, que ya valida 8 dígitos). Al hacerlo, el candado se
+  levanta solo.
+- **Colisión:** si el DNI real ya pertenece a OTRA persona (el alumno ya existía),
+  `dniEnUsoPorOtra` **rechaza y avisa** para resolución manual (mensaje mejorado;
+  la fusión de registros es manual, NO automática).
+
+### Frontend
+- `crear.php`: toggle **"El estudiante aún no tiene DNI (registro provisional)"**
+  (checkbox `name="provisional"`) + `data-dni-group`. `create()` inyecta
+  `page_scripts=['matriculas']`.
+- `resources/js/matriculas.js` (→ `gulp build`): al marcar, oculta el campo DNI
+  (`disabled` → no se envía) y relaja la obligatoriedad de DNI y serie. El servidor
+  es la autoridad (el form es `novalidate`); el JS es solo UX.
+- Badge **"Provisional"** en `show.php` (junto al DNI) y **"prov."** en `index.php`;
+  estilo `.badge-provisional` en `_matriculas.scss` (ámbar de estado, no wayfinding).
+
+### Pendiente menor (no implementado)
+- La búsqueda del index por texto que empiece con `P…` cae en la rama de nombre y
+  no matchea el código provisional. Ajuste chico en `construirFiltros` si se pide.
+
 ## Seguridad y estado REAL de producción (sesión 8 — endurecimiento)
 
 > Esta sección refleja cómo quedó realmente el despliegue y **SUPERSEDE** lo que
