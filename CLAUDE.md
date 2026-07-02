@@ -1985,6 +1985,95 @@ ser por columna/día, no una fila uniforme). Se analizará al final.
 3. Decidir presentación en boleta si TOE debe verse distinto a un `area_curso`
    (hoy heredaría ese formato). El mérito ya la excluye.
 
+## CAPACITACIÓN docentes + presentación oficial (08/07/2026)
+
+> Capacitación a todos los docentes + presentación oficial de SIGACOCIAP a la
+> comunidad educativa. Se demostrará el flujo COMPLETO de calificaciones
+> (ingresar → aprobar → bloquear). Debate de estrategia del 02/07; decisiones y
+> mecanismos abajo. **Nada de esto está implementado — son decisiones de diseño.**
+
+### Modalidad decidida
+- **Taller PRÁCTICO** (cada docente inicia sesión y practica), **con DATOS REALES**
+  (contexto real = mucho mejor aprendizaje) en **PRODUCCIÓN** (`sigacociap.net`).
+- **Una sola URL para los docentes** (la de producción, para siempre) → evita la
+  confusión de "muestro una URL y luego entrego otra". El subdominio de pruebas NO es
+  para ellos.
+
+### Entorno de pruebas (staging) — permanente y SOLO del desarrollador
+- Subdominio (`dev.sigacociap.net`/`staging.sigacociap.net`) alimentado por la rama
+  **`dev`**; producción por **`main`**. Formaliza `dev → staging`, `main → producción`.
+- **PERMANENTE** (no se deshabilita). Los docentes **NUNCA lo ven** → cero riesgo de
+  quejas por "se cayó el sistema". Valor propio: banco de pruebas de todo desarrollo
+  futuro. Requiere BD propia (copia) y secretos fuera del repo (ojo auto-deploy que
+  hace checkout limpio, ver "Seguridad y estado REAL de producción").
+
+### Reversibilidad de la práctica (es un "espacio de pruebas")
+- **Respaldar → practicar → restaurar:** backup completo ANTES, congelar la ventana,
+  los docentes practican libre sobre datos reales, **restaurar DESPUÉS** → todo el
+  ejercicio (notas, bloqueos, cascadas, logs) desaparece limpio. De yapa es prueba de
+  carga concurrente.
+- **Reset quirúrgico (alternativa):** si el personal debe seguir trabajando, respaldar/
+  restaurar SOLO las tablas de notas (`criterios`, `calificaciones_criterio`,
+  `calificaciones`, `bloqueos_competencia`, `omisiones_criterio`, cierres/conclusiones
+  transversales/conducta). Condición: en la ventana nadie reabre/cierra bimestres.
+- Restaurar con `FOREIGN_KEY_CHECKS=0` por seguridad; **ensayar la restauración en
+  staging** antes del 08. Un `mysqldump` autoconsistente restaura limpio.
+
+### Quién se ve afectado durante la ventana
+- **Padres: NO.** Consultan la boleta por **código/token público = solo lectura**;
+  pueden seguir. Un restore solo revierte el contador `token_consultas` (trivial). El
+  canal público puede quedar arriba.
+- **Personal (registro/secretarías/dirección):** solo sus **escrituras** se perderían
+  con el restore; pero el 08/07 estarán en el evento y su trabajo puede esperar 2-3 h.
+  Anunciar ventana de mantenimiento.
+
+### HALLAZGO técnico — la fuga de "notas fantasma" ocurre al CERRAR, no al bloquear
+- La boleta pública siempre usa `armar(..., soloOficiales=true)`, que filtra periodos a
+  `AND estado='cerrado'` (`BoletaModel::getPeriodosDelAnio`). **Bloquear/aprobar
+  competencias NO expone nada** mientras el II Bim siga `activo`.
+- El padre ve notas fantasma **solo si alguien pone el II Bim en `estado='cerrado'`**
+  (lo que se haría para mostrar la boleta final del II Bim). Ahí la boleta pública lo
+  expone al instante.
+
+### Mecanismos para evitar la fuga (decisiones de diseño, sin implementar)
+- **A — Quirúrgica, cero código (para el 08/07):** NO cerrar el II Bim real; demostrar
+  la boleta final con el **I Bim** (ya cerrado y real) o periodo demo. II Bim queda
+  `activo` → cero fuga. Límite: no muestras las notas finales del II Bim.
+- **B — Modo mantenimiento:** flag global → pantalla "Estamos en mantenimiento" con
+  **HTTP 503 + Retry-After**, lista blanca para staff autenticado (siguen trabajando).
+  Mejor uso real: **durante la restauración de la BD**. Mini-módulo nuevo (check temprano
+  en `public/index.php` + vista + switch). Reutilizable para toda capacitación futura.
+- **C — Compuerta de publicación (RECOMENDADA, la profesional):** desacoplar **"cerrar
+  bimestre" (interno)** de **"publicar boletas a familias" (acto institucional)**. Flag
+  `periodos.publicado` + un `AND` en `soloOficiales`. Permite cerrar el II Bim en el
+  taller sin publicarlo (cero fuga) Y da control real de producción sobre cuándo salen
+  las boletas. Cambio pequeño; resuelve taller + riesgo real. Ideal: **A hoy + C
+  permanente**.
+
+### Riesgo de comportamiento docente (fecha límite) — REENCUADRE, no omitir
+- Mostrar el flujo completo revela que las boletas se arman al instante → riesgo de que
+  los docentes crean que la **fecha límite es solo un susto** (ya no hay trabajo largo de
+  Registro). **NO omitir la funcionalidad** (la descubrirán; ocultarla erosiona
+  confianza). **Reencuadrar** el porqué de la fecha límite:
+  - El cuello de botella se **movió**: de "tiempo de Registro" a **"completitud de TODOS
+    los docentes"**. La boleta solo muestra competencias bloqueadas (`getBoletaAlumno`
+    INNER JOIN `bloqueos_competencia`) → un docente tarde deja la boleta **incompleta**
+    (áreas vacías) y **congela a toda la sección** (tutor y transversales dependen de que
+    todos cierren).
+  - Hay **ventana de revisión** antes de publicar; con la compuerta C, **publicar es acto
+    de dirección**, no consecuencia automática del último clic.
+  - Táctica de demo: mostrar una **boleta incompleta**, el **tablero de completitud X/Y**
+    (paneles director/tutor) y enmarcar la publicación como decisión institucional. La
+    funcionalidad temida, bien enmarcada, es la **mejor herramienta de responsabilización**.
+
+### Pendientes de decisión del usuario (antes de cerrar el plan operativo)
+1. ¿Mostrar la boleta con notas **finales del II Bim** (cerrándolo) o basta el **I Bim**
+   ya cerrado (Opción A)?
+2. ¿Construir **C** (compuerta de publicación) y/o **B** (modo mantenimiento) antes del 08?
+3. **Horario/duración** del 08/07 (define el tamaño de la ventana).
+4. ¿Habrá **personal trabajando en paralelo**? → define restore **completo** vs
+   **quirúrgico**.
+
 ## Notas importantes
 - `config/database.php` SÍ está en Git pero es un cargador SIN secretos: en prod lee
   las credenciales de `~/siga_secrets/database.php` (fuera del repo); en local usa el
