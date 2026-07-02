@@ -109,7 +109,7 @@ class OrdenMeritoModel extends BaseModel
                      AND c2.periodo_id   = ?
                   WHERE r.estado = 'revertido'
               )
-              AND a.tipo        != 'transversal'
+              AND a.tipo        NOT IN ('transversal', 'tutoria')
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, p.dni, s.nombre
             ORDER BY promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,
@@ -181,7 +181,7 @@ class OrdenMeritoModel extends BaseModel
                      AND c2.periodo_id   = ?
                   WHERE r.estado = 'revertido'
               )
-              AND a.tipo        != 'transversal'
+              AND a.tipo        NOT IN ('transversal', 'tutoria')
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, s.id, s.nombre
             ORDER BY s.nombre, promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,

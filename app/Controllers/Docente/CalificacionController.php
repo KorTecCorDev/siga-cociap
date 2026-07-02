@@ -1241,6 +1241,13 @@ class CalificacionController extends BaseController
               -- (modelo viejo) NO debe listarse como tarjeta: era el ingreso de
               -- promedios del tutor, hoy reemplazado por /docente/tutoria.
               AND (a.tipo IS NULL OR a.tipo != 'transversal')
+              -- Tutoría (TOE): se oculta del registro de notas MIENTRAS su area
+              -- no tenga competencias (hoy = sin calificaciones). El dia que se
+              -- agreguen competencias, la card aparece sola (future-proof por
+              -- datos, no por tipo). Forma NULL-safe: solo excluye tipo='tutoria'
+              -- sin competencias; area NULL u otros tipos pasan.
+              AND (a.tipo IS NULL OR a.tipo != 'tutoria'
+                   OR EXISTS (SELECT 1 FROM competencias ctu WHERE ctu.area_id = a.id))
             ORDER BY n.id, g.numero, s.nombre, a.orden, sa.orden
         ", [$periodoId, $periodoId, $periodoId, $periodoId, $docenteId]);
     }

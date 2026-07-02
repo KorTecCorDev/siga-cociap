@@ -431,11 +431,23 @@ class CargaAcademicaController extends BaseController
         }
 
         $seccion = $this->model->queryOne(
-            "SELECT anio_id FROM secciones WHERE id = ? LIMIT 1",
+            "SELECT anio_id, tutor_id FROM secciones WHERE id = ? LIMIT 1",
             [$seccionId]
         );
         if (!$seccion) return [null, null, 'Sección no válida.'];
         $anioId = (int) $seccion['anio_id'];
+
+        // Tutoría (TOE): es la hora del tutor con su sección; solo el tutor de
+        // esa sección puede dictarla.
+        if ($area['tipo'] === 'tutoria') {
+            $tutorId = (int) ($seccion['tutor_id'] ?? 0);
+            if ($tutorId === 0) {
+                return [null, null, 'La sección no tiene tutor asignado. Asigna el tutor antes de crear la carga de Tutoría.'];
+            }
+            if ($docenteId !== $tutorId) {
+                return [null, null, 'La carga de Tutoría solo puede asignarse al tutor de la sección.'];
+            }
+        }
 
         $datosCarga = [
             'docente_id'      => $docenteId,

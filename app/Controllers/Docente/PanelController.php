@@ -623,6 +623,10 @@ class PanelController extends BaseController
               -- /docente/tutoria. Sin esto, el conteo de la card del dashboard
               -- sumaba una carga fantasma al tutor.
               AND (a.tipo IS NULL OR a.tipo != 'transversal')
+              -- Tutoría (TOE): no cuenta como responsabilidad mientras su area no
+              -- tenga competencias (sin calificaciones). Ver getCargas. NULL-safe.
+              AND (a.tipo IS NULL OR a.tipo != 'tutoria'
+                   OR EXISTS (SELECT 1 FROM competencias ctu WHERE ctu.area_id = a.id))
             ORDER BY n.id, g.numero, s.nombre, a.orden, sa.orden
         ", [$periodoId, $periodoId, $docenteId]);
     }

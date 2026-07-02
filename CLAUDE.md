@@ -1687,6 +1687,54 @@ ser por columna/día, no una fila uniforme). Se analizará al final.
   en competencias editables (`!$compBloqueada && !$bloqueado`). Ámbar = acción
   pendiente; no choca con `--con-cambios` (ese pinta el borde durante el tipeo).
 
+## Tutoría (TOE) — horario sin calificaciones, calificable a futuro (02/07/2026)
+
+> Cada sección tiene su hora de **Tutoría** (TOE): un bloque de 45 min del tutor
+> con su sección, de coordinación/reflexión, **sin calificaciones hoy**. Debe verse
+> en el **horario del docente tutor**. Modelado future-proof (Opción A): el día que
+> se quiera calificar y mostrar en boleta, basta agregar competencias al área — la
+> tubería de notas/boleta la recoge sola. Migración `032`. Sin front nuevo.
+
+### Modelo — área `tipo='tutoria'` SIN competencias
+- **Migración `032_area_tutoria.sql`**: amplía `areas.tipo` a
+  `enum('area_curso','con_subareas','transversal','tutoria')` e inserta el área
+  **"Tutoría (TOE)" por nivel** (primaria id 23, secundaria id 24 en local; idempotente
+  con `NOT EXISTS`). **Aplicada en LOCAL; FALTA PROD.**
+- **Los dos ejes del sistema** (ver también horarios): "aparecer en horario" = ser
+  carga con bloques (`getHorario` NO filtra por tipo); "tener notas" = que el área
+  tenga **competencias**. Tutoría = carga con bloque + área sin competencias →
+  visible en horario, invisible a notas **por datos, no por un `if` de tipo**.
+
+### Creación (manual) y regla del tutor
+- Se crea como **una carga más** desde `/director/cargas/crear` (o editar): se elige
+  el área "Tutoría (TOE)" (aparece en el dropdown; `listarAreas` solo excluye `transversal`),
+  el docente y se digita el bloque de 45 min. El JS trata `tutoria` como área-curso
+  (sin subáreas) sin cambios.
+- **Solo el tutor de la sección** puede dictarla: `procesarFormulario` valida
+  `docente_id == secciones.tutor_id` cuando `area.tipo='tutoria'` (rechaza si la
+  sección no tiene tutor o el docente no es el tutor).
+- **Participa del control de solapes y suma su hora académica** como cualquier bloque
+  real (sin código extra: `verificarSolapes` y `horas_semanales` operan por sesiones).
+
+### Invisibilidad a notas HOY, reversible por datos
+- **Registro de notas**: `CalificacionController::getCargas` y
+  `PanelController::getCargasResumen` ocultan la carga de Tutoría **mientras su área
+  no tenga competencias** (predicado NULL-safe
+  `a.tipo != 'tutoria' OR EXISTS(competencias del área)`). Al agregar la primera
+  competencia, la card **aparece sola** — future-proof por datos.
+- **Boleta**: `getBoletaAlumno()` se engancha a competencias → hoy no muestra nada;
+  con competencias+bloqueo a futuro la recoge como área normal (literal en primaria,
+  numeral+literal en secundaria). **Sin cambios necesarios.**
+- **Orden de mérito**: `OrdenMeritoModel` excluye `a.tipo NOT IN ('transversal','tutoria')`
+  (líneas 112 y 184) — exclusión **permanente por tipo**, para que aun con notas a
+  futuro Tutoría NO pese en el ranking (mismo criterio que transversal).
+
+### Para HABILITAR calificaciones a futuro (checklist)
+1. `INSERT` de 1+ competencias en el área Tutoría del nivel (ids 23/24 en local).
+2. Nada más de código: registro de notas y boleta la muestran solas.
+3. Decidir presentación en boleta si TOE debe verse distinto a un `area_curso`
+   (hoy heredaría ese formato). El mérito ya la excluye.
+
 ## Notas importantes
 - `config/database.php` SÍ está en Git pero es un cargador SIN secretos: en prod lee
   las credenciales de `~/siga_secrets/database.php` (fuera del repo); en local usa el
