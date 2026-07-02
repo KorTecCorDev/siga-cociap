@@ -1395,6 +1395,58 @@ queda como traza de auditoría histórica. Se muestra junto al badge en `index` 
 - La búsqueda del index por texto que empiece con `P…` cae en la rama de nombre y
   no matchea el código provisional. Ajuste chico en `construirFiltros` si se pide.
 
+## Suspensiones / disciplina — decisión de diseño (02/07/2026)
+
+> **NO implementado.** Solo se fija el PRINCIPIO de diseño para no cometer un error
+> estructural cuando se construya. El colegio maneja faltas al reglamento con
+> suspensiones (1 a 4 días, máx.) y, al extremo, expulsión. El registro de
+> sanciones, la expulsión y el comportamiento de grilla se diseñarán JUNTOS como un
+> módulo disciplinario propio (diferido por el usuario).
+
+### El principio: las suspensiones NO se manejan con `desactivado`
+- `desactivado` significa *"el estudiante YA NO está matriculado"* (baja
+  administrativa / traslado de salida): apaga el login del apoderado
+  (`desactivarUsuarioDeEstudiante`) y las boletas públicas de TODOS los periodos
+  (`boletas_publicas.activa=0`), y lo saca del orden de mérito. Una suspensión es lo
+  contrario: el alumno **sigue matriculado** y cumple una medida **temporal**.
+- Una sanción exige lo que `desactivado` NO puede modelar: tipo de medida, duración
+  (inicio/fin, nº días), falta/artículo del reglamento, autoridad que la impone,
+  acta, estado (vigente/cumplida/anulada) e **historial acumulado** (varias sanciones
+  por año). `desactivado` solo tiene UN `motivo_estado` de texto y un único estado.
+- **Dominio propio, separado** del ciclo de vida de la matrícula. La **nota de
+  conducta es INDEPENDIENTE**: una sanción NO toca la nota (el registro disciplinario
+  va aparte).
+
+### Requisito ya definido para el módulo futuro
+- **El alumno suspendido debe DESAPARECER de la grilla de calificaciones por criterio**
+  y reaparecer cuando vuelve a matrícula `Aprobado`. Esto es un comportamiento NUEVO:
+  hoy `Docente\CalificacionController::getAlumnosSeccion` incluye `aprobada`,
+  `pendiente` y `desactivado`; el ÚNICO que se cae de la grilla es `trasladado`.
+  Implica un **estado temporal propio** (conceptualmente `suspendido`), **NO**
+  `desactivado`.
+
+### Tensiones a resolver ANTES de codificar (cuando se retome)
+1. **Disparador:** el estado "suspendido" debe nacer del REGISTRO de la sanción
+   (fechas/tipo/autoridad). Sin ese registro sería un estado huérfano — el mismo
+   defecto que `desactivado`.
+2. **Duración corta vs. grilla:** una suspensión de 1-4 días entrando/saliendo de la
+   grilla genera huecos (si el docente califica ese día, el suspendido queda sin
+   fila → recalificar al volver). Definir si "salir de la grilla" aplica a
+   suspensiones cortas o solo a separaciones largas/indefinidas.
+3. **No destruir lo registrado:** matrícula y notas persisten (la suspensión es
+   temporal); solo se OCULTAN de la grilla y reaparecen intactas al volver.
+- **Expulsión:** único caso donde el desenlace SÍ dispararía una baja de matrícula
+  (`desactivado`/traslado), pero como CONSECUENCIA registrada aparte, no como el
+  registro mismo. A decidir con el módulo completo.
+
+### Interino aceptado (parche, no solución)
+Hasta tener el módulo, se PUEDE usar la desactivación de matrícula como paño
+temporal (baja reversible con motivo explícito, p. ej. `"Suspensión disciplinaria
+N días (dd/mm–dd/mm)"`), **entendiendo sus límites**: (a) NO saca al alumno de la
+grilla (sigue apareciendo para calificar); (b) apaga el login del apoderado y las
+boletas de todos los periodos; (c) es manual y sin traza disciplinaria. Es un
+parche consciente, no el comportamiento correcto.
+
 ## Seguridad y estado REAL de producción (sesión 8 — endurecimiento)
 
 > Esta sección refleja cómo quedó realmente el despliegue y **SUPERSEDE** lo que
