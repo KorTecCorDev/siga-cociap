@@ -333,8 +333,10 @@ body.boleta-body {
         font-size: 5.5pt;
         line-height: 1.25;
         vertical-align: top;
-        word-break: break-word;
-        hyphens: auto;
+        // overflow-wrap (no word-break/hyphens): html2canvas ajusta las lineas
+        // de forma mas fiable entre motores, evitando el solape de nombres largos
+        // (p. ej. C17/C22 con prefijo de subarea) al exportar la boleta a PDF.
+        overflow-wrap: break-word;
         padding: 0.3mm 0.5mm 0.3mm 2.5mm;
     }
 
@@ -365,6 +367,11 @@ body.boleta-body {
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        // Respaldo para html2canvas (PDF de /archivar): si el motor ignora
+        // -webkit-line-clamp, la altura maxima de 2 lineas (2 x 5pt x 1.15)
+        // recorta igual, evitando que la conclusion se encime sobre la fila
+        // siguiente. En pantalla/impresion normal el clamp sigue mandando.
+        max-height: 11.5pt;
         font-size: 5pt;
         font-style: italic;
         color: #333;
