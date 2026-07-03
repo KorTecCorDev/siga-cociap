@@ -159,21 +159,15 @@ ser por columna/día, no una fila uniforme). Se analizará al final.
 - **Solape real preexistente conocido (NO tocado):** CLEMENTE ANGELES, lunes,
   1°C (14:40-16:10) vs 5°B (15:45-17:20) — debe resolverlo el colegio.
 
-### Pendientes vivos de horarios (al 01/07/2026)
-- **Migraciones 030 y 031:** APLICADAS en LOCAL y PROD. LOCAL verificada (0 sesiones
-  cruzadas, 0 bloques ≤1 min, horas académicas recalculadas). Query de verificación:
-  `SELECT COUNT(*) FROM sesiones_horario sh INNER JOIN cargas_academicas ca ON
-  ca.id=sh.carga_id WHERE sh.seccion_id != ca.seccion_id;` → 0.
-- **Migraciones en prod:** confirmadas TODAS hasta la 032 (03/07/2026), incl. 023/024/028.
-- **Digitación de horarios (la hace el usuario en prod):** 1°A secundaria (11 cursos
-  "sin horario propio" tras la 031) y las áreas que quedaron sin bloques reales tras
-  la 030 (CyT/Matemática de primaria 4°-6°, Arte y Cultura 1°A prim., etc.). 3°B
-  secundaria YA quedó completo.
-- **Por coordinar con el colegio:** el solape real de CLEMENTE ANGELES (arriba).
-- **Hallazgo NO implementado (tarea futura si se pide):** "Reemplazar docente"
-  en sección unidocente no actualiza `secciones.tutor_id` ni opera sobre todas
-  las cargas del tutor → el entrante pierde `es_aula` (vista consolidada,
-  Tutoría/Conducta). También pendiente de siempre: modelado de recreos.
+### Verificación de las migraciones 030/031 (aplicadas en LOCAL y PROD)
+Query de sanidad — debe dar 0 sesiones cruzadas:
+`SELECT COUNT(*) FROM sesiones_horario sh INNER JOIN cargas_academicas ca ON
+ca.id=sh.carga_id WHERE sh.seccion_id != ca.seccion_id;`
+Tampoco deben quedar bloques ≤1 min.
+
+> Los pendientes vivos de horarios (digitación de 1°A secundaria y áreas sin
+> bloques, solape de CLEMENTE ANGELES, hallazgo de "Reemplazar docente" en
+> unidocente, recreos) se rastrean en `docs/ESTADO.md`.
 
 ## Tutoría (TOE) — horario sin calificaciones, calificable a futuro (02/07/2026)
 

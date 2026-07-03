@@ -22,6 +22,8 @@
 - **Limpieza menor:** quitar del `.gitignore` las reglas obsoletas de
   `public/assets/img/firmas/`; `AuthMiddleware` está SIN USAR (la auth es por
   controlador) → decidir si se conecta o se elimina.
+- **Nómina detallada admin/RA — etapa 2** (resumen estadístico); la etapa 1
+  (nómina imprimible global con filtros) está implementada. Ver `docs/modulos/admin.md`.
 - **Búsqueda del index de matrículas** no matchea códigos provisionales `P…`
   (cae en la rama de nombre). Ajuste chico en `construirFiltros` si se pide.
 - **"Reemplazar docente" en sección unidocente** no actualiza `secciones.tutor_id`

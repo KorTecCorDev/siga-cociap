@@ -149,7 +149,7 @@ En `/docente/mis-cargas` (vista `mis-cargas.php`, SASS `pages/_dashboard.scss`):
 > reportes A4, nóminas) tenían un botón **"Volver"** que, en móvil, en vez de
 > regresar a la ventana original **creaba una copia** del origen y las pestañas
 > se **acumulaban** → lentitud en celulares. Reemplazado por **"✕ Cerrar"** que
-> cierra la ventana de verdad. Commit `8d56103` en `dev` (pendiente merge a `main`).
+> cierra la ventana de verdad. Commit `8d56103` (ya en `dev` y `main`).
 
 ### Causa raíz
 - Los documentos se abren con `<a target="_blank" rel="noopener">` → la pestaña la

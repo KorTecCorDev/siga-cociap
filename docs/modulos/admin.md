@@ -154,3 +154,14 @@ Todos los bloques de firma (con y sin imagen) tienen un contenedor de **altura f
   4ª firma: nueva fila centrada. Soporta hasta 6 firmas (2 filas de 3).
 - Firmas: Director EBR + 1 tutor por sección del grado (dinámico desde `$tutores`).
 - `$infoConteos` muestra solo el número de áreas (no competencias — varían por docente).
+
+## Nómina detallada admin/RA (22/06/2026)
+
+> Reporte de matrículas para el comité, en 2 etapas. Documentado desde la
+> memoria de sesión al crear la red (03/07/2026).
+
+- **Etapa 1 (implementada):** nómina imprimible GLOBAL con filtros, agrupada por
+  sección. NO toca la nómina del docente (`/docente/nomina`), que es otra vista.
+- **Etapa 2 (pendiente):** resumen estadístico.
+- **Retorno R3:** un alumno con retorno de grado activo aparece en su matrícula
+  oficial Y en la operativa (comportamiento esperado en este reporte).

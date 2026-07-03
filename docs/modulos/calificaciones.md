@@ -323,6 +323,19 @@ La completitud de transversales / piso de carga cuenta notas crudas en
 - El `formulario` editable sigue clavado al periodo activo (`getPeriodoActivo`);
   el histórico es una ruta paralela de solo lectura.
 
+## Guardar criterio atómico + validación de omisión (26/06/2026)
+
+> Fix del "promedio fantasma". Documentado desde la memoria de sesión al crear
+> la red (03/07/2026).
+
+- `guardar()` (el Confirmar por criterio) es **atómico**: valida la omisión en el
+  SERVIDOR — un alumno en blanco sin motivo de omisión responde **422** y no
+  guarda nada. El JS hace **un solo fetch** (antes eran dos: notas + omisiones,
+  con estados intermedios inconsistentes).
+- `recalcularPromedioSeccion` limpia los huérfanos en `calificaciones` (DELETE de
+  filas sin nota viva; ver regla "fila ⟺ nota viva" en CLAUDE.md).
+- **NUNCA usar `guardarNotasMasivas` dentro de una transacción** (maneja la suya).
+
 ## Fixes importantes aplicados (sesión 2)
 - `periodos.nombre_display` es la columna correcta (no `nombre`). Si ves
   `Unknown column 'p.nombre'` en queries de periodos, verificar esto.

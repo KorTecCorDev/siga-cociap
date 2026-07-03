@@ -163,8 +163,9 @@ NUNCA CSS inline en PHP (convención del proyecto).
 - Solo competencias con docente que aprobó/bloqueó (ya lo garantiza
   `getBoletaAlumno()` con su INNER JOIN a `bloqueos_competencia`).
 - Código permanente (no se regenera). Toda la boleta visible (no resumen).
-- QR vía `chart.googleapis.com` (mismo patrón que boleta digital sesión 3);
-  se oculta sin internet. El QR apunta a `/boleta-publica` con el código.
+- QR generado con `qrcode.min.js` LOCAL (nunca servicios de terceros — la
+  mención original a Google Charts quedó obsoleta). El QR apunta a
+  `/boleta-publica` con el código.
 - Vista pública sin sesión, sin navbar, sin datos de otros alumnos.
 - CSRF con `$this->validateCsrf()` en `POST /boleta-publica/consultar`.
 
