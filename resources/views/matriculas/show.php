@@ -276,9 +276,9 @@ $labelDoc = [
         <p class="form-section-title">Boleta</p>
         <p class="text-sm text-muted mb-sm">Consulta la boleta del estudiante en pantalla o imprímela en formato físico A4.</p>
         <div class="btn-group">
-            <a href="<?= url('boleta/digital/' . $tokenBoleta) ?>" target="_blank" rel="noopener"
+            <a href="<?= url('matriculas/' . $matricula['id'] . '/boleta') ?>" target="_blank" rel="noopener"
                class="btn btn--secondary">Ver boleta digital</a>
-            <a href="<?= url('boleta/ver/' . $tokenBoleta) ?>" target="_blank" rel="noopener"
+            <a href="<?= url('matriculas/' . $matricula['id'] . '/boleta/imprimir') ?>" target="_blank" rel="noopener"
                class="btn btn--secondary">
                 <span class="btn-icon btn-icon--print" aria-hidden="true"></span>
                 Imprimir boleta

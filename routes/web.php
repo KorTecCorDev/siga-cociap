@@ -141,6 +141,11 @@ $router->get( '/matriculas/{id}/retorno/revertir', 'Matricula\RetornoGradoContro
 $router->post('/matriculas/{id}/retorno/revertir', 'Matricula\RetornoGradoController@revertir');
 $router->get( '/matriculas/{id}/retorno',        'Matricula\RetornoGradoController@create');
 $router->post('/matriculas/{id}/retorno',        'Matricula\RetornoGradoController@store');
+// Boleta INTERNA de gestion (admin/registro/secretarias): mismo flujo que la del
+// docente (muestra BORRADOR mientras el bimestre no cierra). Distinta de la
+// publica por token (/boleta/ver/{token}), que sigue mostrando SOLO lo oficial.
+$router->get( '/matriculas/{id}/boleta/imprimir', 'Boleta\BoletaController@verImprimirMatricula');
+$router->get( '/matriculas/{id}/boleta',          'Boleta\BoletaController@verDigitalMatricula');
 // El detalle {id} va al FINAL para no capturar los sub-recursos anteriores.
 $router->get( '/matriculas/{id}',                'Matricula\MatriculaController@show');
 

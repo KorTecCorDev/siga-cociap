@@ -179,11 +179,87 @@ class BoletaController extends BaseController
             exit;
         }
 
-        $anioId = (int) $mat['anio_id'];
+        $periodoId = $this->periodoPublicableConNotas((int) $mat['anio_id'], $matriculaId);
 
-        // Solo periodos PUBLICABLES: cerrado (OFICIAL) o activo con boletas
-        // aprobadas (BORRADOR, Hito A). Un bimestre en registro aun NO tiene
-        // boleta para el docente -> se muestra hasta el ultimo publicable.
+        if ($periodoId === null) {
+            http_response_code(404);
+            require VIEW_PATH . '/shared/404.php';
+            exit;
+        }
+
+        return $periodoId;
+    }
+
+    /**
+     * GET /matriculas/{matricula_id}/boleta
+     * Boleta DIGITAL interna para la gestion de matriculas (admin, registro y
+     * secretarias). Mismo flujo que la del docente: muestra el BORRADOR mientras
+     * el bimestre no cierra. Distinta de la publica por token (/boleta/digital/
+     * {token}), que sigue mostrando SOLO lo oficial. Autorizada por rol; no
+     * restringe por nivel (estos roles gestionan cualquier matricula).
+     */
+    public function verDigitalMatricula($matriculaId): void
+    {
+        $this->requireRole(['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa']);
+        $matriculaId = (int) $matriculaId;
+        $periodoId   = $this->resolverBoletaGestion($matriculaId);
+
+        $this->render($matriculaId, $periodoId, 'digital', [
+            'vistaPrevia' => $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
+        ]);
+    }
+
+    /**
+     * GET /matriculas/{matricula_id}/boleta/imprimir
+     * Version IMPRIMIBLE (A4) de la boleta interna de gestion. Mismo alcance y
+     * flujo que verDigitalMatricula.
+     */
+    public function verImprimirMatricula($matriculaId): void
+    {
+        $this->requireRole(['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa']);
+        $matriculaId = (int) $matriculaId;
+        $periodoId   = $this->resolverBoletaGestion($matriculaId);
+
+        $this->render($matriculaId, $periodoId, 'print', [
+            'vistaPrevia' => $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
+        ]);
+    }
+
+    /**
+     * Resuelve el periodo a mostrar para la boleta interna de gestion: el ultimo
+     * periodo publicable (cerrado u activo con Hito A aprobado) con notas del
+     * alumno. A diferencia de resolverBoletaDocente NO valida alcance por nivel,
+     * porque los roles de gestion de matricula pueden abrir cualquier matricula.
+     * 404 si la matricula esta desactivada/inexistente o no hay periodo publicable.
+     */
+    private function resolverBoletaGestion(int $matriculaId): int
+    {
+        $mat = $this->calModel->queryOne(
+            "SELECT id, anio_id FROM matriculas WHERE id = ? AND estado <> 'desactivado' LIMIT 1",
+            [$matriculaId]
+        );
+
+        $periodoId = $mat
+            ? $this->periodoPublicableConNotas((int) $mat['anio_id'], $matriculaId)
+            : null;
+
+        if ($periodoId === null) {
+            http_response_code(404);
+            require VIEW_PATH . '/shared/404.php';
+            exit;
+        }
+
+        return $periodoId;
+    }
+
+    /**
+     * Ultimo periodo PUBLICABLE con notas del alumno: cerrado (OFICIAL) o activo
+     * con boletas aprobadas (BORRADOR, Hito A). Un bimestre en registro aun NO
+     * tiene boleta. Retorna el id o null si no hay ninguno. Compartido por el
+     * flujo del docente y el de gestion de matriculas.
+     */
+    private function periodoPublicableConNotas(int $anioId, int $matriculaId): ?int
+    {
         $periodo = $this->calModel->queryOne("
             SELECT p.id
             FROM periodos p
@@ -202,13 +278,7 @@ class BoletaController extends BaseController
             LIMIT 1
         ", [$anioId, $matriculaId]);
 
-        if (!$periodo) {
-            http_response_code(404);
-            require VIEW_PATH . '/shared/404.php';
-            exit;
-        }
-
-        return (int) $periodo['id'];
+        return $periodo ? (int) $periodo['id'] : null;
     }
 
     /** Estado de boleta ('registro'|'borrador'|'oficial') de un periodo. */
