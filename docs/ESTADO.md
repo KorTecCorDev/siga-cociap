@@ -63,5 +63,5 @@
 ## Git
 - `dev` = rama de trabajo; `main` = producción (auto-deploy en Hostinger).
   **Preguntar SIEMPRE antes de mergear `dev` → `main`.**
-- Pendiente de merge a `main` (al 03/07): fixes de boleta `8dcff8a` y `18b8137`
-  + los commits de la red de documentación.
+- `dev` y `main` sincronizados en `67e2704` (03/07/2026): fixes de boleta +
+  red de documentación en prod.
