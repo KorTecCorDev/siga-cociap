@@ -2,6 +2,13 @@
 
 > Extraído VERBATIM de CLAUDE.md el 03/07/2026 (fase 1 de la red de documentación).
 > Los invariantes globales y la tabla de enrutamiento viven en CLAUDE.md.
+>
+> **OJO — lectura cronológica:** las secciones antiguas (sesiones 2/3/6) describen
+> rutas por id y por código que YA NO EXISTEN; la sección
+> "Boleta: documento único por token (24/06/2026)" las supersede. Rutas vigentes:
+> público por token (`/boleta/digital/{token}`, `/boleta/ver/{token}`), interno
+> docente (`/docente/boleta/{id}[/imprimir]`) e interno gestión
+> (`/matriculas/{id}/boleta[/imprimir]`). Ante duda, `routes/web.php` manda.
 
 ## Módulo de boleta imprimible (sesión 2)
 - **Ruta:** `GET /boleta/{matricula_id}/{periodo_id}`
@@ -202,8 +209,12 @@ NUNCA CSS inline en PHP (convención del proyecto).
   `GET /boleta/digital/{token}` (`verDigitalToken`) y `GET /boleta/ver/{token}` (`verToken`).
 - **Interno (docente/admin):** autenticado por id + alcance (`/docente/boleta/{id}[/imprimir]`),
   puede ver BORRADOR. Por estar tras login + 403 por alcance NO es enumerable → se queda por id.
-- `padre/notas` y `matriculas/show` ahora enlazan por token (sus controladores resuelven
-  el token vía `getOCrearToken`).
+- `padre/notas` enlaza por token (su controlador resuelve el token vía `getOCrearToken`).
+- **(02/07/2026, commit `8dcff8a`)** `matriculas/show` YA NO enlaza por token: usa el
+  flujo INTERNO (`GET /matriculas/{id}/boleta[/imprimir]` →
+  `verDigitalMatricula`/`verImprimirMatricula`, roles admin/registro_academico/
+  secretaría_academica/secretaria_administrativa) para que gestión vea el BORRADOR,
+  igual que el docente. La pública por token sigue mostrando SOLO lo oficial.
 
 ### Tracking de visitas — `matriculas.token_consultas` (migración `028`)
 - `028_boleta_token_tracking.sql`: `token_consultas INT` + `token_ultima_consulta DATETIME`,
