@@ -37,6 +37,17 @@
 - **Módulo de suspensiones/disciplina** (diferido): principios de diseño fijados
   en `docs/decisiones-diferidas.md` — NUNCA manejarlas con estado `desactivado`.
 
+## Exportación SIAGIE (implementada 03/07 — pendientes de cierre)
+- **Piloto de re-importación:** subir al SIAGIE UN archivo llenado (1°A B1 ya
+  probado en local) y confirmar que lo acepta, ANTES del lote completo de
+  primaria. Si rechazara los shared strings anexados, el fallback está previsto
+  en `docs/modulos/export-siagie.md`.
+- **Discrepancia de catálogo — Inglés C1:** el SIAGIE la llama "Se comunica
+  ORALMENTE en inglés como lengua extranjera"; SIGA la tiene sin "oralmente"
+  (competencias.id=1). Decidir: renombrar en SIGA al nombre oficial CN (afecta
+  boletas) o dejarla — hoy esa columna queda en blanco y reportada.
+- **Variante SECUNDARIA:** pendiente de su archivo modelo (numeral+literal).
+
 ## Pendientes operativos (usuario / colegio)
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
   (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la

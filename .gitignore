@@ -49,3 +49,9 @@ import_matriculas.php
 # Node
 node_modules/
 package-lock.json
+
+# SIAGIE — archivos con datos de estudiantes, respaldos y reportes (nunca versionar)
+scripts/siagie/modelos/
+scripts/siagie/backup/
+scripts/siagie/**/*.xlsx
+scripts/siagie/**/*_reporte_*.txt

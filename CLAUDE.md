@@ -182,6 +182,7 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | Horarios, cargas académicas, solapes, Tutoría TOE | `docs/modulos/horarios.md` |
 | Orden de mérito, snapshot, desempates, rectificaciones | `docs/modulos/orden-merito.md` |
 | Usuarios, secciones/tutores, Director EBR, panel de bloqueos, conducta | `docs/modulos/admin.md` |
+| Exportación de notas al SIAGIE (llenado de Excel oficiales) | `docs/modulos/export-siagie.md` |
 | UI: wayfinding, dashboard docente, botón Cerrar, tablas sticky | `docs/modulos/ui.md` |
 | Producción, seguridad, despliegue, secretos, setup SQL desde cero | `docs/infraestructura.md` |
 | Decisiones diferidas (suspensiones, compuerta de publicación, capacitación) | `docs/decisiones-diferidas.md` |
