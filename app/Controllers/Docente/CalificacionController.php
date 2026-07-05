@@ -994,28 +994,40 @@ class CalificacionController extends BaseController
         $teniaCals = $this->critModel->tieneCalificaciones($id);
         $user      = Session::user();
 
-        $ok = $this->critModel->eliminarConAuditoria($id, $user['id']);
+        // Paso 1 (integridad): el borrado del criterio y la limpieza de sus
+        // calificaciones huerfanas deben ser ATOMICOS. Antes el recalculo iba en
+        // un try/catch que TRAGABA el error: si fallaba, el criterio quedaba
+        // borrado pero sus calificaciones huerfanas sobrevivian (origen del bug
+        // "competencia fantasma"). Con la transaccion, o se completa todo o se
+        // revierte todo; nunca queda una nota colgada ni se toca una nota valida.
+        $this->calModel->beginTransaction();
+        try {
+            if (!$this->critModel->eliminarConAuditoria($id, $user['id'])) {
+                throw new \RuntimeException('eliminarConAuditoria no afecto ninguna fila');
+            }
 
-        if (!$ok) {
-            $this->json(['success' => false, 'mensaje' => 'Error al eliminar el criterio.'], 500);
-        }
-
-        if ($teniaCals) {
-            try {
+            if ($teniaCals) {
                 $this->calModel->recalcularPromedioSeccion(
                     $cargaId,
                     $competenciaId,
                     $periodoId,
                     $user['id']
                 );
-            } catch (\Exception $e) {
-                log_error('Error al recalcular promedio tras eliminar criterio', [
-                    'criterio_id'    => $id,
-                    'carga_id'       => $cargaId,
-                    'competencia_id' => $competenciaId,
-                    'error'          => $e->getMessage(),
-                ]);
             }
+
+            $this->calModel->commit();
+        } catch (\Throwable $e) {
+            $this->calModel->rollback();
+            log_error('Error al eliminar criterio: rollback, no se modifico nada', [
+                'criterio_id'    => $id,
+                'carga_id'       => $cargaId,
+                'competencia_id' => $competenciaId,
+                'error'          => $e->getMessage(),
+            ]);
+            $this->json([
+                'success' => false,
+                'mensaje' => 'No se pudo eliminar el criterio. No se modifico ningun dato.',
+            ], 500);
         }
 
         $this->json([
@@ -1540,6 +1552,19 @@ class CalificacionController extends BaseController
 
         $sinCriterios = empty($resumen['criterios']);
         if ($sinCriterios && $confirmaSinNotas) {
+            // Paso 2 (integridad): "No se evaluó" crea un bloqueo SIN criterios.
+            // Si la competencia todavía tiene calificaciones (huérfanas, porque no
+            // hay criterio vivo), bloquear aquí produciría el estado fantasma
+            // (bloqueo + notas + 0 criterios) que aparecía en la boleta. Se rechaza
+            // para no crear la inconsistencia. Con el Paso 1 esto no debería
+            // ocurrir; es defensa en profundidad (no borra ninguna nota).
+            if ($this->calModel->tieneCalificacionesEnCompetencia(
+                $cargaId, $competenciaId, (int) $periodo['id']
+            )) {
+                return 'Esta competencia tiene calificaciones sin criterios vivos '
+                     . '(estado inconsistente). Recarga la página; si el problema '
+                     . 'persiste, avisa a administración para depurarla.';
+            }
             // Piso de carga: el docente no puede dejar su carga sin ninguna
             // calificación. Si marcar esta como "no se evaluó" vaciaría la carga,
             // se rechaza (el director sí puede forzarlo desde el panel de bloqueos).

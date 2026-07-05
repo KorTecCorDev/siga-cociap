@@ -208,6 +208,59 @@ class ControlOperativoModel extends BaseModel
         return array_values($porSeccion);
     }
 
+    // ── Chequeo 5: competencias fantasma (integridad) ────────────
+
+    /**
+     * Competencias FANTASMA: BLOQUEADAS y con calificaciones pero SIN ningún
+     * criterio vivo. Estado inconsistente (origen del bug de la boleta de 2°B):
+     * aparecería en la boleta pese a no haber sido evaluada. El guard de
+     * getBoletaAlumno ya la oculta y la migración 033 la purga; este chequeo la
+     * SACA A LA LUZ para que cualquier huérfano nuevo se detecte al instante,
+     * no meses después en una boleta. Detección por patrón, sin IDs.
+     */
+    public function competenciasFantasma(int $periodoId): array
+    {
+        return $this->query("
+            SELECT
+                n.nombre             AS nivel_nombre,
+                g.nombre_display     AS grado_nombre,
+                sec.nombre           AS seccion_nombre,
+                a.nombre             AS area_nombre,
+                comp.codigo_minedu   AS competencia_codigo,
+                comp.nombre_completo AS competencia_nombre,
+                CONCAT(pd.apellido_paterno, ' ', pd.nombres) AS docente,
+                (SELECT COUNT(*) FROM calificaciones c
+                   WHERE c.carga_id       = b.carga_id
+                     AND c.competencia_id = b.competencia_id
+                     AND c.periodo_id     = b.periodo_id) AS n_calificaciones
+            FROM (SELECT DISTINCT carga_id, competencia_id, periodo_id
+                  FROM bloqueos_competencia WHERE periodo_id = ?) b
+            INNER JOIN cargas_academicas cg ON cg.id   = b.carga_id
+            INNER JOIN competencias comp    ON comp.id = b.competencia_id
+            LEFT  JOIN subareas suba        ON suba.id = cg.subarea_id
+            INNER JOIN areas a              ON a.id    = COALESCE(cg.area_id, suba.area_id)
+            INNER JOIN secciones sec        ON sec.id  = cg.seccion_id
+            INNER JOIN grados g             ON g.id    = sec.grado_id
+            INNER JOIN niveles n            ON n.id    = g.nivel_id
+            LEFT  JOIN usuarios ud          ON ud.id   = cg.docente_id
+            LEFT  JOIN personas pd          ON pd.id   = ud.persona_id
+            WHERE EXISTS (
+                    SELECT 1 FROM calificaciones c
+                    WHERE c.carga_id       = b.carga_id
+                      AND c.competencia_id = b.competencia_id
+                      AND c.periodo_id     = b.periodo_id
+                  )
+              AND NOT EXISTS (
+                    SELECT 1 FROM criterios cr
+                    WHERE cr.carga_id       = b.carga_id
+                      AND cr.competencia_id = b.competencia_id
+                      AND cr.periodo_id     = b.periodo_id
+                      AND cr.eliminado_en   IS NULL
+                  )
+            ORDER BY n.nombre, g.numero, sec.nombre, a.nombre
+        ", [$periodoId]);
+    }
+
     // ── Chequeo 3: secciones sin tutor (año activo) ──────────────
 
     public function seccionesSinTutor(): array

@@ -71,6 +71,12 @@ class ControlOperativoController extends BaseController
                 'accion_url'=> url('director/bloqueos'),
                 'items'     => $this->model->competenciasSinBloquear($periodoId),
             ],
+            'fantasmas' => [
+                'titulo'    => 'Competencias fantasma (bloqueadas sin criterios)',
+                'severidad' => 'critico',
+                'accion'    => 'Requiere depuracion de datos (migracion 033)',
+                'items'     => $this->model->competenciasFantasma($periodoId),
+            ],
             'tutores' => [
                 'titulo'    => 'Secciones sin tutor asignado',
                 'severidad' => 'advertencia',

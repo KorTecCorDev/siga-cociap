@@ -360,6 +360,19 @@ class CalificacionModel extends BaseModel
                   SELECT 1 FROM areas at2
                   WHERE at2.id = comp.area_id AND at2.tipo = 'transversal'
               )
+              -- Blindaje anti-fantasma (bug 2B Arte; ver migracion 033): una
+              -- competencia solo entra a la boleta si conserva AL MENOS UN
+              -- criterio VIVO Y CONFIRMADO. Un bloqueo + promedio huerfanos
+              -- (criterios borrados tras evaluar) NO representa una evaluacion
+              -- oficial y no debe aparecer, aunque cumpla calificaciones ∩ bloqueo.
+              AND EXISTS (
+                  SELECT 1 FROM criterios cr_guard
+                  WHERE cr_guard.carga_id       = cal.carga_id
+                    AND cr_guard.competencia_id = cal.competencia_id
+                    AND cr_guard.periodo_id     = cal.periodo_id
+                    AND cr_guard.eliminado_en   IS NULL
+                    AND cr_guard.confirmado_en  IS NOT NULL
+              )
             ORDER BY a.orden, comp.orden
         ", [$matriculaId, $periodoId]);
 
@@ -475,6 +488,28 @@ class CalificacionModel extends BaseModel
         ", [$cargaId, $competenciaId, $periodoId]);
 
         return $resultado !== null;
+    }
+
+    /**
+     * ¿La competencia tiene alguna fila en `calificaciones`? Se usa en el guard
+     * de "No se evaluó": si NO hay criterios vivos pero SÍ hay calificaciones,
+     * son huérfanas y bloquear crearía el estado fantasma (bloqueo + notas + 0
+     * criterios). Ver getBoletaAlumno y migración 033.
+     */
+    public function tieneCalificacionesEnCompetencia(
+        int $cargaId,
+        int $competenciaId,
+        int $periodoId
+    ): bool {
+        $r = $this->queryOne("
+            SELECT id FROM calificaciones
+            WHERE carga_id       = ?
+              AND competencia_id = ?
+              AND periodo_id     = ?
+            LIMIT 1
+        ", [$cargaId, $competenciaId, $periodoId]);
+
+        return $r !== null;
     }
 
     /**

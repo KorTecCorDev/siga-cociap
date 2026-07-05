@@ -247,6 +247,22 @@ $badgeSeveridad = static fn(string $sev): string =>
                         <?php endforeach; ?>
                         </tbody>
 
+                    <?php elseif ($clave === 'fantasmas'): ?>
+                        <thead><tr><th>Nivel</th><th>Grado</th><th class="text-center">Sección</th><th>Área</th><th>Competencia</th><th>Docente</th><th class="text-center">Notas</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($c['items'] as $it): ?>
+                            <tr>
+                                <td><?= e($it['nivel_nombre']) ?></td>
+                                <td><?= e($it['grado_nombre']) ?></td>
+                                <td class="text-center"><?= e($it['seccion_nombre']) ?></td>
+                                <td><?= e($it['area_nombre']) ?></td>
+                                <td><?= e(trim(($it['competencia_codigo'] ?? '') . ' ' . $it['competencia_nombre'])) ?></td>
+                                <td><?= e($it['docente'] ?? '—') ?></td>
+                                <td class="text-center"><?= (int) $it['n_calificaciones'] ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+
                     <?php else: /* matriculas */ ?>
                         <thead><tr><th>Estudiante</th><th>Grado / Sección</th><th class="text-center">Estado</th></tr></thead>
                         <tbody>
