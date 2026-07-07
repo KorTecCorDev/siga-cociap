@@ -41,7 +41,17 @@ class AuthController extends BaseController
      */
     public function login(): void
     {
-        $this->validateCsrf();
+        // CSRF del login: auto-recuperable. Si el token quedó desfasado (sesión
+        // reciclada por inactividad/GC mientras la página de login seguía abierta,
+        // botón Atrás o pestaña vieja), NO cortamos con un 403 sin salida —eso
+        // dejaba al usuario atascado en /login/procesar con "Token de seguridad
+        // inválido"—. Volvemos a /login con el aviso de sesión expirada (mismo
+        // mensaje que el timeout real, ya renderizado por la vista) y un token
+        // fresco, para que reintente sin fricción. El resto de formularios (AJAX
+        // que esperan JSON) siguen usando el validateCsrf() estricto.
+        if (!Session::verifyCsrf($this->input('_csrf_token', ''))) {
+            redirect(url('login') . '?timeout=1');
+        }
 
         $dni      = trim($this->input('dni', ''));
         $password = $this->input('password', '');
