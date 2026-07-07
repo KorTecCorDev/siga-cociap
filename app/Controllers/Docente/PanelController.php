@@ -593,14 +593,66 @@ class PanelController extends BaseController
                            WHERE (ca.subarea_id IS NOT NULL AND c2.subarea_id = ca.subarea_id)
                               OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL AND c2.area_id = ca.area_id)
                        ) + (
-                           SELECT COUNT(*) FROM competencias ct
-                           INNER JOIN areas at2 ON at2.id = ct.area_id
-                           WHERE at2.tipo = 'transversal' AND at2.nivel_id = n.id
+                           -- Transversales TIC/GAMA: se cuentan UNA vez por area, en la
+                           -- carga dueña (subarea de menor orden). UNIDOCENTE: sin la
+                           -- logica de dueña se sumaban a las N cargas del aula mientras
+                           -- los bloqueos solo viven en la dueña, dejando el avance
+                           -- atascado (ej. 31/45 = 69% aunque todo este aprobado). Misma
+                           -- regla que getCargas y TransversalModel::estadoCargasSeccion.
+                           -- Polidocente (es_unidocente = 0): cada carga cuenta las suyas
+                           -- (comportamiento intacto).
+                           CASE WHEN s.es_unidocente = 1
+                                     AND ca.id <> (
+                                         SELECT cad.id FROM cargas_academicas cad
+                                         LEFT JOIN subareas sad ON sad.id = cad.subarea_id
+                                         WHERE cad.seccion_id = ca.seccion_id
+                                           AND cad.estado     = 'activa'
+                                           AND COALESCE(cad.area_id, sad.area_id) = COALESCE(ca.area_id, sa.area_id)
+                                         ORDER BY COALESCE(sad.orden, 0), cad.id LIMIT 1
+                                     )
+                                THEN 0
+                                ELSE (
+                                    SELECT COUNT(*) FROM competencias ct
+                                    INNER JOIN areas at2 ON at2.id = ct.area_id
+                                    WHERE at2.tipo = 'transversal' AND at2.nivel_id = n.id
+                                )
+                           END
                        )
                    ) AS total_comp,
                    (
-                       SELECT COUNT(*) FROM bloqueos_competencia bc
-                       WHERE bc.carga_id = ca.id AND bc.periodo_id = ?
+                       -- Académicas bloqueadas de la carga (filtradas a SU universo
+                       -- de competencias propias) + transversales bloqueadas con la
+                       -- MISMA lógica de dueña que total_comp. Antes se contaban TODOS
+                       -- los bloqueos de la carga; tras un cierre que bloquea TIC/GAMA
+                       -- en cada subárea, las no-dueña sumaban transversales que el
+                       -- denominador (dueña) no cuenta -> el avance superaba 100%.
+                       (
+                           SELECT COUNT(*) FROM bloqueos_competencia bc
+                           WHERE bc.carga_id = ca.id AND bc.periodo_id = ?
+                             AND bc.competencia_id IN (
+                                 SELECT cb.id FROM competencias cb
+                                 WHERE (ca.subarea_id IS NOT NULL AND cb.subarea_id = ca.subarea_id)
+                                    OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL AND cb.area_id = ca.area_id)
+                             )
+                       ) + (
+                           CASE WHEN s.es_unidocente = 1
+                                     AND ca.id <> (
+                                         SELECT cad.id FROM cargas_academicas cad
+                                         LEFT JOIN subareas sad ON sad.id = cad.subarea_id
+                                         WHERE cad.seccion_id = ca.seccion_id
+                                           AND cad.estado     = 'activa'
+                                           AND COALESCE(cad.area_id, sad.area_id) = COALESCE(ca.area_id, sa.area_id)
+                                         ORDER BY COALESCE(sad.orden, 0), cad.id LIMIT 1
+                                     )
+                                THEN 0
+                                ELSE (
+                                    SELECT COUNT(*) FROM bloqueos_competencia bct
+                                    INNER JOIN competencias compt ON compt.id = bct.competencia_id
+                                    INNER JOIN areas at2 ON at2.id = compt.area_id AND at2.tipo = 'transversal'
+                                    WHERE bct.carga_id = ca.id AND bct.periodo_id = ? AND at2.nivel_id = n.id
+                                )
+                           END
+                       )
                    ) AS bloq,
                    (
                        SELECT COUNT(DISTINCT cr.competencia_id) FROM criterios cr
@@ -628,7 +680,7 @@ class PanelController extends BaseController
               AND (a.tipo IS NULL OR a.tipo != 'tutoria'
                    OR EXISTS (SELECT 1 FROM competencias ctu WHERE ctu.area_id = a.id))
             ORDER BY n.id, g.numero, s.nombre, a.orden, sa.orden
-        ", [$periodoId, $periodoId, $docenteId]);
+        ", [$periodoId, $periodoId, $periodoId, $docenteId]);
     }
 
     /** Conteo de matriculados aprobados por sección de los niveles dados. */
