@@ -319,10 +319,44 @@ class TransversalModel extends BaseModel
                     END
                 ) AS total_comp,
                 (
-                    SELECT COUNT(*)
-                    FROM bloqueos_competencia bc
-                    WHERE bc.carga_id   = ca.id
-                      AND bc.periodo_id = ?
+                    -- Bloqueadas: académicas de la carga (su universo propio) +
+                    -- transversales con la MISMA lógica de dueña que total_comp
+                    -- (una vez por área, incluidos los especialistas Inglés/Ed.
+                    -- Física). Antes se contaban TODOS los bloqueos de la carga;
+                    -- tras un cierre que bloquea TIC/GAMA en cada subárea, las
+                    -- no-dueña sumaban transversales que el total (dueña) no cuenta,
+                    -- inflando el numerador por encima del total (ej. 53/41) y
+                    -- habilitando las conclusiones antes de tiempo. El denominador
+                    -- NO cambia: las transversales de los especialistas siguen
+                    -- siendo obligatorias (las conclusiones promedian TODAS las
+                    -- áreas de la sección, no solo las de la unidocente).
+                    (
+                        SELECT COUNT(*) FROM bloqueos_competencia bc
+                        WHERE bc.carga_id = ca.id AND bc.periodo_id = ?
+                          AND bc.competencia_id IN (
+                              SELECT cb.id FROM competencias cb
+                              WHERE (ca.subarea_id IS NOT NULL AND cb.subarea_id = ca.subarea_id)
+                                 OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL AND cb.area_id = ca.area_id)
+                          )
+                    ) + (
+                        CASE WHEN s.es_unidocente = 1
+                                  AND ca.id <> (
+                                      SELECT cad.id FROM cargas_academicas cad
+                                      LEFT JOIN subareas sad ON sad.id = cad.subarea_id
+                                      WHERE cad.seccion_id = ca.seccion_id
+                                        AND cad.estado     = 'activa'
+                                        AND COALESCE(cad.area_id, sad.area_id) = COALESCE(ca.area_id, sa.area_id)
+                                      ORDER BY COALESCE(sad.orden, 0), cad.id LIMIT 1
+                                  )
+                             THEN 0
+                             ELSE (
+                                SELECT COUNT(*) FROM bloqueos_competencia bct
+                                INNER JOIN competencias compt ON compt.id = bct.competencia_id
+                                INNER JOIN areas at2 ON at2.id = compt.area_id AND at2.tipo = 'transversal'
+                                WHERE bct.carga_id = ca.id AND bct.periodo_id = ? AND at2.nivel_id = nv.id
+                             )
+                        END
+                    )
                 ) AS comp_bloqueadas
             FROM cargas_academicas ca
             INNER JOIN secciones s ON s.id  = ca.seccion_id
@@ -336,7 +370,7 @@ class TransversalModel extends BaseModel
               AND ca.estado     = 'activa'
               AND (a.tipo IS NULL OR a.tipo != 'transversal')
             ORDER BY a.orden, sa.id
-        ", [$periodoId, $seccionId]);
+        ", [$periodoId, $periodoId, $seccionId]);
 
         $total = $bloqueadas = 0;
         foreach ($cargas as $c) {
