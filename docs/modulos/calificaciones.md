@@ -336,6 +336,61 @@ La completitud de transversales / piso de carga cuenta notas crudas en
   filas sin nota viva; ver regla "fila ⟺ nota viva" en CLAUDE.md).
 - **NUNCA usar `guardarNotasMasivas` dentro de una transacción** (maneja la suya).
 
+## Ética y Valores (Educación Religiosa) — carga del tutor en TOE (07/07/2026)
+
+> SOLO SECUNDARIA. El colegio no dicta Religión en secundaria (área 14: 0 cargas,
+> 0 notas desde siempre), pero SIAGIE obliga a registrarla. Decisión: el tutor de
+> cada sección califica "Ética y Valores" en una carga del área **Tutoría (TOE)**
+> (id 24, `tipo='tutoria'`) — y esas notas alimentarán Ed. Religiosa en el export
+> SIAGIE de secundaria (cuando exista). Plan de encendido en `docs/ESTADO.md`.
+
+### Por qué el área tutoria (y no una nueva, ni la 14)
+- La UGEL no autoriza crear un área "Ética y Valores"; manda usar Ed. Religiosa.
+- Calificar EN el área 14 mostraría en boleta las competencias oficiales de
+  Religión ("...amada por Dios...") evaluadas por tutores sin dictar el curso,
+  y metería el área al orden de mérito (B1 se calculó sin ella).
+- El área tutoria ya estaba **future-proof por datos**: el filtro de mis-cargas y
+  el del dashboard la ocultan SOLO mientras no tenga competencias. Insertar la
+  competencia es el interruptor de encendido. Además `tipo='tutoria'` queda
+  excluido del orden de mérito por invariante (base de ranking consistente con B1).
+
+### Doble nombre (mecanismo existente, cero código)
+- `areas.nombre_boleta='Ética y Valores'` + `alias_boleta='(Educación Religiosa)'`
+  → familias ven "Ética y Valores (Educación Religiosa)" en boleta y /padre/notas.
+  Docentes/horarios siguen viendo "Tutoría (TOE)" (`areas.nombre`).
+- La equivalencia con Ed. Religiosa se declara en el paréntesis DESDE EL PRIMER
+  BIMESTRE (decisión: no diferir la revelación a fin de año). El alias huérfano
+  que el área 14 tenía con el mismo texto se retira (nunca se imprimió).
+- Competencia inventada C57 (el catálogo ya tiene precedentes no-CNEB: talleres
+  C54-C56, subáreas de primaria): su nombre parafrasea la capacidad oficial de
+  conciencia moral del área para que boleta interna y documento SIAGIE "rimen".
+
+### Cambios de código (07/07/2026)
+1. **La carga TOE no lleva transversales** (decisión del colegio):
+   - `CalificacionController::formulario()` — `$adjuntarTransversales = false`
+     si `area_tipo='tutoria'` (antes del branch de dueña unidocente).
+   - `getCargas()` — los 3 CASE de contadores transversales (`total`,
+     `bloqueadas`, `con_criterios`) devuelven 0 con `a.tipo='tutoria'`.
+   - `PanelController::getCargasResumen()` — misma exclusión en sus 2 CASE
+     (sin ella, la card del dashboard quedaba atascada esperando TIC/GAMA
+     que nunca existirán en esa carga).
+2. **Candado de exoneración:** `ExoneracionModel::tieneNotasVivas()` +
+   guardia en `Admin\ExoneracionController::registrar()` — NO se registra una
+   exoneración si el alumno tiene notas vivas del año en esa área/subárea
+   (fila en `calificaciones`; la exoneración por área revisa también sus
+   subáreas). Evita el estado mixto nota+EXO en grilla y boleta.
+
+### Lo que YA existía y se reutiliza sin tocar
+- **Grilla EXO genérica:** `formulario()` pasa `exonerados`
+  (`ExoneracionModel::getActivasParaCarga`, match por área/subárea de la carga);
+  la vista pinta `fila-exonerado` + `exo-badge` SIN input; `guardar()` y
+  `errorBloqueoCompetencia` excluyen exonerados de la completitud. El tutor ve
+  al exonerado marcado y no puede calificarlo — exactamente lo requerido.
+- Boleta: `ExoneracionModel::inyectarEnAreas` pinta la fila EXO completa
+  (posible porque el candado garantiza que un exonerado no tiene notas).
+- Criterios libres, conclusiones por escala (secundaria: solo C), Hito A,
+  rectificaciones: flujo estándar sin excepciones.
+
 ## Fixes importantes aplicados (sesión 2)
 - `periodos.nombre_display` es la columna correcta (no `nombre`). Si ves
   `Unknown column 'p.nombre'` en queries de periodos, verificar esto.

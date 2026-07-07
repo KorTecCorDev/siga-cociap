@@ -485,8 +485,13 @@ class CalificacionController extends BaseController
         // TIC/GAMA se adjuntan UNA sola vez por área —en la carga dueña (subárea
         // de menor orden)— y no se duplican en cada subárea. Para especialistas
         // (no unidocente) cada carga lleva las suyas, como siempre.
-        $adjuntarTransversales = true;
-        if (!empty($carga['es_unidocente'])) {
+        //
+        // ÉTICA Y VALORES (área tipo 'tutoria'): la carga del tutor NO lleva la
+        // sección de transversales — las TIC/GAMA se registran en las cargas
+        // académicas regulares de cada docente, nunca en la de tutoría
+        // (decisión 07/07/2026).
+        $adjuntarTransversales = ($carga['area_tipo'] !== 'tutoria');
+        if ($adjuntarTransversales && !empty($carga['es_unidocente'])) {
             $duena = $this->calModel->cargaDuenaTransversales(
                 (int) $carga['seccion_id'],
                 (int) $carga['area_resuelta_id']
@@ -1181,7 +1186,11 @@ class CalificacionController extends BaseController
                 -- carga dueña = subarea de menor orden); las demas subareas del
                 -- area muestran 0 transversales para no contarlas N veces. Para
                 -- especialistas (no unidocente) cada carga cuenta las suyas.
-                CASE WHEN s.es_unidocente = 1
+                --
+                -- TUTORIA (Etica y Valores): la carga del tutor NO lleva
+                -- transversales (decision 07/07/2026) -> los 3 contadores en 0.
+                CASE WHEN a.tipo = 'tutoria' THEN 0
+                     WHEN s.es_unidocente = 1
                           AND ca.id <> (
                               SELECT cad.id FROM cargas_academicas cad
                               LEFT JOIN subareas sad ON sad.id = cad.subarea_id
@@ -1199,7 +1208,8 @@ class CalificacionController extends BaseController
                           AND at2.nivel_id = n.id
                      )
                 END AS total_transversales,
-                CASE WHEN s.es_unidocente = 1
+                CASE WHEN a.tipo = 'tutoria' THEN 0
+                     WHEN s.es_unidocente = 1
                           AND ca.id <> (
                               SELECT cad.id FROM cargas_academicas cad
                               LEFT JOIN subareas sad ON sad.id = cad.subarea_id
@@ -1219,7 +1229,8 @@ class CalificacionController extends BaseController
                           AND at2.nivel_id   = n.id
                      )
                 END AS transversales_bloqueadas,
-                CASE WHEN s.es_unidocente = 1
+                CASE WHEN a.tipo = 'tutoria' THEN 0
+                     WHEN s.es_unidocente = 1
                           AND ca.id <> (
                               SELECT cad.id FROM cargas_academicas cad
                               LEFT JOIN subareas sad ON sad.id = cad.subarea_id

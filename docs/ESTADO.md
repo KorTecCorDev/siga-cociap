@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **03/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **07/07/2026**.
 
 ## Migraciones
 - **PROD y LOCAL al día hasta la `032_area_tutoria.sql`** (confirmado 03/07/2026).
@@ -37,6 +37,41 @@
 - **Módulo de suspensiones/disciplina** (diferido): principios de diseño fijados
   en `docs/decisiones-diferidas.md` — NUNCA manejarlas con estado `desactivado`.
 
+## Ética y Valores (Educación Religiosa) — plan de encendido (07/07/2026)
+
+> SOLO SECUNDARIA — no tocar nada de primaria. Diseño completo en
+> `docs/modulos/calificaciones.md` (sección "Ética y Valores"). Código YA en
+> `dev` (validado en local, pendiente de merge a `main` — preguntar antes).
+
+**Fase de datos en PROD (la ejecuta RA/admin por la UI, en este orden):**
+1. Crear las **11 cargas TOE de secundaria** (área 24, docente = tutor vigente
+   de cada sección, horas reales de tutoría 1-2h). Verificar duplicados antes
+   (`cargas_academicas` sin UNIQUE KEY).
+2. Currículum → área 24: `nombre_boleta = 'Ética y Valores'`,
+   `alias_boleta = '(Educación Religiosa)'`. Verificar `nombre_siagie` NULL.
+3. Currículum → área 14 (Ed. Religiosa secundaria): **quitar** el alias huérfano
+   "(Ética y Valores)" (nunca se imprimió: el área no tiene cargas ni notas).
+4. Exoneraciones de religión: registrarlas **contra el área 24** (motivo:
+   "Exoneración de Educación Religiosa"). El candado nuevo impide exonerar si
+   ya hay notas vivas.
+5. **Interruptor (al final):** crear la competencia del área 24 —
+   `codigo=C57`, nombre_corto "Actúa con valores éticos y conciencia moral",
+   nombre_completo "Actúa con valores éticos según los principios de su
+   conciencia moral en situaciones concretas de la vida escolar y comunitaria."
+   Al existir, la card aparece sola a los 11 tutores.
+
+**Operación:** criterios libres del tutor (flujo normal); exonerados = fila EXO
+sin input (ya genérico); la sección de transversales NO aparece en la carga TOE
+(exclusión nueva). Hito A fuerza bloqueos del tutor como a cualquier docente.
+
+**Comunicación (colegio):** comunicado escrito en la PRIMERA entrega de boletas
+del II Bim (área oficial evaluada por su dimensión de conciencia moral, a cargo
+del tutor; derecho de exoneración disponible). NO diferir a fin de año.
+
+**Datos de ensayo en LOCAL** (borrar si estorban a la demo del 08/07):
+competencia id=127 (C57, área 24), carga id=416 (1°A sec., tutor docente_id=2),
+exoneración id=2 (matrícula 198, "ENSAYO LOCAL").
+
 ## Exportación SIAGIE (implementada 03/07 — pendientes de cierre)
 - **Piloto de re-importación:** subir al SIAGIE UN archivo llenado (1°A B1 ya
   probado en local) y confirmar que lo acepta, ANTES del lote completo de
@@ -47,6 +82,9 @@
   (competencias.id=1). Decidir: renombrar en SIGA al nombre oficial CN (afecta
   boletas) o dejarla — hoy esa columna queda en blanco y reportada.
 - **Variante SECUNDARIA:** pendiente de su archivo modelo (numeral+literal).
+  Al construirla, definir el mapeo **Ética y Valores (C57, área tutoría) →
+  columnas de Educación Religiosa** del Excel oficial: la nota única del tutor
+  se DUPLICA en las 2 competencias oficiales del área; exonerados → EXO.
 
 ## Pendientes operativos (usuario / colegio)
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva

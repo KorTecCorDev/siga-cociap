@@ -600,8 +600,10 @@ class PanelController extends BaseController
                            -- atascado (ej. 31/45 = 69% aunque todo este aprobado). Misma
                            -- regla que getCargas y TransversalModel::estadoCargasSeccion.
                            -- Polidocente (es_unidocente = 0): cada carga cuenta las suyas
-                           -- (comportamiento intacto).
-                           CASE WHEN s.es_unidocente = 1
+                           -- (comportamiento intacto). Tutoria (Etica y Valores): la
+                           -- carga del tutor NO lleva transversales -> 0 (07/07/2026).
+                           CASE WHEN a.tipo = 'tutoria' THEN 0
+                                WHEN s.es_unidocente = 1
                                      AND ca.id <> (
                                          SELECT cad.id FROM cargas_academicas cad
                                          LEFT JOIN subareas sad ON sad.id = cad.subarea_id
@@ -635,7 +637,8 @@ class PanelController extends BaseController
                                     OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL AND cb.area_id = ca.area_id)
                              )
                        ) + (
-                           CASE WHEN s.es_unidocente = 1
+                           CASE WHEN a.tipo = 'tutoria' THEN 0
+                                WHEN s.es_unidocente = 1
                                      AND ca.id <> (
                                          SELECT cad.id FROM cargas_academicas cad
                                          LEFT JOIN subareas sad ON sad.id = cad.subarea_id
