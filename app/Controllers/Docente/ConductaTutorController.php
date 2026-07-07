@@ -86,6 +86,64 @@ class ConductaTutorController extends BaseController
         ]);
     }
 
+    /**
+     * GET /docente/conducta/{periodo_id}/criterios
+     * Grilla de criterios Si/No registrada por los auxiliares (RA), en SOLO
+     * LECTURA para el tutor. Visible unicamente cuando la conducta de la
+     * seccion esta BLOQUEADA Y APROBADA por RA (cierre vigente) — mismo gate
+     * que la etapa 2. Esta vista no expone ningun endpoint de escritura: los
+     * POST de conducta siguen gateados a admin/registro_academico.
+     */
+    public function criterios(string $periodoId): void
+    {
+        $seccion = $this->seccionTutor();
+        if (!$seccion) {
+            $this->redirectWithError(url('docente/mis-cargas'), 'No eres tutor(a) de ninguna sección este año.');
+        }
+
+        $pid     = (int) $periodoId;
+        $periodo = $this->model->queryOne("
+            SELECT p.id, p.numero, p.nombre_display, p.estado
+            FROM periodos p
+            INNER JOIN anios_academicos a ON a.id = p.anio_id AND a.estado = 'activo'
+            WHERE p.id = ? AND p.estado IN ('activo', 'cerrado')
+        ", [$pid]);
+        if (!$periodo) {
+            $this->redirectWithError(url('docente/conducta'), 'Bimestre no encontrado.');
+        }
+
+        $sid    = (int) $seccion['id'];
+        $cierre = $this->model->getCierreVigente($sid, $pid);
+        if (!$cierre) {
+            $this->redirectWithError(
+                url('docente/conducta/' . $pid),
+                'Los criterios se pueden consultar cuando Registro Académico bloquee y apruebe la conducta de tu sección.'
+            );
+        }
+
+        $criterios   = $this->model->getCriterios((int) $seccion['nivel_id']);
+        $estudiantes = $this->model->getEstudiantesParaRegistro($sid, $pid);
+
+        // B1 legado (literal directo): no existe matriz de respuestas.
+        $hayRespuestas = false;
+        foreach ($estudiantes as $e) {
+            if (!empty($e['respuestas'])) {
+                $hayRespuestas = true;
+                break;
+            }
+        }
+
+        $this->view('docente/conducta-criterios', [
+            'titulo'        => 'Criterios de conducta — Sección ' . $seccion['nombre'],
+            'seccion'       => $seccion,
+            'periodo'       => $periodo,
+            'cierre'        => $cierre,
+            'criterios'     => $criterios,
+            'estudiantes'   => $estudiantes,
+            'hayRespuestas' => $hayRespuestas,
+        ]);
+    }
+
     // POST /docente/conducta/{periodo_id}/nota  (AJAX)
     public function guardarNota(string $periodoId): void
     {

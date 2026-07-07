@@ -296,4 +296,7 @@ $router->get( '/docente/tutoria/{periodo_id}',             'Docente\TutoriaContr
 $router->get( '/docente/conducta',                         'Docente\ConductaTutorController@index');
 $router->post('/docente/conducta/{periodo_id}/nota',       'Docente\ConductaTutorController@guardarNota');
 $router->post('/docente/conducta/{periodo_id}/cerrar',     'Docente\ConductaTutorController@cerrar');
+// Grilla Si/No de los auxiliares en SOLO LECTURA para el tutor (gate: cierre
+// vigente de RA). Sin endpoints de escritura.
+$router->get( '/docente/conducta/{periodo_id}/criterios',  'Docente\ConductaTutorController@criterios');
 $router->get( '/docente/conducta/{periodo_id}',            'Docente\ConductaTutorController@index');

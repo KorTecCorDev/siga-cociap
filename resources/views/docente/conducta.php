@@ -73,6 +73,15 @@ $pid       = (int) $periodoSel['id'];
         </div>
     <?php endif; ?>
 
+    <!-- Detalle de los criterios Si/No de los auxiliares, en solo lectura
+         (07/07/2026). Solo existe cuando hay cierre vigente de RA: este bloque
+         ya esta dentro del branch $cierre. -->
+    <div class="mb-md">
+        <a href="<?= url('docente/conducta/' . $pid . '/criterios') ?>" class="btn btn--secondary btn--sm">
+            Ver criterios evaluados por los auxiliares (lectura)
+        </a>
+    </div>
+
     <div class="card mb-lg">
         <div class="card__header">
             <h2 class="card__title">Comportamiento</h2>

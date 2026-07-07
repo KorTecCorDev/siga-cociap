@@ -70,7 +70,11 @@ del tutor; derecho de exoneración disponible). NO diferir a fin de año.
 
 **Datos de ensayo en LOCAL** (borrar si estorban a la demo del 08/07):
 competencia id=127 (C57, área 24), carga id=416 (1°A sec., tutor docente_id=2),
-exoneración id=2 (matrícula 198, "ENSAYO LOCAL").
+exoneración id=2 (matrícula 198, "ENSAYO LOCAL"). Además conducta B2 de la
+sección 13: 510 respuestas sembradas + cierre RA id=25 (limpiar con
+`DELETE FROM conducta_respuestas WHERE periodo_id=2 AND matricula_id IN
+(SELECT id FROM matriculas WHERE seccion_id=13); DELETE FROM cierres_conducta
+WHERE id=25;`).
 
 ## Exportación SIAGIE (implementada 03/07 — pendientes de cierre)
 - **Piloto de re-importación:** subir al SIAGIE UN archivo llenado (1°A B1 ya

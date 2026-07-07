@@ -165,3 +165,23 @@ Todos los bloques de firma (con y sin imagen) tienen un contenedor de **altura f
 - **Etapa 2 (pendiente):** resumen estadístico.
 - **Retorno R3:** un alumno con retorno de grado activo aparece en su matrícula
   oficial Y en la operativa (comportamiento esperado en este reporte).
+
+## Conducta: grilla de criterios en SOLO LECTURA para el tutor (07/07/2026)
+
+El tutor puede consultar la matriz Si/No que registraron los auxiliares (RA),
+ademas de la nota derivada que ya veia en su panel:
+
+- **Ruta:** `GET /docente/conducta/{periodo_id}/criterios`
+  (`Docente\ConductaTutorController::criterios`). Boton "Ver criterios
+  evaluados por los auxiliares (lectura)" en `/docente/conducta` — solo
+  se renderiza dentro del branch con cierre vigente.
+- **Gate:** identico a la etapa 2 — visible SOLO con la conducta de la seccion
+  BLOQUEADA Y APROBADA por RA (`getCierreVigente`). Sin cierre → redirect con
+  mensaje. Ambos niveles (el guard `seccionTutor` es agnostico al nivel).
+- **Vista:** `docente/conducta-criterios.php` — espejo de
+  `admin/conducta/seccion.php` en su estado bloqueado (mismas clases
+  `.conducta-grilla`/`.cc-btn` deshabilitadas), SIN formularios ni JS; la nota
+  RA se calcula en servidor (Si/total x 20, `PHP_ROUND_HALF_UP`), no via JS.
+- **Solo lectura por diseño:** la vista no expone ningun POST y los endpoints
+  de escritura de conducta siguen gateados a admin/registro_academico.
+- **B1 legado** (literal directo, sin matriz): estado vacio explicativo.
