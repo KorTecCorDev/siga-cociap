@@ -136,6 +136,9 @@ $router->get( '/matriculas/{id}/trasladar',      'Matricula\TrasladoController@f
 $router->post('/matriculas/{id}/trasladar',      'Matricula\TrasladoController@store');
 $router->get( '/matriculas/{id}/notas-externas', 'Matricula\MatriculaController@notasExternas');
 $router->post('/matriculas/{id}/notas-externas', 'Matricula\MatriculaController@storeNotasExternas');
+// Exoneraciones desde el detalle (solo admin/RA — lo exige el controlador;
+// candado de notas vivas incluido).
+$router->post('/matriculas/{id}/exonerar',       'Admin\ExoneracionController@registrarDesdeMatricula');
 // Retorno de grado
 $router->get( '/matriculas/{id}/retorno/revertir', 'Matricula\RetornoGradoController@confirmarReversion');
 $router->post('/matriculas/{id}/retorno/revertir', 'Matricula\RetornoGradoController@revertir');

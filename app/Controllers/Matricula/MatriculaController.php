@@ -7,6 +7,7 @@ use App\Models\MatriculaModel;
 use App\Models\ApoderadoModel;
 use App\Models\EstudianteModel;
 use App\Models\TrasladoModel;
+use App\Models\ExoneracionModel;
 use App\Models\DirectorEbrModel;
 use Core\Session;
 use Core\View;
@@ -28,6 +29,7 @@ class MatriculaController extends BaseController
     private ApoderadoModel $apoderados;
     private EstudianteModel $estudiantes;
     private TrasladoModel $traslados;
+    private ExoneracionModel $exoneraciones;
 
     /** Tipos de vínculo disponibles: valor BD => etiqueta mostrada. */
     private const TIPOS_VINCULO = [
@@ -84,6 +86,7 @@ class MatriculaController extends BaseController
         $this->apoderados  = new ApoderadoModel();
         $this->estudiantes = new EstudianteModel();
         $this->traslados   = new TrasladoModel();
+        $this->exoneraciones = new ExoneracionModel();
     }
 
     /** Catálogo de tipos de vínculo (para reutilizar desde otros módulos). */
@@ -727,6 +730,11 @@ class MatriculaController extends BaseController
         // BORRADOR mientras el bimestre no cierra), autenticada por rol. El
         // enlace publico por token (solo oficial) es otro camino, aparte.
 
+        // Exoneraciones vigentes de la matrícula + opciones de registro (solo
+        // roles de gestión; el registro va a Admin\ExoneracionController con el
+        // candado de notas vivas).
+        $puedeGestionar = has_role(['admin', 'registro_academico']);
+
         $this->view('matriculas/show', [
             'titulo'       => 'Detalle de matrícula',
             'matricula'    => $matricula,
@@ -736,7 +744,14 @@ class MatriculaController extends BaseController
             'tiposVinculo' => self::TIPOS_VINCULO,
             'retorno'      => $retorno,
             'traslado'     => $this->traslados->getUltimaPorMatricula((int) $id),
-            'puedeGestionar' => has_role(['admin', 'registro_academico']),
+            'puedeGestionar' => $puedeGestionar,
+            'exoneraciones'  => $this->exoneraciones->getVigentesPorMatricula((int) $id),
+            'opcionesExoneracion' => $puedeGestionar
+                ? $this->exoneraciones->getOpcionesParaSeccion(
+                    (int) $matricula['seccion_id'],
+                    (int) $matricula['anio_id']
+                  )
+                : [],
             'pendientes'   => $this->pendientesParaActivar($matricula),
             'page_scripts' => ['matriculas'],
         ]);

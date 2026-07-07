@@ -152,6 +152,34 @@ class ExoneracionModel extends BaseModel
     }
 
     /**
+     * Exoneraciones VIGENTES de una matrícula, con nombres de área/subárea y
+     * registrador. Para la card "Exoneraciones" del detalle /matriculas/{id}.
+     */
+    public function getVigentesPorMatricula(int $matriculaId): array
+    {
+        return $this->query("
+            SELECT
+                e.id,
+                e.motivo,
+                e.registrado_en,
+                e.area_id,
+                e.subarea_id,
+                COALESCE(a_dir.nombre, a_sub.nombre) AS area_nombre,
+                sa.nombre AS subarea_nombre,
+                CONCAT(p_reg.apellido_paterno, ' ', p_reg.nombres) AS registrado_por_nombre
+            FROM exoneraciones e
+            LEFT  JOIN areas    a_dir ON a_dir.id = e.area_id
+            LEFT  JOIN subareas sa    ON sa.id    = e.subarea_id
+            LEFT  JOIN areas    a_sub ON a_sub.id = sa.area_id
+            INNER JOIN usuarios u_reg ON u_reg.id = e.registrado_por
+            INNER JOIN personas p_reg ON p_reg.id = u_reg.persona_id
+            WHERE e.matricula_id = ?
+              AND e.revocado_en IS NULL
+            ORDER BY e.registrado_en
+        ", [$matriculaId]);
+    }
+
+    /**
      * Retorna las opciones de área/subárea exonerable para una sección.
      * Usa las cargas activas de la sección para determinar qué áreas están en juego.
      * No incluye transversales.
@@ -224,6 +252,41 @@ class ExoneracionModel extends BaseModel
      * Registra una exoneracion. Valida que no exista ya una activa para el mismo
      * alumno + año + área/subárea antes de insertar.
      */
+    /**
+     * true si la matrícula tiene alguna nota VIVA del año en el área/subárea
+     * (fila en `calificaciones` — invariante: fila existe ⟺ nota viva). Se usa
+     * para BLOQUEAR el registro de una exoneración cuando ya hay notas
+     * (decisión 07/07/2026): primero deben eliminarse — evita estados mixtos
+     * nota+EXO en la grilla del docente y en la boleta.
+     * La exoneración por ÁREA también revisa las subáreas de esa área.
+     */
+    public function tieneNotasVivas(int $matriculaId, int $anioId, ?int $areaId, ?int $subareaId): bool
+    {
+        if (!$areaId && !$subareaId) {
+            return false;
+        }
+
+        if ($areaId) {
+            $cond   = "(c.area_id = ? OR c.subarea_id IN (SELECT sa.id FROM subareas sa WHERE sa.area_id = ?))";
+            $params = [$anioId, $matriculaId, $areaId, $areaId];
+        } else {
+            $cond   = "c.subarea_id = ?";
+            $params = [$anioId, $matriculaId, $subareaId];
+        }
+
+        $row = $this->queryOne("
+            SELECT 1
+            FROM calificaciones cal
+            INNER JOIN periodos p     ON p.id = cal.periodo_id AND p.anio_id = ?
+            INNER JOIN competencias c ON c.id = cal.competencia_id
+            WHERE cal.matricula_id = ?
+              AND $cond
+            LIMIT 1
+        ", $params);
+
+        return !empty($row);
+    }
+
     public function registrar(
         int    $matriculaId,
         int    $anioId,

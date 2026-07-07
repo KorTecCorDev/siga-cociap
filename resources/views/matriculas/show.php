@@ -8,6 +8,8 @@
  * @var array|null $retorno
  * @var array|null $traslado    última constancia de traslado (o null)
  * @var bool  $puedeGestionar
+ * @var array $exoneraciones        exoneraciones VIGENTES de la matrícula
+ * @var array $opcionesExoneracion  áreas/subáreas exonerables (solo gestión)
  * @var array $pendientes  requisitos faltantes para activar (vacío = completa)
  */
 $traslado = $traslado ?? null;
@@ -201,6 +203,65 @@ $labelDoc = [
         </div>
     </div>
     <?php endif; ?>
+
+    <!-- Exoneraciones (áreas/subáreas sin evaluación este año) -->
+    <div class="card">
+        <div class="card__body">
+            <p class="form-section-title">Exoneraciones</p>
+
+            <?php if (empty($exoneraciones)): ?>
+                <div class="empty-state"><p>Sin exoneraciones vigentes.</p></div>
+            <?php else: ?>
+                <div class="info-grid">
+                    <?php foreach ($exoneraciones as $ex): ?>
+                    <div class="info-item">
+                        <span class="info-item__label">
+                            <?= e($ex['area_nombre'] . ($ex['subarea_nombre'] ? ' — ' . $ex['subarea_nombre'] : '')) ?>
+                        </span>
+                        <span class="info-item__value"><?= e($ex['motivo']) ?></span>
+                        <span class="text-sm text-muted">
+                            Registrada el <?= e(date('d/m/Y', strtotime($ex['registrado_en']))) ?>
+                            por <?= e($ex['registrado_por_nombre']) ?>
+                        </span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($puedeGestionar && !empty($opcionesExoneracion)): ?>
+                <p class="form-section-title">Registrar exoneración</p>
+                <form method="POST"
+                      action="<?= url('matriculas/' . $mid . '/exonerar') ?>"
+                      class="form-grid form-grid--2">
+                    <?= csrf_field() ?>
+
+                    <div class="form-group">
+                        <label class="form-label" for="area_subarea">Área / Subárea exonerada *</label>
+                        <select id="area_subarea" name="area_subarea" class="form-input" required>
+                            <option value="">— Selecciona —</option>
+                            <?php foreach ($opcionesExoneracion as $op): ?>
+                                <option value="<?= e($op['value']) ?>"><?= e($op['label']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="motivo_exo">Motivo</label>
+                        <input type="text" id="motivo_exo" name="motivo" class="form-input"
+                               placeholder="Ej. Solicitud escrita del apoderado" maxlength="255">
+                    </div>
+
+                    <div class="form-actions form-actions--full">
+                        <button type="submit" class="btn btn--primary btn--sm">Registrar exoneración</button>
+                        <a href="<?= url('admin/exoneraciones/' . (int) $matricula['seccion_id']) ?>"
+                           class="btn btn--secondary btn--sm">
+                            Gestionar en Exoneraciones (revocar)
+                        </a>
+                    </div>
+                </form>
+            <?php endif; ?>
+        </div>
+    </div>
 
     <!-- Constancia de traslado -->
     <?php if ($traslado): ?>

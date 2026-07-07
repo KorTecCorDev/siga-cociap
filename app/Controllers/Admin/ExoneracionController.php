@@ -127,6 +127,17 @@ class ExoneracionController extends BaseController
             );
         }
 
+        // Candado (07/07/2026): no se exonera a un alumno con notas VIVAS del
+        // año en esa área/subárea — primero deben eliminarse. Evita estados
+        // mixtos nota+EXO en la grilla del docente y en la boleta.
+        if ($this->exoModel->tieneNotasVivas($matriculaId, (int) $anio['id'], $areaId, $subareaId)) {
+            $this->redirectWithError(
+                url("admin/exoneraciones/$seccionId"),
+                'El alumno ya tiene notas registradas este año en esa área/subárea. '
+                . 'Coordina con el docente la eliminación de esas notas antes de exonerar.'
+            );
+        }
+
         $ok = $this->exoModel->registrar(
             $matriculaId,
             (int) $anio['id'],
@@ -146,6 +157,65 @@ class ExoneracionController extends BaseController
                 url("admin/exoneraciones/$seccionId"),
                 'Ya existe una exoneración activa para este alumno en esa área/subárea.'
             );
+        }
+    }
+
+    /**
+     * POST /matriculas/{id}/exonerar — registro desde el detalle de matrícula.
+     * Mismo flujo (parseo + candado de notas vivas + registrar) que registrar(),
+     * pero anclado a la matrícula: usa SU anio_id y vuelve a /matriculas/{id}.
+     */
+    public function registrarDesdeMatricula(string $matriculaId): void
+    {
+        $this->validateCsrf();
+        $matriculaId = (int) $matriculaId;
+        $volver      = url('matriculas/' . $matriculaId);
+
+        $mat = $this->exoModel->queryOne(
+            "SELECT id, anio_id FROM matriculas WHERE id = ? LIMIT 1",
+            [$matriculaId]
+        );
+        if (!$mat) {
+            $this->redirectWithError(url('matriculas'), 'Matrícula no encontrada.');
+        }
+
+        $areaSubarea = trim($_POST['area_subarea'] ?? '');
+        $motivo      = trim($_POST['motivo'] ?? '');
+
+        // Parsear "area_5" → area_id=5 o "sub_3" → subarea_id=3
+        $areaId    = null;
+        $subareaId = null;
+        if (str_starts_with($areaSubarea, 'area_')) {
+            $areaId = (int) substr($areaSubarea, 5);
+        } elseif (str_starts_with($areaSubarea, 'sub_')) {
+            $subareaId = (int) substr($areaSubarea, 4);
+        } else {
+            $this->redirectWithError($volver, 'Selecciona el área o subárea a exonerar.');
+        }
+
+        // Candado (07/07/2026): no se exonera con notas vivas del año en esa
+        // área/subárea — primero deben eliminarse.
+        if ($this->exoModel->tieneNotasVivas($matriculaId, (int) $mat['anio_id'], $areaId, $subareaId)) {
+            $this->redirectWithError(
+                $volver,
+                'El alumno ya tiene notas registradas este año en esa área/subárea. '
+                . 'Coordina con el docente la eliminación de esas notas antes de exonerar.'
+            );
+        }
+
+        $ok = $this->exoModel->registrar(
+            $matriculaId,
+            (int) $mat['anio_id'],
+            $areaId,
+            $subareaId,
+            $motivo ?: 'Sin especificar',
+            Session::user()['id']
+        );
+
+        if ($ok) {
+            $this->redirectWithSuccess($volver, 'Exoneración registrada correctamente.');
+        } else {
+            $this->redirectWithError($volver, 'Ya existe una exoneración activa para este alumno en esa área/subárea.');
         }
     }
 

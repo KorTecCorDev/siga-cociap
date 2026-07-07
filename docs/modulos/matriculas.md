@@ -230,3 +230,28 @@ queda como traza de auditoría histórica. Se muestra junto al badge en `index` 
 ### Pendiente menor (no implementado)
 - La búsqueda del index por texto que empiece con `P…` cae en la rama de nombre y
   no matchea el código provisional. Ajuste chico en `construirFiltros` si se pide.
+
+## Exoneraciones en el detalle de matrícula (07/07/2026)
+
+> `/matriculas/{id}` ahora MUESTRA las exoneraciones vigentes del alumno y
+> permite REGISTRAR nuevas desde ahí (antes solo existía `/admin/exoneraciones`
+> por sección, y el detalle no las mencionaba — caso real: PEÑA PILLACA 3°A
+> primaria, exonerada de Ed. Religiosa desde el 24/05, invisible en su detalle).
+
+- **Card "Exoneraciones"** en `show.php` (entre Notas externas y Constancia de
+  traslado): lista vigentes (área/subárea — motivo — fecha — registrador) via
+  `ExoneracionModel::getVigentesPorMatricula()`. Visible para todos los roles
+  con acceso al detalle.
+- **Registro** (solo `puedeGestionar` = admin/RA): formulario con el select de
+  `getOpcionesParaSeccion()` (mismas opciones que el módulo admin) que postea a
+  `POST /matriculas/{id}/exonerar` → `Admin\ExoneracionController::
+  registrarDesdeMatricula()` — reusa parseo, **candado de notas vivas**
+  (`tieneNotasVivas`, 07/07) y `registrar()`; usa el `anio_id` de la matrícula
+  y vuelve al detalle. Las secretarías no ven el form y el controlador les
+  rechaza el POST por rol.
+- **Revocar** sigue SOLO en `/admin/exoneraciones/{seccion}` (el form enlaza
+  "Gestionar en Exoneraciones").
+- OJO: en secundaria, la exoneración de Ética y Valores se registra contra el
+  área **Tutoría (TOE)** (id 24) — así aparece rotulada la opción en el select
+  (nombre interno; la boleta la muestra como "Ética y Valores"). Ver
+  `docs/modulos/calificaciones.md`.
