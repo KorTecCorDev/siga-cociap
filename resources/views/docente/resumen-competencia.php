@@ -4,8 +4,9 @@
  * @var array $periodo
  * @var array $competencia
  * @var array $criterios
- * @var array $alumnos
- * @var bool  $bloqueada
+ * @var array  $alumnos
+ * @var bool   $bloqueada
+ * @var string $volverUrl
  */
 
 $nivelCodigo   = $carga['nivel_codigo'];
@@ -13,7 +14,7 @@ $esTransversal = !empty($competencia['es_transversal']);
 ?>
 
 <div class="page-header">
-    <a href="<?= url('docente/calificaciones/' . $carga['id']) ?>"
+    <a href="<?= e($volverUrl) ?>"
        class="btn btn--secondary btn--sm">← Volver</a>
     <div>
         <h1 class="page-title">
@@ -83,7 +84,8 @@ $esTransversal = !empty($competencia['es_transversal']);
                 <div class="resumen-footer">
                     <button class="btn btn--success" id="btn-confirmar-sin-notas"
                             data-carga-id="<?= $carga['id'] ?>"
-                            data-competencia-id="<?= $competencia['id'] ?>">
+                            data-competencia-id="<?= $competencia['id'] ?>"
+                            data-volver-url="<?= e($volverUrl) ?>">
                         <span class="btn-icon btn-icon--upload" aria-hidden="true"></span>
                         Confirmar: no se trabajó este bimestre
                     </button>

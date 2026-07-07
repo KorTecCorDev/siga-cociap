@@ -239,7 +239,8 @@ document.getElementById('btn-confirmar-sin-notas')
 
         if (data.success) {
             mostrarStatus('success', '✓ ' + data.mensaje);
-            setTimeout(() => window.location.href = `${BASE}/docente/calificaciones/${cargaId}`, 1500);
+            const volverUrl = btn.dataset.volverUrl || `${BASE}/docente/calificaciones/${cargaId}`;
+            setTimeout(() => window.location.href = volverUrl, 1500);
         } else {
             mostrarStatus('error', '⚠ ' + data.mensaje);
             btn.disabled = false;

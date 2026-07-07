@@ -1432,6 +1432,18 @@ class CalificacionController extends BaseController
 
         $exonerados = $this->exoModel->getActivasParaCarga($cargaId, (int) $periodo['anio_id']);
 
+        // Destino del "Volver": si el docente es AULA y el área tiene >1 subárea-
+        // carga suya, vino de la vista consolidada de área (misma condición
+        // $esGrupo && $esAula de mis-cargas). Si no (especialista, o área de una
+        // sola carga), vuelve a la carga individual.
+        $user       = Session::user();
+        $cargasArea = $this->getCargasAreaDocente(
+            (int) $carga['seccion_id'], (int) $carga['area_resuelta_id'], (int) $user['id']
+        );
+        $volverUrl = (count($cargasArea) > 1 && !empty($cargasArea[0]['es_aula']))
+            ? url('docente/calificaciones/area/' . (int) $carga['seccion_id'] . '/' . (int) $carga['area_resuelta_id'])
+            : url('docente/calificaciones/' . $cargaId);
+
         $this->view('docente/resumen-competencia', [
             'titulo'       => 'Resumen — ' . ($competencia['nombre_corto'] ?? ''),
             'carga'        => $carga,
@@ -1441,6 +1453,7 @@ class CalificacionController extends BaseController
             'alumnos'      => $resumen['alumnos'],
             'bloqueada'    => $bloqueada,
             'exonerados'   => $exonerados,
+            'volverUrl'    => $volverUrl,
             'page_scripts' => ['resumen'],
         ]);
     }
