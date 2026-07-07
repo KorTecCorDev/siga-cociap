@@ -194,3 +194,13 @@ páginas son del **mismo origen** (el riesgo de `noopener` aquí es nulo).
 - **Pendiente de validar en móvil real** (Chrome Android / Safari iOS): abrir
   varias boletas seguidas y confirmar que "✕ Cerrar" cierra la pestaña y no se
   acumulan. Es comportamiento de ventanas del navegador, no simulable por CLI.
+
+## Card del tutor renombrada: "Competencias Transversales" (07/07/2026)
+
+La card del dashboard docente que abre `/docente/tutoria` (conclusiones + cierre
+de TIC/GAMA) pasó de titularse "Tutoría — {grado} {sección}" a **"Competencias
+Transversales — {grado} {sección}"** (`docente/inicio.php`), y su subtítulo dejó
+de repetir el nombre. Motivo: con Ética y Valores, "Tutoría (TOE)" es ahora una
+carga académica más en mis-cargas y el rótulo viejo era ambiguo. La página
+destino ya se titulaba "Tutoría — Competencias Transversales" (sin cambios); la
+clase `.dpanel-card--tutoria` y el color teal de wayfinding se conservan.

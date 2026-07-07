@@ -114,7 +114,9 @@ $saludo = match($auth_user['sexo'] ?? null) {
         </p>
     </a>
 
-    <!-- Card: Tutoría (solo tutores) -->
+    <!-- Card: Competencias Transversales (solo tutores; antes "Tutoría" —
+         renombrada el 07/07/2026 porque Tutoría ahora es una carga académica
+         más: la card de Ética y Valores en el área TOE) -->
     <?php if (!empty($tutoria)): ?>
         <?php
         if ($tutoria['cierre']) {
@@ -132,9 +134,9 @@ $saludo = match($auth_user['sexo'] ?? null) {
         ?>
         <a href="<?= url('docente/tutoria') ?>" class="card dpanel-card dpanel-card--tutoria dpanel-card--<?= $tEstado ?>">
             <div class="dpanel-card__head">
-                <h2 class="card__title">Tutoría — <?= e($tutoria['seccion']['grado_nombre']) ?> <?= e($tutoria['seccion']['nombre']) ?></h2>
+                <h2 class="card__title">Competencias Transversales — <?= e($tutoria['seccion']['grado_nombre']) ?> <?= e($tutoria['seccion']['nombre']) ?></h2>
             </div>
-            <p class="dpanel-card__sub">Competencias transversales TIC/GAMA: revisa promedios, registra conclusiones y cierra el bimestre.</p>
+            <p class="dpanel-card__sub">Revisa los promedios TIC/GAMA, registra las conclusiones y cierra el bimestre de tu sección.</p>
             <span class="badge badge--<?= $tEstado === 'cerrado' ? 'activo' : 'warning' ?>"><?= e($tTexto) ?></span>
         </a>
     <?php endif; ?>
