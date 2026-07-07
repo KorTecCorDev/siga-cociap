@@ -368,7 +368,12 @@ class TransversalModel extends BaseModel
             LEFT  JOIN personas pu ON pu.id = u.persona_id
             WHERE ca.seccion_id = ?
               AND ca.estado     = 'activa'
-              AND (a.tipo IS NULL OR a.tipo != 'transversal')
+              -- Fuera del cierre transversal: la carga transversal independiente
+              -- (modelo viejo) Y la carga de tutoria (Etica y Valores, 07/07/2026).
+              -- La TOE no registra TIC/GAMA (exclusion del formulario) y su
+              -- competencia propia tiene su propio ciclo de bloqueo: no debe
+              -- condicionar ni inflar el cierre del tutor.
+              AND (a.tipo IS NULL OR a.tipo NOT IN ('transversal', 'tutoria'))
             ORDER BY a.orden, sa.id
         ", [$periodoId, $periodoId, $seccionId]);
 

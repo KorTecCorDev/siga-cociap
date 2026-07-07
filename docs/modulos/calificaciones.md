@@ -374,6 +374,13 @@ La completitud de transversales / piso de carga cuenta notas crudas en
    - `PanelController::getCargasResumen()` — misma exclusión en sus 2 CASE
      (sin ella, la card del dashboard quedaba atascada esperando TIC/GAMA
      que nunca existirán en esa carga).
+   - `TransversalModel::estadoCargasSeccion()` — la carga TOE queda FUERA del
+     roster del cierre transversal (`a.tipo NOT IN ('transversal','tutoria')`).
+     Sin esto, sumaba +3 al denominador (su propia C57 + 2 TIC/GAMA imposibles)
+     y el tutor nunca podía cerrar: la card "Competencias Transversales", el
+     panel /docente/tutoria, la validación de cerrar() y el panel del director
+     consumen este método. La competencia propia de Ética NO condiciona el
+     cierre transversal (ciclo de bloqueo propio, forzable por Hito A).
 2. **Candado de exoneración:** `ExoneracionModel::tieneNotasVivas()` +
    guardia en `Admin\ExoneracionController::registrar()` — NO se registra una
    exoneración si el alumno tiene notas vivas del año en esa área/subárea
