@@ -1,17 +1,14 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **08/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **09/07/2026 (turno tarde)**.
 
 ## Migraciones
-- **LOCAL: al día hasta la `037`.** **PROD: al día hasta la `033`.**
-- **Pendientes de aplicar en PROD** (por SSH, conexión utf8mb4, cada una con su
-  bloque PREVIEW). `034` y `037` son independientes de `035/036`; lo único
-  obligatorio es **`035` antes que `036`**:
-    - `034_purga_docente_duplicada` — borra el usuario duplicado DNI 20000777 (Beatriz).
-    - `035_area_etica_boleta` — `nombre_boleta='Ética y Valores'` + alias en área TOE secundaria.
-    - `036_competencia_etica_valores` — competencia C57 (interruptor); requiere las 11 cargas TOE ya creadas.
-    - `037_consolidar_docentes_duplicados` — fusiona LOLI/HUAYANEY/MONTES (docente↔apoderado, por DNI).
+- **LOCAL: al día hasta la `037`. PROD: al día hasta la `037`** (034-037 aplicadas
+  en prod el 09/07/2026 — confirmado por el usuario). Ambas BD sincronizadas.
+- Migraciones más recientes (034-037): `034_purga_docente_duplicada`,
+  `035_area_etica_boleta`, `036_competencia_etica_valores` (crea C57, interruptor
+  de Ética), `037_consolidar_docentes_duplicados`. Todas en LOCAL y PROD.
 - Orden completo de setup desde cero: ver `docs/infraestructura.md`.
 - OJO al crear un año académico nuevo: `getOrCreateConfiguracion` inserta
   `duracion_hora_min = 50` por defecto; el año 2026 usa 45.
@@ -54,9 +51,10 @@
 ## Ética y Valores (Educación Religiosa) — plan de encendido (07/07/2026)
 
 > SOLO SECUNDARIA — no tocar nada de primaria. Diseño completo en
-> `docs/modulos/calificaciones.md` (sección "Ética y Valores"). Código y las
-> migraciones 035/036 YA en `main` (deploy 08/07). Falta aplicar 035/036 en la
-> BD de PROD (ver sección Migraciones).
+> `docs/modulos/calificaciones.md` (sección "Ética y Valores"). Código en `main`
+> (deploy 08/07) y **migraciones 035/036 YA aplicadas en PROD (09/07)** → el
+> interruptor (C57) está encendido en producción. La fase de datos por UI de abajo
+> queda como referencia histórica del encendido.
 
 **Fase de datos en PROD (la ejecuta RA/admin por la UI, en este orden):**
 1. Crear las **11 cargas TOE de secundaria** (área 24, docente = tutor vigente
@@ -136,6 +134,7 @@ WHERE id=25;`).
 ## Git
 - `dev` = rama de trabajo; `main` = producción (auto-deploy en Hostinger).
   **Preguntar SIEMPRE antes de mergear `dev` → `main`.**
-- `dev` y `main` sincronizados en `10baccd` (09/07/2026): boletas de
-  desactivados/trasladados, buscador de nómina docente y reubicación de
-  exoneraciones en prod.
+- `dev` y `main` sincronizados el 09/07/2026 (turno tarde): boletas de
+  desactivados/trasladados, buscador de nómina docente, reubicación de
+  exoneraciones y **compuerta del Hito A** (la nota aparece solo tras la
+  aprobación de RA). Migraciones 034-037 ya en prod.
