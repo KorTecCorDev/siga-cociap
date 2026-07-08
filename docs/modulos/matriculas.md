@@ -239,18 +239,24 @@ queda como traza de auditoría histórica. Se muestra junto al badge en `index` 
 > primaria, exonerada de Ed. Religiosa desde el 24/05, invisible en su detalle).
 
 - **Card "Exoneraciones"** en `show.php` (entre Notas externas y Constancia de
-  traslado): lista vigentes (área/subárea — motivo — fecha — registrador) via
-  `ExoneracionModel::getVigentesPorMatricula()`. Visible para todos los roles
-  con acceso al detalle.
-- **Registro** (solo `puedeGestionar` = admin/RA): formulario con el select de
-  `getOpcionesParaSeccion()` (mismas opciones que el módulo admin) que postea a
-  `POST /matriculas/{id}/exonerar` → `Admin\ExoneracionController::
-  registrarDesdeMatricula()` — reusa parseo, **candado de notas vivas**
-  (`tieneNotasVivas`, 07/07) y `registrar()`; usa el `anio_id` de la matrícula
-  y vuelve al detalle. Las secretarías no ven el form y el controlador les
-  rechaza el POST por rol.
-- **Revocar** sigue SOLO en `/admin/exoneraciones/{seccion}` (el form enlaza
-  "Gestionar en Exoneraciones").
+  traslado): SOLO consulta — lista vigentes (área/subárea — motivo — fecha —
+  registrador) via `ExoneracionModel::getVigentesPorMatricula()`. Visible para
+  todos los roles con acceso al detalle.
+- **Registro — REUBICADO (09/07/2026):** el formulario ya NO vive en la card del
+  grid (columnas de ~300px: el `form-grid--2` colapsaba, el select desbordaba y
+  la card quedaba desproporcionada). Ahora es la fila **"Exonerar de área"** en
+  la card "Gestión de la matrícula" (`.mat-accion` + formulario desplegable
+  `.mat-exonerar-form`, mismo patrón disclosure que Desactivar/Editar datos:
+  `data-exonerar-{form,control,toggle,cancel}` en `matriculas.js`; sin JS el
+  form se ve abierto). Solo `puedeGestionar` (= admin/RA, la card entera está
+  gated) y con `opcionesExoneracion` no vacías. El select de
+  `getOpcionesParaSeccion()` postea a `POST /matriculas/{id}/exonerar` →
+  `Admin\ExoneracionController::registrarDesdeMatricula()` — reusa parseo,
+  **candado de notas vivas** (`tieneNotasVivas`, 07/07) y `registrar()`; usa el
+  `anio_id` de la matrícula y vuelve al detalle. Las secretarías no ven el form
+  y el controlador les rechaza el POST por rol.
+- **Revocar** sigue SOLO en `/admin/exoneraciones/{seccion}` (el form desplegable
+  enlaza "Revocar en Exoneraciones").
 - OJO: en secundaria, la exoneración de Ética y Valores se registra contra el
   área **Tutoría (TOE)** (id 24) — así aparece rotulada la opción en el select
   (nombre interno; la boleta la muestra como "Ética y Valores"). Ver
