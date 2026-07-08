@@ -85,10 +85,12 @@ class BoletaController extends BaseController
     {
         $this->requireRole(['docente', 'admin']);
         $matriculaId = (int) $matriculaId;
-        $periodoId   = $this->resolverBoletaDocente($matriculaId);
+        $res         = $this->resolverBoletaDocente($matriculaId);
+        $periodoId   = $res['periodo_id'];
 
         $this->render($matriculaId, $periodoId, 'digital', [
-            'vistaPrevia' => $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
+            'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
+                          || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
         ]);
     }
 
@@ -100,10 +102,12 @@ class BoletaController extends BaseController
     {
         $this->requireRole(['docente', 'admin']);
         $matriculaId = (int) $matriculaId;
-        $periodoId   = $this->resolverBoletaDocente($matriculaId);
+        $res         = $this->resolverBoletaDocente($matriculaId);
+        $periodoId   = $res['periodo_id'];
 
         $this->render($matriculaId, $periodoId, 'print', [
-            'vistaPrevia' => $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
+            'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
+                          || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
         ]);
     }
 
@@ -145,24 +149,29 @@ class BoletaController extends BaseController
 
     /**
      * Valida que el docente actual pueda ver la boleta de $matriculaId (alumno en
-     * un nivel donde tiene carga activa) y devuelve el periodo a mostrar: el más
-     * reciente con notas bloqueadas, con fallback al primer periodo del año.
+     * un nivel donde tiene carga activa) y devuelve el periodo a mostrar (el más
+     * reciente con notas bloqueadas) junto con el estado de la matrícula, para que
+     * el entry point fuerce la vista previa si está desactivada.
      * Responde 403 si está fuera de alcance, 404 si no hay periodos.
+     *
+     * @return array{periodo_id: int, estado_matricula: string}
      */
-    private function resolverBoletaDocente(int $matriculaId): int
+    private function resolverBoletaDocente(int $matriculaId): array
     {
         $docenteId = (int) Session::user()['id'];
 
-        // Alcance: la matrícula existe, no está desactivada y su NIVEL coincide con
-        // un nivel donde el docente tiene carga activa. Evita abrir boletas fuera
-        // de alcance manipulando el id en la URL.
+        // Alcance: la matrícula existe, no es un traslado de salida (fuera de la
+        // grilla del docente) y su NIVEL coincide con un nivel donde el docente
+        // tiene carga activa. Evita abrir boletas fuera de alcance manipulando el
+        // id en la URL. Las desactivadas SÍ pasan (siguen en la grilla): su boleta
+        // se sirve siempre como BORRADOR.
         $mat = $this->calModel->queryOne("
-            SELECT m.id, m.anio_id
+            SELECT m.id, m.anio_id, m.estado
             FROM matriculas m
             INNER JOIN secciones s ON s.id = m.seccion_id
             INNER JOIN grados g    ON g.id = s.grado_id
             WHERE m.id = ?
-              AND m.estado <> 'desactivado'
+              AND m.tipo <> 'trasladado'
               AND g.nivel_id IN (
                   SELECT DISTINCT g2.nivel_id
                   FROM cargas_academicas ca
@@ -187,7 +196,7 @@ class BoletaController extends BaseController
             exit;
         }
 
-        return $periodoId;
+        return ['periodo_id' => $periodoId, 'estado_matricula' => $mat['estado']];
     }
 
     /**
@@ -202,10 +211,12 @@ class BoletaController extends BaseController
     {
         $this->requireRole(['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa']);
         $matriculaId = (int) $matriculaId;
-        $periodoId   = $this->resolverBoletaGestion($matriculaId);
+        $res         = $this->resolverBoletaGestion($matriculaId);
+        $periodoId   = $res['periodo_id'];
 
         $this->render($matriculaId, $periodoId, 'digital', [
-            'vistaPrevia' => $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
+            'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
+                          || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
         ]);
     }
 
@@ -218,10 +229,12 @@ class BoletaController extends BaseController
     {
         $this->requireRole(['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa']);
         $matriculaId = (int) $matriculaId;
-        $periodoId   = $this->resolverBoletaGestion($matriculaId);
+        $res         = $this->resolverBoletaGestion($matriculaId);
+        $periodoId   = $res['periodo_id'];
 
         $this->render($matriculaId, $periodoId, 'print', [
-            'vistaPrevia' => $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
+            'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
+                          || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
         ]);
     }
 
@@ -229,13 +242,17 @@ class BoletaController extends BaseController
      * Resuelve el periodo a mostrar para la boleta interna de gestion: el ultimo
      * periodo publicable (cerrado u activo con Hito A aprobado) con notas del
      * alumno. A diferencia de resolverBoletaDocente NO valida alcance por nivel,
-     * porque los roles de gestion de matricula pueden abrir cualquier matricula.
-     * 404 si la matricula esta desactivada/inexistente o no hay periodo publicable.
+     * porque los roles de gestion de matricula pueden abrir cualquier matricula,
+     * incluidas las desactivadas (traslado/baja): esas se sirven siempre como
+     * BORRADOR (el entry point fuerza vistaPrevia con el estado retornado).
+     * 404 si la matricula no existe o no hay periodo publicable.
+     *
+     * @return array{periodo_id: int, estado_matricula: string}
      */
-    private function resolverBoletaGestion(int $matriculaId): int
+    private function resolverBoletaGestion(int $matriculaId): array
     {
         $mat = $this->calModel->queryOne(
-            "SELECT id, anio_id FROM matriculas WHERE id = ? AND estado <> 'desactivado' LIMIT 1",
+            "SELECT id, anio_id, estado FROM matriculas WHERE id = ? LIMIT 1",
             [$matriculaId]
         );
 
@@ -249,7 +266,7 @@ class BoletaController extends BaseController
             exit;
         }
 
-        return $periodoId;
+        return ['periodo_id' => $periodoId, 'estado_matricula' => $mat['estado']];
     }
 
     /**

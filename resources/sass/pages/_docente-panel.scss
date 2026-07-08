@@ -339,6 +339,13 @@
         // info: alinear arriba en vez de centrar para que no quede "flotando".
         align-items: flex-start;
     }
+
+    // Badge de estado (Pendiente/Desactivado) junto al nombre: pequeño respiro
+    // y alineado a la línea base del nombre (reutiliza .matricula-badge global).
+    .buscador-item__nombre .matricula-badge {
+        margin-left: $spacing-xs;
+        vertical-align: middle;
+    }
 }
 
 // Columna derecha del card de la nomina: agrupa la ubicacion (grado/nivel/

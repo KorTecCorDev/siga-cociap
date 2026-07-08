@@ -243,7 +243,9 @@ class PanelController extends BaseController
         $did     = (int) $user['id'];
         $niveles = $this->getNivelesDocente($did);
 
-        $alumnos = $this->getMatriculados($niveles);
+        // Buscador en vivo: incluye 'pendiente' y 'desactivado' (espejo de la
+        // grilla). La nómina IMPRIMIBLE (nominaImprimir) sigue solo 'aprobada'.
+        $alumnos = $this->getMatriculados($niveles, 0, false);
 
         // Orden de mérito: puesto del ULTIMO bimestre cerrado del año activo
         // (misma fuente que el ranking oficial). Si no hay bimestre cerrado aún
@@ -268,8 +270,13 @@ class PanelController extends BaseController
         unset($a);
 
         // Lista de secciones (para el selector de impresión), única y ordenada.
+        // Solo cuentan los 'aprobada': el selector alimenta la nómina imprimible
+        // (documento oficial), que excluye pendientes y desactivados.
         $secciones = [];
         foreach ($alumnos as $a) {
+            if ($a['estado'] !== 'aprobada') {
+                continue;
+            }
             $sid = (int) $a['seccion_id'];
             if (!isset($secciones[$sid])) {
                 $secciones[$sid] = [
@@ -719,10 +726,17 @@ class PanelController extends BaseController
     }
 
     /**
-     * Matriculados aprobados de los niveles dados (o de una sección concreta),
-     * con su apoderado responsable (vinculo_familiar.es_responsable = 1).
+     * Matriculados de los niveles dados (o de una sección concreta), con su
+     * apoderado responsable (vinculo_familiar.es_responsable = 1).
+     *
+     * $soloAprobadas = true  → solo 'aprobada' (nómina IMPRIMIBLE, documento
+     *                          oficial SIAGIE — no relajar).
+     * $soloAprobadas = false → incluye 'pendiente' y 'desactivado' (buscador en
+     *                          vivo: espejo de la grilla de calificaciones, que
+     *                          también los muestra). Trasladados y operativas de
+     *                          retorno quedan fuera SIEMPRE.
      */
-    private function getMatriculados(array $niveles, int $seccionId = 0): array
+    private function getMatriculados(array $niveles, int $seccionId = 0, bool $soloAprobadas = true): array
     {
         $ids = array_map('intval', array_column($niveles, 'id'));
         if (empty($ids)) {
@@ -735,9 +749,12 @@ class PanelController extends BaseController
             $filtroSeccion = ' AND s.id = ?';
             $params[]      = $seccionId;
         }
+        $filtroEstado = $soloAprobadas
+            ? "m.estado = 'aprobada'"
+            : "m.estado IN ('aprobada', 'pendiente', 'desactivado')";
 
         return $this->calModel->query("
-            SELECT m.id AS matricula_id,
+            SELECT m.id AS matricula_id, m.estado,
                    p.apellido_paterno, p.apellido_materno, p.nombres,
                    s.id AS seccion_id, s.nombre AS seccion_nombre,
                    g.id AS grado_id, g.numero AS grado_numero, g.nombre_display AS grado_nombre,
@@ -781,7 +798,7 @@ class PanelController extends BaseController
                 )
             LEFT JOIN apoderados apo ON apo.id = vf.apoderado_id
             LEFT JOIN personas ap    ON ap.id = apo.persona_id
-            WHERE m.estado = 'aprobada' AND m.tipo != 'trasladado'
+            WHERE {$filtroEstado} AND m.tipo != 'trasladado'
               -- Retorno de grado: la nómina es un documento OFICIAL (SIAGIE), por
               -- lo que muestra la matrícula ORIGINAL (grado/sección oficial) y
               -- oculta la operativa interna (grado inferior). Espejo de la regla

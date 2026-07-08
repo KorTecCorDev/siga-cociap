@@ -322,6 +322,58 @@ NUNCA CSS inline en PHP (convención del proyecto).
   `BoletaPublicaController` dormido NO arma asistencia → no se toca. Los métodos
   `AsistenciaModel::getAcumuladoAnual*` quedan sin uso desde la boleta (se conservan).
 
+## Boletas de matrículas desactivadas — vías internas (09/07/2026)
+
+> Antes NINGUNA vía mostraba la boleta de una matrícula `desactivado` (traslado,
+> deuda, etc.): los tres resolvers filtraban `estado <> 'desactivado'`. Los datos
+> siempre persistieron (`armar()` es puro). Decisión cerrada con el usuario
+> (08-09/07/2026); implementado el 09/07/2026.
+
+### Regla
+- **Gestión** (`/matriculas/{id}/boleta[/imprimir]`, roles actuales: admin, RA y
+  ambas secretarías — los directores quedaron explícitamente FUERA): ve e imprime
+  la boleta de CUALQUIER matrícula, incluidas desactivadas y trasladadas.
+- **Docente** (`/docente/boleta/{id}[/imprimir]`): ve la boleta de todos los de su
+  grilla — `aprobada`, `pendiente` y `desactivado`. Los `tipo='trasladado'` dan
+  **403** (nuevo filtro explícito `m.tipo <> 'trasladado'` en `resolverBoletaDocente`;
+  antes los cubría de facto el filtro de estado).
+- **Invariante — jamás versión OFICIAL de un desactivado:** los 4 entry points
+  internos fuerzan `vistaPrevia = true` cuando `estado_matricula === 'desactivado'`
+  (banner BORRADOR, sin QR, sin firma en la imprimible), incluso con bimestre
+  cerrado. Coherente con el QR: el token del desactivado está muerto.
+- **Token público y panel del padre: SIN CAMBIOS.** `resolveToken` conserva su
+  `estado <> 'desactivado'` (el QR impreso de un trasladado da 404). El documento
+  oficial de un trasladado sigue siendo la constancia de traslado.
+- Las matrículas `pendiente` NO se fuerzan a borrador (siguen la regla del periodo,
+  como siempre); su exclusión de documentos oficiales la garantizan la salida
+  masiva y el orden de mérito (filtran `aprobada`), no la boleta interna.
+
+### Implementación
+- `Boleta\BoletaController`: `resolverBoletaDocente` y `resolverBoletaGestion` ya
+  no excluyen `desactivado`; retornan `array{periodo_id, estado_matricula}` y cada
+  entry point calcula `vistaPrevia = desactivado || estadoBoletaDePeriodo !== 'oficial'`.
+- `matriculas/show.php`: la card "Boleta" dejó de estar gated por `$esActivo`
+  (visible en cualquier estado); si `desactivado`, muestra nota "se emite solo
+  como borrador".
+- **Nómina docente** (`Docente\PanelController` + `docente/nomina.php`):
+  - `getMatriculados(..., bool $soloAprobadas = true)`: el buscador en vivo pasa
+    `false` → incluye `pendiente` y `desactivado` (espejo de la grilla); la
+    **nómina IMPRIMIBLE** (`nominaImprimir`) usa el default → **solo `aprobada`**
+    (documento oficial SIAGIE, no relajar). El SELECT proyecta `m.estado`.
+  - El selector de impresión (`$secciones`) solo cuenta filas `aprobada` (si no,
+    inflaría los conteos del documento oficial).
+  - Card del buscador: badge `.matricula-badge--pendiente/--desactivado` (reusa el
+    global de `_matriculas.scss`) junto al nombre; para desactivados el panel de
+    boleta se marca `--borrador` y su etiqueta dice siempre "Borrador · {bim}".
+  - `getNominaResumen` (dashboard) y `nomina.js` sin cambios (`data-buscar` intacto).
+
+### Nota conocida (preexistente, NO introducida por este cambio)
+La boleta DIGITAL muestra el **sello** del director en pantalla sin gate de
+`vistaPrevia` (`digital.php` footer) y sin regla `@media print` que lo oculte —
+aplica a TODO borrador (también el del Hito A del docente), no solo a desactivados.
+La IMPRIMIBLE (`alumno.php`) sí suprime la firma con `vistaPrevia`. Si se quiere
+que el borrador digital tampoco muestre/imprima el sello, es un ajuste aparte.
+
 ## Fixes importantes aplicados (sesión 3)
 - `CalificacionModel::getBoletaAlumno()` ahora hace INNER JOIN con
   `bloqueos_competencia` — la boleta solo muestra notas que el docente aprobó.

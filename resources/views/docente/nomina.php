@@ -72,12 +72,26 @@ $boletaEtiqueta   = $boletaBorrador
             'F'     => 'Tutora',
             default => 'Tutor(a)',
         };
+        // Desactivado: su boleta se sirve SIEMPRE como borrador (sin QR ni
+        // firma), aunque el bimestre esté cerrado — el panel lo refleja por fila.
+        $esDesactivado = ($a['estado'] === 'desactivado');
+        $claseBorrador = ($boletaBorrador || $esDesactivado);
+        $etiquetaFila  = $esDesactivado
+            ? 'Borrador · ' . ($boletaBorrador ? ($bimestreActivo ?? '') : ($bimestreCerrado ?? ''))
+            : $boletaEtiqueta;
         ?>
         <div class="buscador-item card nomina-fila" data-buscar="<?= e(mb_strtolower($nombre)) ?>" hidden>
             <div class="buscador-item__body">
                 <div class="buscador-item__avatar"><?= e($inicial) ?></div>
                 <div class="buscador-item__info">
-                    <div class="buscador-item__nombre"><?= e($nombre) ?></div>
+                    <div class="buscador-item__nombre">
+                        <?= e($nombre) ?>
+                        <?php if ($a['estado'] !== 'aprobada'): ?>
+                            <span class="matricula-badge matricula-badge--<?= e($a['estado']) ?>">
+                                <?= $esDesactivado ? 'Desactivado' : 'Pendiente' ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
                     <div class="buscador-item__sub"><?= $tutorLabel ?>: <?= $a['tutor_nombre'] !== '' ? e($a['tutor_nombre']) : 'sin asignar' ?></div>
                     <div class="buscador-item__sub">Apoderado: <?= $a['apoderado_nombre'] !== '' ? e($a['apoderado_nombre']) : '—' ?></div>
                     <div class="buscador-item__sub">Cel: <?= $a['apoderado_telefono'] ? e($a['apoderado_telefono']) : '—' ?></div>
@@ -95,8 +109,8 @@ $boletaEtiqueta   = $boletaBorrador
                         <?php endif; ?>
                     </div>
                     <?php if (!empty($a['tiene_boleta']) && $hayBoletaVisible): ?>
-                        <div class="nomina-boleta-panel<?= $boletaBorrador ? ' nomina-boleta-panel--borrador' : '' ?>">
-                            <span class="nomina-boleta-panel__label"><?= $boletaBorrador ? 'Borrador' : 'Boleta' ?></span>
+                        <div class="nomina-boleta-panel<?= $claseBorrador ? ' nomina-boleta-panel--borrador' : '' ?>">
+                            <span class="nomina-boleta-panel__label"><?= $claseBorrador ? 'Borrador' : 'Boleta' ?></span>
                             <div class="nomina-boleta-panel__botones">
                                 <a class="nomina-boleta-btn" target="_blank" rel="noopener"
                                    href="<?= url('docente/boleta/' . (int) $a['matricula_id']) ?>"
@@ -111,7 +125,7 @@ $boletaEtiqueta   = $boletaBorrador
                                     <span class="nomina-boleta-btn__ico nomina-boleta-btn__ico--print" aria-hidden="true"></span>
                                 </a>
                             </div>
-                            <span class="nomina-boleta-panel__estado"><?= e($boletaEtiqueta) ?></span>
+                            <span class="nomina-boleta-panel__estado"><?= e($etiquetaFila) ?></span>
                         </div>
                     <?php endif; ?>
                 </div>

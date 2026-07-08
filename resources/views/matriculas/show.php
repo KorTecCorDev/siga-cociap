@@ -331,11 +331,15 @@ $labelDoc = [
 </div>
 
 <!-- ── Boleta (consulta / impresión) ─────────────────────────── -->
-<?php if ($esActivo): ?>
+<!-- Visible en cualquier estado: las desactivadas (traslado/baja) se sirven
+     SIEMPRE como borrador (sin QR ni firma) — jamás como documento oficial. -->
 <div class="card mb-md">
     <div class="card__body">
         <p class="form-section-title">Boleta</p>
         <p class="text-sm text-muted mb-sm">Consulta la boleta del estudiante en pantalla o imprímela en formato físico A4.</p>
+        <?php if ($matricula['estado'] === 'desactivado'): ?>
+            <p class="text-sm text-muted mb-sm">Matrícula desactivada: la boleta se emite solo como <strong>borrador</strong> (sin QR ni firma) y no constituye documento oficial.</p>
+        <?php endif; ?>
         <div class="btn-group">
             <a href="<?= url('matriculas/' . $matricula['id'] . '/boleta') ?>" target="_blank" rel="noopener"
                class="btn btn--secondary">Ver boleta digital</a>
@@ -347,7 +351,6 @@ $labelDoc = [
         </div>
     </div>
 </div>
-<?php endif; ?>
 
 <!-- ── Gestión de la matrícula (operaciones diferenciadas) ────── -->
 <?php if ($puedeGestionar): ?>
