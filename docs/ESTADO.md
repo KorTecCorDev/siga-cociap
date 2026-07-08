@@ -43,10 +43,13 @@
   >1 hijo), arreglar `desactivarUsuarioDeEstudiante`, política de contraseñas.
 - **Módulo de suspensiones/disciplina** (diferido): principios de diseño fijados
   en `docs/decisiones-diferidas.md` — NUNCA manejarlas con estado `desactivado`.
-- **Boletas de matrículas desactivadas por vías internas: IMPLEMENTADO 09/07/2026
-  en `dev`** (gestión y docente ven BORRADOR forzado; buscador de nómina docente
-  ampliado; token público intacto). Regla completa en `docs/modulos/boletas.md`.
-  Pendiente: llegar a `main` en el próximo merge autorizado.
+- **Boletas de matrículas desactivadas por vías internas: EN PRODUCCIÓN
+  (merge a `main` 08-09/07/2026)** — desactivados por deuda/baja: BORRADOR
+  forzado; trasladados consumados vía gestión: última boleta OFICIAL con
+  estructura anual completa; buscador de nómina docente ampliado; token público
+  intacto. Regla completa en `docs/modulos/boletas.md`. Incluye la reubicación
+  del registro de exoneraciones a "Gestión de la matrícula"
+  (`docs/modulos/matriculas.md`).
 
 ## Ética y Valores (Educación Religiosa) — plan de encendido (07/07/2026)
 
@@ -133,5 +136,6 @@ WHERE id=25;`).
 ## Git
 - `dev` = rama de trabajo; `main` = producción (auto-deploy en Hostinger).
   **Preguntar SIEMPRE antes de mergear `dev` → `main`.**
-- `dev` y `main` sincronizados en `67e2704` (03/07/2026): fixes de boleta +
-  red de documentación en prod.
+- `dev` y `main` sincronizados en `10baccd` (09/07/2026): boletas de
+  desactivados/trasladados, buscador de nómina docente y reubicación de
+  exoneraciones en prod.
