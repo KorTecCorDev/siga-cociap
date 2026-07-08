@@ -116,11 +116,18 @@ class BoletaController extends BaseController
      * SIEMPRE desde el token permanente y elige layout/vista.
      *
      * @param array $opts ['soloOficiales'=>bool, 'vistaPrevia'=>bool, 'registrarVisita'=>bool,
-     *                     'sinQr'=>bool (trasladados: token muerto, el QR se omite)]
+     *                     'sinQr'=>bool (trasladados: token muerto, el QR se omite),
+     *                     'estructuraCompleta'=>bool (todas las columnas del anio
+     *                     aunque soloOficiales filtre los datos)]
      */
     private function render(int $matriculaId, int $periodoId, string $layout, array $opts = []): void
     {
-        $data = $this->boletaModel->armar($matriculaId, $periodoId, $opts['soloOficiales'] ?? false);
+        $data = $this->boletaModel->armar(
+            $matriculaId,
+            $periodoId,
+            $opts['soloOficiales'] ?? false,
+            $opts['estructuraCompleta'] ?? false
+        );
 
         if (!$data) {
             http_response_code(404);
@@ -236,15 +243,21 @@ class BoletaController extends BaseController
     /**
      * Opciones de render de la boleta interna de gestion segun la matricula:
      * - TRASLADADO consumado (desactivado + tipo trasladado): su ULTIMA boleta
-     *   OFICIAL — solo bimestres cerrados, sin banner, CON firma, SIN QR (el
-     *   token esta muerto: un QR impreso dirigiria a "no encontrado").
+     *   OFICIAL — estructura anual completa con DATOS solo de bimestres
+     *   cerrados (regla de formato 09/07/2026), sin banner, CON firma, SIN QR
+     *   (el token esta muerto: un QR impreso dirigiria a "no encontrado").
      * - Desactivado por otra causa (deuda/baja): BORRADOR forzado siempre.
      * - Resto: vista previa segun el estado del periodo (regla normal).
      */
     private function optsBoletaGestion(array $res): array
     {
         if ($res['estado_matricula'] === 'desactivado' && $res['tipo'] === 'trasladado') {
-            return ['soloOficiales' => true, 'vistaPrevia' => false, 'sinQr' => true];
+            return [
+                'soloOficiales'      => true,
+                'estructuraCompleta' => true,
+                'vistaPrevia'        => false,
+                'sinQr'              => true,
+            ];
         }
 
         return [

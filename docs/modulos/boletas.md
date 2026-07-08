@@ -336,14 +336,25 @@ NUNCA CSS inline en PHP (convención del proyecto).
 - **TRASLADADO consumado (`estado='desactivado' AND tipo='trasladado'`) — regla
   refinada 09/07/2026:** su boleta vía gestión es **exclusivamente OFICIAL** — el
   alumno ya tuvo su última boleta oficial y sus notas jamás cambiarán aquí. Se
-  sirve con `armar(soloOficiales=true)` (solo bimestres CERRADOS, idéntica a la
-  que la familia veía por token), **sin banner, CON firma del director y SIN QR**
-  (opción `sinQr` de `render()`: el token está muerto y un QR impreso dirigiría a
-  "no encontrado"). El periodo se ancla al último bimestre CERRADO con notas
-  (`periodoPublicableConNotas(..., soloCerrados=true)`); **sin cerrados → 404**
-  (nunca tuvo boleta oficial; su documento de salida es la constancia de
-  traslado). Las notas parciales del bimestre en curso al momento del traslado
-  quedan FUERA (nunca fueron oficiales).
+  sirve con `armar(soloOficiales=true, estructuraCompleta=true)`: **estructura
+  anual completa** (las 4 columnas de bimestres, regla de formato de abajo) con
+  **DATOS solo de bimestres CERRADOS** (los no cerrados van como columnas
+  vacías); **sin banner, CON firma del director y SIN QR** (opción `sinQr` de
+  `render()`: el token está muerto y un QR impreso dirigiría a "no encontrado").
+  La conducta también se filtra a bimestres cerrados. El periodo se ancla al
+  último bimestre CERRADO con notas (`periodoPublicableConNotas(...,
+  soloCerrados=true)`); **sin cerrados → 404** (nunca tuvo boleta oficial; su
+  documento de salida es la constancia de traslado). Las notas parciales del
+  bimestre en curso al momento del traslado quedan FUERA (nunca fueron oficiales).
+- **REGLA DE FORMATO (09/07/2026): la boleta mantiene SIEMPRE la estructura
+  anual completa** — todas las columnas de bimestres del año; los filtros
+  (`soloOficiales`) aplican a los DATOS insertados, no a las columnas.
+  `armar()` la implementa con el parámetro `estructuraCompleta`. **Deuda
+  técnica consciente:** la boleta por token de familias sigue en el
+  comportamiento histórico (columnas colapsadas a cerrados,
+  `estructuraCompleta=false`) — el usuario decidió limitarlo al modo trasladado
+  por ahora; al migrar el token a la regla, revisar que conducta/notas no
+  oficiales no se filtren (el guard de datos ya existe en `armar`).
 - **Docente** (`/docente/boleta/{id}[/imprimir]`): ve la boleta de todos los de su
   grilla — `aprobada`, `pendiente` y `desactivado`. Los `tipo='trasladado'` dan
   **403** (nuevo filtro explícito `m.tipo <> 'trasladado'` en `resolverBoletaDocente`;

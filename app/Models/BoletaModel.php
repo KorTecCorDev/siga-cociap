@@ -40,12 +40,22 @@ class BoletaModel extends BaseModel
      *
      * @param int  $matriculaId   matricula consultada (puede ser operativa en retorno).
      * @param int  $periodoId     periodo a resaltar como activo.
-     * @param bool $soloOficiales true = solo bimestres CERRADOS (regla de familias:
-     *                            publico/token/codigo). false = todos los periodos
-     *                            (uso interno: docente con BORRADOR, salida masiva).
+     * @param bool $soloOficiales true = solo DATOS de bimestres CERRADOS (regla de
+     *                            familias: publico/token/codigo). false = todos los
+     *                            periodos (uso interno: docente con BORRADOR,
+     *                            salida masiva).
+     * @param bool $estructuraCompleta REGLA DE FORMATO (09/07/2026): la boleta
+     *                            mantiene la estructura anual completa (todas las
+     *                            columnas de bimestres) y los datos se insertan
+     *                            segun corresponda. true = las columnas son TODOS
+     *                            los periodos del anio aunque $soloOficiales
+     *                            filtre los datos (trasladados via gestion).
+     *                            false = comportamiento historico del token
+     *                            (columnas colapsadas a cerrados; pendiente de
+     *                            migrar a la regla nueva).
      * @return array|null         null si la matricula o el periodo no existen.
      */
-    public function armar(int $matriculaId, int $periodoId, bool $soloOficiales = false): ?array
+    public function armar(int $matriculaId, int $periodoId, bool $soloOficiales = false, bool $estructuraCompleta = false): ?array
     {
         // Retorno de grado: la boleta SIEMPRE se rotula con la matricula oficial
         // (grado/seccion SIAGIE) y sus notas se leen por union de las matriculas
@@ -62,8 +72,11 @@ class BoletaModel extends BaseModel
             return null;
         }
 
-        $anioId   = (int) $periodo['anio_id'];
-        $periodos = $this->getPeriodosDelAnio($anioId, $soloOficiales);
+        $anioId = (int) $periodo['anio_id'];
+        // Estructura (columnas) vs datos: con $estructuraCompleta las columnas
+        // son todos los periodos del anio; $soloOficiales filtra solo los DATOS
+        // (guard del loop de abajo). Sin ella, el filtro colapsa ambas (token).
+        $periodos = $this->getPeriodosDelAnio($anioId, $soloOficiales && !$estructuraCompleta);
 
         // Logro anual = nota del ULTIMO bimestre del anio (mayor numero), visible
         // SOLO cuando ese bimestre esta cerrado. NO es el ultimo bimestre CERRADO
@@ -74,6 +87,12 @@ class BoletaModel extends BaseModel
 
         $datosPorPeriodo = [];
         foreach ($periodos as $p) {
+            // Con $soloOficiales, un periodo NO cerrado es solo columna vacia:
+            // sus notas (aunque esten bloqueadas) nunca fueron oficiales.
+            if ($soloOficiales && $p['estado'] !== 'cerrado') {
+                $datosPorPeriodo[$p['id']] = [];
+                continue;
+            }
             $rows = [];
             foreach ($fuentes as $mid) {
                 $rows = array_merge($rows, $this->calModel->getBoletaAlumno((int) $mid, $p['id']));
@@ -98,12 +117,23 @@ class BoletaModel extends BaseModel
             foreach ($asisTotal as $k => $_) { $asisTotal[$k] += (int) $datos[$k]; }
         }
 
+        // Conducta [periodo_id => literal]: con $soloOficiales solo bimestres
+        // cerrados — la conducta de un bimestre en curso no es oficial y con
+        // estructura completa su columna existe (antes el colapso la ocultaba).
+        $conducta = $this->conductaModel->getParaBoletaUnion($fuentes, $anioId);
+        if ($soloOficiales) {
+            $conducta = array_intersect_key(
+                $conducta,
+                array_flip(array_column($periodosCerrados, 'id'))
+            );
+        }
+
         return [
             'alumno'            => $alumno,
             'periodos'          => $periodos,
             'periodo_activo_id' => $periodoId,
             'areas'             => $areas,
-            'conducta'          => $this->conductaModel->getParaBoletaUnion($fuentes, $anioId),
+            'conducta'          => $conducta,
             'asistencia'        => [
                 'bimestres' => $asisBimestres,
                 'total'     => $asisTotal,
