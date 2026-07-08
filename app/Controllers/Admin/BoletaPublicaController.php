@@ -192,7 +192,10 @@ class BoletaPublicaController extends BaseController
         $boletasData = [];
 
         foreach ($matriculas as $m) {
-            $data = $this->boletaModel->armar((int) $m['matricula_id'], $periodoId);
+            // EXCEPCION a la compuerta del Hito A: la vista previa de RA muestra
+            // TODOS los periodos (incluido el activo en 'registro') porque es su
+            // herramienta para decidir el Hito A. Staff, sin QR, marcada BORRADOR.
+            $data = $this->boletaModel->armar((int) $m['matricula_id'], $periodoId, 'todos');
             if ($data) {
                 // En vista previa no inyectamos url_boleta (sin QR) ni mostramos
                 // firma del director; el flag lo decide en alumno.php.
@@ -229,7 +232,9 @@ class BoletaPublicaController extends BaseController
 
         foreach ($matriculas as $m) {
             $matriculaId = (int) $m['matricula_id'];
-            $data = $this->boletaModel->armar($matriculaId, $periodoId);
+            // De cara a familias (lleva QR): SOLO lo oficial (cerrado). El QR/
+            // boleta oficial exige Hito A, garantizado por el cierre. Idem al token.
+            $data = $this->boletaModel->armar($matriculaId, $periodoId, 'oficial');
             if ($data) {
                 $data['url_boleta'] = $this->urlBoletaToken($matriculaId);
                 $boletasData[] = $data;
@@ -264,7 +269,9 @@ class BoletaPublicaController extends BaseController
 
         foreach ($matriculas as $m) {
             $matriculaId = (int) $m['matricula_id'];
-            $data = $this->boletaModel->armar($matriculaId, $periodoId);
+            // De cara a familias (PDF con QR): SOLO lo oficial (cerrado), igual
+            // que boletasAlumno y el token. El QR exige Hito A (via cierre).
+            $data = $this->boletaModel->armar($matriculaId, $periodoId, 'oficial');
             if (!$data) continue;
 
             $a = $data['alumno'];

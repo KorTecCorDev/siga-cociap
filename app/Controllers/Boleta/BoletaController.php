@@ -57,7 +57,7 @@ class BoletaController extends BaseController
     {
         ['matricula_id' => $matriculaId, 'periodo_id' => $periodoId] = $this->resolveToken($token);
         $this->render($matriculaId, $periodoId, 'print', [
-            'soloOficiales'   => true,
+            'datos'           => 'oficial',
             'registrarVisita' => true,
         ]);
     }
@@ -71,7 +71,7 @@ class BoletaController extends BaseController
     {
         ['matricula_id' => $matriculaId, 'periodo_id' => $periodoId] = $this->resolveToken($token);
         $this->render($matriculaId, $periodoId, 'digital', [
-            'soloOficiales'   => true,
+            'datos'           => 'oficial',
             'registrarVisita' => true,
         ]);
     }
@@ -89,6 +89,7 @@ class BoletaController extends BaseController
         $periodoId   = $res['periodo_id'];
 
         $this->render($matriculaId, $periodoId, 'digital', [
+            'datos'       => 'borrador',
             'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
                           || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
         ]);
@@ -106,6 +107,7 @@ class BoletaController extends BaseController
         $periodoId   = $res['periodo_id'];
 
         $this->render($matriculaId, $periodoId, 'print', [
+            'datos'       => 'borrador',
             'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
                           || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
         ]);
@@ -115,17 +117,18 @@ class BoletaController extends BaseController
      * Render UNICO de la boleta. Arma los datos via BoletaModel, fija el QR
      * SIEMPRE desde el token permanente y elige layout/vista.
      *
-     * @param array $opts ['soloOficiales'=>bool, 'vistaPrevia'=>bool, 'registrarVisita'=>bool,
+     * @param array $opts ['datos'=>'oficial'|'borrador'|'todos' (umbral Hito A; default
+     *                     'oficial'), 'vistaPrevia'=>bool, 'registrarVisita'=>bool,
      *                     'sinQr'=>bool (trasladados: token muerto, el QR se omite),
      *                     'estructuraCompleta'=>bool (todas las columnas del anio
-     *                     aunque soloOficiales filtre los datos)]
+     *                     aunque 'datos' filtre las notas)]
      */
     private function render(int $matriculaId, int $periodoId, string $layout, array $opts = []): void
     {
         $data = $this->boletaModel->armar(
             $matriculaId,
             $periodoId,
-            $opts['soloOficiales'] ?? false,
+            $opts['datos'] ?? 'oficial',
             $opts['estructuraCompleta'] ?? false
         );
 
@@ -253,7 +256,7 @@ class BoletaController extends BaseController
     {
         if ($res['estado_matricula'] === 'desactivado' && $res['tipo'] === 'trasladado') {
             return [
-                'soloOficiales'      => true,
+                'datos'              => 'oficial',
                 'estructuraCompleta' => true,
                 'vistaPrevia'        => false,
                 'sinQr'              => true,
@@ -261,6 +264,7 @@ class BoletaController extends BaseController
         }
 
         return [
+            'datos'       => 'borrador',
             'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
                           || $this->estadoBoletaDePeriodo($res['periodo_id']) !== 'oficial',
         ];

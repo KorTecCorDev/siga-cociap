@@ -38,24 +38,28 @@ class BoletaModel extends BaseModel
     /**
      * Arma la boleta anual completa de un alumno.
      *
-     * @param int  $matriculaId   matricula consultada (puede ser operativa en retorno).
-     * @param int  $periodoId     periodo a resaltar como activo.
-     * @param bool $soloOficiales true = solo DATOS de bimestres CERRADOS (regla de
-     *                            familias: publico/token/codigo). false = todos los
-     *                            periodos (uso interno: docente con BORRADOR,
-     *                            salida masiva).
-     * @param bool $estructuraCompleta REGLA DE FORMATO (09/07/2026): la boleta
-     *                            mantiene la estructura anual completa (todas las
-     *                            columnas de bimestres) y los datos se insertan
-     *                            segun corresponda. true = las columnas son TODOS
-     *                            los periodos del anio aunque $soloOficiales
-     *                            filtre los datos (trasladados via gestion).
-     *                            false = comportamiento historico del token
-     *                            (columnas colapsadas a cerrados; pendiente de
-     *                            migrar a la regla nueva).
-     * @return array|null         null si la matricula o el periodo no existen.
+     * COMPUERTA DEL HITO A (09/07/2026): un bimestre aporta NOTAS segun su estado
+     * de boleta (boleta_estado_bimestre). $datos define el umbral:
+     *   - 'oficial'  : solo bimestres CERRADOS (familias: token, salida masiva con
+     *                  QR). El BORRADOR de Hito A NUNCA se expone al publico.
+     *   - 'borrador' : cerrado O activo con Hito A aprobado (interno: docente y
+     *                  gestion). Un bimestre en 'registro' NO aporta notas aunque
+     *                  el docente ya haya bloqueado su competencia.
+     *   - 'todos'    : incluye 'registro' (UNICA excepcion: la vista previa de RA,
+     *                  su herramienta para decidir el Hito A).
+     *
+     * @param int    $matriculaId  matricula consultada (puede ser operativa en retorno).
+     * @param int    $periodoId    periodo a resaltar como activo.
+     * @param string $datos        'oficial' | 'borrador' | 'todos' (umbral de notas).
+     * @param bool   $estructuraCompleta REGLA DE FORMATO (09/07/2026): mantiene la
+     *                             estructura anual completa (todas las columnas de
+     *                             bimestres) aunque $datos filtre las notas
+     *                             insertadas (trasladados via gestion). Sin ella y
+     *                             con $datos='oficial', las columnas colapsan a
+     *                             cerrados (comportamiento historico del token).
+     * @return array|null          null si la matricula o el periodo no existen.
      */
-    public function armar(int $matriculaId, int $periodoId, bool $soloOficiales = false, bool $estructuraCompleta = false): ?array
+    public function armar(int $matriculaId, int $periodoId, string $datos = 'oficial', bool $estructuraCompleta = false): ?array
     {
         // Retorno de grado: la boleta SIEMPRE se rotula con la matricula oficial
         // (grado/seccion SIAGIE) y sus notas se leen por union de las matriculas
@@ -73,10 +77,12 @@ class BoletaModel extends BaseModel
         }
 
         $anioId = (int) $periodo['anio_id'];
-        // Estructura (columnas) vs datos: con $estructuraCompleta las columnas
-        // son todos los periodos del anio; $soloOficiales filtra solo los DATOS
-        // (guard del loop de abajo). Sin ella, el filtro colapsa ambas (token).
-        $periodos = $this->getPeriodosDelAnio($anioId, $soloOficiales && !$estructuraCompleta);
+        // Estructura (columnas) vs datos: las columnas son todos los periodos del
+        // anio, salvo el modo historico del token (datos='oficial' sin estructura
+        // completa), que colapsa a cerrados. El umbral de NOTAS lo aplica el guard
+        // del loop de abajo segun $datos.
+        $colapsarColumnas = ($datos === 'oficial') && !$estructuraCompleta;
+        $periodos = $this->getPeriodosDelAnio($anioId, $colapsarColumnas);
 
         // Logro anual = nota del ULTIMO bimestre del anio (mayor numero), visible
         // SOLO cuando ese bimestre esta cerrado. NO es el ultimo bimestre CERRADO
@@ -85,14 +91,16 @@ class BoletaModel extends BaseModel
         $ultimoBimestreId = $ultimoBim ? (int) $ultimoBim['id'] : 0;
         $ultimoCerrado    = $ultimoBim !== null && $ultimoBim['estado'] === 'cerrado';
 
-        $datosPorPeriodo = [];
+        // Compuerta del Hito A: qué periodos APORTAN notas segun $datos. Un
+        // periodo que no aporta queda como columna vacia (la estructura no cambia).
+        $periodosConDatos = [];
+        $datosPorPeriodo  = [];
         foreach ($periodos as $p) {
-            // Con $soloOficiales, un periodo NO cerrado es solo columna vacia:
-            // sus notas (aunque esten bloqueadas) nunca fueron oficiales.
-            if ($soloOficiales && $p['estado'] !== 'cerrado') {
+            if (!$this->periodoAportaNotas($p, $datos)) {
                 $datosPorPeriodo[$p['id']] = [];
                 continue;
             }
+            $periodosConDatos[$p['id']] = true;
             $rows = [];
             foreach ($fuentes as $mid) {
                 $rows = array_merge($rows, $this->calModel->getBoletaAlumno((int) $mid, $p['id']));
@@ -106,7 +114,7 @@ class BoletaModel extends BaseModel
 
         // Asistencia: una columna por bimestre CERRADO (todos los registrados) +
         // total. Solo cerrados (misma regla en la boleta de familias y la interna,
-        // independiente de $soloOficiales). El total SUMA los bimestres mostrados
+        // independiente del modo $datos). El total SUMA los bimestres mostrados
         // (no un acumulado por numero<=, que podria incluir uno no mostrado).
         $periodosCerrados = $this->getPeriodosDelAnio($anioId, true);
         $asisBimestres = [];
@@ -117,15 +125,12 @@ class BoletaModel extends BaseModel
             foreach ($asisTotal as $k => $_) { $asisTotal[$k] += (int) $datos[$k]; }
         }
 
-        // Conducta [periodo_id => literal]: con $soloOficiales solo bimestres
-        // cerrados — la conducta de un bimestre en curso no es oficial y con
-        // estructura completa su columna existe (antes el colapso la ocultaba).
+        // Conducta [periodo_id => literal]: mismo umbral del Hito A que las notas.
+        // Solo los periodos que APORTAN (segun $datos) muestran conducta; en 'todos'
+        // no se filtra (vista previa de RA).
         $conducta = $this->conductaModel->getParaBoletaUnion($fuentes, $anioId);
-        if ($soloOficiales) {
-            $conducta = array_intersect_key(
-                $conducta,
-                array_flip(array_column($periodosCerrados, 'id'))
-            );
+        if ($datos !== 'todos') {
+            $conducta = array_intersect_key($conducta, $periodosConDatos);
         }
 
         return [
@@ -195,14 +200,37 @@ class BoletaModel extends BaseModel
     }
 
     /**
-     * Periodos del anio. Con $soloOficiales filtra a bimestres CERRADOS
-     * (regla de familias: el BORRADOR de Hito A nunca se expone al publico).
+     * ¿El periodo aporta NOTAS a la boleta segun el umbral $datos? Compuerta del
+     * Hito A: usa boleta_estado_bimestre (punto unico de verdad) por periodo.
+     *   - 'oficial'  -> solo 'oficial' (cerrado).
+     *   - 'borrador' -> 'oficial' o 'borrador' (cerrado o activo con Hito A).
+     *   - 'todos'    -> siempre (incluye 'registro'; solo vista previa de RA).
      */
-    private function getPeriodosDelAnio(int $anioId, bool $soloOficiales = false): array
+    private function periodoAportaNotas(array $periodo, string $datos): bool
     {
-        $filtro = $soloOficiales ? "AND estado = 'cerrado'" : '';
+        if ($datos === 'todos') {
+            return true;
+        }
+        $estado = boleta_estado_bimestre(
+            $periodo['estado'] ?? null,
+            $periodo['boletas_aprobadas_en'] ?? null
+        );
+        return $datos === 'oficial'
+            ? $estado === 'oficial'
+            : $estado !== 'registro';   // 'borrador': oficial o borrador
+    }
+
+    /**
+     * Periodos del anio. Con $soloCerrados filtra a bimestres CERRADOS
+     * (estructura de columnas del token: el BORRADOR de Hito A no arma columna).
+     * Incluye `boletas_aprobadas_en` para que el guard de datos de armar() pueda
+     * derivar el estado de boleta (Hito A) por periodo.
+     */
+    private function getPeriodosDelAnio(int $anioId, bool $soloCerrados = false): array
+    {
+        $filtro = $soloCerrados ? "AND estado = 'cerrado'" : '';
         return $this->query("
-            SELECT id, numero, nombre_display, estado
+            SELECT id, numero, nombre_display, estado, boletas_aprobadas_en
             FROM periodos
             WHERE anio_id = ? {$filtro}
             ORDER BY numero

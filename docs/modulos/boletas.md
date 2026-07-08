@@ -400,6 +400,59 @@ aplica a TODO borrador (también el del Hito A del docente), no solo a desactiva
 La IMPRIMIBLE (`alumno.php`) sí suprime la firma con `vistaPrevia`. Si se quiere
 que el borrador digital tampoco muestre/imprima el sello, es un ajuste aparte.
 
+## Compuerta del Hito A — la nota aparece solo tras la aprobación de RA (09/07/2026)
+
+> **Bug corregido:** un docente bloqueaba su competencia del II Bimestre (aún en
+> `registro`, sin Hito A) y esa nota YA aparecía en la boleta interna (docente y
+> gestión) — sin banner BORRADOR, porque el ancla era el I Bimestre cerrado. La
+> boleta INTERNA se armaba con `armar(soloOficiales=false)`, que insertaba datos de
+> TODO periodo con competencia bloqueada, sin mirar el estado del bimestre. La
+> compuerta del Hito A ahora rige en todos los procesos de boleta.
+
+### Regla (punto único de verdad: `boleta_estado_bimestre`)
+Un bimestre aporta NOTAS a la boleta según su estado de boleta (`helpers.php`):
+- **`oficial`** (cerrado) → familias.
+- **`borrador`** (activo + `boletas_aprobadas_en`, Hito A) → interno.
+- **`registro`** (activo sin Hito A) → NO aporta notas (aunque el docente ya haya
+  bloqueado su competencia).
+
+`cerrado` implica que el Hito A quedó registrado: el cierre
+(`PeriodoController::cerrar` → `AnioAcademicoModel::marcarBoletasAprobadas`) setea
+`boletas_aprobadas_en` con `COALESCE(..., NOW())`. Por eso la compuerta de familias
+sigue siendo "solo cerrado" (estrictamente posterior al Hito A) sin contradecir la
+regla. (Anomalía histórica: B1 local quedó `cerrado` con `boletas_aprobadas_en=NULL`
+por ser previo a la migración 025; `boleta_estado_bimestre` lo trata como `oficial`
+por `estado='cerrado'`, así que muestra correctamente.)
+
+### `armar()` — parámetro `$datos` (reemplaza el bool `$soloOficiales`)
+`armar(int $matriculaId, int $periodoId, string $datos = 'oficial', bool $estructuraCompleta = false)`:
+- **`'oficial'`** → solo bimestres `cerrado` (familias: token, salida masiva con QR).
+- **`'borrador'`** → `cerrado` o `borrador` (interno: docente, gestión no trasladado);
+  un bimestre en `registro` queda como **columna vacía** (estructura completa).
+- **`'todos'`** → incluye `registro` (ÚNICA excepción: vista previa de RA).
+- El guard por periodo vive en el helper privado `BoletaModel::periodoAportaNotas`;
+  la conducta se filtra con el mismo conjunto de periodos que aportan.
+- `getPeriodosDelAnio` ahora también trae `boletas_aprobadas_en` (lo necesita el guard).
+
+### Mapa de umbrales por entry point
+- **Familias (`'oficial'`):** token (`verToken`/`verDigitalToken`), salida masiva con
+  QR (`Admin\BoletaPublicaController::boletasAlumno` y `archivar` — antes usaban el
+  default y filtraban solo notas; ahora `'oficial'`, coherente con lo que resuelve el
+  QR). El export SIAGIE ya exige `cerrado` (no usa `armar`).
+- **Interno (`'borrador'`):** docente (`verDigital/ImprimirDocente`) y gestión no
+  trasladado (`optsBoletaGestion`). El trasladado sigue `'oficial'`+`estructuraCompleta`.
+- **Excepción (`'todos'`):** `Admin\BoletaPublicaController::vistaPrevia` — herramienta
+  de RA para decidir el Hito A; staff, sin QR, marcada BORRADOR. Muestra el bimestre
+  en `registro` a propósito.
+- `Padre\PanelController::notas` (F4 último cerrado) no usa `armar`; ya solo oficial.
+
+### Verificado end-to-end
+Sembrando una competencia bloqueada + criterio confirmado en B2 (registro): docente y
+gestión NO la ven; tras simular el Hito A (`boletas_aprobadas_en`) SÍ la ven con banner
+BORRADOR; el token de familias nunca la ve; la vista previa de RA sí la muestra
+(excepción); la salida masiva solo muestra lo cerrado con QR. El guard anti-fantasma de
+`getBoletaAlumno` (migración 033) sigue exigiendo criterio vivo y confirmado.
+
 ## Fixes importantes aplicados (sesión 3)
 - `CalificacionModel::getBoletaAlumno()` ahora hace INNER JOIN con
   `bloqueos_competencia` — la boleta solo muestra notas que el docente aprobó.
