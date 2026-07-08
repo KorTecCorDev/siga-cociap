@@ -1,10 +1,17 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **07/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **08/07/2026**.
 
 ## Migraciones
-- **PROD y LOCAL al día hasta la `032_area_tutoria.sql`** (confirmado 03/07/2026).
+- **LOCAL: al día hasta la `037`.** **PROD: al día hasta la `033`.**
+- **Pendientes de aplicar en PROD** (por SSH, conexión utf8mb4, cada una con su
+  bloque PREVIEW). `034` y `037` son independientes de `035/036`; lo único
+  obligatorio es **`035` antes que `036`**:
+    - `034_purga_docente_duplicada` — borra el usuario duplicado DNI 20000777 (Beatriz).
+    - `035_area_etica_boleta` — `nombre_boleta='Ética y Valores'` + alias en área TOE secundaria.
+    - `036_competencia_etica_valores` — competencia C57 (interruptor); requiere las 11 cargas TOE ya creadas.
+    - `037_consolidar_docentes_duplicados` — fusiona LOLI/HUAYANEY/MONTES (docente↔apoderado, por DNI).
 - Orden completo de setup desde cero: ver `docs/infraestructura.md`.
 - OJO al crear un año académico nuevo: `getOrCreateConfiguracion` inserta
   `duracion_hora_min = 50` por defecto; el año 2026 usa 45.
@@ -40,8 +47,9 @@
 ## Ética y Valores (Educación Religiosa) — plan de encendido (07/07/2026)
 
 > SOLO SECUNDARIA — no tocar nada de primaria. Diseño completo en
-> `docs/modulos/calificaciones.md` (sección "Ética y Valores"). Código YA en
-> `dev` (validado en local, pendiente de merge a `main` — preguntar antes).
+> `docs/modulos/calificaciones.md` (sección "Ética y Valores"). Código y las
+> migraciones 035/036 YA en `main` (deploy 08/07). Falta aplicar 035/036 en la
+> BD de PROD (ver sección Migraciones).
 
 **Fase de datos en PROD (la ejecuta RA/admin por la UI, en este orden):**
 1. Crear las **11 cargas TOE de secundaria** (área 24, docente = tutor vigente
@@ -49,6 +57,8 @@
    (`cargas_academicas` sin UNIQUE KEY).
 2. Currículum → área 24: `nombre_boleta = 'Ética y Valores'`,
    `alias_boleta = '(Educación Religiosa)'`. Verificar `nombre_siagie` NULL.
+   → **empaquetado en migración `035_area_etica_boleta`** (el `nombre_siagie`
+   NO se toca ahí; se decide al construir el exportador SIAGIE de secundaria).
 3. Currículum → área 14 (Ed. Religiosa secundaria): **quitar** el alias huérfano
    "(Ética y Valores)" (nunca se imprimió: el área no tiene cargas ni notas).
 4. Exoneraciones de religión: registrarlas **contra el área 24** (motivo:
@@ -59,6 +69,8 @@
    nombre_completo "Actúa con valores éticos según los principios de su
    conciencia moral en situaciones concretas de la vida escolar y comunitaria."
    Al existir, la card aparece sola a los 11 tutores.
+   → **empaquetado en migración `036_competencia_etica_valores`** (correr
+   DESPUÉS de 035; en local resultó id 127).
 
 **Operación:** criterios libres del tutor (flujo normal); exonerados = fila EXO
 sin input (ya genérico); la sección de transversales NO aparece en la carga TOE
@@ -69,8 +81,9 @@ del II Bim (área oficial evaluada por su dimensión de conciencia moral, a carg
 del tutor; derecho de exoneración disponible). NO diferir a fin de año.
 
 **Datos de ensayo en LOCAL** (borrar si estorban a la demo del 08/07):
-competencia id=127 (C57, área 24), carga id=416 (1°A sec., tutor docente_id=2),
-exoneración id=2 (matrícula 198, "ENSAYO LOCAL"). Además conducta B2 de la
+la competencia C57 (área 24, hoy id=127) YA NO es ensayo: la crea la migración
+`036` — NO borrarla. Restan como ensayo: carga id=416 (1°A sec., tutor
+docente_id=2) y exoneración id=2 (matrícula 198, "ENSAYO LOCAL"). Además conducta B2 de la
 sección 13: 510 respuestas sembradas + cierre RA id=25 (limpiar con
 `DELETE FROM conducta_respuestas WHERE periodo_id=2 AND matricula_id IN
 (SELECT id FROM matriculas WHERE seccion_id=13); DELETE FROM cierres_conducta
