@@ -115,7 +115,8 @@ class BoletaController extends BaseController
      * Render UNICO de la boleta. Arma los datos via BoletaModel, fija el QR
      * SIEMPRE desde el token permanente y elige layout/vista.
      *
-     * @param array $opts ['soloOficiales'=>bool, 'vistaPrevia'=>bool, 'registrarVisita'=>bool]
+     * @param array $opts ['soloOficiales'=>bool, 'vistaPrevia'=>bool, 'registrarVisita'=>bool,
+     *                     'sinQr'=>bool (trasladados: token muerto, el QR se omite)]
      */
     private function render(int $matriculaId, int $periodoId, string $layout, array $opts = []): void
     {
@@ -142,7 +143,9 @@ class BoletaController extends BaseController
         View::setLayout($layout);
         $this->view($vista, array_merge($data, [
             'titulo'      => $rotulo . $data['alumno']['nombre_completo'],
-            'url_boleta'  => $this->urlBoletaToken($identidad),
+            // sinQr (trasladados): url_boleta vacia -> las vistas omiten el QR
+            // (su token esta muerto; un QR impreso dirigiria a "no encontrado").
+            'url_boleta'  => ($opts['sinQr'] ?? false) ? '' : $this->urlBoletaToken($identidad),
             'vistaPrevia' => $opts['vistaPrevia'] ?? false,
         ]));
     }
@@ -212,12 +215,8 @@ class BoletaController extends BaseController
         $this->requireRole(['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa']);
         $matriculaId = (int) $matriculaId;
         $res         = $this->resolverBoletaGestion($matriculaId);
-        $periodoId   = $res['periodo_id'];
 
-        $this->render($matriculaId, $periodoId, 'digital', [
-            'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
-                          || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
-        ]);
+        $this->render($matriculaId, $res['periodo_id'], 'digital', $this->optsBoletaGestion($res));
     }
 
     /**
@@ -230,34 +229,56 @@ class BoletaController extends BaseController
         $this->requireRole(['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa']);
         $matriculaId = (int) $matriculaId;
         $res         = $this->resolverBoletaGestion($matriculaId);
-        $periodoId   = $res['periodo_id'];
 
-        $this->render($matriculaId, $periodoId, 'print', [
-            'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
-                          || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
-        ]);
+        $this->render($matriculaId, $res['periodo_id'], 'print', $this->optsBoletaGestion($res));
     }
 
     /**
-     * Resuelve el periodo a mostrar para la boleta interna de gestion: el ultimo
-     * periodo publicable (cerrado u activo con Hito A aprobado) con notas del
-     * alumno. A diferencia de resolverBoletaDocente NO valida alcance por nivel,
-     * porque los roles de gestion de matricula pueden abrir cualquier matricula,
-     * incluidas las desactivadas (traslado/baja): esas se sirven siempre como
-     * BORRADOR (el entry point fuerza vistaPrevia con el estado retornado).
-     * 404 si la matricula no existe o no hay periodo publicable.
+     * Opciones de render de la boleta interna de gestion segun la matricula:
+     * - TRASLADADO consumado (desactivado + tipo trasladado): su ULTIMA boleta
+     *   OFICIAL — solo bimestres cerrados, sin banner, CON firma, SIN QR (el
+     *   token esta muerto: un QR impreso dirigiria a "no encontrado").
+     * - Desactivado por otra causa (deuda/baja): BORRADOR forzado siempre.
+     * - Resto: vista previa segun el estado del periodo (regla normal).
+     */
+    private function optsBoletaGestion(array $res): array
+    {
+        if ($res['estado_matricula'] === 'desactivado' && $res['tipo'] === 'trasladado') {
+            return ['soloOficiales' => true, 'vistaPrevia' => false, 'sinQr' => true];
+        }
+
+        return [
+            'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
+                          || $this->estadoBoletaDePeriodo($res['periodo_id']) !== 'oficial',
+        ];
+    }
+
+    /**
+     * Resuelve el periodo a mostrar para la boleta interna de gestion. A
+     * diferencia de resolverBoletaDocente NO valida alcance por nivel, porque
+     * los roles de gestion de matricula pueden abrir cualquier matricula,
+     * incluidas las desactivadas (traslado/baja).
+     * - TRASLADADO consumado: ancla al ultimo bimestre CERRADO con notas (su
+     *   boleta es exclusivamente OFICIAL; sin cerrados no hay boleta -> 404,
+     *   su documento de salida es la constancia de traslado).
+     * - Resto: ultimo periodo publicable (cerrado u activo con Hito A).
+     * 404 si la matricula no existe o no hay periodo elegible.
      *
-     * @return array{periodo_id: int, estado_matricula: string}
+     * @return array{periodo_id: int, estado_matricula: string, tipo: string}
      */
     private function resolverBoletaGestion(int $matriculaId): array
     {
         $mat = $this->calModel->queryOne(
-            "SELECT id, anio_id, estado FROM matriculas WHERE id = ? LIMIT 1",
+            "SELECT id, anio_id, estado, tipo FROM matriculas WHERE id = ? LIMIT 1",
             [$matriculaId]
         );
 
+        $esTrasladado = $mat
+            && $mat['estado'] === 'desactivado'
+            && $mat['tipo']   === 'trasladado';
+
         $periodoId = $mat
-            ? $this->periodoPublicableConNotas((int) $mat['anio_id'], $matriculaId)
+            ? $this->periodoPublicableConNotas((int) $mat['anio_id'], $matriculaId, $esTrasladado)
             : null;
 
         if ($periodoId === null) {
@@ -266,23 +287,33 @@ class BoletaController extends BaseController
             exit;
         }
 
-        return ['periodo_id' => $periodoId, 'estado_matricula' => $mat['estado']];
+        return [
+            'periodo_id'       => $periodoId,
+            'estado_matricula' => $mat['estado'],
+            'tipo'             => $mat['tipo'],
+        ];
     }
 
     /**
      * Ultimo periodo PUBLICABLE con notas del alumno: cerrado (OFICIAL) o activo
      * con boletas aprobadas (BORRADOR, Hito A). Un bimestre en registro aun NO
-     * tiene boleta. Retorna el id o null si no hay ninguno. Compartido por el
-     * flujo del docente y el de gestion de matriculas.
+     * tiene boleta. Con $soloCerrados = true considera UNICAMENTE bimestres
+     * cerrados (trasladados: su boleta es exclusivamente oficial). Retorna el id
+     * o null si no hay ninguno. Compartido por el flujo del docente y el de
+     * gestion de matriculas.
      */
-    private function periodoPublicableConNotas(int $anioId, int $matriculaId): ?int
+    private function periodoPublicableConNotas(int $anioId, int $matriculaId, bool $soloCerrados = false): ?int
     {
+        $condicionEstado = $soloCerrados
+            ? "p.estado = 'cerrado'"
+            : "(p.estado = 'cerrado'
+                   OR (p.estado = 'activo' AND p.boletas_aprobadas_en IS NOT NULL))";
+
         $periodo = $this->calModel->queryOne("
             SELECT p.id
             FROM periodos p
             WHERE p.anio_id = ?
-              AND (p.estado = 'cerrado'
-                   OR (p.estado = 'activo' AND p.boletas_aprobadas_en IS NOT NULL))
+              AND {$condicionEstado}
               AND EXISTS (
                   SELECT 1 FROM calificaciones cal
                   INNER JOIN bloqueos_competencia bc

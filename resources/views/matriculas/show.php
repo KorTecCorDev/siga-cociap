@@ -331,13 +331,16 @@ $labelDoc = [
 </div>
 
 <!-- ── Boleta (consulta / impresión) ─────────────────────────── -->
-<!-- Visible en cualquier estado: las desactivadas (traslado/baja) se sirven
-     SIEMPRE como borrador (sin QR ni firma) — jamás como documento oficial. -->
+<!-- Visible en cualquier estado. Trasladado consumado: su ULTIMA boleta OFICIAL
+     (solo bimestres cerrados, con firma, sin QR — el token está muerto). Otras
+     desactivadas (deuda/baja): SIEMPRE borrador, jamás documento oficial. -->
 <div class="card mb-md">
     <div class="card__body">
         <p class="form-section-title">Boleta</p>
         <p class="text-sm text-muted mb-sm">Consulta la boleta del estudiante en pantalla o imprímela en formato físico A4.</p>
-        <?php if ($matricula['estado'] === 'desactivado'): ?>
+        <?php if ($matricula['estado'] === 'desactivado' && $matricula['tipo'] === 'trasladado'): ?>
+            <p class="text-sm text-muted mb-sm">Estudiante trasladado: se emite su última boleta <strong>oficial</strong> (solo bimestres cerrados, con firma y sin código QR).</p>
+        <?php elseif ($matricula['estado'] === 'desactivado'): ?>
             <p class="text-sm text-muted mb-sm">Matrícula desactivada: la boleta se emite solo como <strong>borrador</strong> (sin QR ni firma) y no constituye documento oficial.</p>
         <?php endif; ?>
         <div class="btn-group">

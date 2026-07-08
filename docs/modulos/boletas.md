@@ -333,14 +333,26 @@ NUNCA CSS inline en PHP (convención del proyecto).
 - **Gestión** (`/matriculas/{id}/boleta[/imprimir]`, roles actuales: admin, RA y
   ambas secretarías — los directores quedaron explícitamente FUERA): ve e imprime
   la boleta de CUALQUIER matrícula, incluidas desactivadas y trasladadas.
+- **TRASLADADO consumado (`estado='desactivado' AND tipo='trasladado'`) — regla
+  refinada 09/07/2026:** su boleta vía gestión es **exclusivamente OFICIAL** — el
+  alumno ya tuvo su última boleta oficial y sus notas jamás cambiarán aquí. Se
+  sirve con `armar(soloOficiales=true)` (solo bimestres CERRADOS, idéntica a la
+  que la familia veía por token), **sin banner, CON firma del director y SIN QR**
+  (opción `sinQr` de `render()`: el token está muerto y un QR impreso dirigiría a
+  "no encontrado"). El periodo se ancla al último bimestre CERRADO con notas
+  (`periodoPublicableConNotas(..., soloCerrados=true)`); **sin cerrados → 404**
+  (nunca tuvo boleta oficial; su documento de salida es la constancia de
+  traslado). Las notas parciales del bimestre en curso al momento del traslado
+  quedan FUERA (nunca fueron oficiales).
 - **Docente** (`/docente/boleta/{id}[/imprimir]`): ve la boleta de todos los de su
   grilla — `aprobada`, `pendiente` y `desactivado`. Los `tipo='trasladado'` dan
   **403** (nuevo filtro explícito `m.tipo <> 'trasladado'` en `resolverBoletaDocente`;
   antes los cubría de facto el filtro de estado).
-- **Invariante — jamás versión OFICIAL de un desactivado:** los 4 entry points
-  internos fuerzan `vistaPrevia = true` cuando `estado_matricula === 'desactivado'`
-  (banner BORRADOR, sin QR, sin firma en la imprimible), incluso con bimestre
-  cerrado. Coherente con el QR: el token del desactivado está muerto.
+- **Invariante — jamás versión OFICIAL de un desactivado NO trasladado** (deuda,
+  baja administrativa): `vistaPrevia = true` forzada en toda vía interna (banner
+  BORRADOR, sin QR, sin firma en la imprimible), incluso con bimestre cerrado —
+  sigue matriculado de facto y sus notas están en flujo. El trasladado es la
+  EXCEPCIÓN deliberada (ver regla refinada arriba): registro histórico cerrado.
 - **Token público y panel del padre: SIN CAMBIOS.** `resolveToken` conserva su
   `estado <> 'desactivado'` (el QR impreso de un trasladado da 404). El documento
   oficial de un trasladado sigue siendo la constancia de traslado.
@@ -350,11 +362,14 @@ NUNCA CSS inline en PHP (convención del proyecto).
 
 ### Implementación
 - `Boleta\BoletaController`: `resolverBoletaDocente` y `resolverBoletaGestion` ya
-  no excluyen `desactivado`; retornan `array{periodo_id, estado_matricula}` y cada
-  entry point calcula `vistaPrevia = desactivado || estadoBoletaDePeriodo !== 'oficial'`.
+  no excluyen `desactivado`; retornan `array{periodo_id, estado_matricula[, tipo]}`.
+  `optsBoletaGestion()` decide el render de gestión: trasladado →
+  `{soloOficiales, vistaPrevia=false, sinQr}`; otro desactivado → vistaPrevia
+  forzada; resto → regla normal del periodo. `render()` acepta `sinQr` (vacía
+  `url_boleta`; las vistas ya omiten el QR con url vacía, sin tocarlas).
 - `matriculas/show.php`: la card "Boleta" dejó de estar gated por `$esActivo`
-  (visible en cualquier estado); si `desactivado`, muestra nota "se emite solo
-  como borrador".
+  (visible en cualquier estado); nota diferenciada: trasladado → "última boleta
+  oficial"; otro desactivado → "se emite solo como borrador".
 - **Nómina docente** (`Docente\PanelController` + `docente/nomina.php`):
   - `getMatriculados(..., bool $soloAprobadas = true)`: el buscador en vivo pasa
     `false` → incluye `pendiente` y `desactivado` (espejo de la grilla); la
