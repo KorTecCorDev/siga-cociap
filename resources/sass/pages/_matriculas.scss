@@ -156,8 +156,9 @@
     line-height: 1.3;
 }
 
-// ── Formulario de desactivación (motivo obligatorio) ─────────
-.mat-desactivar-form {
+// ── Formularios desplegables de la card Gestión (desactivar / exonerar) ──
+.mat-desactivar-form,
+.mat-exonerar-form {
     display: flex;
     flex-direction: column;
     gap: $spacing-xs;
@@ -342,7 +343,8 @@
 
     // El formulario de desactivar (disclosure) baja a su propia línea
     // a ancho completo cuando se despliega, no apretado a la derecha.
-    .mat-desactivar-form {
+    .mat-desactivar-form,
+    .mat-exonerar-form {
         flex: 1 1 100%;
         max-width: 560px;
         margin-top: $spacing-sm;
@@ -358,7 +360,8 @@
 
     @media (max-width: 640px) {
         &__control { width: 100%; }
-        .mat-desactivar-form { max-width: 100%; }
+        .mat-desactivar-form,
+        .mat-exonerar-form { max-width: 100%; }
     }
 }
 

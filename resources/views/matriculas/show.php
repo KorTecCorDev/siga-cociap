@@ -204,7 +204,9 @@ $labelDoc = [
     </div>
     <?php endif; ?>
 
-    <!-- Exoneraciones (áreas/subáreas sin evaluación este año) -->
+    <!-- Exoneraciones (áreas/subáreas sin evaluación este año) — SOLO consulta:
+         el registro vive como acción desplegable en "Gestión de la matrícula"
+         (la card angosta del grid no da espacio para el formulario). -->
     <div class="card">
         <div class="card__body">
             <p class="form-section-title">Exoneraciones</p>
@@ -226,39 +228,6 @@ $labelDoc = [
                     </div>
                     <?php endforeach; ?>
                 </div>
-            <?php endif; ?>
-
-            <?php if ($puedeGestionar && !empty($opcionesExoneracion)): ?>
-                <p class="form-section-title">Registrar exoneración</p>
-                <form method="POST"
-                      action="<?= url('matriculas/' . $mid . '/exonerar') ?>"
-                      class="form-grid form-grid--2">
-                    <?= csrf_field() ?>
-
-                    <div class="form-group">
-                        <label class="form-label" for="area_subarea">Área / Subárea exonerada *</label>
-                        <select id="area_subarea" name="area_subarea" class="form-input" required>
-                            <option value="">— Selecciona —</option>
-                            <?php foreach ($opcionesExoneracion as $op): ?>
-                                <option value="<?= e($op['value']) ?>"><?= e($op['label']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="motivo_exo">Motivo</label>
-                        <input type="text" id="motivo_exo" name="motivo" class="form-input"
-                               placeholder="Ej. Solicitud escrita del apoderado" maxlength="255">
-                    </div>
-
-                    <div class="form-actions form-actions--full">
-                        <button type="submit" class="btn btn--primary btn--sm">Registrar exoneración</button>
-                        <a href="<?= url('admin/exoneraciones/' . (int) $matricula['seccion_id']) ?>"
-                           class="btn btn--secondary btn--sm">
-                            Gestionar en Exoneraciones (revocar)
-                        </a>
-                    </div>
-                </form>
             <?php endif; ?>
         </div>
     </div>
@@ -421,6 +390,42 @@ $labelDoc = [
                     <a href="<?= url('matriculas/' . $mid . '/trasladar') ?>" class="btn btn--danger">Trasladar</a>
                 </div>
             </div>
+        <?php endif; ?>
+
+        <!-- Exonerar de área: registra una exoneración vigente del año. El
+             formulario se despliega al pulsar "Exonerar" (mismo disclosure que
+             Desactivar; sin JS se ve abierto). El candado de notas vivas y el
+             rol los valida el servidor (Admin\ExoneracionController). -->
+        <?php if (!empty($opcionesExoneracion)): ?>
+        <div class="mat-accion">
+            <div class="mat-accion__info">
+                <span class="mat-accion__titulo">Exonerar de área</span>
+                <span class="mat-accion__desc">Registra una exoneración vigente para este año (ej. Educación Religiosa): el área queda sin evaluación para el estudiante. No procede si ya tiene notas registradas en el área.</span>
+            </div>
+            <div class="mat-accion__control" data-exonerar-control hidden>
+                <button type="button" class="btn btn--secondary" data-exonerar-toggle>Exonerar</button>
+            </div>
+            <form method="POST" action="<?= url('matriculas/' . $mid . '/exonerar') ?>"
+                  class="mat-exonerar-form" data-exonerar-form>
+                <?= csrf_field() ?>
+                <label class="form-label" for="area_subarea">Área / Subárea exonerada <span class="text-danger">*</span></label>
+                <select id="area_subarea" name="area_subarea" class="form-input" required>
+                    <option value="">— Selecciona —</option>
+                    <?php foreach ($opcionesExoneracion as $op): ?>
+                        <option value="<?= e($op['value']) ?>"><?= e($op['label']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <label class="form-label" for="motivo_exo">Motivo</label>
+                <input type="text" id="motivo_exo" name="motivo" class="form-input"
+                       placeholder="Ej. Solicitud escrita del apoderado" maxlength="255">
+                <div class="btn-group">
+                    <button type="button" class="btn btn--secondary" data-exonerar-cancel hidden>Cancelar</button>
+                    <button type="submit" class="btn btn--primary">Registrar exoneración</button>
+                    <a href="<?= url('admin/exoneraciones/' . (int) $matricula['seccion_id']) ?>"
+                       class="btn btn--secondary">Revocar en Exoneraciones</a>
+                </div>
+            </form>
+        </div>
         <?php endif; ?>
 
         <!-- Retorno de grado: la operación más delicada. Se oculta si ya hay un
