@@ -4,11 +4,18 @@
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **09/07/2026 (turno tarde)**.
 
 ## Migraciones
-- **LOCAL: al día hasta la `037`. PROD: al día hasta la `037`** (034-037 aplicadas
-  en prod el 09/07/2026 — confirmado por el usuario). Ambas BD sincronizadas.
+- **LOCAL: al día hasta la `038`. PROD: al día hasta la `037`** (034-037 aplicadas
+  en prod el 09/07/2026 — confirmado por el usuario). **`038` YA en LOCAL,
+  PENDIENTE en PROD** (se aplica manualmente tras el merge a main).
 - Migraciones más recientes (034-037): `034_purga_docente_duplicada`,
   `035_area_etica_boleta`, `036_competencia_etica_valores` (crea C57, interruptor
   de Ética), `037_consolidar_docentes_duplicados`. Todas en LOCAL y PROD.
+- **`038_matriculas_traslado_entrada_pendiente`** (09/07): corrige 6 matrículas
+  mal registradas en el registro masivo. 4 pasan a `pendiente` (para exigir
+  documentos); de esas, 3 además a `tipo='nuevo'` (traslado de entrada) y 1 se
+  mantiene `continuador`. Ancla por DNI + año activo + guarda `estado='aprobada'`
+  (portable e idempotente). Verificada en local (4 filas; reintento 0/0). NO
+  escribe motivo_estado. Falta aplicarla en PROD.
 - Orden completo de setup desde cero: ver `docs/infraestructura.md`.
 - OJO al crear un año académico nuevo: `getOrCreateConfiguracion` inserta
   `duracion_hora_min = 50` por defecto; el año 2026 usa 45.
