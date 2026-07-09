@@ -185,3 +185,28 @@ ademas de la nota derivada que ya veia en su panel:
 - **Solo lectura por diseño:** la vista no expone ningun POST y los endpoints
   de escritura de conducta siguen gateados a admin/registro_academico.
 - **B1 legado** (literal directo, sin matriz): estado vacio explicativo.
+
+## Conducta: roster igual al del docente al calificar (09/07/2026)
+
+El registro de conducta (RA/auxiliares y grilla del tutor) debe listar EL MISMO
+roster que el docente ve al ingresar notas (`getAlumnosSeccion`): todos los
+matriculados de la seccion — aprobada, **pendiente** (recien matriculado) y
+**desactivado por baja administrativa/deuda** (sigue asistiendo) — con el UNICO
+excluido siendo el traslado de salida (`tipo='trasladado'`), mas las exclusiones
+de retorno de grado (oficial en retorno activo / operativa revertida).
+
+- **Antes:** las 4 queries de `ConductaModel` filtraban `m.estado='aprobada'`, que
+  dejaba fuera pendientes y desactivados-no-trasladados que el docente SI califica.
+- **Ahora (paridad total con el docente):** `m.tipo != 'trasladado'` +
+  `m.id NOT IN (retornos_grado oficiales activos / operativos revertidos)` en las
+  CUATRO queries, que deben moverse juntas o la compuerta de cierre queda
+  inconsistente:
+  - `getEstudiantesParaRegistro` (grilla de RA),
+  - `getProgresoConductaPorSeccion` (indice + panel del director),
+  - `completitudSeccion` (compuerta "todos calificados" de `bloquearRA`),
+  - `getEstudiantesParaTutor` (grilla del tutor).
+- **Seguro contra NULL:** `matriculas.tipo` es `NOT NULL DEFAULT 'continuador'`
+  (sin NULLs), asi que `tipo != 'trasladado'` no descarta filas por accidente.
+- **Sin migracion.** Solo cambia el filtro SQL del roster; `getParaBoleta` y demas
+  lecturas por matricula no se tocan (la boleta muestra la conducta segun el
+  cierre, independiente del estado — coherente con boletas de desactivados).
