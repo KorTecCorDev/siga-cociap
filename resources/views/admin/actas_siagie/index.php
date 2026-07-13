@@ -25,9 +25,13 @@
                 <li><strong>Confirmás</strong> y descargás el acta llenada, lista para volver a subir al SIAGIE.</li>
             </ol>
             <p class="actas-nota">
-                <span class="badge badge--info">Primaria</span>
+                <span class="badge badge--info">Primaria y Secundaria</span>
                 El bimestre debe estar <strong>cerrado</strong> en SIGA. Solo se escriben competencias
                 bloqueadas; las celdas que ya traigan valor nunca se tocan.
+            </p>
+            <p class="text-muted">
+                En Secundaria, los <strong>talleres</strong> aún no se vuelcan (esperan aprobación en el
+                SIAGIE); el resto de áreas sí. <strong>Una sección por archivo.</strong>
             </p>
         </div>
     </div>
