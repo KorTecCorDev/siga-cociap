@@ -96,7 +96,9 @@ class ActasSiagieController extends BaseController
             'ruta'       => $rutaTmp,
             'nombre'     => $nombre,
             'reporte'    => $r['reporte'],
-            'roster_ids' => array_map(fn($e) => (int) $e['estudiante_id'], $r['roster']),
+            // Whitelist de resolución = sección ∪ otras secciones del grado
+            // (permite resolver un cambio de sección sin tramitar por DNI).
+            'roster_ids' => $r['roster_valido_ids'],
             'creado'     => time(),
         ]);
 

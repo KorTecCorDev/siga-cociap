@@ -78,10 +78,19 @@ class LlenadorSiagie
 
         // 2. Universo SIGA y catálogo de competencias del nivel
         $estudiantes = $this->modelo->estudiantesDeSeccion($destino['seccion_id']);
+        // Cada alumno de la sección lleva su origen para distinguirlo de los de
+        // otras secciones (que se cargan bajo demanda para detectar cambios de
+        // sección sin tramitar).
+        foreach ($estudiantes as &$e) {
+            $e['seccion_id']     = $destino['seccion_id'];
+            $e['seccion_nombre'] = $destino['seccion_nombre'];
+        }
+        unset($e);
         $rosterPorId = [];
         foreach ($estudiantes as $e) {
             $rosterPorId[(int) $e['estudiante_id']] = $e;
         }
+        $otras = [];   // estudiantes de otras secciones del grado (carga diferida)
         $catalogo = [];
         foreach ($this->modelo->competenciasDelNivel($destino['nivel_id']) as $c) {
             $catalogo[MatcherEstudiantes::normalizar($c['nombre_completo'])][] = $c;
@@ -182,9 +191,30 @@ class LlenadorSiagie
             if ($matchesBase === null || $firma !== $firmaBase) {
                 $resultado = MatcherEstudiantes::matchear($filasExcel, $estudiantes);
                 if ($matchesBase === null) {
+                    // Detección de cambio de sección sin tramitar: si hay filas de
+                    // identidad dudosa (o resoluciones que aplicar), traemos las otras
+                    // secciones del grado, las sumamos al roster válido y anotamos el
+                    // posible alumno en su sección real. NO auto-escribe nada.
+                    $hayDudosas = false;
+                    foreach ($resultado['matches'] as $mm) {
+                        if ($mm['estado'] === 'sin_match' || $mm['estado'] === 'ambiguo') {
+                            $hayDudosas = true;
+                            break;
+                        }
+                    }
+                    if ($hayDudosas || $resoluciones !== []) {
+                        $otras = $this->modelo->estudiantesDeOtrasSecciones(
+                            $destino['grado_id'], $destino['anio_id'], $destino['seccion_id']
+                        );
+                        foreach ($otras as $oe) {
+                            $rosterPorId[(int) $oe['estudiante_id']] = $oe;
+                        }
+                        $this->anotarOtraSeccion($resultado, $otras);
+                    }
+
                     // Resolución manual de identidad (solo la base; el detalle y las
                     // rejections se reportan una vez, como el matching).
-                    $resultado = $this->aplicarResoluciones($resultado, $rosterPorId, $resoluciones, $reporte);
+                    $resultado = $this->aplicarResoluciones($resultado, $rosterPorId, $resoluciones, $destino['seccion_id'], $reporte);
                     $matchesBase = $resultado;
                     $firmaBase   = $firma;
                     $filasBaseCount = count($filasExcel);
@@ -202,8 +232,15 @@ class LlenadorSiagie
                         . " (por código {$porCodigo}, por nombre {$porNombre}{$manualTxt})";
                     foreach ($resultado['matches'] as $mm) {
                         if (!$this->esMatch($mm['estado'])) {
+                            $extra = '';
+                            if (isset($mm['otra_seccion'])) {
+                                $os = $mm['otra_seccion'];
+                                $extra = " — posible cambio de sección: existe en {$destino['grado_numero']}{$os['seccion_nombre']}"
+                                    . " ({$os['apellido_paterno']} {$os['apellido_materno']}, {$os['nombres']}, DNI {$os['dni']})";
+                            }
                             $reporte[] = "  ✗ fila {$mm['fila']} [{$mm['estado']}] {$mm['nombre']}"
-                                . ($mm['detalle'] !== '' ? " — {$mm['detalle']}" : '');
+                                . ($mm['detalle'] !== '' ? " — {$mm['detalle']}" : '')
+                                . $extra;
                         } elseif ($mm['detalle'] !== '') {
                             $reporte[] = "  ⚠ fila {$mm['fila']} {$mm['nombre']} — {$mm['detalle']}";
                         }
@@ -215,7 +252,7 @@ class LlenadorSiagie
                 } else {
                     // Hoja con nómina distinta: aplicar resoluciones en silencio.
                     $descartar = [];
-                    $resultado = $this->aplicarResoluciones($resultado, $rosterPorId, $resoluciones, $descartar);
+                    $resultado = $this->aplicarResoluciones($resultado, $rosterPorId, $resoluciones, $destino['seccion_id'], $descartar);
                     $reporte[] = "HOJA {$hoja}: la nómina difiere de las demás hojas — matching recalculado";
                 }
             } else {
@@ -304,6 +341,16 @@ class LlenadorSiagie
             }
         }
 
+        // Filas sin resolver que apuntan a un alumno de otra sección (aviso UI).
+        $otraSeccionDetectadas = 0;
+        if ($matchesBase !== null) {
+            foreach ($matchesBase['matches'] as $mm) {
+                if ($mm['estado'] === 'sin_match' && isset($mm['otra_seccion'])) {
+                    $otraSeccionDetectadas++;
+                }
+            }
+        }
+
         return [
             'destino'    => $destino,
             'etiqueta'   => $etiqueta,
@@ -321,9 +368,12 @@ class LlenadorSiagie
                 'blancos'           => count($blancos),
                 'estudiantes_excel' => $filasBaseCount,
                 'estudiantes_siga'  => count($estudiantes),
+                'otra_seccion'      => $otraSeccionDetectadas,
             ],
-            'matching'   => $matchesBase,
-            'roster'     => $estudiantes,
+            'matching'         => $matchesBase,
+            'roster'           => $estudiantes,
+            'roster_otras'     => $otras,
+            'roster_valido_ids'=> array_map('intval', array_keys($rosterPorId)),
         ];
     }
 
@@ -373,13 +423,16 @@ class LlenadorSiagie
     /**
      * Aplica las resoluciones manuales de identidad sobre el resultado del
      * matching. Solo transforma filas sin_match/ambiguo en 'match_manual'
-     * apuntando a un estudiante del roster; rechaza (y reporta) toda resolución
-     * que viole las guardas: fuera del roster, estudiante ya asignado, o código
-     * en conflicto. Con $resoluciones vacío es un NO-OP total (idéntico al CLI).
+     * apuntando a un estudiante del roster VÁLIDO (su sección ∪ otras secciones
+     * del grado); rechaza (y reporta) toda resolución que viole las guardas:
+     * fuera del roster, estudiante ya asignado, o código en conflicto. Si el
+     * alumno elegido es de otra sección, lo marca como cambio de sección sin
+     * tramitar. Con $resoluciones vacío es un NO-OP total (idéntico al CLI).
      *
-     * @param array $rosterPorId estudiante_id => fila de estudiantesDeSeccion.
+     * @param array $rosterPorId    estudiante_id => fila (sección ∪ otras secciones).
+     * @param int   $seccionActualId sección del acta (para detectar el cruce).
      */
-    private function aplicarResoluciones(array $resultado, array $rosterPorId, array $resoluciones, array &$reporte): array
+    private function aplicarResoluciones(array $resultado, array $rosterPorId, array $resoluciones, int $seccionActualId, array &$reporte): array
     {
         if ($resoluciones === []) {
             return $resultado;
@@ -424,9 +477,15 @@ class LlenadorSiagie
             }
             $mm['estado']     = 'match_manual';
             $mm['estudiante'] = $e;
-            $mm['detalle']    = "Resuelto manualmente → {$e['apellido_paterno']} {$e['apellido_materno']}, {$e['nombres']} (DNI {$e['dni']})";
-            $tomados[$eid]    = $fila;
-            $huboCambio       = true;
+            $esCruce = (int) ($e['seccion_id'] ?? $seccionActualId) !== $seccionActualId;
+            $detalle = "Resuelto manualmente → {$e['apellido_paterno']} {$e['apellido_materno']}, {$e['nombres']} (DNI {$e['dni']})";
+            if ($esCruce) {
+                $detalle .= " — CAMBIO DE SECCIÓN sin tramitar (SIGA lo tiene en {$e['seccion_nombre']})";
+            }
+            $mm['detalle']       = $detalle;
+            $mm['cruce_seccion'] = $esCruce;
+            $tomados[$eid]       = $fila;
+            $huboCambio          = true;
         }
         unset($mm);
 
@@ -442,6 +501,36 @@ class LlenadorSiagie
         }
 
         return $resultado;
+    }
+
+    /**
+     * Anota, en cada fila `sin_match`, el estudiante de OTRA sección del grado
+     * cuyo nombre normalizado coincide de forma ÚNICA (probable cambio de
+     * sección sin tramitar). Es solo una pista para el reporte y la UI: no
+     * cambia el estado ni escribe nada; el usuario debe confirmarlo.
+     *
+     * @param array $otras estudiantesDeOtrasSecciones() (traen seccion_id/nombre).
+     */
+    private function anotarOtraSeccion(array &$resultado, array $otras): void
+    {
+        if ($otras === []) {
+            return;
+        }
+        $porNombre = [];
+        foreach ($otras as $e) {
+            $clave = MatcherEstudiantes::normalizar($e['apellido_paterno'] . ' ' . $e['apellido_materno'] . ' ' . $e['nombres']);
+            $porNombre[$clave][] = $e;
+        }
+        foreach ($resultado['matches'] as &$mm) {
+            if ($mm['estado'] !== 'sin_match') {
+                continue;
+            }
+            $clave = MatcherEstudiantes::normalizar(str_replace(',', ' ', $mm['nombre']));
+            if (isset($porNombre[$clave]) && count($porNombre[$clave]) === 1) {
+                $mm['otra_seccion'] = $porNombre[$clave][0];
+            }
+        }
+        unset($mm);
     }
 
     /** Estados que cuentan como emparejamiento efectivo (se escribe la nota). */

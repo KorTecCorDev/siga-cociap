@@ -110,6 +110,15 @@ WHERE id=25;`).
   `docs/modulos/export-siagie.md`. **Falta verificar end-to-end** con un xlsx real
   del SIAGIE (correr `--simular` para confirmar reporte idéntico + subir una vez
   por la web) — no había archivo modelo local en esta sesión.
+- **Cambio de sección sin tramitar — detección (12/07):** el módulo detecta si una
+  fila `sin_match` es un alumno que SIGA tiene en OTRA sección del mismo grado y
+  permite resolverlo por DNI (escribe sus notas reales, marcado como cruce en el
+  reporte). Ver `docs/modulos/export-siagie.md`.
+- **PENDIENTE — trámite de "cambio de sección" en SIGA (evaluar):** hoy no existe;
+  la matrícula fija `seccion_id` al crear y no hay `UPDATE`. Mover un alumno a
+  mitad de bimestre es delicado (sus `calificaciones` cuelgan de las `cargas` de
+  la sección vieja). Por ahora el módulo SIAGIE solo lo detecta/resuelve en el
+  acta; la reconciliación real en SIGA queda como decisión de diseño futura.
 - **Piloto de re-importación:** subir al SIAGIE UN archivo llenado (1°A B1 ya
   probado en local) y confirmar que lo acepta, ANTES del lote completo de
   primaria. Si rechazara los shared strings anexados, el fallback está previsto

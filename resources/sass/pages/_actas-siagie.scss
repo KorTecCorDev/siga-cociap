@@ -102,6 +102,16 @@
         margin-top: 2px;
     }
 
+    // Aviso de cambio de seccion sin tramitar (fila sin_match resuelta a otra seccion)
+    .actas-cruce {
+        display: block;
+        font-size: $font-size-sm;
+        color: $color-warning;
+        margin-top: $spacing-xs;
+
+        .badge { margin-right: $spacing-xs; }
+    }
+
     .actas-lista {
         margin: $spacing-sm 0;
         padding-left: $spacing-lg;

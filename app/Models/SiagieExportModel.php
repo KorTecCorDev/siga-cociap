@@ -131,6 +131,41 @@ class SiagieExportModel extends BaseModel
     }
 
     /**
+     * Estudiantes de las OTRAS secciones del mismo grado y año (para detectar
+     * un cambio de sección sin tramitar: la fila del SIAGIE pertenece a un
+     * alumno que en SIGA sigue en otra sección). Mismos filtros que
+     * estudiantesDeSeccion (aprobadas, excluye operativas de retorno activo)
+     * MÁS la sección de origen (id + nombre) para poder informarla.
+     */
+    public function estudiantesDeOtrasSecciones(int $gradoId, int $anioId, int $seccionExcluida): array
+    {
+        return $this->query("
+            SELECT
+                m.id     AS matricula_id,
+                e.id     AS estudiante_id,
+                e.codigo_estudiante,
+                p.dni,
+                p.apellido_paterno,
+                p.apellido_materno,
+                p.nombres,
+                s.id     AS seccion_id,
+                s.nombre AS seccion_nombre
+            FROM matriculas m
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas p    ON p.id = e.persona_id
+            INNER JOIN secciones s    ON s.id = m.seccion_id
+            WHERE s.grado_id   = ?
+              AND s.anio_id    = ?
+              AND m.seccion_id <> ?
+              AND m.estado     = 'aprobada'
+              AND m.id NOT IN (
+                  SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'activo'
+              )
+            ORDER BY s.nombre, p.apellido_paterno, p.apellido_materno, p.nombres
+        ", [$gradoId, $anioId, $seccionExcluida]);
+    }
+
+    /**
      * Notas oficiales del alumno en el periodo, indexadas por competencia_id.
      * Reutiliza boletaContexto (unión oficial/operativa en retorno) y
      * getBoletaAlumno (solo bloqueadas + transversales con cierre del tutor).

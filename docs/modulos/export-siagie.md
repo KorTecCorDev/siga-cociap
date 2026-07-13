@@ -82,6 +82,16 @@ dashboard (grupo *Evaluación y reportes*). Rutas `/admin/actas-siagie[...]`.
   conflicto de código). `conflicto_codigo` NO se resuelve aquí → enlace a
   corregir en la matrícula. Notas faltantes / columnas sin mapear → enlaces a
   Consulta de notas y Currículo (arreglo durable en SIGA).
+- **Cambio de sección sin tramitar:** SIGA no tiene trámite de cambio de sección
+  (la matrícula fija `seccion_id` al crear). Si una fila `sin_match` es un alumno
+  que SIGA tiene en OTRA sección del mismo grado, el servicio lo **detecta**
+  (`estudiantesDeOtrasSecciones` + `anotarOtraSeccion`, match por nombre único) y
+  lo ofrece en el selector bajo *"Otras secciones del grado"*, marcado con aviso.
+  Al resolverlo, se escriben SUS notas reales de SIGA y la resolución queda como
+  `match_manual` con `cruce_seccion=true` y detalle *"CAMBIO DE SECCIÓN sin
+  tramitar"* (auditoría). El auto-match sigue acotado a la sección; **lo que se
+  escribe en las celdas no cambia** (la detección solo agrega pistas), así el CLI
+  conserva su salida de celdas — solo gana líneas informativas en el reporte.
 - **Seguridad:** `requireRole(['admin','registro_academico'])`, CSRF en POST,
   token de job atado a sesión, validación de subida (extensión, tamaño, firma
   ZIP `PK`). Único efecto en BD: `guardarCodigoSiagie` (solo si estaba vacío).

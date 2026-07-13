@@ -9,7 +9,9 @@
 $destino = $r['destino'];
 $resumen = $r['resumen'];
 $matching = $r['matching'] ?? null;
-$roster   = $r['roster'];
+$roster       = $r['roster'];
+$rosterOtras  = $r['roster_otras'] ?? [];
+$gradoNum     = (int) $destino['grado_numero'];
 
 // Enlaces al origen (para corregir la raíz en SIGA).
 $urlConsulta = url('consulta-notas/' . (int) $destino['periodo_id'] . '/seccion/' . (int) $destino['seccion_id']);
@@ -32,12 +34,24 @@ $sinFila = $matching['siga_sin_fila'] ?? [];
 $totalCeldas = $resumen['nl'] + $resumen['conc'];
 $emparejados = $resumen['match_codigo'] + $resumen['match_nombre'] + $resumen['match_manual'];
 
-// Opciones del roster (reutilizadas en cada selector de identidad).
-$rosterOpciones = '';
+// Opciones del roster para cada selector de identidad. Dos grupos: esta
+// sección y (si aplica) las otras secciones del grado (cambio de sección).
+$rosterOpciones = '<optgroup label="' . e('Esta sección (' . $gradoNum . $destino['seccion_nombre'] . ')') . '">';
 foreach ($roster as $e) {
     $etiqueta = trim($e['apellido_paterno'] . ' ' . $e['apellido_materno'] . ', ' . $e['nombres'])
         . ' — DNI ' . ($e['dni'] ?: 's/DNI');
     $rosterOpciones .= '<option value="' . (int) $e['estudiante_id'] . '">' . e($etiqueta) . '</option>';
+}
+$rosterOpciones .= '</optgroup>';
+if ($rosterOtras !== []) {
+    $rosterOpciones .= '<optgroup label="Otras secciones del grado">';
+    foreach ($rosterOtras as $e) {
+        $etiqueta = '[' . $gradoNum . $e['seccion_nombre'] . '] '
+            . trim($e['apellido_paterno'] . ' ' . $e['apellido_materno'] . ', ' . $e['nombres'])
+            . ' — DNI ' . ($e['dni'] ?: 's/DNI');
+        $rosterOpciones .= '<option value="' . (int) $e['estudiante_id'] . '">' . e($etiqueta) . '</option>';
+    }
+    $rosterOpciones .= '</optgroup>';
 }
 ?>
 
@@ -83,6 +97,12 @@ foreach ($roster as $e) {
                         <span class="actas-metrica__lbl">celdas en blanco</span>
                     </div>
                 <?php endif; ?>
+                <?php if (($resumen['otra_seccion'] ?? 0) > 0): ?>
+                    <div class="actas-metrica actas-metrica--warn">
+                        <span class="actas-metrica__num"><?= (int) $resumen['otra_seccion'] ?></span>
+                        <span class="actas-metrica__lbl">posible cambio de sección</span>
+                    </div>
+                <?php endif; ?>
             </div>
             <p class="text-muted">
                 Emparejados por código <?= (int) $resumen['match_codigo'] ?>,
@@ -109,6 +129,8 @@ foreach ($roster as $e) {
                         Estas filas del Excel no coincidieron automáticamente con un estudiante de SIGA
                         (nombre distinto, homónimos, etc.). Elegí el estudiante correcto por su <strong>DNI</strong>
                         o dejá la fila en blanco. La nota siempre sale de SIGA; nunca se escribe a mano.
+                        Si un alumno <strong>cambió de sección sin tramitarlo</strong>, aparece marcado abajo y
+                        podés elegirlo en el grupo <em>"Otras secciones del grado"</em> del selector.
                     </p>
                     <div class="tabla-responsive">
                         <table class="tabla-ranking">
@@ -127,6 +149,14 @@ foreach ($roster as $e) {
                                         <?= e($mm['nombre']) ?>
                                         <?php if ($mm['detalle'] !== ''): ?>
                                             <span class="actas-hint"><?= e($mm['detalle']) ?></span>
+                                        <?php endif; ?>
+                                        <?php if (isset($mm['otra_seccion'])): $os = $mm['otra_seccion']; ?>
+                                            <span class="actas-cruce">
+                                                <span class="badge badge--warning">posible cambio de sección</span>
+                                                está en <strong><?= e($gradoNum . $os['seccion_nombre']) ?></strong>:
+                                                <?= e($os['apellido_paterno'] . ' ' . $os['apellido_materno'] . ', ' . $os['nombres']) ?>
+                                                (DNI <?= e($os['dni'] ?: 's/DNI') ?>)
+                                            </span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
