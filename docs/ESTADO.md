@@ -102,6 +102,14 @@ sección 13: 510 respuestas sembradas + cierre RA id=25 (limpiar con
 WHERE id=25;`).
 
 ## Exportación SIAGIE (implementada 03/07 — pendientes de cierre)
+- **Módulo web "Actas SIAGIE" (12/07):** UI para admin/RA (subir → previsualizar
+  con resolución de identidad → confirmar → descargar). Flujo efímero, solo
+  primaria, una sección por vez. Las libs se movieron de `scripts/siagie/lib/` a
+  `app/Siagie/` (namespace `App\Siagie\`, autocargable) y la orquestación del CLI
+  se extrajo a `app/Siagie/LlenadorSiagie.php` (CLI = wrapper delgado). Detalle en
+  `docs/modulos/export-siagie.md`. **Falta verificar end-to-end** con un xlsx real
+  del SIAGIE (correr `--simular` para confirmar reporte idéntico + subir una vez
+  por la web) — no había archivo modelo local en esta sesión.
 - **Piloto de re-importación:** subir al SIAGIE UN archivo llenado (1°A B1 ya
   probado en local) y confirmar que lo acepta, ANTES del lote completo de
   primaria. Si rechazara los shared strings anexados, el fallback está previsto

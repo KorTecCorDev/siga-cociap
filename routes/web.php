@@ -35,6 +35,15 @@ $router->get( '/admin/control',               'Admin\ControlOperativoController@
 $router->post('/admin/control/{periodo_id}/aprobar-bimestre',   'Admin\ControlOperativoController@aprobarBimestre');
 $router->post('/admin/control/{periodo_id}/anular-aprobacion',  'Admin\ControlOperativoController@anularAprobacion');
 
+// ─── Admin — Actas SIAGIE (llenado de plantillas RegNotas) ──
+$router->get( '/admin/actas-siagie',                     'Admin\ActasSiagieController@index');
+$router->post('/admin/actas-siagie/previsualizar',       'Admin\ActasSiagieController@previsualizar');
+$router->get( '/admin/actas-siagie/reporte',             'Admin\ActasSiagieController@reportePreview');
+$router->post('/admin/actas-siagie/confirmar',           'Admin\ActasSiagieController@confirmar');
+$router->get( '/admin/actas-siagie/resultado',           'Admin\ActasSiagieController@resultado');
+$router->get( '/admin/actas-siagie/resultado/descargar', 'Admin\ActasSiagieController@descargar');
+$router->get( '/admin/actas-siagie/resultado/reporte',   'Admin\ActasSiagieController@reporteFinal');
+
 // ─── Admin — Secciones y Tutores ────────────────────────────
 $router->get( '/admin/secciones',             'Admin\SeccionController@index');
 $router->post('/admin/secciones/{id}/tutor',  'Admin\SeccionController@asignarTutor');

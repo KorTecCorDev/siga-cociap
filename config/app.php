@@ -58,6 +58,16 @@ return [
         ? '/home/u761410128/siga_uploads/firmas'
         : dirname(__DIR__) . '/storage/firmas',
 
+    // Temporal EFÍMERO del módulo Actas SIAGIE: aquí vive el xlsx subido entre el
+    // paso "previsualizar" y "confirmar" (segundos/minutos), y se borra al
+    // confirmar. DEBE vivir FUERA del repo en produccion (el auto-deploy de
+    // Hostinger borra lo no versionado). En el servidor usa el home de Hostinger;
+    // en XAMPP local cae a storage/tmp/siagie. Se detecta por el home base para
+    // apuntar afuera aunque la carpeta aun no exista (el controlador la crea).
+    'siagie_tmp_path' => is_dir('/home/u761410128')
+        ? '/home/u761410128/siga_uploads/siagie_tmp'
+        : dirname(__DIR__) . '/storage/tmp/siagie',
+
     // Log de errores/auditoria. DEBE vivir FUERA del repo: el auto-deploy de
     // Hostinger hace checkout limpio y borraria storage/logs/*.log en cada push,
     // perdiendo el historial. En el servidor (detecta el home de Hostinger) usa

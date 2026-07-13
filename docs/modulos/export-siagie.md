@@ -1,9 +1,10 @@
 # Módulo: Exportación de notas al SIAGIE (llenado de Excel oficiales)
 
-> Implementado el 03/07/2026 (fase CLI). Vuelca los promedios literales por
-> competencia + conclusiones descriptivas de SIGA a los Excel que el SIAGIE
-> exporta por sección+bimestre — el registro oficial ante UGEL-MINEDU que
-> Registro académico llenaba a mano. Primaria operativa; secundaria pendiente.
+> Implementado el 03/07/2026 (fase CLI) y el 12/07/2026 (módulo web para
+> admin/RA). Vuelca los promedios literales por competencia + conclusiones
+> descriptivas de SIGA a los Excel que el SIAGIE exporta por sección+bimestre —
+> el registro oficial ante UGEL-MINEDU que Registro académico llenaba a mano.
+> Primaria operativa; secundaria pendiente.
 
 ## Invariantes (lo que NO se puede romper)
 
@@ -36,21 +37,54 @@ celdas escritas, blancos con motivo, advertencias.
 
 ## Piezas
 
-- `scripts/siagie/llenar-siagie.php` — CLI (bootstrap tipo backfill; lote por carpeta).
-- `scripts/siagie/lib/XlsxQuirurgico.php` — lector/escritor quirúrgico del xlsx
-  (shared strings: reusa índices o anexa `<si>` actualizando count/uniqueCount;
-  celdas de plantilla ya existen vacías con estilo y `t="s"`).
-- `scripts/siagie/lib/MatcherEstudiantes.php` — normalización (mayúsculas,
-  translitera tildes/Ñ→N, elimina todo lo que no sea `[A-Z0-9 espacio]`) y
-  clasificación: `match_codigo` → `match_nombre` (exacto y único) → `ambiguo` /
+- `app/Siagie/XlsxQuirurgico.php` — lector/escritor quirúrgico del xlsx (shared
+  strings: reusa índices o anexa `<si>` actualizando count/uniqueCount; celdas de
+  plantilla ya existen vacías con estilo y `t="s"`). Namespace `App\Siagie\`,
+  autocargable (movido desde `scripts/siagie/lib/` el 12/07/2026).
+- `app/Siagie/MatcherEstudiantes.php` — normalización (mayúsculas, translitera
+  tildes/Ñ→N, elimina todo lo que no sea `[A-Z0-9 espacio]`) y clasificación:
+  `match_codigo` → `match_nombre` (exacto y único) → `ambiguo` /
   `conflicto_codigo` / `sin_match` (con sugerencia ≥80% solo informativa).
+- `app/Siagie/LlenadorSiagie.php` — **orquestación compartida** (CLI + web).
+  `analizar()` decide TODO sin tocar disco ni BD (es el preview); admite
+  `$resoluciones` (fila→estudiante_id) para la **resolución manual de identidad**
+  → estado `match_manual` con guardas (dentro del roster, sin cruce, sin
+  conflicto de código). `escribirVerificado()` + `persistirCodigos()`. Con
+  `$resoluciones` vacío es byte-idéntico al comportamiento automático (CLI).
 - `app/Models/SiagieExportModel.php` — datos: `resolverDestino` (desde la hoja
   `Parametros`: nivel/año/B{n}/'1A'), `estudiantesDeSeccion` (aprobadas, excluye
   operativas de retorno activo), `notasOficiales` (boletaContexto +
   getBoletaAlumno → en retorno las notas de la operativa se escriben en la fila
   de la sección OFICIAL), `competenciasExoneradas`, `competenciasDelNivel`,
   `guardarCodigoSiagie`.
-- El futuro módulo web reutiliza Model + libs con un controlador de subida.
+- `scripts/siagie/llenar-siagie.php` — CLI, wrapper delgado del `LlenadorSiagie`
+  con su política propia: backup + reemplazo in-place del original (lote por
+  carpeta con `--simular`).
+
+## Módulo web — Actas SIAGIE (admin / registro_academico)
+
+`app/Controllers/Admin/ActasSiagieController.php` + vistas
+`resources/views/admin/actas_siagie/{index,preview,resultado}.php`. Tile en el
+dashboard (grupo *Evaluación y reportes*). Rutas `/admin/actas-siagie[...]`.
+
+- **Flujo EFÍMERO en dos pasos, una sección por vez:** subir → `previsualizar`
+  (analiza sin escribir, muestra reporte + selectores de identidad) → `confirmar`
+  (re-analiza con resoluciones, escribe, verifica, persiste códigos) →
+  `resultado` (descarga del acta llenada + reporte `.txt`).
+- **El xlsx subido vive en un temporal** (config `siagie_tmp_path`; local
+  `storage/tmp/siagie`, prod `~/siga_uploads/siagie_tmp`) entre ambos pasos y se
+  borra al confirmar. Barrido por TTL (30 min) en cada visita al índice.
+- **NO reemplaza in-place** (a diferencia del CLI): produce una copia llenada
+  que se streamea para descargar y re-subir al SIAGIE.
+- **Resolución de identidad segura:** el usuario solo elige un alumno EXISTENTE
+  del roster por DNI; la nota siempre sale de SIGA (nunca se teclea). Guardas en
+  el controlador (whitelist del roster) y en el servicio (roster + cruce +
+  conflicto de código). `conflicto_codigo` NO se resuelve aquí → enlace a
+  corregir en la matrícula. Notas faltantes / columnas sin mapear → enlaces a
+  Consulta de notas y Currículo (arreglo durable en SIGA).
+- **Seguridad:** `requireRole(['admin','registro_academico'])`, CSRF en POST,
+  token de job atado a sesión, validación de subida (extensión, tamaño, firma
+  ZIP `PK`). Único efecto en BD: `guardarCodigoSiagie` (solo si estaba vacío).
 
 ## Estructura del Excel SIAGIE (réplica verificada)
 

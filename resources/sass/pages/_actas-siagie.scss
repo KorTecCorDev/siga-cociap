@@ -1,0 +1,175 @@
+// ============================================================
+// _actas-siagie.scss — Módulo "Actas SIAGIE"
+// Subida, previsualización y descarga del llenado de plantillas
+// RegNotas del SIAGIE. Reutiliza .card / .btn / .badge / tablas.
+// ============================================================
+
+.actas-siagie {
+    max-width: 960px;
+
+    code {
+        font-size: .9em;
+        background: $bg-secondary;
+        border: 1px solid $border-color;
+        border-radius: $border-radius-sm;
+        padding: 1px 6px;
+    }
+
+    // ── Pasos (index) ────────────────────────────────────────
+    .actas-pasos {
+        margin: 0;
+        padding-left: $spacing-lg;
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-sm;
+        color: $text-secondary;
+
+        li { line-height: $line-height; }
+    }
+
+    .actas-nota {
+        margin-top: $spacing-md;
+        color: $text-secondary;
+        display: flex;
+        align-items: baseline;
+        gap: $spacing-sm;
+        flex-wrap: wrap;
+    }
+
+    // ── Subida ───────────────────────────────────────────────
+    .actas-upload__drop {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-sm;
+        padding: $spacing-xl;
+        border: 2px dashed $border-color;
+        border-radius: $border-radius-lg;
+        background: $bg-secondary;
+        cursor: pointer;
+        transition: $transition;
+
+        &:hover { border-color: $brand-mid; background: $card-cargas-bg; }
+    }
+
+    .actas-upload__input { font-size: $font-size-base; }
+    .actas-upload__hint  { color: $text-muted; }
+
+    .actas-upload__actions {
+        margin-top: $spacing-md;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    // ── Métricas del preview ─────────────────────────────────
+    .actas-metricas {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-md;
+        margin-bottom: $spacing-md;
+    }
+
+    .actas-metrica {
+        flex: 1 1 120px;
+        text-align: center;
+        padding: $spacing-md;
+        border: 1px solid $border-color;
+        border-radius: $border-radius;
+        background: $bg-secondary;
+
+        &__num {
+            display: block;
+            font-size: $font-size-2xl;
+            font-weight: 700;
+            color: $brand-dark;
+            line-height: 1.1;
+        }
+        &__lbl {
+            display: block;
+            font-size: $font-size-sm;
+            color: $text-muted;
+            margin-top: $spacing-xs;
+        }
+
+        &--warn  { background: $color-warning-bg; border-color: $color-warning; .actas-metrica__num { color: $color-warning; } }
+        &--muted { .actas-metrica__num { color: $text-muted; } }
+    }
+
+    // ── Pistas y listas ──────────────────────────────────────
+    .actas-hint {
+        display: block;
+        font-size: $font-size-sm;
+        color: $color-info;
+        margin-top: 2px;
+    }
+
+    .actas-lista {
+        margin: $spacing-sm 0;
+        padding-left: $spacing-lg;
+        color: $text-secondary;
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-xs;
+    }
+
+    .actas-subtitulo {
+        margin-top: $spacing-md;
+        font-weight: 600;
+        color: $text-primary;
+    }
+
+    // ── Enlaces al origen ────────────────────────────────────
+    .actas-origen__links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-sm;
+        margin: $spacing-sm 0;
+    }
+
+    // ── Reporte crudo ────────────────────────────────────────
+    .actas-reporte {
+        summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: $brand-mid;
+            user-select: none;
+        }
+        &__pre {
+            margin-top: $spacing-md;
+            padding: $spacing-md;
+            background: $brand-dark;
+            color: #e2e8f0;
+            border-radius: $border-radius;
+            font-size: $font-size-sm;
+            line-height: 1.45;
+            overflow-x: auto;
+            white-space: pre;
+        }
+    }
+
+    // ── Confirmación (resultado) ─────────────────────────────
+    .actas-ok {
+        display: flex;
+        gap: $spacing-md;
+        align-items: flex-start;
+        padding: $spacing-md;
+        background: $color-success-bg;
+        border: 1px solid $color-success;
+        border-radius: $border-radius;
+        color: $text-secondary;
+
+        &__icono {
+            font-size: $font-size-xl;
+            color: $color-success;
+            line-height: 1.2;
+        }
+    }
+
+    // ── Acciones ─────────────────────────────────────────────
+    .actas-acciones {
+        display: flex;
+        gap: $spacing-md;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        margin-top: $spacing-lg;
+    }
+}

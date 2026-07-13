@@ -24,6 +24,7 @@ $grupos = [
     ],
     'Evaluación y reportes' => [
         ['roles' => ['admin', 'registro_academico', 'director_general', 'director_ebr'], 'url' => 'admin/control',          'icon' => 'remote-controller.svg',      'titulo' => 'Centro de Control',    'desc' => 'Inconsistencias operativas pendientes'],
+        ['roles' => ['admin', 'registro_academico'],                                     'url' => 'admin/actas-siagie',    'icon' => 'document-add.svg',      'titulo' => 'Actas SIAGIE',         'desc' => 'Volcar notas a las plantillas RegNotas del SIAGIE'],
         ['roles' => ['admin', 'registro_academico'],                                     'url' => 'admin/conducta',        'icon' => 'social-city.svg',   'titulo' => 'Conducta',             'desc' => 'Calificaciones de comportamiento - Auxiliares académicos'],
         ['roles' => ['admin', 'registro_academico'],                                     'url' => 'admin/asistencia',      'icon' => 'calendar-add.svg',      'titulo' => 'Asistencia',           'desc' => 'Registro de faltas y tardanzas por sección'],
         ['roles' => ['admin', 'director_general', 'director_ebr', 'registro_academico'], 'url' => 'director/bloqueos',     'icon' => 'key-unblocked.svg',      'titulo' => 'Bloqueos del bimestre','desc' => 'Gestionar permisos de edición de notas'],

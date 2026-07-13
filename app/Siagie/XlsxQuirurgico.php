@@ -1,6 +1,6 @@
 <?php
 
-namespace Siagie;
+namespace App\Siagie;
 
 use RuntimeException;
 use ZipArchive;

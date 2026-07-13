@@ -20,6 +20,7 @@ spl_autoload_register(function (string $class): void {
         'App\\Controllers\\' => APP_PATH . '/Controllers/',
         'App\\Models\\'      => APP_PATH . '/Models/',
         'App\\Middleware\\'  => APP_PATH . '/Middleware/',
+        'App\\Siagie\\'      => APP_PATH . '/Siagie/',
     ];
 
     foreach ($map as $prefix => $base) {
