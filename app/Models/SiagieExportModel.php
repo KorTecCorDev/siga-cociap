@@ -229,6 +229,49 @@ class SiagieExportModel extends BaseModel
     }
 
     /**
+     * Área del nivel cuya `codigo_siagie` incluye el código de la hoja SIAGIE
+     * (p. ej. '063' → Matemática). `codigo_siagie` puede ser compuesto
+     * ('0006,0007' para las dos hojas transversales) → se busca por FIND_IN_SET.
+     * Devuelve null si ninguna área tiene ese código (hoja sin equivalente, o
+     * nivel aún sin poblar como primaria).
+     */
+    public function areaPorCodigoSiagie(int $nivelId, string $codigo): ?array
+    {
+        return $this->queryOne("
+            SELECT id, nombre, tipo
+            FROM areas
+            WHERE nivel_id = ?
+              AND codigo_siagie IS NOT NULL
+              AND FIND_IN_SET(?, codigo_siagie)
+            LIMIT 1
+        ", [$nivelId, $codigo]) ?: null;
+    }
+
+    /**
+     * Competencias de UN área (directas y vía subáreas), en orden. Se usa para
+     * resolver una columna dentro de su área: desambiguar homónimos (Matemática
+     * vs Taller) por área, o asignar por posición cuando la leyenda SIAGIE es
+     * abreviada (Inglés). Misma forma que competenciasDelNivel.
+     */
+    public function competenciasDeArea(int $areaId): array
+    {
+        return $this->query("
+            SELECT
+                c.id   AS competencia_id,
+                c.nombre_completo,
+                c.codigo_minedu,
+                a.id   AS area_id,
+                a.nombre AS area_nombre,
+                a.tipo AS area_tipo
+            FROM competencias c
+            LEFT JOIN subareas s ON s.id = c.subarea_id
+            INNER JOIN areas a   ON a.id = COALESCE(c.area_id, s.area_id)
+            WHERE a.id = ?
+            ORDER BY c.orden
+        ", [$areaId]);
+    }
+
+    /**
      * Persiste el código SIAGIE (14 dígitos, col. B del Excel) tras un match
      * exacto por nombre. SOLO escribe si el campo está vacío: un valor
      * distinto ya almacenado es un conflicto que se reporta, nunca se pisa.

@@ -4,9 +4,14 @@
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **09/07/2026 (turno tarde)**.
 
 ## Migraciones
-- **LOCAL: al día hasta la `038`. PROD: al día hasta la `037`** (034-037 aplicadas
-  en prod el 09/07/2026 — confirmado por el usuario). **`038` YA en LOCAL,
-  PENDIENTE en PROD** (se aplica manualmente tras el merge a main).
+- **LOCAL: al día hasta la `039`. PROD: al día hasta la `037`** (034-037 aplicadas
+  en prod el 09/07/2026 — confirmado por el usuario). **`038` y `039` YA en LOCAL,
+  PENDIENTES en PROD** (se aplican manualmente tras el merge a main).
+- **`039_areas_codigo_siagie`** (12/07): agrega `areas.codigo_siagie` y lo puebla
+  para SECUNDARIA (mapeo hoja→área del exportador SIAGIE; transversales `0006,0007`).
+  Corrige el `nombre_siagie` erróneo del Taller Raz. Mat. Primaria queda NULL a
+  propósito (mantiene su matching global validado). Idempotente. Ver
+  `docs/modulos/export-siagie.md`.
 - Migraciones más recientes (034-037): `034_purga_docente_duplicada`,
   `035_area_etica_boleta`, `036_competencia_etica_valores` (crea C57, interruptor
   de Ética), `037_consolidar_docentes_duplicados`. Todas en LOCAL y PROD.
@@ -127,10 +132,18 @@ WHERE id=25;`).
   ORALMENTE en inglés como lengua extranjera"; SIGA la tiene sin "oralmente"
   (competencias.id=1). Decidir: renombrar en SIGA al nombre oficial CN (afecta
   boletas) o dejarla — hoy esa columna queda en blanco y reportada.
-- **Variante SECUNDARIA:** pendiente de su archivo modelo (numeral+literal).
-  Al construirla, definir el mapeo **Ética y Valores (C57, área tutoría) →
-  columnas de Educación Religiosa** del Excel oficial: la nota única del tutor
-  se DUPLICA en las 2 competencias oficiales del área; exonerados → EXO.
+- **Variante SECUNDARIA — IMPLEMENTADA (12/07), B1 operativo.** Verificada con
+  nóminas reales (S1A, S5B). NL literal confirmado; diferenciación por área
+  (migración 039) → MATE (4/4, sin choque con talleres) e Inglés (por posición)
+  ya se llenan. Detalle en `docs/modulos/export-siagie.md`. **Diferidos:**
+  - **Selector de talleres** (por nómina, sin flag persistente) + definir cómo
+    llegan sus notas (hoja propia vs área anfitriona) — cuando haya archivo con
+    un taller aprobado en SIAGIE.
+  - **Ética/EREL para B2:** mapear **C57 (área 24, tutoría) → las 2 columnas de
+    Educación Religiosa (035-EREL)**; la nota única del tutor se DUPLICA; exonerados
+    → EXO. En B1 no hay notas de Ética → EREL en blanco es correcto.
+  - **`codigo_siagie` de primaria** sin poblar (mantiene su matching global
+    validado); poblar con un archivo modelo de primaria si se quiere unificar.
 
 ## Pendientes operativos (usuario / colegio)
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva

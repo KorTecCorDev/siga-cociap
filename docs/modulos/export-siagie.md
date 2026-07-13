@@ -107,8 +107,9 @@ dashboard (grupo *Evaluación y reportes*). Rutas `/admin/actas-siagie[...]`.
   B=código 14 dígitos, C="APELLIDOS, NOMBRES"); leyenda al pie
   (`01 = nombre de la competencia`).
 - El mapeo columna→competencia SIGA es por la LEYENDA normalizada contra
-  `competencias.nombre_completo` del nivel (0 o >1 candidatas → columna en
-  blanco + reporte). Áreas sin equivalente (CAST SEGNL) quedan en blanco.
+  `competencias.nombre_completo` del nivel (1 candidata → mapea). Cuando queda
+  **ambigua (>1)** o **sin match (0)**, entra la resolución POR ÁREA (ver
+  Secundaria). Áreas sin equivalente (CAST SEGNL) quedan en blanco.
 - La plantilla valida conclusiones a **10–500 caracteres** (dataValidation);
   fuera de rango se escribe igual pero con advertencia fuerte en el reporte.
 
@@ -120,6 +121,37 @@ dashboard (grupo *Evaluación y reportes*). Rutas `/admin/actas-siagie[...]`.
   oficial (viable: las competencias son por NIVEL, no por grado).
 - Alumno de SIGA sin fila en el Excel (o viceversa) → reporte, sin acción.
 
+## Secundaria (12/07/2026) — resolución por área
+
+Estructura idéntica a primaria; el mismo módulo la procesa. Verificado con
+nóminas reales (S1A, S5B). Puntos propios:
+
+- **NL = literal `A,AD,B,C`** (confirmado por el `dataValidation` real, igual que
+  primaria). El módulo escribe `nota_a_literal()` — no numérico.
+- **Diferenciación por área (`areas.codigo_siagie`, migración 039).** El tab de
+  cada hoja es `{codigo}-{ABREV}` (`063-MATE`, `057-INGL`; transversales
+  `0006,0007`). El matcher resuelve la hoja→área por ese código
+  (`areaPorCodigoSiagie`, `FIND_IN_SET`) y, SOLO para columnas ambiguas o sin
+  match, re-mapea DENTRO de esa área:
+  - **Homónimos Matemática vs Talleres:** "Resuelve problemas de cantidad" existe
+    en Matemática (C44) y en el Taller Raz. Mat. (C54) con el MISMO nombre. La
+    resolución por área se queda con la de la hoja (Matemática) e **ignora la del
+    taller**. NO se renombran competencias (curricularmente son la misma; renombrar
+    rompería el export futuro del taller y las boletas de SIGA).
+  - **Inglés (leyenda abreviada):** el SIAGIE dice "Se comunica oralmente"; SIGA
+    "…en Inglés como lengua extranjera" → 0 match de texto. Se asigna **por
+    posición** (col 01→competencia de orden 1, etc.) dentro del área Inglés.
+- **Primaria intacta:** sus áreas tienen `codigo_siagie` NULL → `areaHoja=null` →
+  matching global previo sin cambios (se poblará con un archivo modelo de primaria).
+- **Talleres (Raz. Mat., Pre-Cálculo):** SIN `codigo_siagie` (no tienen hoja en el
+  SIAGIE todavía) → nunca son destino. **Diferido:** cuando se aprueben, un
+  **selector por nómina** (sin flag persistente) dejará que RA elija incluirlos; y
+  se define cómo llegan (hoja propia = trivial por área; área anfitriona = mapeo).
+- **Ética/EREL (diferido a B2):** la hoja `035-EREL` mapea a las 2 competencias del
+  área 14 (Ed. Religiosa), hoy vacía; la nota real es C57 (área 24, tutoría). En B1
+  no hay notas de Ética → EREL en blanco es correcto. Para B2: mapear C57 → ambas
+  columnas EREL; exonerados → EXO.
+
 ## Validado (03/07/2026, local, 1°A B1)
 
 472 celdas (440 NL + 32 conclusiones) escritas y verificadas una a una;
@@ -129,5 +161,6 @@ idempotente (matchea por código, 0 escrituras); protección/merges intactos.
 ## Pendientes
 
 Ver `docs/ESTADO.md`: piloto de re-importación al SIAGIE (1 archivo),
-discrepancia de nombre en Inglés C1, y la variante SECUNDARIA (numeral+literal
-por confirmar con su archivo modelo).
+discrepancia de nombre en Inglés C1 (primaria), poblar `codigo_siagie` de
+primaria con su archivo modelo, y para secundaria: selector de talleres +
+Ética/EREL en B2 (ambos diferidos).

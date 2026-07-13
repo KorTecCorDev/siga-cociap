@@ -159,6 +159,16 @@ class LlenadorSiagie
                 }
             }
 
+            // Resolución hoja → área SIGA por el código del tab (063-MATE → '063').
+            // Habilita desambiguar homónimos por área (Matemática vs Taller) y el
+            // llenado por posición (Inglés, leyenda abreviada). Si el código no mapea
+            // (primaria aún sin poblar, o CAST SEGNL sin área) → $areaHoja = null y
+            // el comportamiento es IDÉNTICO al matching global previo.
+            $codigoHoja = explode('-', $hoja, 2)[0];
+            $areaHoja   = $this->modelo->areaPorCodigoSiagie($destino['nivel_id'], $codigoHoja);
+            $compsArea  = $areaHoja ? $this->modelo->competenciasDeArea((int) $areaHoja['id']) : [];
+            $usadasArea = []; // competencia_id ya asignada en esta hoja (evita doble asignación)
+
             $mapa = []; // numero => competencia (fila del catálogo)
             $sinEquivalente = [];
             foreach ($columnas as $numero => $cc) {
@@ -171,10 +181,30 @@ class LlenadorSiagie
                 $candidatas = $catalogo[$clave] ?? [];
                 if (count($candidatas) === 1) {
                     $mapa[$numero] = $candidatas[0];
-                } elseif (count($candidatas) === 0) {
-                    $sinEquivalente[] = "{$numero} ({$texto})";
+                    $usadasArea[(int) $candidatas[0]['competencia_id']] = true;
+                } elseif (count($candidatas) > 1) {
+                    // Homónimos (Matemática vs Taller): quedarse con el de ESTA hoja/área.
+                    $enArea = $areaHoja
+                        ? array_values(array_filter($candidatas, fn($c) => (int) $c['area_id'] === (int) $areaHoja['id']))
+                        : [];
+                    if (count($enArea) === 1) {
+                        $mapa[$numero] = $enArea[0];
+                        $usadasArea[(int) $enArea[0]['competencia_id']] = true;
+                    } else {
+                        $reporte[] = "HOJA {$hoja}: la competencia {$numero} matchea " . count($candidatas) . ' competencias de SIGA — omitida por ambigüedad';
+                    }
                 } else {
-                    $reporte[] = "HOJA {$hoja}: la competencia {$numero} matchea " . count($candidatas) . ' competencias de SIGA — omitida por ambigüedad';
+                    // Sin match de texto. Si la hoja se resolvió a un área, asignar por
+                    // POSICIÓN a su competencia de ese orden (leyenda abreviada, Inglés),
+                    // sin repetir competencia dentro de la hoja.
+                    $comp = $compsArea[$numero - 1] ?? null;
+                    if ($comp !== null && !isset($usadasArea[(int) $comp['competencia_id']])) {
+                        $mapa[$numero] = $comp;
+                        $usadasArea[(int) $comp['competencia_id']] = true;
+                        $reporte[] = "HOJA {$hoja}: columna {$numero} ('{$texto}') sin match de texto → asignada por posición a '{$comp['nombre_completo']}' ({$comp['area_nombre']})";
+                    } else {
+                        $sinEquivalente[] = "{$numero} ({$texto})";
+                    }
                 }
             }
             if ($mapa === []) {
