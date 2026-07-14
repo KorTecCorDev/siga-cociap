@@ -4,9 +4,16 @@
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **09/07/2026 (turno tarde)**.
 
 ## Migraciones
-- **LOCAL: al día hasta la `039`. PROD: al día hasta la `037`** (034-037 aplicadas
-  en prod el 09/07/2026 — confirmado por el usuario). **`038` y `039` YA en LOCAL,
-  PENDIENTES en PROD** (se aplican manualmente tras el merge a main).
+- **LOCAL: al día hasta la `040`. PROD: al día hasta la `037`** (034-037 aplicadas
+  en prod el 09/07/2026 — confirmado por el usuario). **`038`, `039` y `040` YA en
+  LOCAL, PENDIENTES en PROD** (se aplican manualmente tras el merge a main).
+- **`040_notas_autorizadas_siagie`** (14/07): crea `notas_autorizadas_siagie`
+  (matricula+competencia+periodo → literal + conclusión + resolución, UNIQUE).
+  "Informe aparte" de notas que dirección autoriza para un alumno NO evaluado por
+  ausencia justificada, VÁLIDAS SOLO PARA EL SIAGIE (no tocan `calificaciones`,
+  boleta ni orden de mérito). El export las usa solo para rellenar la celda en
+  blanco de una competencia bloqueada. Idempotente. Ver
+  `docs/modulos/export-siagie.md` y `docs/modulos/matriculas.md`.
 - **`039_areas_codigo_siagie`** (12/07): agrega `areas.codigo_siagie` y lo puebla
   para SECUNDARIA (mapeo hoja→área del exportador SIAGIE; transversales `0006,0007`).
   Corrige el `nombre_siagie` erróneo del Taller Raz. Mat. Primaria queda NULL a

@@ -9,7 +9,8 @@
     position: fixed;
     inset: 0 0 auto 0;
     z-index: 9999;
-    pointer-events: none;   // nunca bloquea clics cuando está oculto
+    pointer-events: none;   // la raíz y la barra nunca capturan clics; solo el
+                            // overlay bloquea, y únicamente cuando está activo
 
     // ── Barra de progreso superior ───────────────────────────
     &__bar {
@@ -21,8 +22,9 @@
         background: linear-gradient(90deg, $brand-mid, $brand-accent);
         box-shadow: 0 0 8px rgba($brand-accent, .6);
         opacity: 0;
-        // Crece con desaceleración para simular progreso real.
-        transition: width 8s cubic-bezier(.1, .7, .3, 1), opacity .3s ease;
+        // Se llena en ~.8s (debe coincidir con BAR_FILL en app.js): al terminar,
+        // app.js escala al overlay si la espera continúa.
+        transition: width .8s cubic-bezier(.1, .7, .3, 1), opacity .3s ease;
     }
 
     // ── Overlay con logo (aparece solo si la espera es larga) ─
@@ -64,13 +66,14 @@
 
     // ── Estados (los activa app.js) ──────────────────────────
     &.is-active &__bar {
-        width: 90%;
+        width: 100%;   // llega al tope: su animación "termina" y da paso al overlay
         opacity: 1;
     }
 
     &.is-overlay &__overlay {
         opacity: 1;
         visibility: visible;
+        pointer-events: auto;   // bloquea todo clic sobre la vista de atrás
     }
 }
 

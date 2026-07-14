@@ -34,19 +34,19 @@ $totalCeldas = $resumen['nl'] + $resumen['conc'];
             </div>
 
             <div class="actas-acciones">
-                <a href="<?= url('admin/actas-siagie/resultado/descargar') ?>" class="btn btn--primary">
+                <a href="<?= url('admin/actas-siagie/resultado/descargar') ?>" class="btn btn--primary" data-descarga="<?= e($res['nombre']) ?>">
                     <span class="btn-icon btn-icon--save" aria-hidden="true"></span>
                     Descargar acta llenada (.xlsx)
                 </a>
-                <a href="<?= url('admin/actas-siagie/resultado/reporte') ?>" class="btn btn--secondary">
+                <a href="<?= url('admin/actas-siagie/resultado/reporte') ?>" class="btn btn--secondary" data-descarga="<?= e('reporte_' . pathinfo($res['nombre'], PATHINFO_FILENAME) . '.txt') ?>">
                     Descargar reporte (.txt)
                 </a>
             </div>
 
             <p class="actas-nota">
                 <span class="badge badge--info">Siguiente paso</span>
-                Subí este archivo al SIAGIE tal cual. El archivo generado es temporal:
-                descargalo ahora.
+                Sube este archivo al SIAGIE tal cual. El archivo generado es temporal:
+                descárgalo ahora.
             </p>
         </div>
     </div>

@@ -1,0 +1,127 @@
+// ============================================================
+// _notas-siagie-informe.scss — Informe imprimible de notas
+// autorizadas por dirección para el SIAGIE (respaldo físico).
+// Layout `print`. Documento A4 vertical, sobrio.
+// ============================================================
+
+.informe-siagie {
+    max-width: 800px;
+    margin: $spacing-lg auto;
+    padding: $spacing-xl;
+    background: $bg-white;
+    color: $text-primary;
+    font-size: $font-size-base;
+    line-height: $line-height;
+
+    &__head {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+        border-bottom: 2px solid $brand-dark;
+        padding-bottom: $spacing-md;
+        margin-bottom: $spacing-lg;
+    }
+
+    &__logo {
+        width: 64px;
+        height: auto;
+        flex-shrink: 0;
+    }
+
+    &__institucion {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    &__titulo {
+        font-size: $font-size-xl;
+        color: $brand-dark;
+        margin: 2px 0;
+    }
+
+    &__sub {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &__datos {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: $spacing-xs $spacing-lg;
+        margin-bottom: $spacing-lg;
+
+        span { color: $text-muted; }
+    }
+
+    &__bloque { margin-bottom: $spacing-lg; }
+
+    &__bimestre {
+        font-size: $font-size-lg;
+        color: $brand-mid;
+        border-left: 4px solid $brand-accent;
+        padding-left: $spacing-sm;
+        margin-bottom: $spacing-sm;
+    }
+
+    &__tabla {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: $font-size-sm;
+
+        th, td {
+            border: 1px solid $border-color;
+            padding: 6px $spacing-sm;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: $bg-secondary;
+            color: $text-secondary;
+            font-weight: 600;
+        }
+
+        .tc { text-align: center; }
+    }
+
+    &__firma {
+        margin-top: $spacing-2xl;
+        text-align: center;
+        position: relative;
+        width: 260px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    &__firma-img {
+        max-height: 70px;
+        width: auto;
+        display: block;
+        margin: 0 auto -6px;
+    }
+
+    &__firma-linea {
+        border-top: 1px solid $text-primary;
+        margin-top: $spacing-xs;
+    }
+
+    &__firma-nombre {
+        font-weight: 600;
+        margin-top: $spacing-xs;
+    }
+
+    &__firma-cargo {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+    }
+}
+
+@media print {
+    .informe-siagie {
+        margin: 0;
+        padding: 12mm;
+        max-width: none;
+    }
+}

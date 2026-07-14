@@ -117,6 +117,19 @@ dashboard (grupo *Evaluación y reportes*). Rutas `/admin/actas-siagie[...]`.
 
 - EXO → celdas omitidas (el SIAGIE las bloquea de todos modos), reportado.
 - "No se evaluó" (bloqueo sin notas) → en blanco, reportado.
+- **Nota autorizada por dirección (14/07/2026):** si la celda quedaría en blanco por
+  ausencia justificada pero dirección registró una nota autorizada para esa
+  competencia (tabla `notas_autorizadas_siagie`, migración 040), el llenador la usa
+  para rellenar SOLO esa celda vacía (literal + conclusión). Precedencia: la nota
+  oficial de `calificaciones` SIEMPRE gana; la autorizada solo cubre el blanco. Se
+  reporta aparte ("NOTAS AUTORIZADAS POR DIRECCIÓN — no evaluado") y suma la clave
+  `resumen['autorizadas']`. Nunca pisa una celda con valor. `LlenadorSiagie` la
+  lee vía `SiagieExportModel::notasAutorizadas()` en la rama `$nota === null`
+  (une fuentes con `boletaContexto`, igual que `notasOficiales`: en RETORNO de
+  grado la nota vive en la OPERATIVA y el export procesa la OFICIAL). La
+  registran admin/RA desde `/matriculas/{id}/notas-siagie` (candado: omisión
+  registrada de cualquier motivo + competencia bloqueada + sin nota real). Ver
+  `docs/modulos/matriculas.md`.
 - Retorno de grado → notas de la matrícula operativa en la fila de la sección
   oficial (viable: las competencias son por NIVEL, no por grado).
 - Alumno de SIGA sin fila en el Excel (o viceversa) → reporte, sin acción.

@@ -18,6 +18,7 @@
 @import 'components/navbar';
 @import 'components/sidebar';
 @import 'components/loader';
+@import 'components/toast-descarga';
 
 // 3. Páginas específicas
 @import 'pages/auth';
@@ -41,3 +42,4 @@
 @import 'pages/rectificaciones';
 @import 'pages/consulta-notas';
 @import 'pages/actas-siagie';
+@import 'pages/notas-siagie-informe';

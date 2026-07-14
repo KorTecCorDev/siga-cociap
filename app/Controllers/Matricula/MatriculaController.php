@@ -8,6 +8,7 @@ use App\Models\ApoderadoModel;
 use App\Models\EstudianteModel;
 use App\Models\TrasladoModel;
 use App\Models\ExoneracionModel;
+use App\Models\NotaAutorizadaSiagieModel;
 use App\Models\DirectorEbrModel;
 use Core\Session;
 use Core\View;
@@ -30,6 +31,7 @@ class MatriculaController extends BaseController
     private EstudianteModel $estudiantes;
     private TrasladoModel $traslados;
     private ExoneracionModel $exoneraciones;
+    private NotaAutorizadaSiagieModel $notasAut;
 
     /** Tipos de vínculo disponibles: valor BD => etiqueta mostrada. */
     private const TIPOS_VINCULO = [
@@ -87,6 +89,7 @@ class MatriculaController extends BaseController
         $this->estudiantes = new EstudianteModel();
         $this->traslados   = new TrasladoModel();
         $this->exoneraciones = new ExoneracionModel();
+        $this->notasAut    = new NotaAutorizadaSiagieModel();
     }
 
     /** Catálogo de tipos de vínculo (para reutilizar desde otros módulos). */
@@ -753,6 +756,10 @@ class MatriculaController extends BaseController
                   )
                 : [],
             'pendientes'   => $this->pendientesParaActivar($matricula),
+            // En retorno de grado la evaluación (y las notas autorizadas) viven en
+            // la matrícula OPERATIVA; la card apunta ahí.
+            'notasAutSiagie' => $this->notasAut->getTodasPorMatricula((int) ($retorno['matricula_operativa_id'] ?? $id)),
+            'matNotasSiagie' => (int) ($retorno['matricula_operativa_id'] ?? $id),
             'page_scripts' => ['matriculas'],
         ]);
     }
@@ -1012,6 +1019,168 @@ class MatriculaController extends BaseController
 
         $this->redirectWithSuccess(url('matriculas/' . $id . '/notas-externas'),
             'Nota externa registrada.');
+    }
+
+    // ── Notas autorizadas por dirección para SIAGIE (informe aparte) ─────
+    //
+    // Dirección ordena consignar una nota para un alumno NO evaluado por
+    // ausencia justificada (salud, accidente, viaje), VÁLIDA SOLO PARA EL
+    // SIAGIE. No toca calificaciones, boleta ni orden de mérito: solo rellena
+    // la celda en blanco del export. Candado: la competencia debe tener omisión
+    // justificada, estar bloqueada y sin nota real. Ver NotaAutorizadaSiagieModel.
+
+    /** GET /matriculas/{id}/notas-siagie — pantalla de gestión. */
+    public function notasSiagie(string $id): void
+    {
+        // En retorno de grado la evaluación vive en la operativa: operamos ahí.
+        $eval      = $this->matriculaEvaluacion((int) $id);
+        $matricula = $this->requireMatricula($eval);
+        if (!has_role(['admin', 'registro_academico'])) {
+            $this->redirectWithError(url('matriculas/' . $id),
+                'Solo Registro académico / dirección gestiona las notas autorizadas.');
+        }
+        $seccionId = (int) $matricula['seccion_id'];
+
+        // Un bloque por bimestre del año con elegibles o ya registradas.
+        $periodos = $this->model->query("
+            SELECT id, numero, nombre_display, estado
+            FROM periodos WHERE anio_id = ? ORDER BY numero
+        ", [(int) $matricula['anio_id']]);
+
+        $bloques = [];
+        foreach ($periodos as $per) {
+            $pid         = (int) $per['id'];
+            $elegibles   = $this->notasAut->competenciasElegibles($eval, $seccionId, $pid);
+            $registradas = $this->notasAut->getDetalle($eval, $pid);
+            if ($elegibles === [] && $registradas === []) {
+                continue;
+            }
+            $bloques[] = [
+                'periodo'     => $per,
+                'elegibles'   => $elegibles,
+                'registradas' => $registradas,
+            ];
+        }
+
+        $this->view('matriculas/notas-siagie', [
+            'titulo'    => 'Notas autorizadas para SIAGIE',
+            'matricula' => $matricula,
+            'bloques'   => $bloques,
+            'nivel'     => mb_strtolower((string) ($matricula['nivel_nombre'] ?? '')),
+        ]);
+    }
+
+    /** POST /matriculas/{id}/notas-siagie — registra/actualiza una nota autorizada. */
+    public function storeNotaSiagie(string $id): void
+    {
+        $this->validateCsrf();
+        $eval      = $this->matriculaEvaluacion((int) $id);
+        $matricula = $this->requireMatricula($eval);
+        if (!has_role(['admin', 'registro_academico'])) {
+            $this->redirectWithError(url('matriculas/' . $id), 'No autorizado.');
+        }
+        $volver     = url('matriculas/' . $eval . '/notas-siagie');
+        $seccionId  = (int) $matricula['seccion_id'];
+        $competencia= (int) $this->input('competencia_id');
+        $periodo    = (int) $this->input('periodo_id');
+        $literal    = (string) $this->input('nota_literal');
+        $conclusion = trim((string) $this->input('conclusion_descriptiva'));
+        $resolucion = trim((string) $this->input('resolucion'));
+
+        if (!in_array($literal, ['AD', 'A', 'B', 'C'], true)) {
+            $this->redirectWithError($volver, 'Nota literal inválida.');
+        }
+        if ($resolucion === '') {
+            $this->redirectWithError($volver, 'La resolución/autorización de dirección es obligatoria.');
+        }
+        // Candado de servidor: omisión justificada + bloqueada + sin nota real.
+        if (!$this->notasAut->esElegible($eval, $seccionId, $periodo, $competencia)) {
+            $this->redirectWithError($volver,
+                'Esa competencia no es autorizable: requiere omisión justificada, competencia bloqueada y sin nota real.');
+        }
+        // Conclusión según las reglas vigentes de la escala.
+        $nivel = mb_strtolower((string) ($matricula['nivel_nombre'] ?? ''));
+        if (conclusion_es_obligatoria($literal, $nivel) && $conclusion === '') {
+            $this->redirectWithError($volver,
+                'Para esta nota literal, la conclusión descriptiva es obligatoria.');
+        }
+
+        $this->notasAut->registrar([
+            'matricula_id'           => $eval,
+            'competencia_id'         => $competencia,
+            'periodo_id'             => $periodo,
+            'nota_literal'           => $literal,
+            'conclusion_descriptiva' => $conclusion !== '' ? $conclusion : null,
+            'resolucion'             => $resolucion,
+            'registrado_por'         => (int) (Session::user()['id'] ?? 0),
+        ]);
+
+        $this->redirectWithSuccess($volver, 'Nota autorizada registrada.');
+    }
+
+    /** POST /matriculas/{id}/notas-siagie/eliminar — quita una nota autorizada. */
+    public function eliminarNotaSiagie(string $id): void
+    {
+        $this->validateCsrf();
+        $eval = $this->matriculaEvaluacion((int) $id);
+        $this->requireMatricula($eval);
+        if (!has_role(['admin', 'registro_academico'])) {
+            $this->redirectWithError(url('matriculas/' . $id), 'No autorizado.');
+        }
+        $this->notasAut->eliminar((int) $this->input('reg_id'), $eval);
+        $this->redirectWithSuccess(url('matriculas/' . $eval . '/notas-siagie'),
+            'Nota autorizada eliminada.');
+    }
+
+    /** GET /matriculas/{id}/notas-siagie/informe — informe imprimible (respaldo). */
+    public function informeNotaSiagie(string $id): void
+    {
+        $eval      = $this->matriculaEvaluacion((int) $id);
+        $matricula = $this->requireMatricula($eval);
+        if (!has_role(['admin', 'registro_academico'])) {
+            $this->redirectWithError(url('matriculas/' . $id), 'No autorizado.');
+        }
+
+        // Todas las autorizadas del alumno, agrupadas por bimestre.
+        $periodos = $this->model->query("
+            SELECT id, numero, nombre_display
+            FROM periodos WHERE anio_id = ? ORDER BY numero
+        ", [(int) $matricula['anio_id']]);
+
+        $bloques = [];
+        foreach ($periodos as $per) {
+            $registradas = $this->notasAut->getDetalle($eval, (int) $per['id']);
+            if ($registradas !== []) {
+                $bloques[] = ['periodo' => $per, 'registradas' => $registradas];
+            }
+        }
+
+        $director = (new DirectorEbrModel())->getVigenteEnFecha((int) $matricula['anio_id']);
+
+        View::setLayout('print');
+        $this->view('matriculas/notas-siagie-informe', [
+            'titulo'    => 'Informe de notas autorizadas — SIAGIE',
+            'matricula' => $matricula,
+            'bloques'   => $bloques,
+            'director'  => $director,
+        ]);
+    }
+
+    /**
+     * Matrícula donde vive la EVALUACIÓN del alumno. En retorno de grado el
+     * alumno se evalúa (y sus omisiones/notas autorizadas viven) en la matrícula
+     * OPERATIVA, aunque la gestión general se haga desde la oficial. Fuera de
+     * retorno devuelve el mismo id. Espeja la unión de `boletaContexto`.
+     */
+    private function matriculaEvaluacion(int $id): int
+    {
+        $r = $this->model->queryOne(
+            "SELECT matricula_operativa_id FROM retornos_grado
+             WHERE matricula_oficial_id = ? OR matricula_operativa_id = ?
+             ORDER BY id DESC LIMIT 1",
+            [$id, $id]
+        );
+        return $r ? (int) $r['matricula_operativa_id'] : $id;
     }
 
     /** Carga la matrícula o muestra 404 si no existe. */

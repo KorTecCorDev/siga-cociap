@@ -204,6 +204,46 @@ $labelDoc = [
     </div>
     <?php endif; ?>
 
+    <!-- Notas autorizadas para SIAGIE (dirección) — SOLO admin/RA. Informe
+         aparte: notas para un alumno no evaluado por ausencia justificada,
+         válidas solo para el SIAGIE (no tocan boleta ni orden de mérito). -->
+    <?php if ($puedeGestionar): ?>
+    <div class="card">
+        <div class="card__body">
+            <p class="form-section-title">Notas autorizadas para SIAGIE (dirección)</p>
+            <p class="text-muted text-sm">
+                Notas que dirección autoriza para un alumno <strong>no evaluado</strong> (con un motivo de omisión registrado).
+                Válidas <strong>solo para el SIAGIE</strong>: no afectan la boleta ni el orden de mérito.
+            </p>
+            <?php if (empty($notasAutSiagie)): ?>
+                <div class="empty-state"><p>Sin notas autorizadas registradas.</p></div>
+            <?php else: ?>
+                <div class="tabla-notas-wrapper">
+                    <table class="tabla-notas">
+                        <thead><tr><th>Bimestre</th><th>Competencia</th><th class="text-center">Nota</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($notasAutSiagie as $na): ?>
+                            <tr>
+                                <td class="text-sm"><?= e($na['periodo_nombre']) ?></td>
+                                <td class="text-sm"><?= e($na['competencia_nombre']) ?></td>
+                                <td class="text-center"><span class="matricula-badge matricula-badge--nuevo"><?= e($na['nota_literal']) ?></span></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+            <?php $midNS = (int) ($matNotasSiagie ?? $mid); ?>
+            <div class="btn-group">
+                <a href="<?= url('matriculas/' . $midNS . '/notas-siagie') ?>" class="btn btn--secondary btn--sm">Gestionar notas autorizadas</a>
+                <?php if (!empty($notasAutSiagie)): ?>
+                    <a href="<?= url('matriculas/' . $midNS . '/notas-siagie/informe') ?>" target="_blank" class="btn btn--secondary btn--sm">Informe imprimible</a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Exoneraciones (áreas/subáreas sin evaluación este año) — SOLO consulta:
          el registro vive como acción desplegable en "Gestión de la matrícula"
          (la card angosta del grid no da espacio para el formulario). -->

@@ -19,12 +19,14 @@ class SiagieExportModel extends BaseModel
 {
     private CalificacionModel $calModel;
     private ExoneracionModel  $exoModel;
+    private NotaAutorizadaSiagieModel $autModel;
 
     public function __construct()
     {
         parent::__construct();
         $this->calModel = new CalificacionModel();
         $this->exoModel = new ExoneracionModel();
+        $this->autModel = new NotaAutorizadaSiagieModel();
     }
 
     /**
@@ -188,6 +190,31 @@ class SiagieExportModel extends BaseModel
             }
         }
         return $notas;
+    }
+
+    /**
+     * Notas AUTORIZADAS por dirección (solo SIAGIE) del alumno en el periodo.
+     * Rellenan la celda que quedaría en blanco por ausencia justificada. No
+     * salen de `calificaciones` (nunca tocan boleta ni mérito); son el "informe
+     * aparte" de la migración 040. La precedencia la resuelve el llenador: solo
+     * se usan cuando NO hay nota oficial.
+     *
+     * En RETORNO de grado el alumno se evalúa en la matrícula OPERATIVA pero el
+     * export procesa la OFICIAL: se unen las fuentes (igual que notasOficiales)
+     * para encontrar la nota autorizada esté registrada en la que esté.
+     *
+     * @return array competencia_id => ['literal'=>string, 'conclusion'=>?string]
+     */
+    public function notasAutorizadas(int $matriculaId, int $periodoId): array
+    {
+        $ctx = $this->calModel->boletaContexto($matriculaId);
+        $out = [];
+        foreach ($ctx['fuentes'] as $fuente) {
+            foreach ($this->autModel->getParaExport((int) $fuente, $periodoId) as $compId => $val) {
+                $out[$compId] = $val;   // en choque gana la fuente posterior (la oficial)
+            }
+        }
+        return $out;
     }
 
     /**

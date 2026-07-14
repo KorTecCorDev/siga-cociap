@@ -1,0 +1,118 @@
+// ============================================================
+// _toast-descarga.scss — Aviso in-app "descarga lista"
+// Lo crea app.js tras iniciar una descarga [data-descarga].
+// No bloquea la vista (a diferencia del overlay del loader):
+// vive en una esquina, se puede cerrar y volver a descargar.
+// ============================================================
+
+.toast-descarga {
+    position: fixed;
+    right: $spacing-lg;
+    bottom: $spacing-lg;
+    z-index: 9990;   // bajo el overlay del loader (9999); nunca coinciden
+    max-width: min(360px, calc(100vw - #{$spacing-lg * 2}));
+
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-sm;
+    padding: $spacing-md;
+
+    background: $color-success-bg;
+    color: $text-primary;
+    border: 1px solid lighten($color-success, 40%);
+    border-left: 4px solid $color-success;
+    border-radius: $border-radius;
+    box-shadow: $shadow-md;
+
+    // Estado inicial (fuera de pantalla). app.js agrega .is-visible para entrar
+    // y .is-saliendo para retirarlo.
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity .25s ease, transform .25s ease;
+
+    &.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    &.is-saliendo {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    &__icono {
+        flex-shrink: 0;
+        color: $color-success;
+        font-size: $font-size-lg;
+        line-height: 1.3;
+    }
+
+    &__cuerpo {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;   // permite que el nombre largo se recorte con ellipsis
+    }
+
+    &__titulo {
+        font-size: $font-size-base;
+        color: $color-success;
+    }
+
+    &__archivo {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        word-break: break-all;   // nombres largos no desbordan
+    }
+
+    &__tip {
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &__accion {
+        align-self: flex-start;
+        margin-top: $spacing-xs;
+        font-size: $font-size-sm;
+        font-weight: 600;
+        color: $brand-mid;
+        text-decoration: none;
+
+        &:hover { text-decoration: underline; }
+    }
+
+    &__cerrar {
+        flex-shrink: 0;
+        margin-left: auto;
+        padding: 0 $spacing-xs;
+        background: none;
+        border: none;
+        color: $text-muted;
+        font-size: $font-size-lg;
+        line-height: 1;
+        cursor: pointer;
+
+        &:hover { color: $text-primary; }
+    }
+}
+
+// En pantallas chicas ocupa el ancho de abajo, centrado.
+@media (max-width: 480px) {
+    .toast-descarga {
+        right: $spacing-sm;
+        left: $spacing-sm;
+        bottom: $spacing-sm;
+        max-width: none;
+    }
+}
+
+// Respeta la preferencia de movimiento reducido: sin deslizamiento, solo opacidad.
+@media (prefers-reduced-motion: reduce) {
+    .toast-descarga {
+        transform: none;
+        transition: opacity .2s ease;
+
+        &.is-visible,
+        &.is-saliendo { transform: none; }
+    }
+}

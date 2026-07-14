@@ -97,6 +97,12 @@ if ($rosterOtras !== []) {
                         <span class="actas-metrica__lbl">celdas en blanco</span>
                     </div>
                 <?php endif; ?>
+                <?php if (($resumen['autorizadas'] ?? 0) > 0): ?>
+                    <div class="actas-metrica actas-metrica--warn">
+                        <span class="actas-metrica__num"><?= (int) $resumen['autorizadas'] ?></span>
+                        <span class="actas-metrica__lbl">notas autorizadas (dirección)</span>
+                    </div>
+                <?php endif; ?>
                 <?php if (($resumen['otra_seccion'] ?? 0) > 0): ?>
                     <div class="actas-metrica actas-metrica--warn">
                         <span class="actas-metrica__num"><?= (int) $resumen['otra_seccion'] ?></span>
@@ -127,10 +133,10 @@ if ($rosterOtras !== []) {
                 <div class="card__body">
                     <p>
                         Estas filas del Excel no coincidieron automáticamente con un estudiante de SIGA
-                        (nombre distinto, homónimos, etc.). Elegí el estudiante correcto por su <strong>DNI</strong>
-                        o dejá la fila en blanco. La nota siempre sale de SIGA; nunca se escribe a mano.
+                        (nombre distinto, homónimos, etc.). Elige el estudiante correcto por su <strong>DNI</strong>
+                        o deja la fila en blanco. La nota siempre sale de SIGA; nunca se escribe a mano.
                         Si un alumno <strong>cambió de sección sin tramitarlo</strong>, aparece marcado abajo y
-                        podés elegirlo en el grupo <em>"Otras secciones del grado"</em> del selector.
+                        puedes elegirlo en el grupo <em>"Otras secciones del grado"</em> del selector.
                     </p>
                     <div class="tabla-responsive">
                         <table class="tabla-ranking">
@@ -184,7 +190,7 @@ if ($rosterOtras !== []) {
                 <div class="card__body">
                     <p>
                         El código del Excel no coincide con el que SIGA ya tiene para ese nombre. Por seguridad
-                        estas filas quedan en blanco: corregí el código en la matrícula del estudiante y volvé a intentar.
+                        estas filas quedan en blanco: corrige el código en la matrícula del estudiante y vuelve a intentar.
                     </p>
                     <ul class="actas-lista">
                     <?php foreach ($conflictos as $mm): ?>
@@ -205,7 +211,7 @@ if ($rosterOtras !== []) {
                 <div class="card__body">
                     <p class="text-muted">
                         Las celdas en blanco no son un error del volcado: son datos que aún no están listos en SIGA.
-                        Corregí la raíz y volvé a subir el archivo.
+                        Corrige la raíz y vuelve a subir el archivo.
                     </p>
                     <div class="actas-origen__links">
                         <a href="<?= $urlConsulta ?>" class="btn btn--secondary btn--sm">Consulta de notas de la sección →</a>
@@ -227,7 +233,7 @@ if ($rosterOtras !== []) {
         <div class="card mb-lg">
             <div class="card__header card__header--between">
                 <h2 class="card__title">Reporte de análisis</h2>
-                <a href="<?= url('admin/actas-siagie/reporte') ?>" class="btn btn--secondary btn--sm">Descargar .txt</a>
+                <a href="<?= url('admin/actas-siagie/reporte') ?>" class="btn btn--secondary btn--sm" data-descarga="<?= e('reporte_' . pathinfo($nombre, PATHINFO_FILENAME) . '.txt') ?>">Descargar .txt</a>
             </div>
             <div class="card__body">
                 <details class="actas-reporte">

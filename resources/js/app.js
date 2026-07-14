@@ -71,29 +71,59 @@ document.addEventListener('submit', function(e) {
 }, true);
 
 // ── Loader de transición entre páginas ───────────────────────
-// Barra superior inmediata + overlay con logo si la navegación
-// tarda más que OVERLAY_DELAY. Pensado para MPA (recarga completa):
-// se muestra al salir de la página y desaparece al cargar la nueva.
+// Dos animaciones en cadena para MPA (recarga completa):
+//   1. Barra superior inmediata que se llena en BAR_FILL ms.
+//   2. Al terminar la barra, si la espera sigue, escala al overlay
+//      con logo, que ADEMÁS bloquea toda interacción de la vista
+//      (puntero + teclado + lectores de pantalla) hasta que carga.
+// Las descargas (attachment, que no navegan) solo muestran la barra
+// y la ocultan solas: nunca escalan al overlay ni bloquean.
 (function() {
     var loader = document.getElementById('appLoader');
     if (!loader) return;
 
-    var OVERLAY_DELAY  = 800;    // ms hasta mostrar el overlay con logo (solo en
-                                 // navegaciones realmente lentas; la barra superior
-                                 // ya da feedback inmediato en cada navegacion)
+    var BAR_FILL       = 800;    // ms que tarda la barra en llenarse (coincide con
+                                 // la transición width del SASS); al terminar escala
+    var DESCARGA_HIDE  = 1200;   // ms hasta ocultar la barra tras iniciar una descarga
     var SAFETY_TIMEOUT = 8000;   // ms de seguridad por si no se navega
     var overlayTimer = null;
     var safetyTimer  = null;
     var navegando    = false;
 
-    function iniciar() {
+    // Bloquea/desbloquea todo lo que hay detrás del overlay: inert desactiva
+    // clics, foco y selección de teclado y lo oculta a lectores de pantalla.
+    function bloquearFondo(activar) {
+        var hijos = document.body.children;
+        for (var i = 0; i < hijos.length; i++) {
+            if (hijos[i] === loader) continue;
+            if (activar) hijos[i].setAttribute('inert', '');
+            else         hijos[i].removeAttribute('inert');
+        }
+        if (activar) {
+            loader.removeAttribute('aria-hidden');
+            loader.setAttribute('aria-busy', 'true');
+        } else {
+            loader.setAttribute('aria-hidden', 'true');
+            loader.removeAttribute('aria-busy');
+        }
+    }
+
+    function escalarOverlay() {
+        loader.classList.add('is-overlay');   // overlay con logo
+        bloquearFondo(true);                   // y bloquea la vista de atrás
+    }
+
+    // soloBarra=true para descargas: barra corta, sin overlay ni bloqueo.
+    function iniciar(soloBarra) {
         if (navegando) return;
         navegando = true;
-        loader.classList.add('is-active');                 // barra inmediata
-        overlayTimer = setTimeout(function() {
-            loader.classList.add('is-overlay');            // overlay si tarda
-        }, OVERLAY_DELAY);
-        safetyTimer = setTimeout(detener, SAFETY_TIMEOUT); // anti-trabado
+        loader.classList.add('is-active');                     // barra inmediata
+        if (soloBarra) {
+            safetyTimer = setTimeout(detener, DESCARGA_HIDE);
+            return;
+        }
+        overlayTimer = setTimeout(escalarOverlay, BAR_FILL);   // escala al terminar la barra
+        safetyTimer  = setTimeout(detener, SAFETY_TIMEOUT);    // anti-trabado
     }
 
     function detener() {
@@ -101,6 +131,93 @@ document.addEventListener('submit', function(e) {
         clearTimeout(overlayTimer);
         clearTimeout(safetyTimer);
         loader.classList.remove('is-active', 'is-overlay');
+        bloquearFondo(false);
+    }
+
+    var TOAST_VIDA = 7000;   // ms que el aviso "descarga lista" permanece visible
+
+    // Aviso in-app "descarga lista": no bloquea la vista (a diferencia del overlay).
+    // Muestra el nombre del archivo y deja volver a descargar. El navegador no
+    // permite abrir su panel de descargas por código; esto es el equivalente propio.
+    // Reemplaza cualquier aviso anterior. Todo el texto entra por textContent (sin XSS).
+    function mostrarToastDescarga(nombre, href) {
+        var previo = document.getElementById('toastDescarga');
+        if (previo && previo.parentNode) previo.parentNode.removeChild(previo);
+
+        var toast = document.createElement('div');
+        toast.id = 'toastDescarga';
+        toast.className = 'toast-descarga';
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+
+        var icono = document.createElement('span');
+        icono.className = 'toast-descarga__icono';
+        icono.setAttribute('aria-hidden', 'true');
+        icono.textContent = '✓';
+        toast.appendChild(icono);
+
+        var cuerpo = document.createElement('div');
+        cuerpo.className = 'toast-descarga__cuerpo';
+
+        var titulo = document.createElement('strong');
+        titulo.className = 'toast-descarga__titulo';
+        titulo.textContent = 'Descarga iniciada';
+        cuerpo.appendChild(titulo);
+
+        if (nombre) {
+            var archivo = document.createElement('span');
+            archivo.className = 'toast-descarga__archivo';
+            archivo.textContent = nombre;
+            cuerpo.appendChild(archivo);
+        }
+
+        var tip = document.createElement('span');
+        tip.className = 'toast-descarga__tip';
+        tip.textContent = 'La encuentras en tu carpeta de Descargas o con Ctrl+J.';
+        cuerpo.appendChild(tip);
+
+        if (href) {
+            var accion = document.createElement('a');
+            accion.className = 'toast-descarga__accion';
+            accion.href = href;
+            accion.setAttribute('data-descarga', nombre || '');  // reusa el mismo flujo
+            accion.textContent = 'Volver a descargar';
+            cuerpo.appendChild(accion);
+        }
+
+        toast.appendChild(cuerpo);
+
+        var cerrar = document.createElement('button');
+        cerrar.type = 'button';
+        cerrar.className = 'toast-descarga__cerrar';
+        cerrar.setAttribute('aria-label', 'Cerrar aviso');
+        cerrar.textContent = '×';
+        toast.appendChild(cerrar);
+
+        document.body.appendChild(toast);
+        // Doble rAF: pinta el estado inicial y recién entonces anima la entrada.
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() { toast.classList.add('is-visible'); });
+        });
+
+        var vidaTimer = null;
+        function cerrarToast() {
+            if (!toast.parentNode) return;
+            clearTimeout(vidaTimer);
+            toast.classList.remove('is-visible');
+            toast.classList.add('is-saliendo');
+            var quitado = false;
+            var quitar = function() {
+                if (quitado) return;
+                quitado = true;
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            };
+            toast.addEventListener('transitionend', quitar);
+            setTimeout(quitar, 400);   // fallback si no hay transición
+        }
+
+        cerrar.addEventListener('click', cerrarToast);
+        vidaTimer = setTimeout(cerrarToast, TOAST_VIDA);
     }
 
     // ¿Este enlace provoca una navegación real del navegador?
@@ -125,7 +242,21 @@ document.addEventListener('submit', function(e) {
         if (e.defaultPrevented) return;
         if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         var a = e.target.closest('a');
-        if (a && debeNavegar(a)) iniciar();
+        if (!a) return;
+        // Descarga (attachment): solo barra, se oculta sola; no escala ni bloquea.
+        // Al ocultarse la barra (la descarga ya arrancó) mostramos el aviso propio.
+        // Si la descarga fallara, el servidor redirige → la página navega y este
+        // setTimeout muere con ella: el aviso NO aparece en caso de error.
+        if (a.hasAttribute('data-descarga')) {
+            var nombreDescarga = a.getAttribute('data-descarga');
+            var hrefDescarga   = a.href;
+            iniciar(true);
+            setTimeout(function() {
+                mostrarToastDescarga(nombreDescarga, hrefDescarga);
+            }, DESCARGA_HIDE);
+            return;
+        }
+        if (debeNavegar(a)) iniciar();
     });
 
     document.addEventListener('submit', function(e) {

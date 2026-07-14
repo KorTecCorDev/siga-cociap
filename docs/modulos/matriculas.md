@@ -257,6 +257,38 @@ queda como traza de auditoría histórica. Se muestra junto al badge en `index` 
   y el controlador les rechaza el POST por rol.
 - **Revocar** sigue SOLO en `/admin/exoneraciones/{seccion}` (el form desplegable
   enlaza "Revocar en Exoneraciones").
+
+## Notas autorizadas por dirección para SIAGIE (14/07/2026)
+
+> El SIAGIE exige la nota de cada competencia evaluada para TODA la sección y no
+> deja cerrar con celdas vacías. Un alumno con ausencia justificada (salud,
+> accidente, viaje) queda correctamente SIN nota en SIGA (omisión con motivo
+> `ausencia_justificada`) → su celda del SIAGIE queda en blanco. Dirección ordena
+> consignar una nota para poder cerrar en el SIAGIE. Se resuelve con un **"informe
+> aparte"** que alimenta SOLO el export (no toca boleta ni orden de mérito).
+
+- **Tabla** `notas_autorizadas_siagie` (migración 040): `matricula+competencia+periodo
+  → nota_literal + conclusión + resolución`, UNIQUE. Modelo `NotaAutorizadaSiagieModel`.
+- **Pantalla** `/matriculas/{id}/notas-siagie` (solo admin/RA; card resumen en `show`).
+  Muestra, por bimestre, las competencias AUTORIZABLES y las ya registradas.
+- **Candado de elegibilidad** (`esElegible`, validado en servidor): la competencia
+  debe tener una **omisión registrada** del alumno (CUALQUIER motivo — basta que el
+  docente la haya marcado, no se exige `ausencia_justificada`), estar **bloqueada** y
+  **sin calificación viva**. `competenciasElegibles` además oculta las ya autorizadas.
+- **Conclusión** obligatoria según la escala vigente (`conclusion_es_obligatoria`:
+  primaria B/C, secundaria C). La resolución de dirección es obligatoria.
+- **Export:** `LlenadorSiagie` rellena con ella SOLO la celda en blanco de una
+  competencia bloqueada; la nota real de `calificaciones` siempre tiene precedencia.
+  Se reporta aparte y suma `resumen['autorizadas']`. Ver `docs/modulos/export-siagie.md`.
+- **Informe imprimible** `/matriculas/{id}/notas-siagie/informe` (layout `print`):
+  respaldo físico con firma del director EBR vigente. SASS `pages/_notas-siagie-informe`.
+- **Rutas** literales/sub-recursos ANTES del patrón `{id}` (invariante del router).
+- **Retorno de grado:** la evaluación (omisiones, elegibles, nota autorizada) vive
+  en la matrícula OPERATIVA. El controlador resuelve la "matrícula de evaluación"
+  (`matriculaEvaluacion`: operativa si hay retorno) y opera ahí; la card del detalle
+  (que se ve en la OFICIAL) apunta a la operativa. El export une fuentes con
+  `boletaContexto`, así procesa la oficial y encuentra la nota de la operativa.
+- **NO toca:** `calificaciones`, `bloqueos_competencia`, boleta, orden de mérito.
 - OJO: en secundaria, la exoneración de Ética y Valores se registra contra el
   área **Tutoría (TOE)** (id 24) — así aparece rotulada la opción en el select
   (nombre interno; la boleta la muestra como "Ética y Valores"). Ver

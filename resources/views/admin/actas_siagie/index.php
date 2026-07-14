@@ -20,9 +20,9 @@
         </div>
         <div class="card__body">
             <ol class="actas-pasos">
-                <li><strong>Subís</strong> el archivo <code>RegNotas_..._COCIAP_2026.xlsx</code> que descargaste del SIAGIE, de <strong>una sección</strong>.</li>
-                <li><strong>Previsualizás</strong>: el sistema muestra qué se va a escribir y te deja resolver la identidad de los estudiantes que no emparejó solo. <em>No se modifica nada todavía.</em></li>
-                <li><strong>Confirmás</strong> y descargás el acta llenada, lista para volver a subir al SIAGIE.</li>
+                <li><strong>Subes</strong> el archivo <code>RegNotas_..._COCIAP_2026.xlsx</code> que descargaste del SIAGIE, de <strong>una sección</strong>.</li>
+                <li><strong>Previsualizas</strong>: el sistema muestra qué se va a escribir y te deja resolver la identidad de los estudiantes que no emparejó solo. <em>No se modifica nada todavía.</em></li>
+                <li><strong>Confirmas</strong> y descargas el acta llenada, lista para volver a subir al SIAGIE.</li>
             </ol>
             <p class="actas-nota">
                 <span class="badge badge--info">Primaria y Secundaria</span>
@@ -50,7 +50,7 @@
                     <input type="file" name="acta" accept=".xlsx"
                            class="actas-upload__input" required>
                     <span class="actas-upload__hint">
-                        Elegí el archivo <strong>.xlsx</strong> del SIAGIE (máx. 6 MB)
+                        Elige el archivo <strong>.xlsx</strong> del SIAGIE (máx. 6 MB)
                     </span>
                 </label>
                 <div class="actas-upload__actions">

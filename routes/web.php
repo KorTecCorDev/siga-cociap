@@ -145,6 +145,11 @@ $router->get( '/matriculas/{id}/trasladar',      'Matricula\TrasladoController@f
 $router->post('/matriculas/{id}/trasladar',      'Matricula\TrasladoController@store');
 $router->get( '/matriculas/{id}/notas-externas', 'Matricula\MatriculaController@notasExternas');
 $router->post('/matriculas/{id}/notas-externas', 'Matricula\MatriculaController@storeNotasExternas');
+// Notas autorizadas por dirección para SIAGIE (informe aparte, solo admin/RA)
+$router->get( '/matriculas/{id}/notas-siagie/informe',  'Matricula\MatriculaController@informeNotaSiagie');
+$router->post('/matriculas/{id}/notas-siagie/eliminar', 'Matricula\MatriculaController@eliminarNotaSiagie');
+$router->get( '/matriculas/{id}/notas-siagie',          'Matricula\MatriculaController@notasSiagie');
+$router->post('/matriculas/{id}/notas-siagie',          'Matricula\MatriculaController@storeNotaSiagie');
 // Exoneraciones desde el detalle (solo admin/RA — lo exige el controlador;
 // candado de notas vivas incluido).
 $router->post('/matriculas/{id}/exonerar',       'Admin\ExoneracionController@registrarDesdeMatricula');

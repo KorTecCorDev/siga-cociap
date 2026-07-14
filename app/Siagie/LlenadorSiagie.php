@@ -103,8 +103,10 @@ class LlenadorSiagie
         $codigosPersistir = [];   // estudiante_id => codigo (dedupe entre hojas)
         $notasCache       = [];   // matricula_id => notas por competencia
         $exoCache         = [];   // matricula_id => set exoneradas
+        $autCache         = [];   // matricula_id => notas autorizadas por direccion
         $advertencias     = [];
         $blancos          = [];
+        $autorizadas      = [];   // celdas llenadas con nota autorizada (informe aparte)
         $filasBaseCount   = 0;
         $totNl = $totConc = 0;
         $porCodigo = $porNombre = $porManual = 0;
@@ -302,6 +304,7 @@ class LlenadorSiagie
                 if (!isset($notasCache[$mid])) {
                     $notasCache[$mid] = $this->modelo->notasOficiales($mid, $destino['periodo_id']);
                     $exoCache[$mid]   = $this->modelo->competenciasExoneradas($mid, $destino['anio_id']);
+                    $autCache[$mid]   = $this->modelo->notasAutorizadas($mid, $destino['periodo_id']);
                 }
                 // Código SIAGIE a persistir tras match por nombre o resolución (una sola vez)
                 if ($this->persisteCodigo($mm['estado']) && $mm['codigo'] !== '' && trim((string) $e['codigo_estudiante']) === '') {
@@ -320,6 +323,27 @@ class LlenadorSiagie
                     }
                     $nota = $notasCache[$mid][$compId] ?? null;
                     if ($nota === null) {
+                        // Sin nota oficial: si dirección autorizó una nota para esta
+                        // competencia (ausencia justificada, solo SIAGIE), se llena la
+                        // celda con ella. Nunca pisa un valor ya presente en el Excel.
+                        $aut = $autCache[$mid][$compId] ?? null;
+                        if ($aut !== null) {
+                            if (isset($celdas[$fila][$cols['nl']])) {
+                                $advertencias[] = "{$hoja} {$refNl}: la celda YA tiene valor '{$celdas[$fila][$cols['nl']]}' — no se toca (nota autorizada)";
+                            } else {
+                                $xlsx->escribir($hoja, $refNl, $aut['literal']);
+                                $escriturasLog[] = [$hoja, $refNl, $aut['literal']];
+                                $celdasNl++;
+                                $autorizadas[] = "{$hoja} {$refNl}: {$aut['literal']} — nota AUTORIZADA por dirección (no evaluado) — {$mm['nombre']}";
+                            }
+                            $concAut = $aut['conclusion'] ?? null;
+                            if ($concAut !== null && $concAut !== '' && !isset($celdas[$fila][$cols['conc']])) {
+                                $xlsx->escribir($hoja, $refCo, $concAut);
+                                $escriturasLog[] = [$hoja, $refCo, $concAut];
+                                $celdasConc++;
+                            }
+                            continue;
+                        }
                         $blancos[] = "{$hoja} fila {$fila} col {$cols['nl']}: sin nota oficial (sin bloqueo o no evaluada) — {$mm['nombre']}";
                         continue;
                     }
@@ -370,6 +394,13 @@ class LlenadorSiagie
                 $reporte[] = "  · {$b}";
             }
         }
+        if ($autorizadas !== []) {
+            $reporte[] = '';
+            $reporte[] = 'NOTAS AUTORIZADAS POR DIRECCIÓN — no evaluado, solo SIAGIE (' . count($autorizadas) . '):';
+            foreach ($autorizadas as $a) {
+                $reporte[] = "  ✎ {$a}";
+            }
+        }
 
         // Filas sin resolver que apuntan a un alumno de otra sección (aviso UI).
         $otraSeccionDetectadas = 0;
@@ -396,6 +427,7 @@ class LlenadorSiagie
                 'match_manual'      => $porManual,
                 'advertencias'      => count($advertencias),
                 'blancos'           => count($blancos),
+                'autorizadas'       => count($autorizadas),
                 'estudiantes_excel' => $filasBaseCount,
                 'estudiantes_siga'  => count($estudiantes),
                 'otra_seccion'      => $otraSeccionDetectadas,
