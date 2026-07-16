@@ -74,6 +74,28 @@ salieron del flujo normal del docente, con auditoría obligatoria.
   `data-target-base` en `#buscadorResultados` para redirigir las tarjetas.
 - **Entradas:** card en dashboard y acciones en `matriculas/show.php`.
 
+### Calificación extraordinaria (16/07/2026, migración 042)
+
+Alta de nota por RA a un alumno SIN calificación en una competencia que ya
+salió del flujo del docente (cerrada/bloqueada). Vive dentro de Rectificación
+(`GET/POST /rectificaciones/extraordinaria[...]`). Detalle completo del flujo
+y sus guardas en `docs/modulos/calificaciones.md` (sección "Calificación
+extraordinaria"). Lo que importa a ESTE módulo:
+
+- **La nota extraordinaria NO cuenta en el orden de mérito** (decisión del
+  usuario): `calificaciones.extraordinaria = 1` y las DOS agregaciones en vivo
+  (`rankingGradoLive`, `rankingPorSeccionLive`) filtran
+  `AND cal.extraordinaria = 0`. Va a boleta y SIAGIE, no mueve puestos.
+- Por eso el alta **NO regenera el snapshot** (el ranking no cambia); la
+  rectificación normal sí sigue regenerándolo.
+- La auditoría distingue `tipo='extraordinaria'` (nota_anterior NULL) de
+  `tipo='rectificacion'` en `rectificaciones_calificacion`.
+- Tras el alta, la competencia pasa a ser rectificable por el flujo normal
+  (corrección futura de la extraordinaria = rectificación estándar).
+- Los subqueries de ANCLAJE de retorno (`c2`) NO filtran extraordinarias a
+  propósito: deciden DÓNDE compite el alumno (dónde viven sus notas), no qué
+  suma al promedio.
+
 ## Integración con matrículas (7.1)
 En ranking/conteo: `m.estado='aprobada'` y se EXCLUYE la matrícula oficial de un
 retorno activo (`m.id NOT IN (SELECT matricula_oficial_id FROM retornos_grado

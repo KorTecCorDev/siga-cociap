@@ -4,9 +4,16 @@
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **16/07/2026**.
 
 ## Migraciones
-- **LOCAL: al día hasta la `041`. PROD: al día hasta la `037`** (034-037 aplicadas
-  en prod el 09/07/2026 — confirmado por el usuario). **`038`, `039`, `040` y `041`
-  YA en LOCAL, PENDIENTES en PROD** (se aplican manualmente tras el merge a main).
+- **LOCAL: al día hasta la `042`. PROD: al día hasta la `037`** (034-037 aplicadas
+  en prod el 09/07/2026 — confirmado por el usuario). **`038` a `042` YA en
+  LOCAL, PENDIENTES en PROD** (se aplican manualmente tras el merge a main).
+- **`042_calificacion_extraordinaria`** (16/07): `criterios.extraordinario`,
+  `calificaciones.extraordinaria` y `rectificaciones_calificacion.tipo`.
+  Soporte de la CALIFICACIÓN EXTRAORDINARIA: RA registra nota (con motivo) a un
+  alumno sin calificación en competencia cerrada/bloqueada, desde Rectificación.
+  Va a boleta y SIAGIE; NO cuenta en el orden de mérito. Idempotente; verificada
+  end-to-end en local (25 checks, Inglés 4°A C2 B1). Ver
+  `docs/modulos/calificaciones.md` y `docs/modulos/orden-merito.md`.
 - **`041_areas_codigo_siagie_primaria`** (16/07): puebla `areas.codigo_siagie`
   para PRIMARIA (los códigos NO son los de secundaria: Inglés `0003`, COMU `0005`,
   PPSS `067`; transversales `0006,0007`; CAST SEGNL y Tutoría sin código a

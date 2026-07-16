@@ -7,6 +7,7 @@ use App\Models\CalificacionModel;
 use App\Models\CriterioModel;
 use App\Models\ExoneracionModel;
 use App\Models\OmisionCriterioModel;
+use App\Models\RectificacionModel;
 use Core\Session;
 
 /**
@@ -197,14 +198,27 @@ class CalificacionController extends BaseController
             }
             unset($al);
 
+            // Calificaciones extraordinarias de RA en esta competencia: el
+            // docente debe verlas claramente diferenciadas (con motivo) de su
+            // registro ordinario del bimestre.
+            $extraordinarias = [];
+            foreach ($resumen['criterios'] as $cr) {
+                if (!empty($cr['extraordinario'])) {
+                    $extraordinarias = (new RectificacionModel())
+                        ->getExtraordinariasDeCompetencia($cargaId, $competenciaId, $periodoId);
+                    break;
+                }
+            }
+
             $bloques[] = [
                 'competencia' => [
                     'nombre_completo' => $b['nombre_completo'],
                     'codigo_minedu'   => $b['codigo_minedu'],
                     'es_transversal'  => $b['es_transversal'],
                 ],
-                'criterios' => $resumen['criterios'],
-                'alumnos'   => $resumen['alumnos'],
+                'criterios'       => $resumen['criterios'],
+                'alumnos'         => $resumen['alumnos'],
+                'extraordinarias' => $extraordinarias,
             ];
         }
         return $bloques;
@@ -578,6 +592,15 @@ class CalificacionController extends BaseController
             ], 400);
         }
 
+        // Criterio extraordinario (RA): el docente no escribe en él,
+        // en ningún estado (incluida una reapertura). Solo Rectificación.
+        if ($this->critModel->esExtraordinario($criterioId)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Este criterio corresponde a una calificación extraordinaria de Registro Académico. Solo el módulo de Rectificación puede modificarlo.',
+            ], 403);
+        }
+
         // ── Normalizar entradas ─────────────────────────────
         // Notas válidas: numéricas, recortadas a 0-20. Omisiones válidas: motivo
         // del catálogo. Si un alumno llega en ambos, manda la nota (la omisión se
@@ -726,6 +749,14 @@ class CalificacionController extends BaseController
             $this->json(['success' => false, 'mensaje' => 'Competencia bloqueada.'], 403);
         }
 
+        // Criterio extraordinario (RA): intocable para el docente (ver guardar()).
+        if ($this->critModel->esExtraordinario($criterioId)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Este criterio corresponde a una calificación extraordinaria de Registro Académico. Solo el módulo de Rectificación puede modificarlo.',
+            ], 403);
+        }
+
         if ($nota === '') {
             $this->calModel->eliminarNotaCriterio($criterioId, $matriculaId);
         } else {
@@ -792,6 +823,14 @@ class CalificacionController extends BaseController
             $this->json([
                 'success' => false,
                 'mensaje' => 'Esta competencia ya fue aprobada y bloqueada.',
+            ], 403);
+        }
+
+        // Criterio extraordinario (RA): intocable para el docente (ver guardar()).
+        if ($this->critModel->esExtraordinario($criterioId)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Este criterio corresponde a una calificación extraordinaria de Registro Académico. Solo el módulo de Rectificación puede modificarlo.',
             ], 403);
         }
 
@@ -929,6 +968,14 @@ class CalificacionController extends BaseController
             ], 403);
         }
 
+        // Criterio extraordinario (RA): intocable para el docente (ver guardar()).
+        if ($this->critModel->esExtraordinario($id)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Este criterio corresponde a una calificación extraordinaria de Registro Académico. Solo el módulo de Rectificación puede modificarlo.',
+            ], 403);
+        }
+
         $this->critModel->renombrar($id, $nombre, $descripcion !== '' ? $descripcion : null);
 
         // Cambiar nombre/descripción ES un cambio en el criterio → se desconfirma
@@ -993,6 +1040,14 @@ class CalificacionController extends BaseController
             $this->json([
                 'success' => false,
                 'mensaje' => 'Esta competencia ya fue aprobada y bloqueada.',
+            ], 403);
+        }
+
+        // Criterio extraordinario (RA): intocable para el docente (ver guardar()).
+        if ($this->critModel->esExtraordinario($id)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Este criterio corresponde a una calificación extraordinaria de Registro Académico. Solo el módulo de Rectificación puede modificarlo.',
             ], 403);
         }
 
@@ -1455,17 +1510,29 @@ class CalificacionController extends BaseController
             ? url('docente/calificaciones/area/' . (int) $carga['seccion_id'] . '/' . (int) $carga['area_resuelta_id'])
             : url('docente/calificaciones/' . $cargaId);
 
+        // Calificaciones extraordinarias de RA en esta competencia: el docente
+        // debe verlas diferenciadas (con motivo) de su registro ordinario.
+        $extraordinarias = [];
+        foreach ($resumen['criterios'] as $cr) {
+            if (!empty($cr['extraordinario'])) {
+                $extraordinarias = (new RectificacionModel())
+                    ->getExtraordinariasDeCompetencia($cargaId, $competenciaId, (int) $periodo['id']);
+                break;
+            }
+        }
+
         $this->view('docente/resumen-competencia', [
-            'titulo'       => 'Resumen — ' . ($competencia['nombre_corto'] ?? ''),
-            'carga'        => $carga,
-            'periodo'      => $periodo,
-            'competencia'  => $competencia,
-            'criterios'    => $resumen['criterios'],
-            'alumnos'      => $resumen['alumnos'],
-            'bloqueada'    => $bloqueada,
-            'exonerados'   => $exonerados,
-            'volverUrl'    => $volverUrl,
-            'page_scripts' => ['resumen'],
+            'titulo'          => 'Resumen — ' . ($competencia['nombre_corto'] ?? ''),
+            'carga'           => $carga,
+            'periodo'         => $periodo,
+            'competencia'     => $competencia,
+            'criterios'       => $resumen['criterios'],
+            'alumnos'         => $resumen['alumnos'],
+            'bloqueada'       => $bloqueada,
+            'exonerados'      => $exonerados,
+            'extraordinarias' => $extraordinarias,
+            'volverUrl'       => $volverUrl,
+            'page_scripts'    => ['resumen'],
         ]);
     }
 

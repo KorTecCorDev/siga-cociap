@@ -104,11 +104,18 @@ $esTransversal = !empty($competencia['es_transversal']);
                         <!-- Criterios con tooltip (nombre completo + descripción) -->
                         <?php foreach ($criterios as $criterio): ?>
                             <?php
+                            $esExtra = !empty($criterio['extraordinario']);
                             $tooltipCriterio = $criterio['nombre']
                                 . (!empty($criterio['descripcion'])
                                     ? "\n\n" . $criterio['descripcion'] : '');
+                            if ($esExtra) {
+                                $tooltipCriterio = "CALIFICACIÓN EXTRAORDINARIA — registrada por Registro Académico, NO forma parte de tu registro ordinario del bimestre.\n\n" . $tooltipCriterio;
+                            }
                             ?>
-                            <th class="col-criterio text-center" title="<?= e($tooltipCriterio) ?>">
+                            <th class="col-criterio text-center<?= $esExtra ? ' col-criterio--extraordinario' : '' ?>" title="<?= e($tooltipCriterio) ?>">
+                                <?php if ($esExtra): ?>
+                                    <span class="extra-badge">EXTRAORDINARIA · RA</span>
+                                <?php endif; ?>
                                 <span class="criterio-header">
                                     <?= e(mb_strlen($criterio['nombre']) > 15
                                         ? mb_substr($criterio['nombre'], 0, 15) . '...'
@@ -230,6 +237,37 @@ $esTransversal = !empty($competencia['es_transversal']);
                 </tbody>
             </table>
         </div>
+
+        <?php if (!empty($extraordinarias)): ?>
+            <!-- Calificaciones extraordinarias: NO salen del registro ordinario
+                 del docente; las registró RA con autorización (motivo abajo). -->
+            <div class="extraordinaria-info">
+                <p class="extraordinaria-info__titulo">
+                    Calificación extraordinaria — Registro Académico
+                </p>
+                <p class="extraordinaria-info__leyenda">
+                    Las siguientes calificaciones <strong>no forman parte de tu registro
+                    ordinario del bimestre</strong>: fueron ingresadas por Registro
+                    Académico con autorización, por el motivo registrado.
+                </p>
+                <ul class="extraordinaria-info__lista">
+                    <?php foreach ($extraordinarias as $ex): ?>
+                        <li class="extraordinaria-info__item">
+                            <strong><?= e($ex['estudiante']) ?></strong>
+                            — nota <?= fmt_nota((int) $ex['nota_nueva']) ?> ·
+                            <?= e(nota_a_literal((int) $ex['nota_nueva'])) ?>
+                            <span class="extraordinaria-info__meta">
+                                Registrada por <?= e($ex['registrador'] ?: 'Registro Académico') ?>
+                                el <?= e(fecha_es(substr((string) $ex['rectificado_en'], 0, 10))) ?>
+                            </span>
+                            <span class="extraordinaria-info__motivo">
+                                Motivo: <?= e($ex['motivo']) ?>
+                            </span>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
 
         <!-- Botones de acción -->
         <?php if (!$bloqueada): ?>

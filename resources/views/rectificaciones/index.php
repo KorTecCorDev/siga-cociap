@@ -78,7 +78,12 @@
                     <tr>
                         <td class="text-sm"><?= e(fecha_es(substr((string) $h['rectificado_en'], 0, 10))) ?></td>
                         <td class="text-sm"><?= e($h['estudiante']) ?></td>
-                        <td class="text-sm"><?= e($h['competencia_nombre'] ?? '—') ?></td>
+                        <td class="text-sm">
+                            <?= e($h['competencia_nombre'] ?? '—') ?>
+                            <?php if (($h['tipo'] ?? 'rectificacion') === 'extraordinaria'): ?>
+                                <span class="rect-chip rect-chip--extraordinaria">Extraordinaria</span>
+                            <?php endif; ?>
+                        </td>
                         <td class="text-sm"><?= e($h['periodo_nombre'] ?? '—') ?></td>
                         <td class="text-center"><?= fmt_nota($h['nota_anterior'] !== null ? (int) $h['nota_anterior'] : null) ?></td>
                         <td class="text-center"><strong><?= fmt_nota($h['nota_nueva'] !== null ? (int) $h['nota_nueva'] : null) ?></strong></td>

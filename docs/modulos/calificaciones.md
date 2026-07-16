@@ -398,6 +398,68 @@ La completitud de transversales / piso de carga cuenta notas crudas en
 - Criterios libres, conclusiones por escala (secundaria: solo C), Hito A,
   rectificaciones: flujo estándar sin excepciones.
 
+## Calificación extraordinaria — alta de nota por RA (16/07/2026)
+
+> Migración `042_calificacion_extraordinaria.sql`. Permite a admin/RA registrar
+> una nota a un alumno SIN calificación en una competencia cerrada/bloqueada,
+> desde el módulo de Rectificación. Casos: alumno con omisiones en todos los
+> criterios ("declarado en blanco con motivo") o competencia entera "No se
+> evaluó". Decisiones del usuario: la nota ES REAL (boleta digital/impresa +
+> export SIAGIE) pero NO cuenta en el orden de mérito; se registra en un
+> criterio único cuya nota ES el promedio final del alumno.
+
+### Mecánica (respeta todos los invariantes)
+
+1. `CriterioModel::obtenerOCrearExtraordinario` crea (una sola vez por
+   carga+competencia+periodo, `WHERE NOT EXISTS`) el criterio "Calificación
+   extraordinaria": nace CONFIRMADO (el promedio agregado y el blindaje
+   anti-fantasma de la 033 exigen criterio vivo confirmado) y con
+   `criterios.extraordinario = 1`.
+2. Nota del alumno en ese criterio → `calcularPromedio` (para el alumno sin
+   otras notas, promedio = la nota) → `guardarNotaFinal` →
+   `marcarCalificacionExtraordinaria` (`calificaciones.extraordinaria = 1`) →
+   conclusión (obligatoria según literal+nivel, validación estándar) →
+   auditoría `rectificaciones_calificacion` con `tipo='extraordinaria'` y el
+   MOTIVO por alumno (obligatorio).
+3. La boleta/SIAGIE la toman solos (`getBoletaAlumno`: bloqueo ya existente +
+   criterio confirmado). El candado de `notas_autorizadas_siagie` ("sin nota
+   real") bloquea automáticamente la doble vía.
+
+### Guardas
+
+- **Descubrimiento** (`RectificacionModel::getCompetenciasInsertables` /
+  `esInsertable`): alumno SIN fila en `calificaciones` + (periodo cerrado OR
+  bloqueada) + carga activa de SU sección + NO exonerado del área/subárea +
+  áreas `tipo <> 'transversal'` (las transversales van por la agregación del
+  tutor; una fila cruda no llega a boleta). Re-chequeo en el POST.
+- **El docente NO toca el criterio extraordinario en ningún estado** (incluida
+  una reapertura): `guardar`, `autosave`, `guardarOmisiones`,
+  `renombrarCriterio` y `eliminarCriterio` lo rechazan con 403
+  (`CriterioModel::esExtraordinario`). En su panel el criterio se pinta solo
+  lectura (badge `EXTRAORDINARIA · RA`, sin input, sin Confirmar/Editar/
+  Eliminar).
+- **El docente lo ve claramente diferenciado**: en formulario, resumen,
+  historial y consulta de notas el criterio lleva badge ámbar y un bloque
+  informativo (`.extraordinaria-info`) con el detalle por alumno — nota,
+  MOTIVO registrado, quién y cuándo — dejando claro que NO es parte de su
+  registro ordinario (`getExtraordinariasDeCompetencia`).
+- **No rompe puertas del docente**: nace confirmado (no bloquea
+  `competenciaListaParaResumen`) y la completitud de aprobar mira el promedio
+  por alumno (el extraordinario lo tiene).
+
+### Interacciones
+
+- **Orden de mérito: EXCLUIDA** — ver `docs/modulos/orden-merito.md`. El alta
+  NO regenera snapshot (el ranking no cambia).
+- Tras el alta la competencia es rectificable por el flujo normal (corregir la
+  extraordinaria = rectificación estándar, con su propia auditoría).
+- El padre ve el criterio "Calificación extraordinaria" con su descripción
+  genérica en `/padre/notas` (mismo mecanismo de criterios de la boleta).
+- **Bimestre cerrado ⇒ la nota aparece AL INSTANTE en la boleta de la
+  familia** (regla general de `soloOficiales`); el formulario lo advierte.
+- Verificado end-to-end en local (16/07/2026, Inglés 4°A C2, 25 checks):
+  boleta +1 fila, SIAGIE la exporta, ranking byte-idéntico, guardas activas.
+
 ## Fixes importantes aplicados (sesión 2)
 - `periodos.nombre_display` es la columna correcta (no `nombre`). Si ves
   `Unknown column 'p.nombre'` en queries de periodos, verificar esto.

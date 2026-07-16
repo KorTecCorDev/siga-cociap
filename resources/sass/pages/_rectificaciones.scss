@@ -102,4 +102,111 @@
         color: $color-warning;
         border: 1px solid $color-warning;
     }
+
+    &--extraordinaria {
+        background: $color-warning-bg;
+        color: #92400e;
+        border: 1px dashed $color-warning;
+    }
+}
+
+// ── Calificación extraordinaria (migración 042) ─────────────────────────
+// Marca visual compartida por el panel del docente, el resumen, el historial
+// y la consulta de notas: la nota NO salió del registro ordinario del docente,
+// la ingresó RA con autorización. Ámbar = estado que pide atención (regla de
+// wayfinding: rojo/ámbar solo para estados).
+
+.extra-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: $border-radius-sm;
+    border: 1px dashed $color-warning;
+    background: $color-warning-bg;
+    color: #92400e;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+// Cabecera de columna del criterio extraordinario en las grillas read-only.
+.col-criterio--extraordinario {
+    background: $color-warning-bg;
+
+    .extra-badge {
+        display: block;
+        margin: 0 auto 2px;
+        width: fit-content;
+    }
+}
+
+// Nota de solo lectura del criterio extraordinario en el panel del docente
+// (reemplaza al input: el docente no escribe en este criterio).
+.nota-extraordinaria {
+    display: inline-block;
+    min-width: 44px;
+    padding: 4px 8px;
+    border: 1px dashed $color-warning;
+    border-radius: $border-radius-sm;
+    background: $color-warning-bg;
+    color: #92400e;
+    font-weight: 700;
+    text-align: center;
+}
+
+// Leyenda bajo el nombre del criterio extraordinario (panel del docente).
+.criterio-bloque__descripcion--extra {
+    color: #92400e;
+}
+
+// Bloque informativo bajo la tabla (resumen / historial / consulta): detalle
+// por alumno de las extraordinarias con su motivo, registrador y fecha.
+.extraordinaria-info {
+    margin: $spacing-md;
+    padding: $spacing-md;
+    border: 1px dashed $color-warning;
+    border-left: 4px solid $color-warning;
+    border-radius: $border-radius-sm;
+    background: $color-warning-bg;
+
+    &__titulo {
+        margin: 0 0 4px;
+        font-weight: 700;
+        color: #92400e;
+        text-transform: uppercase;
+        font-size: $font-size-sm;
+        letter-spacing: .03em;
+    }
+
+    &__leyenda {
+        margin: 0 0 $spacing-sm;
+        font-size: $font-size-sm;
+        color: $text-primary;
+        line-height: 1.5;
+    }
+
+    &__lista {
+        margin: 0;
+        padding-left: 18px;
+    }
+
+    &__item {
+        margin-bottom: $spacing-sm;
+        line-height: 1.5;
+
+        &:last-child { margin-bottom: 0; }
+    }
+
+    &__meta,
+    &__motivo {
+        display: block;
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &__motivo {
+        color: #92400e;
+    }
 }

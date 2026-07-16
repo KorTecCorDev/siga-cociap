@@ -133,6 +133,30 @@ class CalificacionModel extends BaseModel
     }
 
     /**
+     * Marca como EXTRAORDINARIA la calificación de un alumno (insertada por
+     * RA vía Rectificación, migración 042). El flag excluye la nota del
+     * orden de mérito (`OrdenMeritoModel` filtra `extraordinaria = 0`); la
+     * boleta y el export SIAGIE sí la muestran. Sobrevive a los recálculos:
+     * el ON DUPLICATE de guardarNotaFinal/recalcularPromedioSeccion solo
+     * toca nota_numerica.
+     */
+    public function marcarCalificacionExtraordinaria(
+        int $matriculaId,
+        int $cargaId,
+        int $competenciaId,
+        int $periodoId
+    ): bool {
+        return $this->execute("
+            UPDATE calificaciones
+            SET extraordinaria = 1
+            WHERE matricula_id   = ?
+              AND carga_id       = ?
+              AND competencia_id = ?
+              AND periodo_id     = ?
+        ", [$matriculaId, $cargaId, $competenciaId, $periodoId]);
+    }
+
+    /**
      * Recalcula el promedio de TODOS los alumnos de una sección
      * para una competencia y periodo.
      */
@@ -735,7 +759,7 @@ class CalificacionModel extends BaseModel
         // validar (p. ej. la puerta de aprobación) lo dejan en false.
         $filtroConfirmado = $soloConfirmados ? 'AND confirmado_en IS NOT NULL' : '';
         $criterios = $this->query("
-            SELECT id, nombre, descripcion, orden
+            SELECT id, nombre, descripcion, orden, extraordinario
             FROM criterios
             WHERE carga_id       = ?
             AND competencia_id = ?

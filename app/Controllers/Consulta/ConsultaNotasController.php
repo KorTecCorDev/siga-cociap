@@ -251,11 +251,23 @@ class ConsultaNotasController extends BaseController
             }
             unset($al);
 
+            // Calificaciones extraordinarias de RA (motivo + registrador)
+            // para el bloque informativo del parcial.
+            $extraordinarias = [];
+            foreach ($resumen['criterios'] as $cr) {
+                if (!empty($cr['extraordinario'])) {
+                    $extraordinarias = (new \App\Models\RectificacionModel())
+                        ->getExtraordinariasDeCompetencia($cargaId, $competenciaId, $periodoId);
+                    break;
+                }
+            }
+
             $competencias[] = [
-                'competencia'  => $info,
-                'criterios'    => $resumen['criterios'],
-                'alumnos'      => $resumen['alumnos'],
-                'bloqueado_en' => $c['bloqueado_en'],
+                'competencia'     => $info,
+                'criterios'       => $resumen['criterios'],
+                'alumnos'         => $resumen['alumnos'],
+                'bloqueado_en'    => $c['bloqueado_en'],
+                'extraordinarias' => $extraordinarias,
             ];
         }
 

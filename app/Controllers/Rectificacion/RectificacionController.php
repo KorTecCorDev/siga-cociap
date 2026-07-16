@@ -5,6 +5,7 @@ namespace App\Controllers\Rectificacion;
 use App\Controllers\BaseController;
 use App\Models\RectificacionModel;
 use App\Models\CalificacionModel;
+use App\Models\CriterioModel;
 use App\Models\OrdenMeritoModel;
 use Core\Session;
 
@@ -27,6 +28,7 @@ class RectificacionController extends BaseController
 {
     private RectificacionModel $model;
     private CalificacionModel  $calModel;
+    private CriterioModel      $critModel;
     private OrdenMeritoModel   $ordenMeritoModel;
 
     public function __construct()
@@ -34,6 +36,7 @@ class RectificacionController extends BaseController
         $this->requireRole(['admin', 'registro_academico']);
         $this->model            = new RectificacionModel();
         $this->calModel         = new CalificacionModel();
+        $this->critModel        = new CriterioModel();
         $this->ordenMeritoModel = new OrdenMeritoModel();
     }
 
@@ -73,12 +76,202 @@ class RectificacionController extends BaseController
             $porPeriodo[$pid]['items'][] = $c;
         }
 
+        // Competencias SIN calificación del alumno (cerradas/bloqueadas) →
+        // candidatas a calificación EXTRAORDINARIA, agrupadas por bimestre.
+        $insertables    = $this->model->getCompetenciasInsertables($matriculaId);
+        $porPeriodoIns  = [];
+        foreach ($insertables as $c) {
+            $pid = (int) $c['periodo_id'];
+            if (!isset($porPeriodoIns[$pid])) {
+                $porPeriodoIns[$pid] = [
+                    'periodo_id'     => $pid,
+                    'periodo_numero' => (int) $c['periodo_numero'],
+                    'periodo_nombre' => $c['periodo_nombre'],
+                    'periodo_estado' => $c['periodo_estado'],
+                    'items'          => [],
+                ];
+            }
+            $porPeriodoIns[$pid]['items'][] = $c;
+        }
+
         $this->view('rectificaciones/matricula', [
-            'titulo'     => 'Rectificación — ' . $info['nombre_completo'],
-            'info'       => $info,
-            'porPeriodo' => array_values($porPeriodo),
-            'historial'  => $this->model->getHistorial(20, $matriculaId),
+            'titulo'        => 'Rectificación — ' . $info['nombre_completo'],
+            'info'          => $info,
+            'porPeriodo'    => array_values($porPeriodo),
+            'porPeriodoIns' => array_values($porPeriodoIns),
+            'historial'     => $this->model->getHistorial(20, $matriculaId),
         ]);
+    }
+
+    /**
+     * GET /rectificaciones/extraordinaria?matricula=&carga=&competencia=&periodo=
+     * Formulario de CALIFICACIÓN EXTRAORDINARIA: alta de nota (con motivo)
+     * a un alumno SIN calificación en una competencia cerrada/bloqueada.
+     * La nota va a boleta y SIAGIE; NO cuenta en el orden de mérito.
+     */
+    public function extraordinaria(): void
+    {
+        $matriculaId   = (int) $this->query('matricula');
+        $cargaId       = (int) $this->query('carga');
+        $competenciaId = (int) $this->query('competencia');
+        $periodoId     = (int) $this->query('periodo');
+
+        $info = $this->model->getMatriculaInfo($matriculaId);
+        if (!$info) {
+            $this->notFound();
+        }
+
+        // Invariante de seguridad: solo tuplas insertables (sin nota previa,
+        // cerrada/bloqueada, no exonerado, carga de su sección).
+        if (!$this->model->esInsertable($matriculaId, $cargaId, $competenciaId, $periodoId)) {
+            $this->redirectWithError(
+                url('rectificaciones/matricula/' . $matriculaId),
+                'Esa competencia no admite calificación extraordinaria (el alumno ya tiene nota, está exonerado, o la competencia sigue en el flujo del docente).'
+            );
+        }
+
+        // Metadatos de la competencia elegida (desde la misma fuente que la lista).
+        $meta = null;
+        foreach ($this->model->getCompetenciasInsertables($matriculaId) as $c) {
+            if ((int) $c['carga_id'] === $cargaId
+                && (int) $c['competencia_id'] === $competenciaId
+                && (int) $c['periodo_id'] === $periodoId) {
+                $meta = $c;
+                break;
+            }
+        }
+        if ($meta === null) {
+            $this->notFound();
+        }
+
+        $this->view('rectificaciones/extraordinaria', [
+            'titulo'        => 'Calificación extraordinaria',
+            'info'          => $info,
+            'meta'          => $meta,
+            'cargaId'       => $cargaId,
+            'competenciaId' => $competenciaId,
+            'periodoId'     => $periodoId,
+        ]);
+    }
+
+    /**
+     * POST /rectificaciones/extraordinaria/guardar
+     * Alta de la calificación extraordinaria: criterio único confirmado
+     * (extraordinario=1) + nota del alumno + promedio (= la nota) marcado
+     * `extraordinaria=1` + conclusión + auditoría tipo 'extraordinaria'.
+     * NO regenera el snapshot del mérito: el flag la excluye del ranking,
+     * así que el orden vigente no cambia.
+     */
+    public function guardarExtraordinaria(): void
+    {
+        $this->validateCsrf();
+
+        $matriculaId   = (int) $this->input('matricula_id');
+        $cargaId       = (int) $this->input('carga_id');
+        $competenciaId = (int) $this->input('competencia_id');
+        $periodoId     = (int) $this->input('periodo_id');
+        $motivo        = trim((string) $this->input('motivo', ''));
+        $conclusion    = trim((string) $this->input('conclusion', ''));
+        $notaRaw       = $this->input('nota', '');
+        $usuarioId     = (int) (Session::user()['id'] ?? 0);
+
+        $volverForm = url('rectificaciones/extraordinaria?matricula=' . $matriculaId
+            . '&carga=' . $cargaId . '&competencia=' . $competenciaId . '&periodo=' . $periodoId);
+        $volverLista = url('rectificaciones/matricula/' . $matriculaId);
+
+        // ── Validaciones de entrada ──────────────────────────────
+        $info = $this->model->getMatriculaInfo($matriculaId);
+        if (!$info) {
+            $this->notFound();
+        }
+        if ($motivo === '') {
+            $this->redirectWithError($volverForm, 'El motivo de la calificación extraordinaria es obligatorio.');
+        }
+        if ($notaRaw === '' || $notaRaw === null || !is_numeric($notaRaw)) {
+            $this->redirectWithError($volverForm, 'Ingresa la nota (0-20).');
+        }
+        $nota = max(0, min(20, (int) $notaRaw));
+
+        // Invariante de seguridad: estado insertable (re-chequeo en el POST).
+        if (!$this->model->esInsertable($matriculaId, $cargaId, $competenciaId, $periodoId)) {
+            $this->redirectWithError($volverLista,
+                'Esa competencia no admite calificación extraordinaria (el alumno ya tiene nota, está exonerado, o la competencia sigue en el flujo del docente).');
+        }
+
+        $literal = nota_a_literal($nota);
+        if (CalificacionModel::conclusionObligatoria($literal, (string) $info['nivel_codigo']) && $conclusion === '') {
+            $this->redirectWithError($volverForm,
+                'La conclusión descriptiva es obligatoria para el literal ' . $literal . ' en este nivel.');
+        }
+
+        // ── Escritura atómica ────────────────────────────────────
+        $this->model->beginTransaction();
+        try {
+            // Criterio único "Calificación extraordinaria" (nace confirmado:
+            // el promedio agregado y el blindaje anti-fantasma lo exigen).
+            $criterioId = $this->critModel->obtenerOCrearExtraordinario(
+                $cargaId, $competenciaId, $periodoId, $usuarioId
+            );
+            if ($criterioId <= 0) {
+                throw new \RuntimeException('No se pudo obtener el criterio extraordinario.');
+            }
+
+            $this->calModel->guardarNotaCriterio($criterioId, $matriculaId, $nota);
+
+            // Promedio del alumno = su única nota viva confirmada (la extraordinaria).
+            $promedio = $this->calModel->calcularPromedio($matriculaId, $cargaId, $competenciaId, $periodoId);
+            if ($promedio === null) {
+                throw new \RuntimeException('No se pudo calcular el promedio extraordinario.');
+            }
+            $notaFinal = (int) round($promedio);
+
+            $this->calModel->guardarNotaFinal(
+                $matriculaId, $cargaId, $periodoId, $competenciaId, $notaFinal, $usuarioId
+            );
+            $this->calModel->marcarCalificacionExtraordinaria(
+                $matriculaId, $cargaId, $competenciaId, $periodoId
+            );
+            if ($conclusion !== '') {
+                $this->calModel->actualizarConclusion(
+                    $matriculaId, $cargaId, $competenciaId, $periodoId, $conclusion
+                );
+            }
+
+            $this->model->registrar([
+                'matricula_id'        => $matriculaId,
+                'carga_id'            => $cargaId,
+                'periodo_id'          => $periodoId,
+                'competencia_id'      => $competenciaId,
+                'tipo'                => 'extraordinaria',
+                'nota_anterior'       => null,
+                'nota_nueva'          => $notaFinal,
+                'conclusion_anterior' => null,
+                'conclusion_nueva'    => $conclusion !== '' ? $conclusion : null,
+                'motivo'              => $motivo,
+                'rectificado_por'     => $usuarioId,
+            ]);
+
+            $this->model->commit();
+        } catch (\Exception $e) {
+            $this->model->rollback();
+            log_error('Error al registrar calificación extraordinaria', [
+                'matricula' => $matriculaId, 'carga' => $cargaId,
+                'competencia' => $competenciaId, 'periodo' => $periodoId,
+                'error' => $e->getMessage(),
+            ]);
+            $this->redirectWithError($volverForm, 'No se pudo registrar la calificación extraordinaria.');
+        }
+
+        $avisoBoleta = $this->calModel->queryOne(
+            "SELECT estado FROM periodos WHERE id = ?", [$periodoId]
+        );
+        $extraAviso = ($avisoBoleta && $avisoBoleta['estado'] === 'cerrado')
+            ? ' La nota ya es visible en la boleta de la familia (bimestre cerrado).'
+            : '';
+
+        $this->redirectWithSuccess($volverLista,
+            'Calificación extraordinaria registrada (' . fmt_nota($nota) . ' · ' . $literal . ').'
+            . ' No cuenta para el orden de mérito.' . $extraAviso);
     }
 
     /**

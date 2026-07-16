@@ -88,6 +88,10 @@ class OrdenMeritoModel extends BaseModel
             INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE g.id           = ?
               AND cal.periodo_id = ?
+              -- Las calificaciones EXTRAORDINARIAS (insertadas por RA vía
+              -- Rectificación, migración 042) NO cuentan para el mérito:
+              -- van a boleta y SIAGIE, pero no mueven puestos.
+              AND cal.extraordinaria = 0
               AND (
                   m.estado = 'aprobada'
                   -- Operativa de un retorno REVERTIDO: sigue compitiendo en los
@@ -165,6 +169,8 @@ class OrdenMeritoModel extends BaseModel
             INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE g.id           = ?
               AND cal.periodo_id = ?
+              -- Extraordinarias fuera del mérito (ver rankingGradoLive).
+              AND cal.extraordinaria = 0
               AND (
                   m.estado = 'aprobada'
                   OR m.id IN (

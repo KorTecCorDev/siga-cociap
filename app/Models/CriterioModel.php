@@ -62,6 +62,94 @@ class CriterioModel extends BaseModel
     }
 
     /**
+     * Devuelve (o crea) el criterio ÚNICO de "Calificación extraordinaria" de
+     * una competencia+carga+periodo. Lo usa SOLO el módulo de Rectificación
+     * para insertar notas de RA a alumnos sin calificación del docente
+     * (migración 042). Nace CONFIRMADO (el promedio agregado y el blindaje
+     * anti-fantasma exigen criterio vivo confirmado) y con flag
+     * `extraordinario=1` (el docente no puede tocarlo; guardas en
+     * CalificacionController).
+     *
+     * INSERT protegido con WHERE NOT EXISTS: `criterios` no tiene UNIQUE KEY.
+     */
+    public function obtenerOCrearExtraordinario(
+        int $cargaId,
+        int $competenciaId,
+        int $periodoId,
+        int $usuarioId
+    ): int {
+        $existente = $this->queryOne("
+            SELECT id FROM criterios
+            WHERE carga_id       = ?
+              AND competencia_id = ?
+              AND periodo_id     = ?
+              AND extraordinario = 1
+              AND eliminado_en   IS NULL
+            LIMIT 1
+        ", [$cargaId, $competenciaId, $periodoId]);
+        if ($existente) {
+            return (int) $existente['id'];
+        }
+
+        $ultimo = $this->queryOne("
+            SELECT MAX(orden) AS ultimo
+            FROM criterios
+            WHERE carga_id       = ?
+              AND competencia_id = ?
+              AND periodo_id     = ?
+              AND eliminado_en   IS NULL
+        ", [$cargaId, $competenciaId, $periodoId]);
+        $orden = ($ultimo['ultimo'] ?? 0) + 1;
+
+        $this->execute("
+            INSERT INTO criterios
+                (carga_id, competencia_id, periodo_id, nombre, descripcion,
+                 orden, confirmado_en, confirmado_por, extraordinario)
+            SELECT ?, ?, ?, ?, ?, ?, NOW(), ?, 1
+            FROM DUAL
+            WHERE NOT EXISTS (
+                SELECT 1 FROM criterios
+                WHERE carga_id       = ?
+                  AND competencia_id = ?
+                  AND periodo_id     = ?
+                  AND extraordinario = 1
+                  AND eliminado_en   IS NULL
+            )
+        ", [
+            $cargaId, $competenciaId, $periodoId,
+            'Calificación extraordinaria',
+            'Calificación registrada por Registro Académico a alumnos sin nota del docente. El motivo por alumno queda en la auditoría del módulo de Rectificación.',
+            $orden, $usuarioId,
+            $cargaId, $competenciaId, $periodoId,
+        ]);
+
+        $fila = $this->queryOne("
+            SELECT id FROM criterios
+            WHERE carga_id       = ?
+              AND competencia_id = ?
+              AND periodo_id     = ?
+              AND extraordinario = 1
+              AND eliminado_en   IS NULL
+            LIMIT 1
+        ", [$cargaId, $competenciaId, $periodoId]);
+
+        return (int) ($fila['id'] ?? 0);
+    }
+
+    /**
+     * ¿El criterio es el de "Calificación extraordinaria" (escrito por RA)?
+     * Guarda de los endpoints del docente: autosave/confirmar/omisiones/
+     * renombrar/eliminar lo rechazan — solo Rectificación escribe en él.
+     */
+    public function esExtraordinario(int $criterioId): bool
+    {
+        return (bool) $this->queryOne(
+            "SELECT 1 FROM criterios WHERE id = ? AND extraordinario = 1 LIMIT 1",
+            [$criterioId]
+        );
+    }
+
+    /**
      * Verifica si un criterio ya tiene calificaciones registradas.
      */
     public function tieneCalificaciones(int $criterioId): bool

@@ -245,6 +245,10 @@
                             $tieneCals       = !empty($notasExistentes[$criterio['id']]);
                             $calificadosCrit = count($notasExistentes[$criterio['id']] ?? []);
                             $completoCrit    = $calificadosCrit >= $totalAlumnos && $totalAlumnos > 0;
+                            // Criterio de CALIFICACIÓN EXTRAORDINARIA (RA): solo
+                            // lectura para el docente en cualquier estado — no se
+                            // edita, elimina ni confirma; el servidor lo rechaza.
+                            $esExtraCrit     = !empty($criterio['extraordinario']);
                             ?>
                             <div class="criterio-bloque<?= $tieneCals ? ' criterio-bloque--con-notas' : '' ?>"
                                  id="criterio-<?= $criterio['id'] ?>">
@@ -260,8 +264,18 @@
                                         <div class="criterio-bloque__identidad">
                                             <h4 class="criterio-bloque__nombre">
                                                 <?= e($criterio['nombre']) ?>
+                                                <?php if ($esExtraCrit): ?>
+                                                    <span class="extra-badge">EXTRAORDINARIA · RA</span>
+                                                <?php endif; ?>
                                             </h4>
-                                            <?php if (!empty($criterio['descripcion'])): ?>
+                                            <?php if ($esExtraCrit): ?>
+                                                <p class="criterio-bloque__descripcion criterio-bloque__descripcion--extra">
+                                                    Esta calificación no forma parte de tu registro ordinario del
+                                                    bimestre: fue ingresada por Registro Académico con autorización.
+                                                    El motivo está registrado en el módulo de Rectificación
+                                                    (visible en el resumen y el historial de la competencia).
+                                                </p>
+                                            <?php elseif (!empty($criterio['descripcion'])): ?>
                                                 <p class="criterio-bloque__descripcion">
                                                     <?= e($criterio['descripcion']) ?>
                                                 </p>
@@ -272,7 +286,7 @@
                                             <?= $calificadosCrit ?> de <?= $totalAlumnos ?>
                                         </span>
                                     </div>
-                                    <?php if (!$bloqueado): ?>
+                                    <?php if (!$bloqueado && !$esExtraCrit): ?>
                                         <div class="criterio-bloque__acciones">
                                             <button
                                                 class="btn btn--secondary btn--sm btn-renombrar-criterio"
@@ -320,6 +334,12 @@
                                                             <?php if ($esExonerado): ?>
                                                                 <span class="exo-badge"
                                                                       title="Alumno exonerado de esta área — no requiere nota">EXO</span>
+                                                            <?php elseif ($esExtraCrit): ?>
+                                                                <?php $notaExtra = $notasExistentes[$criterio['id']][$alumno['matricula_id']] ?? null; ?>
+                                                                <span class="nota-extraordinaria"
+                                                                      title="Calificación extraordinaria de Registro Académico — solo lectura">
+                                                                    <?= $notaExtra !== null ? fmt_nota((int) $notaExtra) : '—' ?>
+                                                                </span>
                                                             <?php else: ?>
                                                                 <?php $valorInicial = isset($notasExistentes[$criterio['id']][$alumno['matricula_id']]) ? fmt_nota((int)$notasExistentes[$criterio['id']][$alumno['matricula_id']]) : ''; ?>
                                                                 <input
@@ -344,7 +364,7 @@
                                         </table>
                                         </div>
 
-                                        <?php if (!$bloqueado): ?>
+                                        <?php if (!$bloqueado && !$esExtraCrit): ?>
                                             <div class="form-notas__footer">
                                                 <button type="submit"
                                                         class="btn btn--primary">

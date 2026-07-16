@@ -9,9 +9,13 @@
  * @var array $alumnos
  * @var array $exonerados   matricula_ids exonerados
  * @var string $nivelCodigo 'prim' | 'sec'
+ * @var array $extraordinarias (opcional) calificaciones extraordinarias de RA
+ *            en esta competencia: [{estudiante, nota_nueva, motivo,
+ *            rectificado_en, registrador}] — alimenta el bloque informativo.
  */
-$esTransversal = !empty($competencia['es_transversal']);
-$exoneradosSet = array_flip($exonerados ?? []);
+$esTransversal   = !empty($competencia['es_transversal']);
+$exoneradosSet   = array_flip($exonerados ?? []);
+$extraordinarias = $extraordinarias ?? [];
 ?>
 
 <?php if (empty($alumnos)): ?>
@@ -32,10 +36,17 @@ $exoneradosSet = array_flip($exonerados ?? []);
                     <th class="col-nombre">Apellidos y nombres</th>
                     <?php foreach ($criterios as $criterio): ?>
                         <?php
+                        $esExtra = !empty($criterio['extraordinario']);
                         $tooltipCriterio = $criterio['nombre']
                             . (!empty($criterio['descripcion']) ? "\n\n" . $criterio['descripcion'] : '');
+                        if ($esExtra) {
+                            $tooltipCriterio = "CALIFICACIÓN EXTRAORDINARIA — registrada por Registro Académico, NO forma parte del registro ordinario del docente.\n\n" . $tooltipCriterio;
+                        }
                         ?>
-                        <th class="col-criterio text-center" title="<?= e($tooltipCriterio) ?>">
+                        <th class="col-criterio text-center<?= $esExtra ? ' col-criterio--extraordinario' : '' ?>" title="<?= e($tooltipCriterio) ?>">
+                            <?php if ($esExtra): ?>
+                                <span class="extra-badge">EXTRAORDINARIA · RA</span>
+                            <?php endif; ?>
                             <span class="criterio-header">
                                 <?= e(mb_strlen($criterio['nombre']) > 15
                                     ? mb_substr($criterio['nombre'], 0, 15) . '...'
@@ -119,4 +130,35 @@ $exoneradosSet = array_flip($exonerados ?? []);
             </tbody>
         </table>
     </div>
+
+    <?php if (!empty($extraordinarias)): ?>
+        <!-- Calificaciones extraordinarias: NO salen del registro ordinario
+             del docente; las registró RA con autorización (motivo abajo). -->
+        <div class="extraordinaria-info">
+            <p class="extraordinaria-info__titulo">
+                Calificación extraordinaria — Registro Académico
+            </p>
+            <p class="extraordinaria-info__leyenda">
+                Las siguientes calificaciones <strong>no forman parte del registro
+                ordinario del docente en este bimestre</strong>: fueron ingresadas por
+                Registro Académico con autorización, por el motivo registrado.
+            </p>
+            <ul class="extraordinaria-info__lista">
+                <?php foreach ($extraordinarias as $ex): ?>
+                    <li class="extraordinaria-info__item">
+                        <strong><?= e($ex['estudiante']) ?></strong>
+                        — nota <?= fmt_nota((int) $ex['nota_nueva']) ?> ·
+                        <?= e(nota_a_literal((int) $ex['nota_nueva'])) ?>
+                        <span class="extraordinaria-info__meta">
+                            Registrada por <?= e($ex['registrador'] ?: 'Registro Académico') ?>
+                            el <?= e(fecha_es(substr((string) $ex['rectificado_en'], 0, 10))) ?>
+                        </span>
+                        <span class="extraordinaria-info__motivo">
+                            Motivo: <?= e($ex['motivo']) ?>
+                        </span>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
 <?php endif; ?>

@@ -35,9 +35,10 @@ $nivelCodigo = $carga['nivel_codigo'];
 <?php else: ?>
     <?php foreach ($competencias as $bloque): ?>
         <?php
-        $competencia = $bloque['competencia'];
-        $criterios   = $bloque['criterios'];
-        $alumnos     = $bloque['alumnos'];
+        $competencia     = $bloque['competencia'];
+        $criterios       = $bloque['criterios'];
+        $alumnos         = $bloque['alumnos'];
+        $extraordinarias = $bloque['extraordinarias'] ?? [];
         ?>
         <div class="card mb-lg">
             <div class="card__header">

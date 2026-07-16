@@ -174,6 +174,8 @@ $router->get( '/matriculas/{id}',                'Matricula\MatriculaController@
 $router->get( '/rectificaciones',                 'Rectificacion\RectificacionController@index');
 $router->get( '/rectificaciones/editar',          'Rectificacion\RectificacionController@editar');
 $router->post('/rectificaciones/guardar',         'Rectificacion\RectificacionController@guardar');
+$router->get( '/rectificaciones/extraordinaria',  'Rectificacion\RectificacionController@extraordinaria');
+$router->post('/rectificaciones/extraordinaria/guardar', 'Rectificacion\RectificacionController@guardarExtraordinaria');
 $router->get( '/rectificaciones/matricula/{id}',  'Rectificacion\RectificacionController@matricula');
 
 // ─── Consulta de calificaciones (solo lectura) ───────────────
