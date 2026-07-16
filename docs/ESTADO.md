@@ -1,12 +1,21 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **09/07/2026 (turno tarde)**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **16/07/2026**.
 
 ## Migraciones
-- **LOCAL: al día hasta la `040`. PROD: al día hasta la `037`** (034-037 aplicadas
-  en prod el 09/07/2026 — confirmado por el usuario). **`038`, `039` y `040` YA en
-  LOCAL, PENDIENTES en PROD** (se aplican manualmente tras el merge a main).
+- **LOCAL: al día hasta la `041`. PROD: al día hasta la `037`** (034-037 aplicadas
+  en prod el 09/07/2026 — confirmado por el usuario). **`038`, `039`, `040` y `041`
+  YA en LOCAL, PENDIENTES en PROD** (se aplican manualmente tras el merge a main).
+- **`041_areas_codigo_siagie_primaria`** (16/07): puebla `areas.codigo_siagie`
+  para PRIMARIA (los códigos NO son los de secundaria: Inglés `0003`, COMU `0005`,
+  PPSS `067`; transversales `0006,0007`; CAST SEGNL y Tutoría sin código a
+  propósito). Habilita el fallback por posición del exportador SIAGIE también en
+  primaria (causa raíz de las actas 4°A/4°B B1 con Inglés en blanco). Además
+  FORMALIZA el rename de Inglés C1 primaria al nombre oficial CN (aplicado a mano
+  el 14/07 en local+prod; en ambas es no-op, corrige solo en setups desde cero).
+  Idempotente; validada con `--simular` sobre el acta real de 4°A B1 (reporte
+  byte-idéntico pre/post migración). Ver `docs/modulos/export-siagie.md`.
 - **`040_notas_autorizadas_siagie`** (14/07): crea `notas_autorizadas_siagie`
   (matricula+competencia+periodo → literal + conclusión + resolución, UNIQUE).
   "Informe aparte" de notas que dirección autoriza para un alumno NO evaluado por
@@ -135,10 +144,17 @@ WHERE id=25;`).
   probado en local) y confirmar que lo acepta, ANTES del lote completo de
   primaria. Si rechazara los shared strings anexados, el fallback está previsto
   en `docs/modulos/export-siagie.md`.
-- **Discrepancia de catálogo — Inglés C1:** el SIAGIE la llama "Se comunica
-  ORALMENTE en inglés como lengua extranjera"; SIGA la tiene sin "oralmente"
-  (competencias.id=1). Decidir: renombrar en SIGA al nombre oficial CN (afecta
-  boletas) o dejarla — hoy esa columna queda en blanco y reportada.
+- **Discrepancia de catálogo — Inglés C1: RESUELTA.** Renombrada al nombre
+  oficial CN (con "oralmente") directo en BD local+prod el 14/07; formalizada en
+  la migración `041` (16/07, no-op donde ya está corregida). Efecto histórico:
+  las actas de primaria llenadas ANTES del 14/07 (4°A/4°B B1) salieron con la
+  columna 01 de Inglés en blanco pese a tener notas bloqueadas → REPROCESARLAS
+  (ver Pendientes operativos). Diagnóstico completo en
+  `docs/modulos/export-siagie.md`.
+- **`codigo_siagie` de primaria: POBLADO** (migración `041`, 16/07) con los
+  códigos del archivo RegNotas real de 4°A B1. El fallback por posición ya
+  opera en ambos niveles; una discrepancia de nombre futura ya no deja la
+  columna muda.
 - **Variante SECUNDARIA — IMPLEMENTADA (12/07), B1 operativo.** Verificada con
   nóminas reales (S1A, S5B). NL literal confirmado; diferenciación por área
   (migración 039) → MATE (4/4, sin choque con talleres) e Inglés (por posición)
@@ -149,10 +165,15 @@ WHERE id=25;`).
   - **Ética/EREL para B2:** mapear **C57 (área 24, tutoría) → las 2 columnas de
     Educación Religiosa (035-EREL)**; la nota única del tutor se DUPLICA; exonerados
     → EXO. En B1 no hay notas de Ética → EREL en blanco es correcto.
-  - **`codigo_siagie` de primaria** sin poblar (mantiene su matching global
-    validado); poblar con un archivo modelo de primaria si se quiere unificar.
 
 ## Pendientes operativos (usuario / colegio)
+- **Reprocesar por `/admin/actas-siagie` las actas de primaria llenadas antes
+  del 14/07** (mínimo 4°A y 4°B B1): quedaron con la columna 01 de Inglés en
+  blanco por la discrepancia de nombre de C1 (ya resuelta). El módulo solo
+  escribe celdas vacías, así que re-subir el acta ya llenada es seguro: completa
+  Inglés sin tocar lo demás. En 4°A quedará por resolver la fila de GALICIA
+  MENDOZA (sin_match, SIGA la tiene en 4°B — cambio de sección sin tramitar) y
+  DIEGO LOPEZ figura en SIGA 4°A sin fila en el Excel.
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
   (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la
   pestaña se cierra y no se acumulan.

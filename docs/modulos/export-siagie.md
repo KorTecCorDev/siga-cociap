@@ -109,7 +109,7 @@ dashboard (grupo *Evaluación y reportes*). Rutas `/admin/actas-siagie[...]`.
 - El mapeo columna→competencia SIGA es por la LEYENDA normalizada contra
   `competencias.nombre_completo` del nivel (1 candidata → mapea). Cuando queda
   **ambigua (>1)** o **sin match (0)**, entra la resolución POR ÁREA (ver
-  Secundaria). Áreas sin equivalente (CAST SEGNL) quedan en blanco.
+  "Resolución por área"). Áreas sin equivalente (CAST SEGNL) quedan en blanco.
 - La plantilla valida conclusiones a **10–500 caracteres** (dataValidation);
   fuera de rango se escribe igual pero con advertencia fuerte en el reporte.
 
@@ -134,10 +134,10 @@ dashboard (grupo *Evaluación y reportes*). Rutas `/admin/actas-siagie[...]`.
   oficial (viable: las competencias son por NIVEL, no por grado).
 - Alumno de SIGA sin fila en el Excel (o viceversa) → reporte, sin acción.
 
-## Secundaria (12/07/2026) — resolución por área
+## Resolución por área (secundaria 12/07/2026; primaria 16/07/2026)
 
-Estructura idéntica a primaria; el mismo módulo la procesa. Verificado con
-nóminas reales (S1A, S5B). Puntos propios:
+Estructura idéntica en ambos niveles; el mismo módulo los procesa. Verificado
+con nóminas reales (S1A, S5B; primaria 4°A). Puntos propios:
 
 - **NL = literal `A,AD,B,C`** (confirmado por el `dataValidation` real, igual que
   primaria). El módulo escribe `nota_a_literal()` — no numérico.
@@ -154,8 +154,20 @@ nóminas reales (S1A, S5B). Puntos propios:
   - **Inglés (leyenda abreviada):** el SIAGIE dice "Se comunica oralmente"; SIGA
     "…en Inglés como lengua extranjera" → 0 match de texto. Se asigna **por
     posición** (col 01→competencia de orden 1, etc.) dentro del área Inglés.
-- **Primaria intacta:** sus áreas tienen `codigo_siagie` NULL → `areaHoja=null` →
-  matching global previo sin cambios (se poblará con un archivo modelo de primaria).
+- **Primaria poblada (16/07/2026, migración 041):** códigos tomados del RegNotas
+  real de 4°A B1. NO coinciden con secundaria: Inglés `0003` (sec. `057`),
+  Comunicación `0005` (sec. `017`), Personal Social `067` (sec. no existe; su
+  análogo DPCC es `0010`); transversales `0006,0007`. CAST SEGNL (hoja `0002`)
+  y Tutoría quedan SIN código a propósito (nunca son destino). Validado con
+  `--simular` sobre el acta real de 4°A B1: reporte byte-idéntico pre/post
+  (el código solo actúa cuando el match de texto falla).
+  - **Lección Inglés C1 primaria (motivo del poblado):** el SIAGIE dice
+    "Se comunica ORALMENTE en inglés…"; SIGA la tenía sin "oralmente" → 0 match
+    de texto y, sin `codigo_siagie`, sin fallback por posición → columna 01
+    "sin equivalente en SIGA" y las actas 4°A/4°B B1 salieron con Inglés en
+    blanco pese a tener notas bloqueadas. Renombrada al nombre oficial CN el
+    14/07 (formalizado en la 041); con el código poblado, una discrepancia
+    futura se llena por posición en vez de quedar muda.
 - **Talleres (Raz. Mat., Pre-Cálculo):** SIN `codigo_siagie` (no tienen hoja en el
   SIAGIE todavía) → nunca son destino. **Diferido:** cuando se aprueben, un
   **selector por nómina** (sin flag persistente) dejará que RA elija incluirlos; y
@@ -174,6 +186,7 @@ idempotente (matchea por código, 0 escrituras); protección/merges intactos.
 ## Pendientes
 
 Ver `docs/ESTADO.md`: piloto de re-importación al SIAGIE (1 archivo),
-discrepancia de nombre en Inglés C1 (primaria), poblar `codigo_siagie` de
-primaria con su archivo modelo, y para secundaria: selector de talleres +
-Ética/EREL en B2 (ambos diferidos).
+reprocesar las actas de primaria llenadas antes del 14/07 (Inglés en blanco:
+mínimo 4°A/4°B B1), y para secundaria: selector de talleres + Ética/EREL en B2
+(ambos diferidos). La discrepancia de Inglés C1 primaria y el poblado de
+`codigo_siagie` de primaria quedaron RESUELTOS (14-16/07, migración 041).
