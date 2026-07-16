@@ -7,6 +7,26 @@
 - **LOCAL: al día hasta la `042`. PROD: al día hasta la `037`** (034-037 aplicadas
   en prod el 09/07/2026 — confirmado por el usuario). **`038` a `042` YA en
   LOCAL, PENDIENTES en PROD** (se aplican manualmente tras el merge a main).
+
+### PENDIENTES EN PROD — checklist de aplicación (actualizado 16/07/2026)
+
+> Aplicar EN ORDEN, con conexión **utf8mb4**, DESPUÉS del merge `dev` → `main`
+> (el código que las consume viaja en ese deploy). Las 5 son **idempotentes**
+> (re-ejecutarlas no daña). Cada archivo trae su query de verificación
+> comentada al final. Credenciales/acceso: sección "Despliegue real" de
+> `docs/infraestructura.md`.
+
+| # | Migración | Tipo | Qué hace / verificación rápida |
+|---|---|---|---|
+| 1 | `038_matriculas_traslado_entrada_pendiente` | datos | Corrige 6 matrículas del registro masivo (4 → `pendiente`, 3 de ellas → `tipo='nuevo'`). Verificar: 4 filas afectadas la 1.ª vez, 0 al reintentar. |
+| 2 | `039_areas_codigo_siagie` | schema+datos | Crea `areas.codigo_siagie` y lo puebla para SECUNDARIA + corrige `nombre_siagie` del Taller Raz. Mat. Preview de solo lectura comentado en el archivo. |
+| 3 | `040_notas_autorizadas_siagie` | schema | Crea la tabla `notas_autorizadas_siagie` (notas autorizadas por dirección, solo-export). |
+| 4 | `041_areas_codigo_siagie_primaria` | datos | Puebla `codigo_siagie` de PRIMARIA (códigos propios: Inglés `0003`, COMU `0005`, PPSS `067`). El rename de Inglés C1 incluido es **no-op en prod** (ya se corrigió a mano el 14/07). |
+| 5 | `042_calificacion_extraordinaria` | schema | `criterios.extraordinario`, `calificaciones.extraordinaria`, `rectificaciones_calificacion.tipo` (calificación extraordinaria por RA). |
+
+**Después de aplicar:** actualizar esta sección (PROD al día hasta la `042`) y
+recién entonces reprocesar las actas SIAGIE de 4°A/4°B B1 (ver Pendientes
+operativos) y usar la calificación extraordinaria en prod.
 - **`042_calificacion_extraordinaria`** (16/07): `criterios.extraordinario`,
   `calificaciones.extraordinaria` y `rectificaciones_calificacion.tipo`.
   Soporte de la CALIFICACIÓN EXTRAORDINARIA: RA registra nota (con motivo) a un

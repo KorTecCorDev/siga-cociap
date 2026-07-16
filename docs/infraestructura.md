@@ -96,6 +96,10 @@ se rastrean en `docs/ESTADO.md`.
     (… 021-032 según database/migrations/: snapshot mérito 023, rectificaciones 024,
     criterios confirmado 026, token tracking 028, limpieza bloques falsos 030,
     sesiones cruzadas 031, área tutoría 032)
+    (… 033-042 según database/migrations/: anti-fantasma 033, purga/consolidación
+    docentes 034/037, Ética y Valores 035/036, traslado entrada 038,
+    codigo_siagie secundaria 039 y primaria 041, notas autorizadas SIAGIE 040,
+    calificación extraordinaria 042)
 ```
 Estado de aplicación LOCAL/PROD: ver `docs/ESTADO.md`.
 
