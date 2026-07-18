@@ -5,6 +5,7 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Models\ConductaModel;
 use Core\Session;
+use Core\View;
 
 /**
  * Conducta — ETAPA 1 (Registro Academico).
@@ -66,7 +67,7 @@ class ConductaController extends BaseController
         ]);
     }
 
-    // GET /admin/conducta/{seccion_id}
+    // GET /admin/conducta/{seccion_id}   (?periodo={id} = historial solo lectura)
     public function seccion(string $seccionId): void
     {
         $seccionId     = (int) $seccionId;
@@ -75,28 +76,130 @@ class ConductaController extends BaseController
             $this->redirectWithError(url('admin/conducta'), 'Sección no encontrada.');
         }
 
-        $periodoActivo = $this->periodoActivo();
-        $nivelId       = (int) $seccion['nivel_id'];
-        $criterios     = $this->model->getCriterios($nivelId);
+        $periodos      = $this->model->listarPeriodosActivos();
+        $periodoActivo = null;
+        foreach ($periodos as $p) {
+            if ((bool) $p['editable']) {
+                $periodoActivo = $p;
+                break;
+            }
+        }
+
+        // Periodo mostrado: el pedido por ?periodo= (si pertenece al año activo)
+        // o el editable en curso. Un periodo no editable se muestra SOLO LECTURA.
+        $periodoParam = (int) ($this->query('periodo') ?? 0);
+        $periodoVer   = $periodoActivo;
+        if ($periodoParam) {
+            $periodoVer = null;
+            foreach ($periodos as $p) {
+                if ((int) $p['id'] === $periodoParam) {
+                    $periodoVer = $p;
+                    break;
+                }
+            }
+            if (!$periodoVer) {
+                $this->redirectWithError(url('admin/conducta/' . $seccionId), 'Periodo no encontrado.');
+            }
+        }
+        $soloLectura = $periodoVer !== null && !((bool) $periodoVer['editable']);
+
+        // Estado de cierre por periodo para las pestañas del historial.
+        // Los bimestres 'pendiente' (futuros) no se listan: sin datos que ver.
+        $periodosNav = [];
+        foreach ($periodos as $p) {
+            if ($p['estado'] === 'pendiente') {
+                continue;
+            }
+            $p['cierre'] = $this->model->getCierreVigente($seccionId, (int) $p['id']);
+            $periodosNav[] = $p;
+        }
+
+        $nivelId   = (int) $seccion['nivel_id'];
+        $criterios = $this->model->getCriterios($nivelId);
 
         $estudiantes = $cierre = null;
         $completitud = ['esperados' => 0, 'completos' => 0];
-        if ($periodoActivo) {
-            $pid         = (int) $periodoActivo['id'];
+        if ($periodoVer) {
+            $pid         = (int) $periodoVer['id'];
             $estudiantes = $this->model->getEstudiantesParaRegistro($seccionId, $pid);
             $cierre      = $this->model->getCierreVigente($seccionId, $pid);
             $completitud = $this->model->completitudSeccion($seccionId, $pid, count($criterios));
         }
 
         $this->view('admin/conducta/seccion', [
-            'titulo'        => 'Conducta — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
-            'seccion'       => $seccion,
-            'periodoActivo' => $periodoActivo,
-            'criterios'     => $criterios,
-            'estudiantes'   => $estudiantes ?? [],
-            'cierre'        => $cierre,
-            'completitud'   => $completitud,
-            'page_scripts'  => ['conducta'],
+            'titulo'       => 'Conducta — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
+            'seccion'      => $seccion,
+            'periodoVer'   => $periodoVer,
+            'periodosNav'  => $periodosNav,
+            'soloLectura'  => $soloLectura,
+            'criterios'    => $criterios,
+            'estudiantes'  => $estudiantes ?? [],
+            'cierre'       => $cierre,
+            'completitud'  => $completitud,
+            'page_scripts' => $soloLectura ? [] : ['conducta'],
+        ]);
+    }
+
+    // GET /admin/conducta/{seccion_id}/imprimir/{periodo_id}
+    // Copia imprimible del registro aprobado y bloqueado (grilla de criterios
+    // Si/No + nota RA) con encabezado formal y espacios de firma.
+    public function imprimir(string $seccionId, string $periodoId): void
+    {
+        $seccionId = (int) $seccionId;
+        $periodoId = (int) $periodoId;
+
+        $seccion = $this->buscarSeccion($seccionId);
+        if (!$seccion) {
+            $this->redirectWithError(url('admin/conducta'), 'Sección no encontrada.');
+        }
+
+        $periodo = null;
+        foreach ($this->model->listarPeriodosActivos() as $p) {
+            if ((int) $p['id'] === $periodoId) {
+                $periodo = $p;
+                break;
+            }
+        }
+        if (!$periodo) {
+            $this->redirectWithError(url('admin/conducta/' . $seccionId), 'Periodo no encontrado.');
+        }
+
+        $cierre = $this->model->getCierreDetalle($seccionId, $periodoId);
+        if (!$cierre) {
+            $this->redirectWithError(
+                url('admin/conducta/' . $seccionId . '?periodo=' . $periodoId),
+                'Solo se puede imprimir un registro aprobado y bloqueado.'
+            );
+        }
+
+        $criterios   = $this->model->getCriterios((int) $seccion['nivel_id']);
+        $estudiantes = $this->model->getEstudiantesParaRegistro($seccionId, $periodoId);
+
+        // Bimestre legado (B1): literal directo, sin matriz de criterios que imprimir.
+        $hayRespuestas = false;
+        foreach ($estudiantes as $est) {
+            if (!empty($est['respuestas'])) {
+                $hayRespuestas = true;
+                break;
+            }
+        }
+        if (!$hayRespuestas) {
+            $this->redirectWithError(
+                url('admin/conducta/' . $seccionId . '?periodo=' . $periodoId),
+                'Este bimestre se registró con el modelo anterior (sin matriz de criterios); no hay registro imprimible.'
+            );
+        }
+
+        View::setLayout('print');
+        $this->view('admin/conducta/imprimir', [
+            'titulo'      => 'Registro de Conducta — ' . $seccion['grado_nombre'] . ' '
+                . $seccion['seccion_nombre'] . ' — ' . $periodo['nombre_display'],
+            'seccion'     => $seccion,
+            'periodo'     => $periodo,
+            'criterios'   => $criterios,
+            'estudiantes' => $estudiantes,
+            'cierre'      => $cierre,
+            'institucion' => config('institucion'),
         ]);
     }
 

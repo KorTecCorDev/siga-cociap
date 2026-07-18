@@ -3,6 +3,7 @@
 namespace App\Controllers\Director;
 
 use App\Controllers\BaseController;
+use App\Models\AsistenciaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
 use App\Models\TransversalModel;
@@ -13,13 +14,15 @@ class BloqueoController extends BaseController
     private CalificacionModel $calModel;
     private TransversalModel  $transModel;
     private ConductaModel     $conductaModel;
+    private AsistenciaModel   $asistenciaModel;
 
     public function __construct()
     {
         $this->requireRole(['admin', 'director_general', 'director_ebr']);
-        $this->calModel      = new CalificacionModel();
-        $this->transModel    = new TransversalModel();
-        $this->conductaModel = new ConductaModel();
+        $this->calModel        = new CalificacionModel();
+        $this->transModel      = new TransversalModel();
+        $this->conductaModel   = new ConductaModel();
+        $this->asistenciaModel = new AsistenciaModel();
     }
 
     /**
@@ -180,6 +183,20 @@ class BloqueoController extends BaseController
             $conductaStats['cerradas']   = count(array_filter($conducta, fn($s) => $s['cerrada']));
         }
 
+        // Asistencia por sección: una sola etapa (Registro Académico bloquea).
+        // El director puede forzar el bloqueo o reabrir. Sin fila = 0 incidencias
+        // (estado válido), así que el bloqueo no exige completitud.
+        $asistencia      = [];
+        $asistenciaStats = ['total' => 0, 'bloqueadas' => 0];
+        if ($periodoId && $periodo) {
+            foreach ($this->asistenciaModel->getResumenSeccionesPorPeriodo($periodoId) as $s) {
+                $s['bloqueada'] = $s['cierre_id'] !== null;
+                $asistencia[]   = $s;
+            }
+            $asistenciaStats['total']      = count($asistencia);
+            $asistenciaStats['bloqueadas'] = count(array_filter($asistencia, fn($s) => $s['bloqueada']));
+        }
+
         $this->view('director/bloqueos/index', [
             'titulo'             => 'Gestión de bloqueos',
             'periodos'           => $periodos,
@@ -190,6 +207,8 @@ class BloqueoController extends BaseController
             'transStats'         => $transStats,
             'conducta'           => $conducta,
             'conductaStats'      => $conductaStats,
+            'asistencia'         => $asistencia,
+            'asistenciaStats'    => $asistenciaStats,
             'stats'              => $stats,
             'statsDocentes'      => $statsDocentes   ?? [],
             'topCriticos'        => $topCriticos     ?? [],
@@ -548,6 +567,65 @@ class BloqueoController extends BaseController
                 'Conducta reabierta. El auxiliar académico puede corregir y volver a cerrar.');
         }
         $this->redirectWithError($back, 'No había un cierre de conducta vigente para anular.');
+    }
+
+    /**
+     * POST /director/bloqueos/asistencia/{seccion_id}/bloquear
+     * Bloqueo forzado por el director: aprueba el registro de asistencia como
+     * lo haría Registro Académico. Sin precondición de completitud (sin fila
+     * de incidencias = 0, estado válido).
+     */
+    public function bloquearAsistencia(string $seccionId): void
+    {
+        $this->validateCsrf();
+        $seccionId = (int) $seccionId;
+        $periodoId = (int) $this->input('periodo_id');
+        $user      = Session::user();
+
+        if (!$periodoId) {
+            $this->redirectWithError(url('director/bloqueos'), 'Periodo no especificado.');
+        }
+        $back = url("director/bloqueos?periodo_id={$periodoId}");
+
+        if ($this->nivelIdDeSeccion($seccionId) === null) {
+            $this->redirectWithError($back, 'Sección no encontrada.');
+        }
+
+        $res = $this->asistenciaModel->bloquearRA($seccionId, $periodoId, (int) $user['id']);
+
+        if ($res['ok']) {
+            $this->redirectWithSuccess($back, $res['mensaje']);
+        }
+        $this->redirectWithError($back, $res['mensaje']);
+    }
+
+    /**
+     * POST /director/bloqueos/asistencia/{seccion_id}/reabrir
+     * Anula el cierre de asistencia vigente con traza, para permitir
+     * correcciones de Registro Académico.
+     */
+    public function reabrirAsistencia(string $seccionId): void
+    {
+        $this->validateCsrf();
+        $seccionId = (int) $seccionId;
+        $periodoId = (int) $this->input('periodo_id');
+        $user      = Session::user();
+
+        if (!$periodoId) {
+            $this->redirectWithError(url('director/bloqueos'), 'Periodo no especificado.');
+        }
+        $back = url("director/bloqueos?periodo_id={$periodoId}");
+
+        $ok = $this->asistenciaModel->anularCierre(
+            $seccionId, $periodoId, (int) $user['id'],
+            'Reapertura del cierre de asistencia por el director desde el panel de bloqueos.'
+        );
+
+        if ($ok) {
+            $this->redirectWithSuccess($back,
+                'Asistencia reabierta. Registro Académico puede corregir y volver a bloquear.');
+        }
+        $this->redirectWithError($back, 'No había un cierre de asistencia vigente para anular.');
     }
 
     /** nivel_id de una sección, o null si no existe. */

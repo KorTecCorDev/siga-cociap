@@ -210,3 +210,45 @@ de retorno de grado (oficial en retorno activo / operativa revertida).
 - **Sin migracion.** Solo cambia el filtro SQL del roster; `getParaBoleta` y demas
   lecturas por matricula no se tocan (la boleta muestra la conducta segun el
   cierre, independiente del estado — coherente con boletas de desactivados).
+
+## Conducta y Asistencia: historial por bimestre + imprimible oficial (17/07/2026)
+
+Historial de lectura de los registros aprobados y bloqueados en `/admin/conducta`
+y `/admin/asistencia`, con copia imprimible firmable. Migracion `043_cierres_asistencia`.
+
+### Selector de bimestre (ambas vistas de seccion)
+- `GET /admin/{conducta|asistencia}/{id}?periodo={pid}`: pestañas `.periodo-tabs`
+  con los periodos del año activo **excepto los `pendiente`** (futuros, sin datos).
+  Badges: "En curso" (editable) / "Aprobado" (cierre vigente) / "Sin cierre".
+- Sin `?periodo=` el comportamiento es el previo (periodo editable). Un periodo
+  NO editable se muestra en **solo lectura**: sin toolbar, sin botones de guardar,
+  sin `page_scripts` (la nota RA de conducta se calcula en servidor, patron de
+  `docente/conducta-criterios.php`); asistencia muestra los contadores como texto.
+
+### Cierre de asistencia (nuevo — tabla `cierres_asistencia`)
+- Una sola etapa (espejo parcial de `cierres_conducta`): RA "Bloquear y aprobar"
+  via `POST /admin/asistencia/{id}/bloquear`. **SIN precondicion de completitud**:
+  fila ausente en `inasistencias` = 0 incidencias (estado valido).
+- El cierre vigente es `anulado_en IS NULL` (sin UNIQUE; `getCierreVigente` antes
+  de insertar). `guardar()` rechaza edicion con cierre vigente (403), ademas del
+  gate de `periodoEditable`.
+- Desbloqueo SOLO desde el panel del director (con traza `anulado_por/motivo`).
+
+### Imprimible oficial (layout print, A4 portrait)
+- `GET /admin/{conducta|asistencia}/{id}/imprimir/{periodo_id}` — **gate: cierre
+  vigente obligatorio** (sin cierre redirige con error). Conducta ademas exige
+  matriz de respuestas (B1 legado de literal directo NO imprime; el boton se
+  oculta en la vista).
+- Estructura: `.boleta-header` (membrete + **fecha de impresion**), `.reporte-titulo`,
+  `.tabla-registro` (criterios ✓/✗ + nota RA en conducta; 4 contadores en
+  asistencia), leyenda de criterios, traza del cierre (quien/cuando) y
+  `.reporte-footer` con DOS lineas de firma EN BLANCO tituladas
+  **"Auxiliar Responsable"** y **"Personal de Registro Académico"** (el rol
+  auxiliar_academico aun no existe como usuario; se firma a mano).
+- SASS: `resources/sass/pages/_registro-cierre.scss` (pantalla + print).
+
+### Panel del director (`/director/bloqueos`)
+- 4.ª tabcard **Asistencia** (naranja `$card-nomina-*`) con su panel: tabla de
+  secciones (registrados/esperados, estado, fecha) y acciones
+  `POST /director/bloqueos/asistencia/{seccion_id}/{bloquear|reabrir}`
+  (`AsistenciaModel::getResumenSeccionesPorPeriodo`, sin requisito de tutor).

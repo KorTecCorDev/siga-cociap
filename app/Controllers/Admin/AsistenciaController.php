@@ -5,6 +5,7 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Models\AsistenciaModel;
 use Core\Session;
+use Core\View;
 
 class AsistenciaController extends BaseController
 {
@@ -53,7 +54,18 @@ class AsistenciaController extends BaseController
         ]);
     }
 
-    // GET /admin/asistencia/{seccion_id}
+    /** Busca una seccion del año activo por id, o null. */
+    private function buscarSeccion(int $seccionId): ?array
+    {
+        foreach ($this->model->listarSeccionesActivas() as $s) {
+            if ((int) $s['id'] === $seccionId) {
+                return $s;
+            }
+        }
+        return null;
+    }
+
+    // GET /admin/asistencia/{seccion_id}   (?periodo={id} = historial solo lectura)
     public function seccion(string $seccionId): void
     {
         $seccionId = (int) $seccionId;
@@ -63,7 +75,6 @@ class AsistenciaController extends BaseController
             $this->redirectWithError(url('admin/asistencia'), 'No hay periodos configurados.');
         }
 
-        // Solo el periodo abierto actual entra a la vista de ingreso.
         $periodoActivo = null;
         foreach ($periodos as $p) {
             if ((bool) $p['editable']) {
@@ -72,31 +83,140 @@ class AsistenciaController extends BaseController
             }
         }
 
-        $estudiantes = $periodoActivo
-            ? $this->model->getEstudiantesConIncidencias($seccionId, (int) $periodoActivo['id'])
-            : [];
-
-        // Info de la sección (reutilizamos el listado activo)
-        $secciones = $this->model->listarSeccionesActivas();
-        $seccion   = null;
-        foreach ($secciones as $s) {
-            if ((int) $s['id'] === $seccionId) {
-                $seccion = $s;
-                break;
+        // Periodo mostrado: el pedido por ?periodo= (si pertenece al año activo)
+        // o el editable en curso. Un periodo no editable se muestra SOLO LECTURA.
+        $periodoParam = (int) ($this->query('periodo') ?? 0);
+        $periodoVer   = $periodoActivo;
+        if ($periodoParam) {
+            $periodoVer = null;
+            foreach ($periodos as $p) {
+                if ((int) $p['id'] === $periodoParam) {
+                    $periodoVer = $p;
+                    break;
+                }
+            }
+            if (!$periodoVer) {
+                $this->redirectWithError(url('admin/asistencia/' . $seccionId), 'Periodo no encontrado.');
             }
         }
+        $soloLectura = $periodoVer !== null && !((bool) $periodoVer['editable']);
 
+        // Estado de cierre por periodo para las pestañas del historial.
+        // Los bimestres 'pendiente' (futuros) no se listan: sin datos que ver.
+        $periodosNav = [];
+        foreach ($periodos as $p) {
+            if ($p['estado'] === 'pendiente') {
+                continue;
+            }
+            $p['cierre'] = $this->model->getCierreVigente($seccionId, (int) $p['id']);
+            $periodosNav[] = $p;
+        }
+
+        $estudiantes = $cierre = null;
+        if ($periodoVer) {
+            $pid         = (int) $periodoVer['id'];
+            $estudiantes = $this->model->getEstudiantesConIncidencias($seccionId, $pid);
+            $cierre      = $this->model->getCierreVigente($seccionId, $pid);
+        }
+
+        $seccion = $this->buscarSeccion($seccionId);
         if (!$seccion) {
             $this->redirectWithError(url('admin/asistencia'), 'Sección no encontrada.');
         }
 
+        // La grilla se bloquea con el cierre de la seccion (ademas del periodo).
+        $bloqueada = $cierre !== null;
+
         $this->view('admin/asistencia/seccion', [
-            'titulo'        => 'Asistencia — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
-            'seccion'       => $seccion,
-            'periodoActivo' => $periodoActivo,
-            'estudiantes'   => $estudiantes,
-            'topeMax'       => self::TOPE_MAX,
-            'page_scripts'  => ['asistencia'],
+            'titulo'       => 'Asistencia — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
+            'seccion'      => $seccion,
+            'periodoVer'   => $periodoVer,
+            'periodosNav'  => $periodosNav,
+            'soloLectura'  => $soloLectura,
+            'cierre'       => $cierre,
+            'estudiantes'  => $estudiantes ?? [],
+            'topeMax'      => self::TOPE_MAX,
+            'page_scripts' => ($soloLectura || $bloqueada) ? [] : ['asistencia'],
+        ]);
+    }
+
+    // POST /admin/asistencia/{seccion_id}/bloquear  (RA bloquea/aprueba la seccion)
+    public function bloquear(string $seccionId): void
+    {
+        $this->validateCsrf();
+        $seccionId = (int) $seccionId;
+
+        $seccion = $this->buscarSeccion($seccionId);
+        if (!$seccion) {
+            $this->redirectWithError(url('admin/asistencia'), 'Sección no encontrada.');
+        }
+
+        $periodoActivo = null;
+        foreach ($this->model->listarPeriodosActivos() as $p) {
+            if ((bool) $p['editable']) {
+                $periodoActivo = $p;
+                break;
+            }
+        }
+        if (!$periodoActivo) {
+            $this->redirectWithError(url('admin/asistencia/' . $seccionId), 'No hay periodo abierto para edición.');
+        }
+
+        $res = $this->model->bloquearRA(
+            $seccionId,
+            (int) $periodoActivo['id'],
+            (int) Session::user()['id']
+        );
+
+        if ($res['ok']) {
+            $this->redirectWithSuccess(url('admin/asistencia/' . $seccionId), $res['mensaje']);
+        }
+        $this->redirectWithError(url('admin/asistencia/' . $seccionId), $res['mensaje']);
+    }
+
+    // GET /admin/asistencia/{seccion_id}/imprimir/{periodo_id}
+    // Copia imprimible del registro aprobado y bloqueado (contadores de
+    // incidencias) con encabezado formal y espacios de firma.
+    public function imprimir(string $seccionId, string $periodoId): void
+    {
+        $seccionId = (int) $seccionId;
+        $periodoId = (int) $periodoId;
+
+        $seccion = $this->buscarSeccion($seccionId);
+        if (!$seccion) {
+            $this->redirectWithError(url('admin/asistencia'), 'Sección no encontrada.');
+        }
+
+        $periodo = null;
+        foreach ($this->model->listarPeriodosActivos() as $p) {
+            if ((int) $p['id'] === $periodoId) {
+                $periodo = $p;
+                break;
+            }
+        }
+        if (!$periodo) {
+            $this->redirectWithError(url('admin/asistencia/' . $seccionId), 'Periodo no encontrado.');
+        }
+
+        $cierre = $this->model->getCierreDetalle($seccionId, $periodoId);
+        if (!$cierre) {
+            $this->redirectWithError(
+                url('admin/asistencia/' . $seccionId . '?periodo=' . $periodoId),
+                'Solo se puede imprimir un registro aprobado y bloqueado.'
+            );
+        }
+
+        $estudiantes = $this->model->getEstudiantesConIncidencias($seccionId, $periodoId);
+
+        View::setLayout('print');
+        $this->view('admin/asistencia/imprimir', [
+            'titulo'      => 'Registro de Asistencia — ' . $seccion['grado_nombre'] . ' '
+                . $seccion['seccion_nombre'] . ' — ' . $periodo['nombre_display'],
+            'seccion'     => $seccion,
+            'periodo'     => $periodo,
+            'estudiantes' => $estudiantes,
+            'cierre'      => $cierre,
+            'institucion' => config('institucion'),
         ]);
     }
 
@@ -115,6 +235,15 @@ class AsistenciaController extends BaseController
 
         if (!$this->model->periodoEditable($periodoId)) {
             $this->json(['success' => false, 'mensaje' => 'El periodo no está disponible para edición.'], 403);
+        }
+
+        // Si la seccion ya esta bloqueada, no se puede editar (debe desbloquear Dirección).
+        $seccionId = $this->model->seccionDeMatricula($matriculaId);
+        if ($seccionId === null) {
+            $this->json(['success' => false, 'mensaje' => 'Matrícula no encontrada.'], 404);
+        }
+        if ($this->model->getCierreVigente($seccionId, $periodoId)) {
+            $this->json(['success' => false, 'mensaje' => 'La asistencia de esta sección ya fue bloqueada; no se puede editar.'], 403);
         }
 
         // Saneamiento y validación de los 4 contadores. Cualquier valor

@@ -1,0 +1,188 @@
+// ============================================================
+// _registro-cierre.scss — Historial e imprimible de los registros
+// de Conducta y Asistencia (admin).
+//
+// Dos contextos:
+//   · Pantalla (layout app)  → .periodo-tabs (selector de bimestre) y
+//     ajustes de la grilla en solo lectura.
+//   · Impresión (layout print, A4 portrait) → .registro-doc / .tabla-registro.
+//     Reutiliza .boleta-header, .reporte-titulo y .reporte-footer.
+// ============================================================
+
+// ── Selector de bimestre (pantalla) ──────────────────────────
+.periodo-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-md;
+}
+
+.periodo-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: $spacing-xs $spacing-md;
+    background: $bg-white;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-sm;
+    text-decoration: none;
+    color: $text-primary;
+    transition: $transition;
+
+    &:hover {
+        border-color: $brand-accent;
+        box-shadow: $shadow-sm;
+    }
+
+    &--activa {
+        border-color: $brand-accent;
+        background: $brand-light;
+        box-shadow: inset 0 0 0 1px $brand-accent;
+    }
+
+    &__nombre {
+        font-weight: 600;
+        font-size: $font-size-sm;
+    }
+
+    &__estado {
+        font-size: 11px;
+        color: $text-muted;
+
+        &--curso     { color: $brand-accent; font-weight: 600; }
+        &--bloqueado { color: $color-success; font-weight: 600; }
+    }
+}
+
+// Botón de acción dentro de un alert (p. ej. "Imprimir registro").
+.alert .alert__accion {
+    margin-left: auto;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+// Contadores de asistencia en solo lectura (historial).
+.asistencia-td-valor {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+// ── Documento imprimible (layout print, A4 portrait) ─────────
+.registro-doc {
+
+    &__leyenda {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 6.5pt;
+        color: #333;
+        margin: 2mm 0 0;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    &__leyenda-titulo {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 1mm;
+    }
+
+    &__nota {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 6.5pt;
+        color: #555;
+        margin: 2mm 0 0;
+    }
+
+    &__traza {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 7pt;
+        color: #333;
+        margin: 2mm 0 0;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
+
+// Grilla del registro (criterios de conducta o contadores de asistencia)
+.tabla-registro {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 8pt;
+    table-layout: fixed;
+    margin-bottom: 2mm;
+
+    .tr-num      { width: 8mm; }
+    .tr-crit     { width: 8mm; }
+    .tr-nota     { width: 20mm; }
+    .tr-contador { width: 22mm; }
+
+    thead th {
+        background: #efefef;
+        font-weight: bold;
+        font-size: 7pt;
+        text-transform: uppercase;
+        letter-spacing: 0.2pt;
+        color: #333;
+        padding: 1mm;
+        border: 0.4pt solid #999;
+        border-bottom: 1.2pt solid #000;
+        text-align: center;
+        vertical-align: middle;
+
+        &.tr-nombre { text-align: left; padding-left: 1.5mm; }
+    }
+
+    tbody td {
+        padding: 0.8mm 1mm;
+        border: 0.3pt solid #ddd;
+        vertical-align: middle;
+        background: #fff;
+        line-height: 1.25;
+        text-align: center;
+
+        &.tr-nombre { text-align: left; padding-left: 1.5mm; }
+    }
+
+    tbody tr:nth-child(even) td { background: #f8f8f8; }
+}
+
+// Tabla de la leyenda de criterios (imprimible de conducta):
+// código C1..CN referenciable contra las cabeceras de la grilla.
+.tabla-leyenda {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 6.5pt;
+    table-layout: fixed;
+    margin-top: 0.5mm;
+
+    .tl-cod { width: 10mm; }
+
+    thead th {
+        background: #efefef;
+        font-weight: bold;
+        font-size: 6.5pt;
+        text-transform: uppercase;
+        letter-spacing: 0.2pt;
+        color: #333;
+        padding: 0.8mm 1mm;
+        border: 0.4pt solid #999;
+        border-bottom: 1pt solid #000;
+        text-align: center;
+
+        &.tl-texto { text-align: left; padding-left: 1.5mm; }
+    }
+
+    tbody td {
+        padding: 0.6mm 1mm;
+        border: 0.3pt solid #ddd;
+        vertical-align: middle;
+        background: #fff;
+        line-height: 1.3;
+
+        &.tl-cod   { text-align: center; font-weight: bold; }
+        &.tl-texto { text-align: left; padding-left: 1.5mm; }
+    }
+
+    tbody tr:nth-child(even) td { background: #f8f8f8; }
+}

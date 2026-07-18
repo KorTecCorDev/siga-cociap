@@ -44,6 +44,7 @@ class AsistenciaModel extends BaseModel
                 p.nombre_display,
                 p.estado,
                 p.limite_notas,
+                a.anio,
                 (
                     p.estado = 'activo'
                     AND (p.limite_notas IS NULL OR NOW() <= p.limite_notas)
@@ -298,6 +299,115 @@ class AsistenciaModel extends BaseModel
             }
         }
         return $out;
+    }
+
+    // ── Cierre (aprobacion y bloqueo) por seccion ────────────────
+    // Espejo de una sola etapa del cierre de conducta: RA bloquea la
+    // seccion y el registro queda de solo lectura. Sin fila = 0
+    // incidencias (estado valido), asi que NO exige completitud.
+
+    /** Cierre vigente (anulado_en IS NULL) de una seccion+periodo, o null. */
+    public function getCierreVigente(int $seccionId, int $periodoId): ?array
+    {
+        return $this->queryOne("
+            SELECT * FROM cierres_asistencia
+            WHERE seccion_id = ? AND periodo_id = ? AND anulado_en IS NULL
+            ORDER BY id DESC LIMIT 1
+        ", [$seccionId, $periodoId]);
+    }
+
+    /** Cierre vigente con el nombre completo de quien bloqueó (para el imprimible). */
+    public function getCierreDetalle(int $seccionId, int $periodoId): ?array
+    {
+        return $this->queryOne("
+            SELECT ca.*,
+                   CONCAT(pr.apellido_paterno, ' ', pr.apellido_materno, ', ', pr.nombres) AS ra_nombre
+            FROM cierres_asistencia ca
+            INNER JOIN usuarios ur ON ur.id = ca.ra_bloqueado_por
+            INNER JOIN personas pr ON pr.id = ur.persona_id
+            WHERE ca.seccion_id = ? AND ca.periodo_id = ? AND ca.anulado_en IS NULL
+            ORDER BY ca.id DESC LIMIT 1
+        ", [$seccionId, $periodoId]);
+    }
+
+    /**
+     * RA bloquea/aprueba el registro de asistencia de la seccion.
+     * @return array{ok:bool,mensaje:string}
+     */
+    public function bloquearRA(int $seccionId, int $periodoId, int $userId): array
+    {
+        if ($this->getCierreVigente($seccionId, $periodoId)) {
+            return ['ok' => false, 'mensaje' => 'La asistencia de esta seccion ya esta bloqueada.'];
+        }
+        $ok = $this->execute("
+            INSERT INTO cierres_asistencia (seccion_id, periodo_id, ra_bloqueado_en, ra_bloqueado_por)
+            VALUES (?, ?, NOW(), ?)
+        ", [$seccionId, $periodoId, $userId]);
+
+        return ['ok' => $ok, 'mensaje' => $ok ? 'Asistencia bloqueada y aprobada.' : 'Error al bloquear.'];
+    }
+
+    /** Desbloqueo (director/admin): anula el cierre vigente con traza. */
+    public function anularCierre(int $seccionId, int $periodoId, int $userId, string $motivo): bool
+    {
+        $c = $this->getCierreVigente($seccionId, $periodoId);
+        if (!$c) {
+            return false;
+        }
+        return $this->execute("
+            UPDATE cierres_asistencia
+            SET anulado_en = NOW(), anulado_por = ?, motivo_anulacion = ?
+            WHERE id = ?
+        ", [$userId, $motivo, (int) $c['id']]);
+    }
+
+    /**
+     * Secciones del año del periodo con su estado de cierre de asistencia
+     * (para el panel de bloqueos del director). Espejo del resumen de conducta,
+     * sin requisito de tutor: la asistencia es de la seccion.
+     */
+    public function getResumenSeccionesPorPeriodo(int $periodoId): array
+    {
+        $secciones = $this->query("
+            SELECT s.id              AS seccion_id,
+                   s.nombre          AS seccion_nombre,
+                   g.numero          AS grado_numero,
+                   g.nombre_display  AS grado_nombre,
+                   n.id              AS nivel_id,
+                   n.nombre          AS nivel_nombre,
+                   ca.id             AS cierre_id,
+                   ca.ra_bloqueado_en
+            FROM secciones s
+            INNER JOIN grados g  ON g.id = s.grado_id
+            INNER JOIN niveles n ON n.id = g.nivel_id
+            LEFT JOIN cierres_asistencia ca
+                ON  ca.seccion_id = s.id
+                AND ca.periodo_id = ?
+                AND ca.anulado_en IS NULL
+            WHERE s.anio_id = (SELECT anio_id FROM periodos WHERE id = ?)
+              AND s.estado_nomina = 'aprobada'
+            ORDER BY n.id, g.numero, s.nombre
+        ", [$periodoId, $periodoId]);
+
+        // Avance de llenado (registrados/esperados) reusando la query del indice.
+        $progreso = $this->getProgresoPorSeccion($periodoId);
+        foreach ($secciones as &$s) {
+            $p = $progreso[(int) $s['seccion_id']] ?? ['esperados' => 0, 'registrados' => 0];
+            $s['esperados']   = $p['esperados'];
+            $s['registrados'] = $p['registrados'];
+        }
+        unset($s);
+
+        return $secciones;
+    }
+
+    /** seccion_id de una matricula, o null si no existe (gate de guardado). */
+    public function seccionDeMatricula(int $matriculaId): ?int
+    {
+        $row = $this->queryOne("
+            SELECT seccion_id FROM matriculas WHERE id = ?
+        ", [$matriculaId]);
+        return $row ? (int) $row['seccion_id'] : null;
     }
 
     // ── Verificación de edición ──────────────────────────────────

@@ -8,6 +8,8 @@
  * @var array      $transStats    ['total','cerradas']
  * @var array      $conducta      [['seccion_id','grado_nombre','seccion_nombre','nivel_nombre','tutor_nombre','estado','bloqueada','cerrada','esperados','calificados','ra_bloqueado_en','tutor_cerrado_en'], ...]
  * @var array      $conductaStats ['total','bloqueadas','cerradas']
+ * @var array      $asistencia    [['seccion_id','grado_nombre','seccion_nombre','nivel_nombre','bloqueada','esperados','registrados','ra_bloqueado_en'], ...]
+ * @var array      $asistenciaStats ['total','bloqueadas']
  * @var array      $stats         ['total','bloqueadas','pendientes','sin_criterios','cierre_forzado']
  * @var array      $statsDocentes
  * @var array      $topCriticos
@@ -25,6 +27,10 @@ $trPct   = $trTotal > 0 ? round($trCerr / $trTotal * 100) : 0;
 $coTotal = (int) ($conductaStats['total'] ?? 0);
 $coCerr  = (int) ($conductaStats['cerradas'] ?? 0);
 $coPct   = $coTotal > 0 ? round($coCerr / $coTotal * 100) : 0;
+
+$asTotal = (int) ($asistenciaStats['total'] ?? 0);
+$asBloq  = (int) ($asistenciaStats['bloqueadas'] ?? 0);
+$asPct   = $asTotal > 0 ? round($asBloq / $asTotal * 100) : 0;
 ?>
 
 <div class="page-header">
@@ -59,7 +65,7 @@ $coPct   = $coTotal > 0 ? round($coCerr / $coTotal * 100) : 0;
 
 <?php if ($periodo): ?>
 
-<!-- Hub: 3 accesos (tabs). Sin detalle hasta hacer clic. -->
+<!-- Hub: 4 accesos (tabs). Sin detalle hasta hacer clic. -->
 <div class="bloqueos-hub" role="tablist" aria-label="Tipos de bloqueo">
 
     <button type="button"
@@ -96,6 +102,18 @@ $coPct   = $coTotal > 0 ? round($coCerr / $coTotal * 100) : 0;
             <span class="bloqueos-tabcard__fill" style="--pct:<?= $coPct ?>%"></span>
         </span>
         <span class="bloqueos-tabcard__pct"><?= $coPct ?>%</span>
+    </button>
+
+    <button type="button"
+            class="bloqueos-tabcard bloqueos-tabcard--asistencia"
+            role="tab" id="tabcard-asistencia"
+            data-tab="asistencia" aria-controls="tab-asistencia" aria-selected="false">
+        <span class="bloqueos-tabcard__titulo">Asistencia</span>
+        <span class="bloqueos-tabcard__stat"><?= $asBloq ?>/<?= $asTotal ?> bloqueadas</span>
+        <span class="bloqueos-tabcard__bar">
+            <span class="bloqueos-tabcard__fill" style="--pct:<?= $asPct ?>%"></span>
+        </span>
+        <span class="bloqueos-tabcard__pct"><?= $asPct ?>%</span>
     </button>
 
 </div>
@@ -721,6 +739,87 @@ $_oS  = round(25 - $_pB - $_pP, 2);
 <?php endif; ?>
 
 </section><!-- /#tab-conducta -->
+
+<!-- ══ PANEL: Asistencia ═══════════════════════════════════════ -->
+<section id="tab-asistencia" class="bloqueos-panel" data-panel="asistencia"
+         role="tabpanel" aria-labelledby="tabcard-asistencia" hidden>
+
+<?php if (!empty($asistencia)): ?>
+    <p class="bloqueos-nivel-titulo">Asistencia &mdash; una etapa: Registro Acad&eacute;mico</p>
+    <div class="card mb-md">
+        <div class="card__body">
+            <p class="text-sm text-muted mb-sm">
+                <strong>Registro Acad&eacute;mico</strong> registra las incidencias y bloquea la
+                secci&oacute;n. El director puede forzar el bloqueo o <em>reabrir</em> para
+                correcciones. Las filas sin registro cuentan como 0 incidencias, por lo que
+                el bloqueo no exige completitud.
+            </p>
+            <table class="tabla-ranking tabla-bloqueos">
+                <thead>
+                    <tr>
+                        <th>Secci&oacute;n</th>
+                        <th>Registrados</th>
+                        <th>Estado</th>
+                        <th>Bloqueado el</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($asistencia as $sa):
+                        $regTxt  = $sa['registrados'] . '/' . $sa['esperados'];
+                        $filaCss = $sa['bloqueada'] ? '' : 'fila-pendiente';
+                    ?>
+                    <tr class="<?= $filaCss ?>">
+                        <td class="text-sm">
+                            <?= e($sa['grado_nombre']) ?> &mdash; <?= e($sa['seccion_nombre']) ?>
+                            <br><span class="text-muted"><?= e($sa['nivel_nombre']) ?></span>
+                        </td>
+                        <td class="text-sm text-muted"><?= $regTxt ?></td>
+                        <td>
+                            <?php if ($sa['bloqueada']): ?>
+                                <span class="badge badge--activo">&#10003; Bloqueada</span>
+                            <?php else: ?>
+                                <span class="badge badge--warning">Pendiente</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-muted text-sm">
+                            <?= $sa['ra_bloqueado_en']
+                                ? date('d/m/Y H:i', strtotime($sa['ra_bloqueado_en']))
+                                : '—'
+                            ?>
+                        </td>
+                        <td class="td-acciones-conducta">
+                            <?php if (!$sa['bloqueada']): ?>
+                                <form method="POST"
+                                      action="<?= url('director/bloqueos/asistencia/' . $sa['seccion_id'] . '/bloquear') ?>"
+                                      onsubmit="return confirm('Forzar el bloqueo de la asistencia de esta sección? Las filas sin registro cuentan como 0 incidencias.')">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
+                                    <button type="submit" class="btn btn--secondary btn--sm">Bloquear</button>
+                                </form>
+                            <?php else: ?>
+                                <form method="POST"
+                                      action="<?= url('director/bloqueos/asistencia/' . $sa['seccion_id'] . '/reabrir') ?>"
+                                      onsubmit="return confirm('Reabrir la asistencia de esta sección? Registro Académico deberá volver a bloquearla.')">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
+                                    <button type="submit" class="btn btn--danger btn--sm">Reabrir</button>
+                                </form>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+<?php else: ?>
+    <div class="empty-state">
+        <p>No hay secciones para gestionar asistencia en este periodo.</p>
+    </div>
+<?php endif; ?>
+
+</section><!-- /#tab-asistencia -->
 
 <?php else: ?>
     <div class="empty-state">

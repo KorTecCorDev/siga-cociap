@@ -1,17 +1,17 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **16/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **17/07/2026**.
 
 ## Migraciones
-- **LOCAL: al día hasta la `042`. PROD: al día hasta la `037`** (034-037 aplicadas
-  en prod el 09/07/2026 — confirmado por el usuario). **`038` a `042` YA en
+- **LOCAL: al día hasta la `043`. PROD: al día hasta la `037`** (034-037 aplicadas
+  en prod el 09/07/2026 — confirmado por el usuario). **`038` a `043` YA en
   LOCAL, PENDIENTES en PROD** (se aplican manualmente tras el merge a main).
 
-### PENDIENTES EN PROD — checklist de aplicación (actualizado 16/07/2026)
+### PENDIENTES EN PROD — checklist de aplicación (actualizado 17/07/2026)
 
 > Aplicar EN ORDEN, con conexión **utf8mb4**, DESPUÉS del merge `dev` → `main`
-> (el código que las consume viaja en ese deploy). Las 5 son **idempotentes**
+> (el código que las consume viaja en ese deploy). Las 6 son **idempotentes**
 > (re-ejecutarlas no daña). Cada archivo trae su query de verificación
 > comentada al final. Credenciales/acceso: sección "Despliegue real" de
 > `docs/infraestructura.md`.
@@ -23,10 +23,14 @@
 | 3 | `040_notas_autorizadas_siagie` | schema | Crea la tabla `notas_autorizadas_siagie` (notas autorizadas por dirección, solo-export). |
 | 4 | `041_areas_codigo_siagie_primaria` | datos | Puebla `codigo_siagie` de PRIMARIA (códigos propios: Inglés `0003`, COMU `0005`, PPSS `067`). El rename de Inglés C1 incluido es **no-op en prod** (ya se corrigió a mano el 14/07). |
 | 5 | `042_calificacion_extraordinaria` | schema | `criterios.extraordinario`, `calificaciones.extraordinaria`, `rectificaciones_calificacion.tipo` (calificación extraordinaria por RA). |
+| 6 | `043_cierres_asistencia` | schema | Crea `cierres_asistencia` (bloqueo/aprobación del registro de asistencia por sección+bimestre, espejo de una etapa de `cierres_conducta`). |
 
-**Después de aplicar:** actualizar esta sección (PROD al día hasta la `042`) y
+**Después de aplicar:** actualizar esta sección (PROD al día hasta la `043`) y
 recién entonces reprocesar las actas SIAGIE de 4°A/4°B B1 (ver Pendientes
 operativos) y usar la calificación extraordinaria en prod.
+- **`043_cierres_asistencia`** (17/07): crea `cierres_asistencia` (una sola
+  etapa: RA bloquea; anulable con traza). Soporte del historial de bimestres y
+  del imprimible oficial de Conducta/Asistencia (ver `docs/modulos/admin.md`).
 - **`042_calificacion_extraordinaria`** (16/07): `criterios.extraordinario`,
   `calificaciones.extraordinaria` y `rectificaciones_calificacion.tipo`.
   Soporte de la CALIFICACIÓN EXTRAORDINARIA: RA registra nota (con motivo) a un

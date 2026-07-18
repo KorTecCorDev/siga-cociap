@@ -47,7 +47,7 @@ class ConductaModel extends BaseModel
     {
         return $this->query("
             SELECT
-                p.id, p.numero, p.nombre_display, p.estado, p.limite_notas,
+                p.id, p.numero, p.nombre_display, p.estado, p.limite_notas, a.anio,
                 (
                     p.estado = 'activo'
                     AND (p.limite_notas IS NULL OR NOW() <= p.limite_notas)
@@ -328,6 +328,23 @@ class ConductaModel extends BaseModel
             SELECT * FROM cierres_conducta
             WHERE seccion_id = ? AND periodo_id = ? AND anulado_en IS NULL
             ORDER BY id DESC LIMIT 1
+        ", [$seccionId, $periodoId]);
+    }
+
+    /** Cierre vigente con los nombres de quien bloqueó/cerró (para el imprimible). */
+    public function getCierreDetalle(int $seccionId, int $periodoId): ?array
+    {
+        return $this->queryOne("
+            SELECT cc.*,
+                   CONCAT(pr.apellido_paterno, ' ', pr.apellido_materno, ', ', pr.nombres) AS ra_nombre,
+                   CONCAT(pt.apellido_paterno, ' ', pt.apellido_materno, ', ', pt.nombres) AS tutor_nombre
+            FROM cierres_conducta cc
+            INNER JOIN usuarios ur ON ur.id = cc.ra_bloqueado_por
+            INNER JOIN personas pr ON pr.id = ur.persona_id
+            LEFT JOIN usuarios ut  ON ut.id = cc.tutor_cerrado_por
+            LEFT JOIN personas pt  ON pt.id = ut.persona_id
+            WHERE cc.seccion_id = ? AND cc.periodo_id = ? AND cc.anulado_en IS NULL
+            ORDER BY cc.id DESC LIMIT 1
         ", [$seccionId, $periodoId]);
     }
 
