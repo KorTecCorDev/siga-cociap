@@ -6,6 +6,8 @@
  * @var array       $periodos      [{ id, numero, nombre_display, estado }]
  * @var array       $periodoSel    { id, nombre_display, estado }
  * @var array|null  $cierre        cierre vigente de RA o null (Etapa 1 no hecha)
+ * @var array|null  $legadoInfo    { usuario, registrado_en } si el bimestre es
+ *                                 legado (literal directo, sin matriz) o null
  * @var array       $estudiantes   [{ matricula_id, nombre_completo, nota_ra, nota_tutor, nota_final, literal_final }]
  * @var bool        $editable      true si se puede editar/cerrar
  * @var bool        $cerradoTutor  true si el tutor ya cerro
@@ -37,7 +39,7 @@ $pid       = (int) $periodoSel['id'];
 
 <div id="conducta-feedback" class="conducta-feedback" hidden role="status" aria-live="polite"></div>
 
-<?php if (!$cierre): ?>
+<?php if (!$cierre && !$legadoInfo): ?>
 
     <div class="conducta-espera">
         <div class="conducta-espera__icono" aria-hidden="true"><span class="btn-icon btn-icon--bigwait"></span></div>
@@ -55,7 +57,17 @@ $pid       = (int) $periodoSel['id'];
 
 <?php else: ?>
 
-    <?php if ($cerradoTutor): ?>
+    <?php if ($legadoInfo): ?>
+        <div class="alert alert--info">
+            <span class="btn-icon btn-icon--locked" aria-hidden="true"></span>
+            <span>
+                Las calificaciones de conducta fueron registradas por
+                <strong><?= e($legadoInfo['usuario']) ?></strong>
+                el <?= e(fechaLima($legadoInfo['registrado_en'])) ?>,
+                los criterios de conducta fueron implementados en el siguiente bimestre.
+            </span>
+        </div>
+    <?php elseif ($cerradoTutor): ?>
         <div class="alert alert--success">
             <span>
                 Conducta <strong>bloqueada y aprobada</strong> el <?= e(fechaLima($cierre['tutor_cerrado_en'])) ?>.
@@ -74,13 +86,15 @@ $pid       = (int) $periodoSel['id'];
     <?php endif; ?>
 
     <!-- Detalle de los criterios Si/No de los auxiliares, en solo lectura
-         (07/07/2026). Solo existe cuando hay cierre vigente de RA: este bloque
-         ya esta dentro del branch $cierre. -->
-    <div class="mb-md">
-        <a href="<?= url('docente/conducta/' . $pid . '/criterios') ?>" class="btn btn--secondary btn--sm">
-            Ver criterios evaluados por los auxiliares (lectura)
-        </a>
-    </div>
+         (07/07/2026). Solo con cierre vigente de RA y matriz (los bimestres
+         legados no tienen criterios que consultar). -->
+    <?php if (!$legadoInfo): ?>
+        <div class="mb-md">
+            <a href="<?= url('docente/conducta/' . $pid . '/criterios') ?>" class="btn btn--secondary btn--sm">
+                Ver criterios evaluados por los auxiliares (lectura)
+            </a>
+        </div>
+    <?php endif; ?>
 
     <div class="card mb-lg">
         <div class="card__header">

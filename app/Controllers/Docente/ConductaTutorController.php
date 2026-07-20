@@ -67,8 +67,15 @@ class ConductaTutorController extends BaseController
         $total   = $this->model->totalCriterios((int) $seccion['nivel_id']);
         $cierre  = $this->model->getCierreVigente($sid, $pid);
 
-        // Solo hay datos que mostrar cuando RA ya bloqueo (cierre vigente).
-        $estudiantes = $cierre ? $this->model->getEstudiantesParaTutor($sid, $pid, $total) : [];
+        // Bimestre legado (literal directo, sin matriz): se muestra la tabla con
+        // un banner informativo, incluso si la seccion no tiene cierre vigente.
+        $legadoInfo = $this->model->getRegistroLegado($sid, $pid);
+
+        // Solo hay datos que mostrar cuando RA ya bloqueo (cierre vigente) o el
+        // bimestre es legado (registro previo a la matriz, ya entregado en boleta).
+        $estudiantes = ($cierre || $legadoInfo)
+            ? $this->model->getEstudiantesParaTutor($sid, $pid, $total)
+            : [];
 
         $cerradoTutor = $cierre && !empty($cierre['tutor_cerrado_en']);
         $editable     = $cierre && !$cerradoTutor && $this->model->periodoEditable($pid);
@@ -79,6 +86,7 @@ class ConductaTutorController extends BaseController
             'periodos'     => $periodos,
             'periodoSel'   => $periodoSel,
             'cierre'       => $cierre,
+            'legadoInfo'   => $legadoInfo,
             'estudiantes'  => $estudiantes,
             'editable'     => $editable,
             'cerradoTutor' => $cerradoTutor,

@@ -237,6 +237,41 @@ class ConductaModel extends BaseModel
     }
 
     /**
+     * Datos del registro legado de la seccion (bimestre con literal directo,
+     * anterior a la matriz de criterios): quien registro y cuando (ultimo
+     * guardado). Devuelve null si la seccion tiene matriz de respuestas en el
+     * periodo (modelo nuevo) o si no hay literales registrados.
+     */
+    public function getRegistroLegado(int $seccionId, int $periodoId): ?array
+    {
+        $hayMatriz = $this->queryOne("
+            SELECT 1
+            FROM conducta_respuestas r
+            INNER JOIN matriculas m ON m.id = r.matricula_id
+            WHERE m.seccion_id = ? AND r.periodo_id = ?
+            LIMIT 1
+        ", [$seccionId, $periodoId]);
+        if ($hayMatriz) {
+            return null;
+        }
+
+        $registro = $this->queryOne("
+            SELECT
+                CONCAT(p.nombres, ' ', p.apellido_paterno, ' ', p.apellido_materno) AS usuario,
+                cc.registrado_en
+            FROM calificaciones_conducta cc
+            INNER JOIN matriculas m ON m.id = cc.matricula_id
+            INNER JOIN usuarios   u ON u.id = cc.registrado_por
+            INNER JOIN personas   p ON p.id = u.persona_id
+            WHERE m.seccion_id = ? AND cc.periodo_id = ? AND cc.literal IS NOT NULL
+            ORDER BY cc.registrado_en DESC
+            LIMIT 1
+        ", [$seccionId, $periodoId]);
+
+        return $registro ?: null;
+    }
+
+    /**
      * Upsert atomico de las respuestas de un alumno. Exige que esten TODOS los
      * criterios de $criterioIds (los 10 son obligatorios). Devuelve false si falta
      * alguno o ante error de BD.

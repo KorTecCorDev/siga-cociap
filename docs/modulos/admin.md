@@ -241,6 +241,16 @@ y `/admin/asistencia`, con copia imprimible firmable. Migracion `043_cierres_asi
   roster que el registro; badge `.nota-literal`; alumnos sin registro = "—").
   El imprimible sigue BLOQUEADO para el legado (sin matriz no hay registro
   oficial de criterios que imprimir). Sin literales ni matriz → empty-state.
+- **Panel del tutor en bimestre legado (20/07/2026):** `docente/conducta` con
+  `legadoInfo` (`ConductaModel::getRegistroLegado` — quien registro y ultimo
+  `registrado_en`; null si el periodo tiene matriz o no hay literales, y el
+  filtro `literal IS NOT NULL` evita falsos positivos con filas B2+ que solo
+  llevan nota_tutor): banner unico "registradas por X el FECHA, los criterios
+  se implementaron el siguiente bimestre" en lugar de los alerts de
+  aprobado/cerrado, boton "Ver criterios" oculto, tabla de notas intacta.
+  La deteccion va ANTES del gate de cierre: una seccion legado SIN cierre
+  vigente (caso real: seccion 23 en B1) ve banner + tabla, no la pantalla
+  "pendiente de registro".
 
 ### Cierre de asistencia (nuevo — tabla `cierres_asistencia`)
 - Una sola etapa (espejo parcial de `cierres_conducta`): RA "Bloquear y aprobar"
