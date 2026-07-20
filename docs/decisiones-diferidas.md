@@ -82,11 +82,16 @@ parche consciente, no el comportamiento correcto.
 
 ### Recomendación DIFERIDA — compuerta de publicación (C)
 - Desacoplar "cerrar bimestre" (interno) de "publicar boletas a familias" (acto
-  de dirección): flag `periodos.publicado` + un `AND` en `soloOficiales`. Cambio
-  pequeño. **NO se construyó** (innecesaria para el taller con el plan final).
+  de dirección). **NO se construyó** (innecesaria para el taller con el plan final).
   **Retomar ANTES del cierre real del II Bim:** sin ella, cerrar publica al
   instante. También quedaron diferidos el modo mantenimiento (B) y el staging
   `dev.sigacociap.net`.
+- ⚠️ **El diseño original de esta recomendación (flag `periodos.publicado` + un
+  `AND` en `soloOficiales`) quedó OBSOLETO el 20/07/2026** y NO debe implementarse:
+  `soloOficiales` ya no existe (lo reemplazó el parámetro `$datos` del Hito A) y un
+  booleano no alcanza, porque la publicación es **por nivel y con fecha/hora**
+  (primaria se entrega un día antes que secundaria). **Plan vigente en
+  `docs/ESTADO.md` → "Compuerta de publicación de boletas".**
 
 ### Reencuadre de la fecha límite (guion del taller)
 - Mostrar el flujo completo revela que las boletas se arman al instante → NO

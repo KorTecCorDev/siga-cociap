@@ -55,9 +55,10 @@
 
 ## Pendientes de desarrollo
 - **Compuerta de publicación (CRÍTICO antes del cierre real del II Bimestre):**
-  flag `periodos.publicado` + `AND` en `soloOficiales`. Sin ella, poner un bimestre
-  en `cerrado` publica sus boletas a las familias al instante.
-  Ver `docs/decisiones-diferidas.md`.
+  sin ella, poner un bimestre en `cerrado` publica sus boletas a las familias al
+  instante. **Plan de implementación completo abajo** (sección "Compuerta de
+  publicación de boletas"). El diseño de `docs/decisiones-diferidas.md`
+  (`periodos.publicado`) quedó OBSOLETO: no alcanza un booleano.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
@@ -87,6 +88,116 @@
   intacto. Regla completa en `docs/modulos/boletas.md`. Incluye la reubicación
   del registro de exoneraciones a "Gestión de la matrícula"
   (`docs/modulos/matriculas.md`).
+
+## Compuerta de publicación de boletas — PLAN (20/07/2026, sin implementar)
+
+> **CRÍTICO: retomar ANTES del cierre real del II Bimestre.** Hoy cerrar un
+> bimestre publica sus boletas a las familias al instante. Plan diseñado y
+> discutido el 20/07; NADA construido. Migración pendiente: **044**.
+
+### Corrección al diseño viejo
+`docs/decisiones-diferidas.md` proponía `periodos.publicado` + un `AND` en
+`soloOficiales`. **Ambas premisas caducaron:** (a) `soloOficiales` ya no existe —
+lo reemplazó el parámetro `$datos` (`'oficial'`/`'borrador'`/`'todos'`) del Hito A,
+y el punto de entrada real es `BoletaModel::periodoAportaNotas()`; (b) un booleano
+no alcanza, porque la publicación es **por nivel y con fecha/hora**.
+
+### Decisiones cerradas con el usuario
+1. **Publicación por NIVEL con fecha y hora programada.** Las boletas se entregan
+   en reuniones oficiales y primaria se entrega, por lo general, un día antes que
+   secundaria.
+2. **Alcance = las 3 superficies de familias:** boleta por token/digital,
+   `/padre/notas` y la salida masiva con QR.
+3. **Publicar exige bimestre `cerrado`.**
+4. **CERRAR NUNCA PUBLICA.** Publicar/programar es siempre un acto separado.
+5. **Roles:** publican `admin` y `registro_academico`. `director_general` y
+   `director_ebr` ven el estado pero no operan (validar en el método, no ocultando
+   el botón).
+6. **Backfill retroactivo obligatorio:** todo bimestre ya `cerrado` se marca
+   publicado en ambos niveles. Sin esto, el deploy oculta B1 a todas las familias.
+7. **Trasladados IGNORAN la compuerta** (boleta archivada administrativa; el alumno
+   ya no tiene vínculo con la institución).
+8. **Procesos internos sin cambios:** SIAGIE, orden de mérito y su snapshot,
+   rectificaciones y retorno de grado siguen mirando solo `cerrado`.
+9. **Logro anual: debe exigir AÑO ACADÉMICO cerrado** (hoy usa "último bimestre
+   cerrado", `BoletaModel:92`). **NO entra en este trabajo** — queda para el final,
+   el usuario explicará antes la situación del cierre de fin de año.
+
+### Modelo de datos — migración `044_periodos_publicacion.sql`
+`periodos_publicacion(id, periodo_id, nivel_id, publica_en DATETIME,
+suspendida_en DATETIME NULL, publicado_por, creado_en,
+UNIQUE(periodo_id, nivel_id), FK periodo ON DELETE CASCADE, FK nivel)`.
+
+Sin fila = no publicado · `publica_en` futuro = programado · pasado = publicado.
+Un solo mecanismo cubre publicar y programar, **sin cron**: la condición se evalúa
+al leer. Backfill idempotente (`WHERE NOT EXISTS`): una fila por cada periodo
+`cerrado` × nivel con `publica_en = COALESCE(boletas_aprobadas_en, NOW())`.
+
+### Punto único de verdad
+Nuevo `PublicacionBoletaModel::periodosPublicados(anioId, nivelId, ahora): array`
+→ `publica_en <= :ahora AND suspendida_en IS NULL`. Ningún otro archivo consulta la
+tabla directamente (mismo criterio que `boleta_estado_bimestre`).
+
+### Zona horaria — riesgo resuelto por diseño
+MySQL local usa `SYSTEM` (coincide con Lima), pero **prod (Hostinger) es
+desconocido y suele estar en UTC** → una publicación programada a las 18:00 se
+dispararía 5 horas antes. Solución: **`$ahora` lo calcula PHP**
+(`config('timezone') = 'America/Lima'`, ya aplicado en `public/index.php:93`) y se
+pasa como parámetro preparado. `NOW()` de MySQL nunca interviene.
+
+### Puntos de lectura a tocar (4)
+1. `BoletaModel::armar()` + `periodoAportaNotas()` — reciben el set de periodos
+   publicados del nivel del alumno.
+2. `BoletaModel::getAlumno()` (`:157`) — añadir `n.id AS nivel_id` (hoy no lo trae).
+3. `BoletaController::resolveToken()` — el token resuelve al **último bimestre
+   PUBLICADO**, no al último cerrado.
+4. `Padre\PanelController::getPeriodoVigentePadre()` (`:160`) — `EXISTS` por nivel;
+   `getHijo` también necesita `n.id`.
+
+### DECISIÓN ABIERTA — corte `'oficial'` / `'archivo'`
+Si `'oficial'` respeta la publicación, **la salida masiva sale vacía**
+(`BoletaPublicaController:237` y `:274`) — pero RA **imprime las boletas ANTES** de
+la reunión de entrega. Propuesta (mismo eje de umbral, sin parámetro nuevo):
+- `'oficial'` → acceso EN LÍNEA de familias (token, digital, `/padre/notas`) →
+  **respeta** la publicación.
+- `'archivo'` → documento generado por STAFF (salida masiva impresa + trasladado) →
+  **ignora** la publicación.
+
+La compuerta protege el acceso en línea, no la impresión del colegio.
+**Falta confirmarlo con el usuario antes de implementar.**
+
+### Matriz de reapertura
+| Acción | Efecto |
+|---|---|
+| Cerrar | NO publica, nunca |
+| Publicar / Programar | solo si el bimestre está `cerrado` |
+| **Reabrir** | `suspendida_en = NOW()` en ambos niveles DE ESE bimestre |
+| **Volver a cerrar** | `suspendida_en = NULL` → **restaura la publicación previa** |
+| **Despublicar manual** | **borra la fila** + motivo auditado; NO revive al reabrir |
+
+Distinción clave: la suspensión por reapertura es **reversible**; la despublicación
+manual es **definitiva** hasta volver a publicar a mano.
+`Director\PeriodoController::cerrar()/reabrir()` entran en sus transacciones
+existentes.
+
+### UI
+Tercer paso en `/admin/control` (Centro de Control), junto a Aprobar/Anular del
+Hito A (`Admin\ControlOperativoController`), con estado por nivel y en lugar
+accesible. Rutas POST nuevas con `validateCsrf()`:
+`/admin/control/{periodo_id}/publicar`, `/despublicar`, `/programar`.
+
+### Orden de construcción
+1) migración 044 + backfill (verificar que B1 sigue visible) · 2) `PublicacionBoletaModel`
+· 3) los 4 puntos de lectura + corte `'oficial'`/`'archivo'` · 4) `cerrar()`/`reabrir()`
+· 5) UI + rutas + roles · 6) SASS + `gulp build` · 7) verificación e2e ·
+8) docs (`docs/modulos/boletas.md`, este archivo, invariante en `CLAUDE.md`).
+
+### No-regresión a verificar
+B1 sigue visible tras migrar (lo más delicado) · cerrar B2 no muestra nada a
+familias · publicar solo primaria no expone secundaria · lo programado es invisible
+hasta la hora exacta · reabrir oculta y re-cerrar restaura · lo despublicado a mano
+sigue oculto tras re-cerrar · docente y gestión (`'borrador'`) sin cambios · vista
+previa de RA (`'todos'`) sin cambios · SIAGIE, mérito y rectificaciones intactos.
 
 ## Ética y Valores (Educación Religiosa) — plan de encendido (07/07/2026)
 
