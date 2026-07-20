@@ -45,13 +45,40 @@ class ConductaController extends BaseController
         return null;
     }
 
-    // GET /admin/conducta
+    // GET /admin/conducta   (?periodo={id} = bimestre cerrado, historial)
     public function index(): void
     {
         $secciones     = $this->model->listarSeccionesActivas();
+        $periodos      = $this->model->listarPeriodosActivos();
         $periodoActivo = $this->periodoActivo();
-        $progreso      = $periodoActivo
-            ? $this->model->getProgresoConductaPorSeccion((int) $periodoActivo['id'])
+
+        // Periodo mostrado: el cerrado pedido por ?periodo= o el editable en curso.
+        $periodoParam = (int) ($this->query('periodo') ?? 0);
+        $periodoVer   = $periodoActivo;
+        if ($periodoParam && (!$periodoActivo || $periodoParam !== (int) $periodoActivo['id'])) {
+            $periodoVer = null;
+            foreach ($periodos as $p) {
+                if ((int) $p['id'] === $periodoParam && $p['estado'] === 'cerrado') {
+                    $periodoVer = $p;
+                    break;
+                }
+            }
+            if (!$periodoVer) {
+                $this->redirectWithError(url('admin/conducta'), 'Periodo no encontrado.');
+            }
+        }
+        $esHistorial = $periodoVer !== null && !((bool) $periodoVer['editable']);
+
+        // Opciones del select: el periodo editable + los cerrados (sin pendientes).
+        $periodosNav = [];
+        foreach ($periodos as $p) {
+            if ((bool) $p['editable'] || $p['estado'] === 'cerrado') {
+                $periodosNav[] = $p;
+            }
+        }
+
+        $progreso = $periodoVer
+            ? $this->model->getProgresoConductaPorSeccion((int) $periodoVer['id'])
             : [];
 
         $porNivel = [];
@@ -63,6 +90,9 @@ class ConductaController extends BaseController
             'titulo'        => 'Calificaciones de Conducta',
             'porNivel'      => $porNivel,
             'periodoActivo' => $periodoActivo,
+            'periodoVer'    => $periodoVer,
+            'periodosNav'   => $periodosNav,
+            'esHistorial'   => $esHistorial,
             'progreso'      => $progreso,
         ]);
     }
@@ -119,11 +149,31 @@ class ConductaController extends BaseController
 
         $estudiantes = $cierre = null;
         $completitud = ['esperados' => 0, 'completos' => 0];
+        $legado      = [];
         if ($periodoVer) {
             $pid         = (int) $periodoVer['id'];
             $estudiantes = $this->model->getEstudiantesParaRegistro($seccionId, $pid);
             $cierre      = $this->model->getCierreVigente($seccionId, $pid);
             $completitud = $this->model->completitudSeccion($seccionId, $pid, count($criterios));
+
+            // Bimestre legado (B1): sin matriz de respuestas pero con literal
+            // directo en calificaciones_conducta -> se muestra en solo lectura.
+            if ($soloLectura) {
+                $hayRespuestas = false;
+                foreach ($estudiantes as $est) {
+                    if (!empty($est['respuestas'])) {
+                        $hayRespuestas = true;
+                        break;
+                    }
+                }
+                if (!$hayRespuestas) {
+                    $filas      = $this->model->getLiteralesLegado($seccionId, $pid);
+                    $conLiteral = array_filter($filas, static fn($f) => $f['literal'] !== null);
+                    if (!empty($conLiteral)) {
+                        $legado = $filas;
+                    }
+                }
+            }
         }
 
         $this->view('admin/conducta/seccion', [
@@ -134,6 +184,7 @@ class ConductaController extends BaseController
             'soloLectura'  => $soloLectura,
             'criterios'    => $criterios,
             'estudiantes'  => $estudiantes ?? [],
+            'legado'       => $legado,
             'cierre'       => $cierre,
             'completitud'  => $completitud,
             'page_scripts' => $soloLectura ? [] : ['conducta'],

@@ -216,6 +216,16 @@ de retorno de grado (oficial en retorno activo / operativa revertida).
 Historial de lectura de los registros aprobados y bloqueados en `/admin/conducta`
 y `/admin/asistencia`, con copia imprimible firmable. Migracion `043_cierres_asistencia`.
 
+### Selector de bimestre en el INDICE de conducta (20/07/2026)
+- `GET /admin/conducta?periodo={pid}`: select en el page-header (patron de
+  `.control-selector`, clase propia `.conducta-periodo-selector`, GET +
+  `onchange=submit`) con el periodo editable "(en curso)" + los `cerrado`
+  "(cerrado)"; los `pendiente` no se listan y un `?periodo=` invalido redirige
+  con error. En historial: el progreso/cierres de las cards se calculan para
+  ese periodo (`getProgresoConductaPorSeccion` es por-periodo), las cards SIN
+  cierre muestran "Sin cierre" (sin barra de progreso) y los enlaces llevan
+  `?periodo=` para caer en la vista de seccion en solo lectura.
+
 ### Selector de bimestre (ambas vistas de seccion)
 - `GET /admin/{conducta|asistencia}/{id}?periodo={pid}`: pestañas `.periodo-tabs`
   con los periodos del año activo **excepto los `pendiente`** (futuros, sin datos).
@@ -224,6 +234,13 @@ y `/admin/asistencia`, con copia imprimible firmable. Migracion `043_cierres_asi
   NO editable se muestra en **solo lectura**: sin toolbar, sin botones de guardar,
   sin `page_scripts` (la nota RA de conducta se calcula en servidor, patron de
   `docente/conducta-criterios.php`); asistencia muestra los contadores como texto.
+- **Bimestre legado en conducta (B1, 20/07/2026):** si el periodo en solo lectura
+  no tiene matriz de respuestas pero SI literales directos en
+  `calificaciones_conducta` (modelo anterior a la migracion 021), la vista muestra
+  una tabla simple nombre + literal (`ConductaModel::getLiteralesLegado`, mismo
+  roster que el registro; badge `.nota-literal`; alumnos sin registro = "—").
+  El imprimible sigue BLOQUEADO para el legado (sin matriz no hay registro
+  oficial de criterios que imprimir). Sin literales ni matriz → empty-state.
 
 ### Cierre de asistencia (nuevo — tabla `cierres_asistencia`)
 - Una sola etapa (espejo parcial de `cierres_conducta`): RA "Bloquear y aprobar"

@@ -208,6 +208,35 @@ class ConductaModel extends BaseModel
     }
 
     /**
+     * Literales legados de la seccion (I Bimestre: literal directo en
+     * calificaciones_conducta, sin matriz de respuestas). Mismo roster que
+     * getEstudiantesParaRegistro; literal NULL si el alumno no tiene registro.
+     * Para el historial de solo lectura de RA.
+     */
+    public function getLiteralesLegado(int $seccionId, int $periodoId): array
+    {
+        return $this->query("
+            SELECT
+                m.id AS matricula_id,
+                CONCAT(p.apellido_paterno,' ',p.apellido_materno,', ',p.nombres) AS nombre_completo,
+                cc.literal
+            FROM matriculas m
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas    p ON p.id = e.persona_id
+            LEFT JOIN calificaciones_conducta cc
+                ON cc.matricula_id = m.id AND cc.periodo_id = ?
+            WHERE m.seccion_id = ?
+              -- Mismo roster que getEstudiantesParaRegistro (todos salvo el
+              -- traslado de salida; retorno excluye la matricula que no aplica).
+              AND m.tipo != 'trasladado'
+              AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
+              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+              AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)
+            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
+        ", [$periodoId, $seccionId]);
+    }
+
+    /**
      * Upsert atomico de las respuestas de un alumno. Exige que esten TODOS los
      * criterios de $criterioIds (los 10 son obligatorios). Devuelve false si falta
      * alguno o ante error de BD.

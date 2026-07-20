@@ -1,10 +1,13 @@
 <?php
 /**
  * @var array       $porNivel       { nivel_nombre => [ seccion[] ] }
- * @var array       $periodos       [{ id, numero, nombre_display, editable }]
- * @var array|null  $periodoActivo  { id, nombre_display, ... } o null
- * @var array       $progreso       [ seccion_id => [esperados, calificados] ]
+ * @var array|null  $periodoActivo  periodo editable en curso o null
+ * @var array|null  $periodoVer     periodo mostrado (editable o cerrado) o null
+ * @var array       $periodosNav    periodos del select: editable + cerrados
+ * @var bool        $esHistorial    true = periodo cerrado (solo lectura)
+ * @var array       $progreso       [ seccion_id => [esperados, calificados, bloqueada, cerrada_tutor] ]
  */
+$pidVer = $periodoVer ? (int) $periodoVer['id'] : 0;
 ?>
 
 <div class="page-header">
@@ -12,7 +15,10 @@
     <div>
         <h1 class="page-title">Calificaciones de Conducta</h1>
         <p class="page-subtitle">
-            <?php if ($periodoActivo): ?>
+            <?php if ($esHistorial): ?>
+                Historial del <strong><?= e($periodoVer['nombre_display']) ?></strong>
+                — solo lectura. Selecciona una sección para ver su registro.
+            <?php elseif ($periodoActivo): ?>
                 Selecciona una sección para registrar las calificaciones del
                 <strong><?= e($periodoActivo['nombre_display']) ?></strong>.
             <?php else: ?>
@@ -20,6 +26,21 @@
             <?php endif; ?>
         </p>
     </div>
+    <?php if (!empty($periodosNav)): ?>
+        <form method="GET" action="<?= url('admin/conducta') ?>" class="conducta-periodo-selector">
+            <label for="periodo" class="form-label">Bimestre</label>
+            <select name="periodo" id="periodo" class="form-select"
+                    onchange="this.form.submit()">
+                <?php foreach ($periodosNav as $p): ?>
+                    <option value="<?= (int) $p['id'] ?>"
+                        <?= (int) $p['id'] === $pidVer ? 'selected' : '' ?>>
+                        <?= e($p['nombre_display']) ?>
+                        <?= (bool) $p['editable'] ? '(en curso)' : '(cerrado)' ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </form>
+    <?php endif; ?>
 </div>
 
 <?php if (empty($porNivel)): ?>
@@ -40,7 +61,7 @@
                 $pct         = $esperados > 0 ? (int) round($calificados * 100 / $esperados) : 0;
                 $completo    = $esperados > 0 && $calificados >= $esperados;
             ?>
-                <a href="<?= url('admin/conducta/' . $s['id']) ?>"
+                <a href="<?= url('admin/conducta/' . $s['id'] . ($esHistorial ? '?periodo=' . $pidVer : '')) ?>"
                    class="conducta-seccion-card<?= $bloqueada ? ' conducta-seccion-card--bloqueada' : '' ?>">
                     <span class="conducta-seccion-card__grado"><?= e($s['grado_nombre']) ?></span>
                     <span class="conducta-seccion-card__nombre">Sección <?= e($s['seccion_nombre']) ?></span>
@@ -49,9 +70,11 @@
                         <span class="conducta-estado-badge conducta-estado-badge--<?= $cerradaTut ? 'cerrada' : 'bloqueada' ?>">
                             <?= $cerradaTut ? '✓ Cerrada por el tutor' : '🔒 Bloqueada' ?>
                         </span>
+                    <?php elseif ($esHistorial): ?>
+                        <span class="text-muted">Sin cierre</span>
                     <?php endif; ?>
 
-                    <?php if ($periodoActivo && !$bloqueada): ?>
+                    <?php if (!$esHistorial && $periodoActivo && !$bloqueada): ?>
                         <div class="conducta-progreso<?= $completo ? ' conducta-progreso--completo' : '' ?>">
                             <?php if ($esperados === 0): ?>
                                 <span class="conducta-progreso__vacio">Sin estudiantes</span>

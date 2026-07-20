@@ -11,6 +11,8 @@
  * @var bool        $soloLectura  true = periodo no editable (historial)
  * @var array       $criterios    [{ id, texto, orden }]
  * @var array       $estudiantes  [{ matricula_id, nombre_completo, respuestas[criterio_id] }]
+ * @var array       $legado       [{ matricula_id, nombre_completo, literal }] — solo
+ *                                bimestre legado (literal directo) en solo lectura
  * @var array|null  $cierre       cierre vigente del periodo mostrado o null
  * @var array       $completitud  { esperados, completos }
  */
@@ -106,10 +108,51 @@ foreach ($estudiantes as $est) {
 
 <?php if ($soloLectura && !$hayRespuestas): ?>
 
-    <div class="empty-state">
-        <p>Este bimestre se registró con el modelo anterior (calificación literal
-        directa), por lo que no hay una matriz de criterios que mostrar.</p>
-    </div>
+    <?php if (!empty($legado)): ?>
+
+        <div class="alert alert--info">
+            <span>Este bimestre se registró con el modelo anterior: calificación
+            literal directa, sin matriz de criterios. Se muestra el literal
+            registrado por alumno.</span>
+        </div>
+
+        <div class="tabla-notas-wrapper">
+            <table class="tabla-notas">
+                <thead>
+                    <tr>
+                        <th class="col-num">N°</th>
+                        <th class="col-nombre">Apellidos y Nombres</th>
+                        <th>Conducta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($legado as $idx => $fila): ?>
+                        <tr>
+                            <td class="col-num"><?= $idx + 1 ?></td>
+                            <td class="col-nombre"><?= e($fila['nombre_completo']) ?></td>
+                            <td>
+                                <?php if ($fila['literal'] !== null): ?>
+                                    <span class="nota-literal nota-literal--<?= strtolower($fila['literal']) ?>">
+                                        <?= e($fila['literal']) ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="text-muted" title="Sin registro en este bimestre">—</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+
+    <?php else: ?>
+
+        <div class="empty-state">
+            <p>Este bimestre se registró con el modelo anterior (calificación literal
+            directa), por lo que no hay una matriz de criterios que mostrar.</p>
+        </div>
+
+    <?php endif; ?>
 
 <?php else: ?>
 
