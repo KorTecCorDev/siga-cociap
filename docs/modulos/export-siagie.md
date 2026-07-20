@@ -21,7 +21,14 @@
   promedio agregado con cierre vigente del tutor (vía `getBoletaAlumno`).
 - **`estudiantes.codigo_estudiante` = código SIAGIE (14 dígitos, col. B):** se
   persiste tras el primer match por nombre SOLO si está vacío; un valor
-  distinto es conflicto reportado, nunca se pisa.
+  distinto es conflicto reportado, nunca se pisa. **Solo se persiste si tiene
+  formato `^\d{14}$`** (mutación durable que se vuelve la llave de matcheo de
+  los próximos bimestres): un código con otro formato NO se registra (la nota sí
+  se escribe) y sale una advertencia en el reporte. Guard replicado en
+  `guardarCodigoSiagie` como defensa en profundidad. Además, si un mismo código
+  aparece REPETIDO en el roster de SIGA (no hay UNIQUE en la columna), el matcher
+  NO matchea por código esa fila → la marca `ambiguo` para resolución manual (no
+  se escribe la nota al alumno equivocado).
 - El original se reemplaza in-place (decisión del usuario, para que el SIAGIE
   no rebote el archivo) pero SIEMPRE tras: escribir a temporal → verificar
   celda por celda → respaldar en `scripts/siagie/backup/{fecha}/`.
@@ -183,10 +190,14 @@ con nóminas reales (S1A, S5B; primaria 4°A). Puntos propios:
 literales cruzados contra BD; 22 códigos persistidos; segunda corrida
 idempotente (matchea por código, 0 escrituras); protección/merges intactos.
 
-## Pendientes
+## Estado y pendientes
 
-Ver `docs/ESTADO.md`: piloto de re-importación al SIAGIE (1 archivo),
-reprocesar las actas de primaria llenadas antes del 14/07 (Inglés en blanco:
-mínimo 4°A/4°B B1), y para secundaria: selector de talleres + Ética/EREL en B2
-(ambos diferidos). La discrepancia de Inglés C1 primaria y el poblado de
-`codigo_siagie` de primaria quedaron RESUELTOS (14-16/07, migración 041).
+**B1 cerrado (20/07/2026):** todo el I Bimestre (primaria y secundaria) se subió
+al SIAGIE por este flujo sin rebotes. Con eso quedaron superados el piloto de
+re-importación, la verificación end-to-end y el reprocesamiento de las actas de
+primaria pre-14/07. La discrepancia de Inglés C1 primaria y el poblado de
+`codigo_siagie` de primaria se resolvieron antes (14-16/07, migración 041).
+
+Pendientes vivos (ver `docs/ESTADO.md`): para secundaria, selector de talleres +
+Ética/EREL en B2 (ambos diferidos); y la aspiración de exportación por lote
+("solo subir las nóminas") — hoy el flujo es una sección por vez.

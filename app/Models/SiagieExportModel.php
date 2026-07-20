@@ -305,6 +305,12 @@ class SiagieExportModel extends BaseModel
      */
     public function guardarCodigoSiagie(int $estudianteId, string $codigo): bool
     {
+        // Defensa en profundidad: el código SIAGIE es de 14 dígitos. Nunca
+        // persistir un formato inválido (el llenador ya filtra; esto blinda a
+        // cualquier otro llamador presente o futuro).
+        if (!preg_match('/^\d{14}$/', $codigo)) {
+            return false;
+        }
         return $this->execute("
             UPDATE estudiantes
             SET codigo_estudiante = ?

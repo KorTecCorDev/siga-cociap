@@ -53,11 +53,15 @@ class MatcherEstudiantes
      */
     public static function matchear(array $filasExcel, array $estudiantes): array
     {
-        $porCodigo = [];
-        $porNombre = [];
+        $porCodigo       = [];
+        $codigoDuplicado = []; // código repetido en SIGA → identidad NO única
+        $porNombre       = [];
         foreach ($estudiantes as $e) {
             $codigo = trim((string) ($e['codigo_estudiante'] ?? ''));
             if ($codigo !== '') {
+                if (isset($porCodigo[$codigo])) {
+                    $codigoDuplicado[$codigo] = true;
+                }
                 $porCodigo[$codigo] = $e;
             }
             $clave = self::normalizar($e['apellido_paterno'] . ' ' . $e['apellido_materno'] . ' ' . $e['nombres']);
@@ -79,8 +83,14 @@ class MatcherEstudiantes
                 'detalle'    => '',
             ];
 
-            // 1) Por código SIAGIE ya persistido
-            if ($codigoExcel !== '' && isset($porCodigo[$codigoExcel])) {
+            // 1) Por código SIAGIE ya persistido. Si ese código está REPETIDO en
+            //    SIGA, la identidad no es única → no se matchea por código (evita
+            //    escribir la nota al alumno equivocado); se marca para resolución.
+            if ($codigoExcel !== '' && isset($codigoDuplicado[$codigoExcel])) {
+                $resultado['estado']  = 'ambiguo';
+                $resultado['detalle'] = "El código {$codigoExcel} está repetido en SIGA (dos o más alumnos lo tienen) — identidad no única, resolver manualmente y corregir en las matrículas";
+            }
+            elseif ($codigoExcel !== '' && isset($porCodigo[$codigoExcel])) {
                 $e = $porCodigo[$codigoExcel];
                 $resultado['estado']     = 'match_codigo';
                 $resultado['estudiante'] = $e;

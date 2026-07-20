@@ -134,15 +134,19 @@ sección 13: 510 respuestas sembradas + cierre RA id=25 (limpiar con
 (SELECT id FROM matriculas WHERE seccion_id=13); DELETE FROM cierres_conducta
 WHERE id=25;`).
 
-## Exportación SIAGIE (implementada 03/07 — pendientes de cierre)
+## Exportación SIAGIE (implementada 03/07 — B1 cerrado en prod el 20/07)
+- **B1 COMPLETO subido al SIAGIE sin rebotes (20/07/2026, confirmado por el
+  usuario):** todas las notas del I Bimestre (primaria y secundaria) se llenaron
+  por este flujo y el SIAGIE aceptó los archivos. Esto valida end-to-end el
+  pipeline y cierra los pendientes de "piloto de re-importación", "verificar
+  end-to-end" y "reprocesar actas de primaria". Lo que sigue son mejoras
+  (automatización del lote) y los diferidos de secundaria, no correcciones.
 - **Módulo web "Actas SIAGIE" (12/07):** UI para admin/RA (subir → previsualizar
-  con resolución de identidad → confirmar → descargar). Flujo efímero, solo
-  primaria, una sección por vez. Las libs se movieron de `scripts/siagie/lib/` a
-  `app/Siagie/` (namespace `App\Siagie\`, autocargable) y la orquestación del CLI
-  se extrajo a `app/Siagie/LlenadorSiagie.php` (CLI = wrapper delgado). Detalle en
-  `docs/modulos/export-siagie.md`. **Falta verificar end-to-end** con un xlsx real
-  del SIAGIE (correr `--simular` para confirmar reporte idéntico + subir una vez
-  por la web) — no había archivo modelo local en esta sesión.
+  con resolución de identidad → confirmar → descargar). Flujo efímero, una
+  sección por vez (primaria y secundaria). Las libs se movieron de
+  `scripts/siagie/lib/` a `app/Siagie/` (namespace `App\Siagie\`, autocargable) y
+  la orquestación del CLI se extrajo a `app/Siagie/LlenadorSiagie.php` (CLI =
+  wrapper delgado). Detalle en `docs/modulos/export-siagie.md`.
 - **Cambio de sección sin tramitar — detección (12/07):** el módulo detecta si una
   fila `sin_match` es un alumno que SIGA tiene en OTRA sección del mismo grado y
   permite resolverlo por DNI (escribe sus notas reales, marcado como cruce en el
@@ -152,17 +156,15 @@ WHERE id=25;`).
   mitad de bimestre es delicado (sus `calificaciones` cuelgan de las `cargas` de
   la sección vieja). Por ahora el módulo SIAGIE solo lo detecta/resuelve en el
   acta; la reconciliación real en SIGA queda como decisión de diseño futura.
-- **Piloto de re-importación:** subir al SIAGIE UN archivo llenado (1°A B1 ya
-  probado en local) y confirmar que lo acepta, ANTES del lote completo de
-  primaria. Si rechazara los shared strings anexados, el fallback está previsto
-  en `docs/modulos/export-siagie.md`.
-- **Discrepancia de catálogo — Inglés C1: RESUELTA.** Renombrada al nombre
-  oficial CN (con "oralmente") directo en BD local+prod el 14/07; formalizada en
-  la migración `041` (16/07, no-op donde ya está corregida). Efecto histórico:
-  las actas de primaria llenadas ANTES del 14/07 (4°A/4°B B1) salieron con la
-  columna 01 de Inglés en blanco pese a tener notas bloqueadas → REPROCESARLAS
-  (ver Pendientes operativos). Diagnóstico completo en
-  `docs/modulos/export-siagie.md`.
+- **Piloto de re-importación: SUPERADO.** El B1 completo se re-importó al SIAGIE
+  sin rebotes (20/07); los shared strings anexados fueron aceptados, así que el
+  fallback previsto en `docs/modulos/export-siagie.md` no hizo falta.
+- **Discrepancia de catálogo — Inglés C1: RESUELTA (histórico).** Renombrada al
+  nombre oficial CN (con "oralmente") directo en BD local+prod el 14/07;
+  formalizada en la migración `041` (16/07, no-op donde ya está corregida). Las
+  actas de primaria llenadas ANTES del 14/07 (4°A/4°B B1) salieron con Inglés en
+  blanco y ya fueron reprocesadas dentro del cierre de B1 del 20/07. Diagnóstico
+  completo en `docs/modulos/export-siagie.md`.
 - **`codigo_siagie` de primaria: POBLADO** (migración `041`, 16/07) con los
   códigos del archivo RegNotas real de 4°A B1. El fallback por posición ya
   opera en ambos niveles; una discrepancia de nombre futura ya no deja la
@@ -179,14 +181,6 @@ WHERE id=25;`).
     → EXO. En B1 no hay notas de Ética → EREL en blanco es correcto.
 
 ## Pendientes operativos (usuario / colegio)
-- **Reprocesar por `/admin/actas-siagie` las actas de primaria llenadas antes
-  del 14/07** (mínimo 4°A y 4°B B1) — DESBLOQUEADO el 20/07 (código y
-  migraciones ya en prod): quedaron con la columna 01 de Inglés en
-  blanco por la discrepancia de nombre de C1 (ya resuelta). El módulo solo
-  escribe celdas vacías, así que re-subir el acta ya llenada es seguro: completa
-  Inglés sin tocar lo demás. En 4°A quedará por resolver la fila de GALICIA
-  MENDOZA (sin_match, SIGA la tiene en 4°B — cambio de sección sin tramitar) y
-  DIEGO LOPEZ figura en SIGA 4°A sin fila en el Excel.
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
   (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la
   pestaña se cierra y no se acumulan.

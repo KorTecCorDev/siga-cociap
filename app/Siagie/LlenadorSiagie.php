@@ -101,6 +101,7 @@ class LlenadorSiagie
         $matchesBase      = null; // matching de la primera hoja (se reusa si las filas coinciden)
         $firmaBase        = null;
         $codigosPersistir = [];   // estudiante_id => codigo (dedupe entre hojas)
+        $codigosInvalidos = [];   // estudiante_id => true (código col. B sin 14 dígitos, reportado una vez)
         $notasCache       = [];   // matricula_id => notas por competencia
         $exoCache         = [];   // matricula_id => set exoneradas
         $autCache         = [];   // matricula_id => notas autorizadas por direccion
@@ -306,9 +307,17 @@ class LlenadorSiagie
                     $exoCache[$mid]   = $this->modelo->competenciasExoneradas($mid, $destino['anio_id']);
                     $autCache[$mid]   = $this->modelo->notasAutorizadas($mid, $destino['periodo_id']);
                 }
-                // Código SIAGIE a persistir tras match por nombre o resolución (una sola vez)
+                // Código SIAGIE a persistir tras match por nombre o resolución (una sola vez).
+                // Es una mutación DURABLE que se vuelve la llave de matcheo de los próximos
+                // bimestres → solo si tiene el formato oficial de 14 dígitos; nunca grabar basura.
                 if ($this->persisteCodigo($mm['estado']) && $mm['codigo'] !== '' && trim((string) $e['codigo_estudiante']) === '') {
-                    $codigosPersistir[(int) $e['estudiante_id']] = $mm['codigo'];
+                    $eid = (int) $e['estudiante_id'];
+                    if (preg_match('/^\d{14}$/', $mm['codigo'])) {
+                        $codigosPersistir[$eid] = $mm['codigo'];
+                    } elseif (!isset($codigosInvalidos[$eid])) {
+                        $codigosInvalidos[$eid] = true;
+                        $advertencias[] = "{$hoja} fila {$fila}: el código '{$mm['codigo']}' de la columna B no tiene 14 dígitos — la nota SÍ se escribe, pero el código NO se registra en SIGA (revisar el Excel)";
+                    }
                 }
 
                 foreach ($mapa as $numero => $cc) {
