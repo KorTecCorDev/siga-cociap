@@ -1,33 +1,14 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **17/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **20/07/2026**.
 
 ## Migraciones
-- **LOCAL: al día hasta la `043`. PROD: al día hasta la `037`** (034-037 aplicadas
-  en prod el 09/07/2026 — confirmado por el usuario). **`038` a `043` YA en
-  LOCAL, PENDIENTES en PROD** (se aplican manualmente tras el merge a main).
-
-### PENDIENTES EN PROD — checklist de aplicación (actualizado 17/07/2026)
-
-> Aplicar EN ORDEN, con conexión **utf8mb4**, DESPUÉS del merge `dev` → `main`
-> (el código que las consume viaja en ese deploy). Las 6 son **idempotentes**
-> (re-ejecutarlas no daña). Cada archivo trae su query de verificación
-> comentada al final. Credenciales/acceso: sección "Despliegue real" de
-> `docs/infraestructura.md`.
-
-| # | Migración | Tipo | Qué hace / verificación rápida |
-|---|---|---|---|
-| 1 | `038_matriculas_traslado_entrada_pendiente` | datos | Corrige 6 matrículas del registro masivo (4 → `pendiente`, 3 de ellas → `tipo='nuevo'`). Verificar: 4 filas afectadas la 1.ª vez, 0 al reintentar. |
-| 2 | `039_areas_codigo_siagie` | schema+datos | Crea `areas.codigo_siagie` y lo puebla para SECUNDARIA + corrige `nombre_siagie` del Taller Raz. Mat. Preview de solo lectura comentado en el archivo. |
-| 3 | `040_notas_autorizadas_siagie` | schema | Crea la tabla `notas_autorizadas_siagie` (notas autorizadas por dirección, solo-export). |
-| 4 | `041_areas_codigo_siagie_primaria` | datos | Puebla `codigo_siagie` de PRIMARIA (códigos propios: Inglés `0003`, COMU `0005`, PPSS `067`). El rename de Inglés C1 incluido es **no-op en prod** (ya se corrigió a mano el 14/07). |
-| 5 | `042_calificacion_extraordinaria` | schema | `criterios.extraordinario`, `calificaciones.extraordinaria`, `rectificaciones_calificacion.tipo` (calificación extraordinaria por RA). |
-| 6 | `043_cierres_asistencia` | schema | Crea `cierres_asistencia` (bloqueo/aprobación del registro de asistencia por sección+bimestre, espejo de una etapa de `cierres_conducta`). |
-
-**Después de aplicar:** actualizar esta sección (PROD al día hasta la `043`) y
-recién entonces reprocesar las actas SIAGIE de 4°A/4°B B1 (ver Pendientes
-operativos) y usar la calificación extraordinaria en prod.
+- **LOCAL y PROD: al día hasta la `043`.** Las 038-043 se aplicaron en prod el
+  **20/07/2026** (confirmado por el usuario), inmediatamente después del merge
+  `dev` → `main` del mismo día. Las 034-037 se habían aplicado el 09/07/2026.
+  Con esto quedan desbloqueados en prod: reprocesar las actas SIAGIE de
+  4°A/4°B B1 (ver Pendientes operativos) y la calificación extraordinaria.
 - **`043_cierres_asistencia`** (17/07): crea `cierres_asistencia` (una sola
   etapa: RA bloquea; anulable con traza). Soporte del historial de bimestres y
   del imprimible oficial de Conducta/Asistencia (ver `docs/modulos/admin.md`).
@@ -199,7 +180,8 @@ WHERE id=25;`).
 
 ## Pendientes operativos (usuario / colegio)
 - **Reprocesar por `/admin/actas-siagie` las actas de primaria llenadas antes
-  del 14/07** (mínimo 4°A y 4°B B1): quedaron con la columna 01 de Inglés en
+  del 14/07** (mínimo 4°A y 4°B B1) — DESBLOQUEADO el 20/07 (código y
+  migraciones ya en prod): quedaron con la columna 01 de Inglés en
   blanco por la discrepancia de nombre de C1 (ya resuelta). El módulo solo
   escribe celdas vacías, así que re-subir el acta ya llenada es seguro: completa
   Inglés sin tocar lo demás. En 4°A quedará por resolver la fila de GALICIA
@@ -230,7 +212,9 @@ WHERE id=25;`).
 ## Git
 - `dev` = rama de trabajo; `main` = producción (auto-deploy en Hostinger).
   **Preguntar SIEMPRE antes de mergear `dev` → `main`.**
-- `dev` y `main` sincronizados el 09/07/2026 (turno tarde): boletas de
-  desactivados/trasladados, buscador de nómina docente, reubicación de
-  exoneraciones y **compuerta del Hito A** (la nota aparece solo tras la
-  aprobación de RA). Migraciones 034-037 ya en prod.
+- `dev` y `main` sincronizados el 20/07/2026 (ff `8ae3d08..567b7f9`): lote
+  SIAGIE completo (módulo web Actas + secundaria + notas autorizadas por
+  dirección), calificación extraordinaria, historial de conducta/asistencia
+  con imprimible (migr. 043), vista legado B1 de conducta (admin + banner del
+  tutor) y selector de bimestre en /admin/conducta. Migraciones 038-043 ya
+  en prod.
