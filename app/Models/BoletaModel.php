@@ -23,16 +23,18 @@ class BoletaModel extends BaseModel
     private OmisionCriterioModel $omisionModel;
     private ExoneracionModel     $exoModel;
     private DirectorEbrModel     $dirModel;
+    private PublicacionBoletaModel $publicacionModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->calModel        = new CalificacionModel();
-        $this->conductaModel   = new ConductaModel();
-        $this->asistenciaModel = new AsistenciaModel();
-        $this->omisionModel    = new OmisionCriterioModel();
-        $this->exoModel        = new ExoneracionModel();
-        $this->dirModel        = new DirectorEbrModel();
+        $this->calModel         = new CalificacionModel();
+        $this->conductaModel    = new ConductaModel();
+        $this->asistenciaModel  = new AsistenciaModel();
+        $this->omisionModel     = new OmisionCriterioModel();
+        $this->exoModel         = new ExoneracionModel();
+        $this->dirModel         = new DirectorEbrModel();
+        $this->publicacionModel = new PublicacionBoletaModel();
     }
 
     /**
@@ -40,17 +42,28 @@ class BoletaModel extends BaseModel
      *
      * COMPUERTA DEL HITO A (09/07/2026): un bimestre aporta NOTAS segun su estado
      * de boleta (boleta_estado_bimestre). $datos define el umbral:
-     *   - 'oficial'  : solo bimestres CERRADOS (familias: token, salida masiva con
-     *                  QR). El BORRADOR de Hito A NUNCA se expone al publico.
+     *   - 'oficial'  : solo bimestres CERRADOS **y PUBLICADOS al nivel del alumno**
+     *                  (acceso EN LINEA de familias: token, digital, /padre/notas).
+     *                  El BORRADOR de Hito A NUNCA se expone al publico.
+     *   - 'archivo'  : solo bimestres CERRADOS, IGNORANDO la compuerta de
+     *                  publicacion (documento generado por STAFF: salida masiva
+     *                  impresa y boleta del trasladado). Ver abajo.
      *   - 'borrador' : cerrado O activo con Hito A aprobado (interno: docente y
      *                  gestion). Un bimestre en 'registro' NO aporta notas aunque
      *                  el docente ya haya bloqueado su competencia.
      *   - 'todos'    : incluye 'registro' (UNICA excepcion: la vista previa de RA,
      *                  su herramienta para decidir el Hito A).
      *
+     * COMPUERTA DE PUBLICACION (21/07/2026, migracion 044): cerrar un bimestre ya
+     * NO publica sus boletas; publicar es un acto separado, por NIVEL y con
+     * fecha/hora. El corte 'oficial' / 'archivo' existe porque RA IMPRIME las
+     * boletas ANTES de la reunion de entrega: la compuerta protege el acceso EN
+     * LINEA de las familias, no la impresion del colegio. Mismo umbral de datos
+     * (solo cerrados) en ambos; solo cambia si se respeta la publicacion.
+     *
      * @param int    $matriculaId  matricula consultada (puede ser operativa en retorno).
      * @param int    $periodoId    periodo a resaltar como activo.
-     * @param string $datos        'oficial' | 'borrador' | 'todos' (umbral de notas).
+     * @param string $datos        'oficial' | 'archivo' | 'borrador' | 'todos'.
      * @param bool   $estructuraCompleta REGLA DE FORMATO (09/07/2026): mantiene la
      *                             estructura anual completa (todas las columnas de
      *                             bimestres) aunque $datos filtre las notas
@@ -77,12 +90,33 @@ class BoletaModel extends BaseModel
         }
 
         $anioId = (int) $periodo['anio_id'];
+
+        // Compuerta de PUBLICACION: solo la respeta el umbral 'oficial' (acceso en
+        // linea de familias). 'archivo' comparte el corte de datos pero la ignora,
+        // porque RA imprime las boletas antes de la reunion de entrega. null = la
+        // compuerta no aplica a este umbral.
+        $publicados = ($datos === 'oficial')
+            ? $this->publicacionModel->periodosPublicados($anioId, (int) $alumno['nivel_id'])
+            : null;
+
         // Estructura (columnas) vs datos: las columnas son todos los periodos del
-        // anio, salvo el modo historico del token (datos='oficial' sin estructura
-        // completa), que colapsa a cerrados. El umbral de NOTAS lo aplica el guard
-        // del loop de abajo segun $datos.
-        $colapsarColumnas = ($datos === 'oficial') && !$estructuraCompleta;
+        // anio, salvo el modo historico del token ('oficial'/'archivo' sin
+        // estructura completa), que colapsa a cerrados. El umbral de NOTAS lo
+        // aplica el guard del loop de abajo segun $datos.
+        $colapsarColumnas = in_array($datos, ['oficial', 'archivo'], true) && !$estructuraCompleta;
         $periodos = $this->getPeriodosDelAnio($anioId, $colapsarColumnas);
+
+        // Con las columnas colapsadas, un bimestre cerrado pero AUN NO PUBLICADO
+        // tampoco arma columna: la familia no debe ver una columna vacia que
+        // delate que el bimestre ya cerro. Sin colapsar (estructura anual
+        // completa) la columna se mantiene y es el guard de datos el que la
+        // deja vacia.
+        if ($publicados !== null && $colapsarColumnas) {
+            $periodos = array_values(array_filter(
+                $periodos,
+                fn(array $p): bool => isset($publicados[(int) $p['id']])
+            ));
+        }
 
         // Logro anual = nota del ULTIMO bimestre del anio (mayor numero), visible
         // SOLO cuando ese bimestre esta cerrado. NO es el ultimo bimestre CERRADO
@@ -96,7 +130,7 @@ class BoletaModel extends BaseModel
         $periodosConDatos = [];
         $datosPorPeriodo  = [];
         foreach ($periodos as $p) {
-            if (!$this->periodoAportaNotas($p, $datos)) {
+            if (!$this->periodoAportaNotas($p, $datos, $publicados)) {
                 $datosPorPeriodo[$p['id']] = [];
                 continue;
             }
@@ -116,13 +150,23 @@ class BoletaModel extends BaseModel
         // total. Solo cerrados (misma regla en la boleta de familias y la interna,
         // independiente del modo $datos). El total SUMA los bimestres mostrados
         // (no un acumulado por numero<=, que podria incluir uno no mostrado).
+        // COMPUERTA DE PUBLICACION: cuando aplica ('oficial'), un bimestre cerrado
+        // pero no publicado tampoco aporta ASISTENCIA. Si no, la familia veria la
+        // columna de asistencia de un bimestre cuyas notas siguen ocultas, lo que
+        // delataria que ya cerro y expondria medio bimestre. Hasta la migracion 044
+        // ambos conjuntos coincidian (cerrado == visible) y el filtro no hacia falta.
         $periodosCerrados = $this->getPeriodosDelAnio($anioId, true);
         $asisBimestres = [];
         $asisTotal = ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0];
         foreach ($periodosCerrados as $pc) {
-            $datos = $this->asistenciaModel->getDelBimestreUnion($fuentes, (int) $pc['id']);
-            $asisBimestres[] = ['id' => (int) $pc['id'], 'numero' => (int) $pc['numero'], 'datos' => $datos];
-            foreach ($asisTotal as $k => $_) { $asisTotal[$k] += (int) $datos[$k]; }
+            if ($publicados !== null && !isset($publicados[(int) $pc['id']])) {
+                continue;
+            }
+            // OJO: variable propia, NO reusar el nombre $datos (parametro del metodo,
+            // leido mas abajo por el filtro de conducta).
+            $asisDatos = $this->asistenciaModel->getDelBimestreUnion($fuentes, (int) $pc['id']);
+            $asisBimestres[] = ['id' => (int) $pc['id'], 'numero' => (int) $pc['numero'], 'datos' => $asisDatos];
+            foreach ($asisTotal as $k => $_) { $asisTotal[$k] += (int) $asisDatos[$k]; }
         }
 
         // Conducta [periodo_id => literal]: mismo umbral del Hito A que las notas.
@@ -168,6 +212,7 @@ class BoletaModel extends BaseModel
                 )                   AS nombre_completo,
                 g.nombre_display    AS grado_nombre,
                 s.nombre            AS seccion_nombre,
+                n.id                AS nivel_id,
                 n.nombre            AS nivel_nombre,
                 n.codigo            AS nivel_codigo,
                 n.escala_boleta,
@@ -202,11 +247,15 @@ class BoletaModel extends BaseModel
     /**
      * ¿El periodo aporta NOTAS a la boleta segun el umbral $datos? Compuerta del
      * Hito A: usa boleta_estado_bimestre (punto unico de verdad) por periodo.
-     *   - 'oficial'  -> solo 'oficial' (cerrado).
+     *   - 'oficial'  -> 'oficial' (cerrado) Y publicado al nivel del alumno.
+     *   - 'archivo'  -> 'oficial' (cerrado), sin mirar la publicacion.
      *   - 'borrador' -> 'oficial' o 'borrador' (cerrado o activo con Hito A).
      *   - 'todos'    -> siempre (incluye 'registro'; solo vista previa de RA).
+     *
+     * @param array|null $publicados set [periodo_id => true] de la compuerta de
+     *                   publicacion, o null si el umbral no la respeta.
      */
-    private function periodoAportaNotas(array $periodo, string $datos): bool
+    private function periodoAportaNotas(array $periodo, string $datos, ?array $publicados = null): bool
     {
         if ($datos === 'todos') {
             return true;
@@ -215,9 +264,16 @@ class BoletaModel extends BaseModel
             $periodo['estado'] ?? null,
             $periodo['boletas_aprobadas_en'] ?? null
         );
-        return $datos === 'oficial'
-            ? $estado === 'oficial'
-            : $estado !== 'registro';   // 'borrador': oficial o borrador
+
+        if ($datos === 'oficial' || $datos === 'archivo') {
+            if ($estado !== 'oficial') {
+                return false;
+            }
+            // 'archivo' ($publicados === null) ignora la compuerta a proposito.
+            return $publicados === null || isset($publicados[(int) $periodo['id']]);
+        }
+
+        return $estado !== 'registro';   // 'borrador': oficial o borrador
     }
 
     /**

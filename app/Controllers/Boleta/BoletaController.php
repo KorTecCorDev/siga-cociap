@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\BoletaModel;
 use App\Models\BoletaPublicaModel;
 use App\Models\CalificacionModel;
+use App\Models\PublicacionBoletaModel;
 use Core\Session;
 use Core\View;
 
@@ -24,15 +25,17 @@ use Core\View;
  */
 class BoletaController extends BaseController
 {
-    private CalificacionModel  $calModel;
-    private BoletaModel        $boletaModel;
-    private BoletaPublicaModel $boletaPublicaModel;
+    private CalificacionModel      $calModel;
+    private BoletaModel            $boletaModel;
+    private BoletaPublicaModel     $boletaPublicaModel;
+    private PublicacionBoletaModel $publicacionModel;
 
     public function __construct()
     {
         $this->calModel           = new CalificacionModel();
         $this->boletaModel        = new BoletaModel();
         $this->boletaPublicaModel = new BoletaPublicaModel();
+        $this->publicacionModel   = new PublicacionBoletaModel();
     }
 
     /**
@@ -256,7 +259,11 @@ class BoletaController extends BaseController
     {
         if ($res['estado_matricula'] === 'desactivado' && $res['tipo'] === 'trasladado') {
             return [
-                'datos'              => 'oficial',
+                // 'archivo': mismo corte de datos que 'oficial' (solo cerrados)
+                // pero IGNORA la compuerta de publicacion — es un documento
+                // administrativo de STAFF y el alumno ya no tiene vinculo con la
+                // institucion, asi que no depende del calendario de entrega.
+                'datos'              => 'archivo',
                 'estructuraCompleta' => true,
                 'vistaPrevia'        => false,
                 'sinQr'              => true,
@@ -376,9 +383,14 @@ class BoletaController extends BaseController
 
         // Una matrícula 'desactivado' (baja o traslado) no expone su boleta por
         // token aunque el QR impreso siga circulando: se trata como inexistente.
+        // El NIVEL se necesita para la compuerta de publicación (es por nivel).
         $matricula = $this->calModel->queryOne(
-            "SELECT id, anio_id FROM matriculas
-             WHERE token_acceso = ? AND estado <> 'desactivado' LIMIT 1",
+            "SELECT m.id, m.anio_id, n.id AS nivel_id
+             FROM matriculas m
+             INNER JOIN secciones s ON s.id = m.seccion_id
+             INNER JOIN grados    g ON g.id = s.grado_id
+             INNER JOIN niveles   n ON n.id = g.nivel_id
+             WHERE m.token_acceso = ? AND m.estado <> 'desactivado' LIMIT 1",
             [$token]
         );
 
@@ -391,7 +403,15 @@ class BoletaController extends BaseController
         $matriculaId = (int) $matricula['id'];
         $anioId      = (int) $matricula['anio_id'];
 
-        $periodo = $this->calModel->queryOne("
+        // COMPUERTA DE PUBLICACION (044): el token ancla al ultimo bimestre
+        // PUBLICADO al nivel del alumno, no al ultimo cerrado. Cerrar B2 no cambia
+        // lo que ve la familia: sigue viendo su boleta de B1 hasta que RA publique.
+        $publicados = $this->publicacionModel->periodosPublicados(
+            $anioId,
+            (int) $matricula['nivel_id']
+        );
+
+        $candidatos = $this->calModel->query("
             SELECT p.id
             FROM periodos p
             WHERE p.anio_id = ?
@@ -405,22 +425,33 @@ class BoletaController extends BaseController
                   WHERE cal.matricula_id = ? AND cal.periodo_id = p.id
               )
             ORDER BY p.numero DESC
-            LIMIT 1
         ", [$anioId, $matriculaId]);
 
-        if (!$periodo) {
-            $periodo = $this->calModel->queryOne(
+        $periodoId = null;
+        foreach ($candidatos as $c) {
+            if (isset($publicados[(int) $c['id']])) {
+                $periodoId = (int) $c['id'];
+                break;
+            }
+        }
+
+        // Sin bimestre publicado con notas, el ancla cae al primer periodo del
+        // anio: la boleta se arma vacia, exactamente como antes del primer cierre
+        // (comportamiento historico, no una pantalla nueva).
+        if ($periodoId === null) {
+            $primero = $this->calModel->queryOne(
                 "SELECT id FROM periodos WHERE anio_id = ? ORDER BY numero ASC LIMIT 1",
                 [$anioId]
             );
+            $periodoId = $primero ? (int) $primero['id'] : null;
         }
 
-        if (!$periodo) {
+        if ($periodoId === null) {
             http_response_code(404);
             require VIEW_PATH . '/shared/404.php';
             exit;
         }
 
-        return ['matricula_id' => $matriculaId, 'periodo_id' => (int) $periodo['id']];
+        return ['matricula_id' => $matriculaId, 'periodo_id' => $periodoId];
     }
 }

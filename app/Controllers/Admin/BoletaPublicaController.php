@@ -232,9 +232,13 @@ class BoletaPublicaController extends BaseController
 
         foreach ($matriculas as $m) {
             $matriculaId = (int) $m['matricula_id'];
-            // De cara a familias (lleva QR): SOLO lo oficial (cerrado). El QR/
-            // boleta oficial exige Hito A, garantizado por el cierre. Idem al token.
-            $data = $this->boletaModel->armar($matriculaId, $periodoId, 'oficial');
+            // Documento de ARCHIVO generado por staff: solo lo oficial (cerrado),
+            // pero IGNORA la compuerta de publicacion (044) porque RA imprime las
+            // boletas ANTES de la reunion de entrega; con 'oficial' saldrian en
+            // blanco. La compuerta protege el acceso EN LINEA, no la impresion.
+            // El QR que lleva impreso si respeta la compuerta: al escanearlo el
+            // dia de la entrega, la publicacion ya esta vigente.
+            $data = $this->boletaModel->armar($matriculaId, $periodoId, 'archivo');
             if ($data) {
                 $data['url_boleta'] = $this->urlBoletaToken($matriculaId);
                 $boletasData[] = $data;
@@ -269,9 +273,10 @@ class BoletaPublicaController extends BaseController
 
         foreach ($matriculas as $m) {
             $matriculaId = (int) $m['matricula_id'];
-            // De cara a familias (PDF con QR): SOLO lo oficial (cerrado), igual
-            // que boletasAlumno y el token. El QR exige Hito A (via cierre).
-            $data = $this->boletaModel->armar($matriculaId, $periodoId, 'oficial');
+            // Documento de ARCHIVO (PDF/ZIP para el colegio): igual que
+            // boletasAlumno — solo cerrados, ignorando la compuerta de
+            // publicacion (044). Ver el comentario extendido alli.
+            $data = $this->boletaModel->armar($matriculaId, $periodoId, 'archivo');
             if (!$data) continue;
 
             $a = $data['alumno'];

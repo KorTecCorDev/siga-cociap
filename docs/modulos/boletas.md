@@ -453,6 +453,120 @@ BORRADOR; el token de familias nunca la ve; la vista previa de RA sí la muestra
 (excepción); la salida masiva solo muestra lo cerrado con QR. El guard anti-fantasma de
 `getBoletaAlumno` (migración 033) sigue exigiendo criterio vivo y confirmado.
 
+## Compuerta de publicación de boletas (21/07/2026, migración 044)
+
+> **Bug de negocio corregido:** poner un bimestre en `cerrado` publicaba sus boletas
+> a las familias AL INSTANTE. Pero las boletas se entregan en **reuniones oficiales**
+> y primaria se entrega, por lo general, **un día antes** que secundaria: el colegio
+> necesita cerrar (congelar notas, generar el snapshot de mérito, exportar al SIAGIE)
+> sin que las familias vean nada todavía.
+
+### Regla
+**Cerrar NUNCA publica.** Publicar es un acto separado de RA/admin, **por NIVEL** y
+con **fecha/hora** (inmediata o programada). Alcance = las 3 superficies de familias:
+boleta por token, boleta digital y `/padre/notas`.
+
+### Modelo de datos — `periodos_publicacion`
+`(periodo_id, nivel_id, publica_en, suspendida_en, despublicada_en, despublicada_por,
+motivo_despublicacion, publicado_por, creado_en)`, UNIQUE `(periodo_id, nivel_id)`.
+
+| Fila | Significado |
+|---|---|
+| sin fila | no publicado |
+| `publica_en` futuro | **programado** (invisible hasta la hora exacta) |
+| `publica_en` pasado | **publicado** |
+| `suspendida_en` | suspendido por reapertura — **REVERSIBLE** |
+| `despublicada_en` | retirado a mano — **DEFINITIVO** (solo republicar a mano lo revive) |
+
+Un solo mecanismo cubre publicar y programar **sin cron**: la condición se evalúa al
+leer. La fila **no se borra** al despublicar (se perdería el motivo y el autor): se
+marca, igual que `anulado_en`/`motivo_anulacion` en `cierres_conducta`/`cierres_asistencia`.
+
+**Backfill retroactivo obligatorio** en la migración: todo bimestre ya `cerrado` queda
+publicado en todos los niveles, con `publica_en = COALESCE(boletas_aprobadas_en, NOW())`.
+Sin esto el deploy oculta B1 a TODAS las familias — la regresión más grave posible.
+
+### Punto único de verdad — `PublicacionBoletaModel`
+Ningún otro archivo consulta la tabla (mismo criterio que `boleta_estado_bimestre`).
+`periodosPublicados($anioId, $nivelId, $ahora)` devuelve el set `[periodo_id => true]`
+de lo visible: `publica_en <= $ahora AND suspendida_en IS NULL AND despublicada_en IS NULL`.
+
+**Zona horaria — riesgo resuelto por diseño:** `$ahora` lo calcula **PHP**
+(`config('timezone') = 'America/Lima'`, aplicado en `public/index.php`) y viaja como
+parámetro preparado. **`NOW()` de MySQL nunca interviene en la lectura**: el huso de
+producción (Hostinger) es desconocido y suele ser UTC, así que una publicación
+programada a las 18:00 se dispararía 5 horas antes.
+
+### El corte `'oficial'` / `'archivo'` (decisión del usuario)
+`armar()` suma un cuarto umbral. **Mismo corte de datos** (solo bimestres cerrados);
+lo único que cambia es si se respeta la publicación:
+
+| `$datos` | Quién | Compuerta |
+|---|---|---|
+| `'oficial'` | familias EN LÍNEA: `verToken`, `verDigitalToken`, `/padre/notas` | **respeta** |
+| `'archivo'` | STAFF: salida masiva impresa/ZIP, boleta del trasladado | **ignora** |
+| `'borrador'` | docente y gestión | n/a (no mira publicación) |
+| `'todos'` | vista previa de RA | n/a |
+
+**El porqué:** RA **imprime las boletas ANTES** de la reunión de entrega; con
+`'oficial'` saldrían en blanco. La compuerta protege el **acceso en línea**, no la
+impresión del colegio. El QR que va impreso sí respeta la compuerta: al escanearlo el
+día de la entrega, la publicación ya está vigente.
+
+### La compuerta oculta el bimestre COMPLETO
+No solo las notas: cuando aplica, un bimestre no publicado tampoco aporta
+**asistencia** ni **conducta**, y **no arma columna** (con columnas colapsadas). Si no,
+la familia vería la asistencia de un bimestre cuyas notas siguen ocultas, delatando que
+ya cerró. Hasta la 044 ambos conjuntos coincidían (cerrado == visible) y el filtro no
+hacía falta.
+
+### Puntos de lectura (4)
+1. `BoletaModel::armar()` + `periodoAportaNotas()` — reciben el set publicado del nivel.
+2. `BoletaModel::getAlumno()` — proyecta `n.id AS nivel_id` (la compuerta es por nivel).
+3. `BoletaController::resolveToken()` — ancla al último bimestre **PUBLICADO**, no al
+   último cerrado. Cerrar B2 no cambia lo que ve la familia: sigue viendo B1 hasta que
+   RA publique. Sin ningún publicado con notas cae al primer periodo del año (boleta
+   vacía, comportamiento histórico previo al primer cierre — no hay pantalla nueva).
+4. `Padre\PanelController::getPeriodoVigentePadre($nivelId)` — se resuelve DESPUÉS de
+   conocer al hijo, porque la publicación es por nivel; `getHijo` proyecta `n.id`.
+
+### Matriz de reapertura
+| Acción | Efecto |
+|---|---|
+| Cerrar | NO publica. Solo **restaura** una publicación que una reapertura había suspendido |
+| Publicar / Programar | solo si el bimestre está `cerrado` |
+| Reabrir | `suspendida_en = ahora` en todos los niveles — reversible |
+| Volver a cerrar | `suspendida_en = NULL` → restaura la publicación previa |
+| Despublicar a mano | `despublicada_en` + motivo → **no revive** al re-cerrar |
+
+`Director\PeriodoController::cerrar()/reabrir()` entran en sus transacciones existentes
+(mismo PDO singleton).
+
+### UI y roles
+Tercer paso en `/admin/control` (Centro de Control), después del Hito A y del cierre.
+Estado por nivel + Publicar ahora / Programar / Retirar. Publican **`admin` y
+`registro_academico`**; `director_general` y `director_ebr` ven el estado pero no
+operan — **validado en el método** (`guardPublicacion`), no ocultando el botón.
+Rutas POST con `validateCsrf()`: `/admin/control/{periodo_id}/{publicar,programar,despublicar}`.
+
+### Procesos que NO cambian
+SIAGIE, orden de mérito y su snapshot, rectificaciones, retorno de grado, boleta del
+docente y de gestión: todos siguen mirando solo `cerrado`. Los trasladados **ignoran**
+la compuerta (boleta archivada administrativa; el alumno ya no tiene vínculo).
+
+### Verificado end-to-end (19 checks + 8 de render)
+B1 sigue visible tras migrar · despublicar primaria no toca secundaria · `'archivo'`,
+`'borrador'` y `'todos'` siguen trayendo las notas · republicar revive lo retirado ·
+lo programado es invisible hasta la hora exacta · reabrir oculta y re-cerrar restaura ·
+lo retirado a mano sigue oculto tras re-cerrar · asistencia/conducta/columna ocultas
+con la compuerta y presentes en `'archivo'`. Superficie del token comprobada por HTTP
+real con la compuerta encendida y apagada, por nivel.
+
+### Pendiente relacionado (fuera de este trabajo)
+**Logro anual** sigue usando "último bimestre cerrado" (`BoletaModel`); debe exigir
+**año académico cerrado**. Decisión #9 del plan: queda para el final, el usuario
+explicará antes la situación del cierre de fin de año.
+
 ## Fixes importantes aplicados (sesión 3)
 - `CalificacionModel::getBoletaAlumno()` ahora hace INNER JOIN con
   `bloqueos_competencia` — la boleta solo muestra notas que el docente aprobó.

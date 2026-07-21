@@ -5,6 +5,7 @@ namespace App\Controllers\Director;
 use App\Controllers\BaseController;
 use App\Models\AnioAcademicoModel;
 use App\Models\OrdenMeritoModel;
+use App\Models\PublicacionBoletaModel;
 use Core\Session;
 
 /**
@@ -15,14 +16,18 @@ use Core\Session;
  */
 class PeriodoController extends BaseController
 {
-    private AnioAcademicoModel $model;
+    private AnioAcademicoModel     $model;
+    private PublicacionBoletaModel $publicacionModel;
 
     private const ROLES = ['admin', 'director_general', 'director_ebr', 'registro_academico'];
 
     public function __construct()
     {
         $this->requireRole(self::ROLES);
-        $this->model = new AnioAcademicoModel();
+        $this->model            = new AnioAcademicoModel();
+        // Mismo PDO singleton -> sus escrituras entran en las transacciones de
+        // cerrar()/reabrir() sin manejo extra.
+        $this->publicacionModel = new PublicacionBoletaModel();
     }
 
     // POST /director/periodos/{id}/editar
@@ -135,10 +140,15 @@ class PeriodoController extends BaseController
             // (respeta los cierres que el tutor ya hizo).
             $this->model->crearCierresTransversalesPendientes($id, $usuarioId);
             $this->model->setEstadoPeriodo($id, 'cerrado');
-            // Cierre de boletas: el estado 'cerrado' ya las hace OFICIALES (visibles
-            // para los padres). El flag asegura que, si luego se REABRE, queden en
-            // BORRADOR y los padres dejen de verlas hasta re-cerrar.
+            // Cierre de boletas: deja la boleta en estado OFICIAL. El flag asegura
+            // que, si luego se REABRE, vuelva a BORRADOR hasta re-cerrar.
             $this->model->marcarBoletasAprobadas($id, $usuarioId);
+            // COMPUERTA DE PUBLICACION (044): CERRAR NUNCA PUBLICA. Publicar es
+            // siempre un acto separado de RA/admin, por nivel y con fecha/hora.
+            // Lo unico que hace el cierre es RESTAURAR una publicacion que una
+            // reapertura previa habia suspendido (no crea filas nuevas): asi el
+            // ciclo reabrir -> re-cerrar devuelve exactamente el estado anterior.
+            $this->publicacionModel->restaurarPorCierre($id);
             // Recién DESPUÉS se congela el orden de mérito oficial (primero boletas,
             // luego mérito). Mismo PDO singleton → entra en esta misma transacción.
             (new OrdenMeritoModel())->generarSnapshot($id, $usuarioId);
@@ -200,6 +210,11 @@ class PeriodoController extends BaseController
             // (origen='cierre') el director usa el botón manual del panel de
             // bloqueos. Solo se deja traza del motivo de la reapertura.
             $this->model->registrarReapertura($id, $motivo, $usuarioId, 0);
+            // COMPUERTA DE PUBLICACION (044): reabrir SUSPENDE la publicacion en
+            // todos los niveles — las familias dejan de ver esas boletas mientras
+            // el bimestre vuelve a estar en juego. Es REVERSIBLE a proposito:
+            // volver a cerrarlo restaura la publicacion previa sin republicar.
+            $this->publicacionModel->suspenderPorReapertura($id);
             $this->model->commit();
         } catch (\Exception $e) {
             $this->model->rollback();

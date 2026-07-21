@@ -203,8 +203,11 @@ Versión de una línea; el porqué completo está en el doc del módulo.
 - **Boletas al público SIEMPRE por token** — jamás reintroducir rutas anónimas por id
   (eran enumerables). Toda boleta se arma con `BoletaModel::armar()`; el QR sale solo
   de `urlBoletaToken()`.
-- **Cerrar un bimestre publica sus boletas a las familias AL INSTANTE**
-  (`soloOficiales` filtra por `estado='cerrado'`; no existe compuerta de publicación aún).
+- **CERRAR UN BIMESTRE NO PUBLICA NADA.** Publicar las boletas a las familias es un
+  acto separado, por NIVEL y con fecha/hora (`periodos_publicacion`, migración 044).
+  Punto único: `PublicacionBoletaModel`. El umbral `'oficial'` de `BoletaModel::armar()`
+  respeta la compuerta (acceso en línea de familias); `'archivo'` la ignora a propósito
+  (documento impreso por staff: salida masiva y trasladado).
 - **Escala de notas: punto único de verdad en `app/Helpers/helpers.php`**
   (`NOTA_MIN_AD/A/B`, `nota_a_literal()`, `escala_rangos()`). NUNCA hardcodear umbrales.
 - **Rutas literales ANTES que patrones `{param}`** en `routes/web.php` (el router

@@ -49,3 +49,64 @@
     justify-content: space-between;
     gap: $spacing-md;
 }
+
+// ── Compuerta de publicación de boletas (migración 044) ─────
+// Un bloque por NIVEL: las boletas se publican por separado porque
+// se entregan en reuniones distintas (primaria suele ir un día antes).
+.publicacion-niveles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: $spacing-md;
+    margin-top: $spacing-md;
+}
+
+.publicacion-nivel {
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    padding: $spacing-md;
+
+    &__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-sm;
+        margin-bottom: $spacing-sm;
+    }
+
+    &__estado {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        margin: 0 0 $spacing-md;
+    }
+
+    &__acciones {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-md;
+    }
+
+    // Programar y retirar comparten forma: etiqueta arriba, campo y
+    // botón en la misma línea (el campo manda, el botón se encoge).
+    &__programar,
+    &__retirar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: $spacing-sm;
+        padding-top: $spacing-md;
+        border-top: 1px solid $border-color;
+
+        .form-label {
+            width: 100%;
+            margin: 0;
+            font-size: $font-size-sm;
+        }
+
+        .form-input {
+            flex: 1 1 180px;
+            min-width: 0;
+        }
+
+        .btn { flex-shrink: 0; }
+    }
+}

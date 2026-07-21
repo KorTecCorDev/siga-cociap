@@ -34,6 +34,11 @@ $router->get( '/admin/control',               'Admin\ControlOperativoController@
 // Cierre de bimestre — Hito A (aprobar boletas -> borrador para docentes).
 $router->post('/admin/control/{periodo_id}/aprobar-bimestre',   'Admin\ControlOperativoController@aprobarBimestre');
 $router->post('/admin/control/{periodo_id}/anular-aprobacion',  'Admin\ControlOperativoController@anularAprobacion');
+// Compuerta de publicacion de boletas a las familias (migracion 044). Cerrar el
+// bimestre NO publica: publicar es un acto separado, por nivel y con fecha/hora.
+$router->post('/admin/control/{periodo_id}/publicar',           'Admin\ControlOperativoController@publicar');
+$router->post('/admin/control/{periodo_id}/programar',          'Admin\ControlOperativoController@programar');
+$router->post('/admin/control/{periodo_id}/despublicar',        'Admin\ControlOperativoController@despublicar');
 
 // ─── Admin — Actas SIAGIE (llenado de plantillas RegNotas) ──
 $router->get( '/admin/actas-siagie',                     'Admin\ActasSiagieController@index');

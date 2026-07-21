@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\BoletaPublicaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
+use App\Models\PublicacionBoletaModel;
 use Core\Session;
 
 /**
@@ -14,16 +15,18 @@ use Core\Session;
  */
 class PanelController extends BaseController
 {
-    private CalificacionModel  $calModel;
-    private ConductaModel      $conductaModel;
-    private BoletaPublicaModel $bpModel;
+    private CalificacionModel      $calModel;
+    private ConductaModel          $conductaModel;
+    private BoletaPublicaModel     $bpModel;
+    private PublicacionBoletaModel $publicacionModel;
 
     public function __construct()
     {
         $this->requireRole(['padre', 'admin', 'registro_academico']);
-        $this->calModel      = new CalificacionModel();
-        $this->conductaModel = new ConductaModel();
-        $this->bpModel       = new BoletaPublicaModel();
+        $this->calModel         = new CalificacionModel();
+        $this->conductaModel    = new ConductaModel();
+        $this->bpModel          = new BoletaPublicaModel();
+        $this->publicacionModel = new PublicacionBoletaModel();
     }
 
     /**
@@ -51,12 +54,8 @@ class PanelController extends BaseController
      */
     public function notas(): void
     {
-        $user    = Session::user();
-        $hijo    = $this->getHijo($user['id']);
-        // F4 — El padre solo ve hasta el ULTIMO bimestre CERRADO (oficial). El
-        // bimestre activo (registro/borrador) no se expone: el borrador del cierre
-        // forzado bloquea todas las competencias y se filtraria como definitivo.
-        $periodo = $this->getPeriodoVigentePadre();
+        $user = Session::user();
+        $hijo = $this->getHijo($user['id']);
 
         if (!$hijo) {
             $this->redirectWithError(
@@ -64,10 +63,19 @@ class PanelController extends BaseController
                 'No se encontró información del estudiante.'
             );
         }
+
+        // F4 — El padre solo ve hasta el ULTIMO bimestre CERRADO (oficial). El
+        // bimestre activo (registro/borrador) no se expone: el borrador del cierre
+        // forzado bloquea todas las competencias y se filtraria como definitivo.
+        // COMPUERTA DE PUBLICACION (044): ademas exige que el bimestre este
+        // PUBLICADO al nivel del hijo — cerrar ya no basta. Por eso se resuelve
+        // despues de conocer al hijo (la publicacion es por nivel).
+        $periodo = $this->getPeriodoVigentePadre((int) $hijo['nivel_id']);
+
         if (!$periodo) {
             $this->redirectWithError(
                 url('padre/inicio'),
-                'Aún no hay un bimestre cerrado. Las notas se publican cuando el colegio cierra el bimestre.'
+                'Aún no hay notas publicadas. Las boletas se habilitan cuando el colegio las publica, en la fecha de entrega.'
             );
         }
 
@@ -150,17 +158,37 @@ class PanelController extends BaseController
      * F4 — Periodo "vigente" para el padre: el ultimo bimestre CERRADO (oficial)
      * del anio activo. El borrador (Hito A, periodo aun 'activo' con boletas
      * aprobadas) NUNCA se expone a las familias; solo lo oficial.
+     *
+     * COMPUERTA DE PUBLICACION (044): ademas debe estar PUBLICADO al nivel del
+     * hijo. Cerrar un bimestre ya no lo muestra aqui; publicarlo si. Los
+     * periodos publicados se piden a PublicacionBoletaModel (punto unico de
+     * verdad) y se cruzan en PHP para no consultar la tabla desde aqui.
      */
-    private function getPeriodoVigentePadre(): ?array
+    private function getPeriodoVigentePadre(int $nivelId): ?array
     {
-        return $this->calModel->queryOne("
+        $cerrados = $this->calModel->query("
             SELECT p.*, a.anio
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id
             WHERE a.estado = 'activo' AND p.estado = 'cerrado'
             ORDER BY p.numero DESC
-            LIMIT 1
         ");
+
+        if (!$cerrados) {
+            return null;
+        }
+
+        $publicados = $this->publicacionModel->periodosPublicados(
+            (int) $cerrados[0]['anio_id'],
+            $nivelId
+        );
+
+        foreach ($cerrados as $p) {
+            if (isset($publicados[(int) $p['id']])) {
+                return $p;
+            }
+        }
+        return null;
     }
 
     private function getHijo(int $usuarioId): ?array
@@ -180,6 +208,7 @@ class PanelController extends BaseController
                 )               AS nombre_completo,
                 g.nombre_display AS grado_nombre,
                 s.nombre        AS seccion_nombre,
+                n.id            AS nivel_id,
                 n.nombre        AS nivel_nombre,
                 n.codigo        AS nivel_codigo,
                 n.escala_boleta,

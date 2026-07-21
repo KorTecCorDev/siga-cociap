@@ -7,7 +7,29 @@
  * @var array       $chequeos          ['empates'=>{titulo,severidad,accion,items[],...}, ...]
  * @var int         $totalIncidencias
  * @var string      $estadoBoleta      'registro' | 'borrador' | 'oficial'
+ * @var array       $publicacion       compuerta (044): una fila por nivel
+ *                                     [{nivel_id, nivel_nombre, publica_en,
+ *                                       suspendida_en, despublicada_en,
+ *                                       motivo_despublicacion, estado}]
+ * @var bool        $puedePublicar     admin/RA si; directores solo miran
  */
+$badgePublicacion = static fn(string $est): string => match ($est) {
+    'publicado'    => 'badge--activo',
+    'programado'   => 'badge--info',
+    'suspendido'   => 'badge--warning',
+    'despublicado' => 'badge--error',
+    default        => 'badge--info',
+};
+$rotuloPublicacion = static fn(string $est): string => match ($est) {
+    'publicado'    => 'Publicado',
+    'programado'   => 'Programado',
+    'suspendido'   => 'Suspendido por reapertura',
+    'despublicado' => 'Retirado',
+    default        => 'Sin publicar',
+};
+$fechaLarga = static fn(?string $f): string =>
+    $f ? date('d/m/Y', strtotime($f)) . ' a las ' . date('H:i', strtotime($f)) : '';
+
 $badgeSeveridad = static fn(string $sev): string =>
     $sev === 'critico' ? 'badge--error' : 'badge--warning';
 ?>
@@ -75,14 +97,17 @@ $badgeSeveridad = static fn(string $sev): string =>
         <div class="card__body">
             <?php if ($estadoBoleta === 'oficial'): ?>
                 <p class="text-muted">
-                    El bimestre está cerrado. Las boletas son <strong>oficiales</strong> y visibles
-                    para los padres. Para corregir, usá Rectificación de notas.
+                    El bimestre está cerrado y las boletas son <strong>oficiales</strong>.
+                    Cerrar <strong>no</strong> las muestra a las familias: eso se decide abajo,
+                    en <strong>Publicación de boletas</strong>. Para corregir notas, usa
+                    Rectificación de notas.
                 </p>
             <?php elseif ($estadoBoleta === 'borrador'): ?>
                 <p>
                     Las boletas están en <strong>BORRADOR</strong>: los docentes ya ven la vista
-                    previa en su nómina. Cuando den el visto bueno, <strong>cerrá el bimestre</strong>
-                    desde Año Académico para oficializarlas y publicarlas a los padres.
+                    previa en su nómina. Cuando den el visto bueno, <strong>cierra el bimestre</strong>
+                    desde Año Académico para oficializarlas. Las familias seguirán sin verlas
+                    hasta que las publiques abajo.
                 </p>
                 <form method="POST"
                       action="<?= url('admin/control/' . (int) $periodo['id'] . '/anular-aprobacion') ?>"
@@ -114,6 +139,138 @@ $badgeSeveridad = static fn(string $sev): string =>
                         Bloquear y aprobar el bimestre
                     </button>
                 </form>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!--
+        Compuerta de publicación (044) — tercer paso del cierre, después del
+        Hito A y del cierre del bimestre. Se publica POR NIVEL porque las
+        boletas se entregan en reuniones y primaria suele ir un día antes.
+    -->
+    <div class="card mb-lg">
+        <div class="card__header card__header--between">
+            <h2 class="card__title">Publicación de boletas a las familias</h2>
+            <?php if (!$puedePublicar): ?>
+                <span class="badge badge--info">Solo lectura</span>
+            <?php endif; ?>
+        </div>
+        <div class="card__body">
+            <?php if ($periodo['estado'] !== 'cerrado'): ?>
+                <p class="text-muted">
+                    Las boletas se publican una vez que el bimestre está <strong>cerrado</strong>.
+                    Cierra <?= e($periodo['nombre_display']) ?> desde Año Académico y vuelve aquí
+                    para entregarlas a las familias.
+                </p>
+            <?php else: ?>
+                <p>
+                    Cerrar el bimestre <strong>no</strong> muestra las boletas a las familias.
+                    Publica cada nivel el día de su reunión de entrega, o
+                    <strong>prográmalo</strong> con fecha y hora exactas.
+                    Esto solo afecta el acceso <strong>en línea</strong> de las familias
+                    (enlace, QR y portal): la impresión masiva de Registro Académico
+                    funciona igual, publicada o no.
+                </p>
+
+                <?php if (!$puedePublicar): ?>
+                    <p class="text-muted">
+                        Tu rol puede ver el estado pero no publicar. La publicación la operan
+                        Registro Académico y administración.
+                    </p>
+                <?php endif; ?>
+
+                <div class="publicacion-niveles">
+                    <?php foreach ($publicacion as $pn): ?>
+                        <?php $est = (string) $pn['estado']; ?>
+                        <div class="publicacion-nivel">
+                            <div class="publicacion-nivel__head">
+                                <strong><?= e($pn['nivel_nombre']) ?></strong>
+                                <span class="badge <?= $badgePublicacion($est) ?>">
+                                    <?= e($rotuloPublicacion($est)) ?>
+                                </span>
+                            </div>
+
+                            <p class="publicacion-nivel__estado">
+                                <?php if ($est === 'publicado'): ?>
+                                    Visible para las familias desde el
+                                    <?= e($fechaLarga($pn['publica_en'])) ?>.
+                                <?php elseif ($est === 'programado'): ?>
+                                    Se publicará solo el <?= e($fechaLarga($pn['publica_en'])) ?>.
+                                    Hasta entonces las familias no ven nada.
+                                <?php elseif ($est === 'suspendido'): ?>
+                                    Oculta porque el bimestre fue reabierto. Al volver a cerrarlo
+                                    se restaura sola, sin publicar de nuevo.
+                                <?php elseif ($est === 'despublicado'): ?>
+                                    Retirada de circulación.
+                                    <?php if (!empty($pn['motivo_despublicacion'])): ?>
+                                        Motivo: <?= e($pn['motivo_despublicacion']) ?>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    Las familias de este nivel todavía no ven sus boletas.
+                                <?php endif; ?>
+                            </p>
+
+                            <?php if ($puedePublicar): ?>
+                                <div class="publicacion-nivel__acciones">
+                                    <?php if ($est !== 'publicado'): ?>
+                                        <form method="POST"
+                                              action="<?= url('admin/control/' . (int) $periodo['id'] . '/publicar') ?>"
+                                              onsubmit="return confirm('¿Publicar ahora las boletas de <?= e($pn['nivel_nombre']) ?>? Las familias podrán verlas de inmediato.');">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="nivel_id" value="<?= (int) $pn['nivel_id'] ?>">
+                                            <button type="submit" class="btn btn--primary btn--sm">
+                                                <span class="btn-icon btn-icon--check" aria-hidden="true"></span>
+                                                Publicar ahora
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+
+                                    <form method="POST"
+                                          action="<?= url('admin/control/' . (int) $periodo['id'] . '/programar') ?>"
+                                          class="publicacion-nivel__programar">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="nivel_id" value="<?= (int) $pn['nivel_id'] ?>">
+                                        <label class="form-label" for="publica_en_<?= (int) $pn['nivel_id'] ?>">
+                                            Programar para
+                                        </label>
+                                        <input type="datetime-local"
+                                               id="publica_en_<?= (int) $pn['nivel_id'] ?>"
+                                               name="publica_en"
+                                               class="form-input"
+                                               required>
+                                        <button type="submit" class="btn btn--secondary btn--sm">
+                                            Programar
+                                        </button>
+                                    </form>
+
+                                    <?php if ($est === 'publicado' || $est === 'programado'): ?>
+                                        <form method="POST"
+                                              action="<?= url('admin/control/' . (int) $periodo['id'] . '/despublicar') ?>"
+                                              class="publicacion-nivel__retirar"
+                                              onsubmit="return confirm('¿Retirar las boletas de <?= e($pn['nivel_nombre']) ?>? Las familias dejarán de verlas. Volver a cerrar el bimestre NO las restaura: hay que publicarlas de nuevo a mano.');">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="nivel_id" value="<?= (int) $pn['nivel_id'] ?>">
+                                            <label class="form-label" for="motivo_<?= (int) $pn['nivel_id'] ?>">
+                                                Motivo para retirarlas
+                                            </label>
+                                            <input type="text"
+                                                   id="motivo_<?= (int) $pn['nivel_id'] ?>"
+                                                   name="motivo"
+                                                   class="form-input"
+                                                   minlength="10"
+                                                   maxlength="500"
+                                                   placeholder="Mínimo 10 caracteres"
+                                                   required>
+                                            <button type="submit" class="btn btn--danger btn--sm">
+                                                Retirar
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             <?php endif; ?>
         </div>
     </div>
