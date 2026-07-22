@@ -4,6 +4,15 @@
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **22/07/2026**.
 
 ## Migraciones
+- **`045_matriculas_tipo_retirado`** (22/07): agrega `'retirado'` al enum
+  `matriculas.tipo`. Marca al estudiante que YA NO ASISTE pero no se trasladó
+  oficialmente (sin constancia ni IE destino; la familia espera que regrese). Los
+  9 rosters de evaluación (calificaciones, conducta ×5, resumen/bloqueo,
+  transversales, tutoría) pasan de `!= 'trasladado'` a
+  `NOT IN ('trasladado','retirado')`; boleta/mérito/SIAGIE NO cambian (un retirado
+  es desactivado no-trasladado → BORRADOR, fuera de mérito/export). Reversible vía
+  `tipo_anterior`. **EN PROD** (22/07, importada a mano ANTES del merge `dev`→`main`
+  `10d6d51`). Idempotente (`MODIFY`). Ver `docs/modulos/matriculas.md`.
 - **`044_periodos_publicacion`** (21/07): COMPUERTA DE PUBLICACIÓN DE BOLETAS.
   Crea `periodos_publicacion` (periodo × nivel → `publica_en`, con suspensión
   reversible por reapertura y despublicación manual definitiva con motivo) y
@@ -13,8 +22,8 @@
   **APLICADA EN LOCAL Y PROD.** En prod se importó a mano (phpMyAdmin) el
   **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
   código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
-- **LOCAL y PROD: al día hasta la `044`.** En prod: 038-043 el 20/07/2026, 044 el
-  22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
+- **LOCAL y PROD: al día hasta la `045`.** En prod: 038-043 el 20/07/2026, 044 y
+  045 el 22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
   había saltado al aplicarse suelta; se corrió el **22/07/2026** (estructura
   verificada idéntica a la migración) y local quedó igualado a prod.
   Con esto quedan desbloqueados en prod: reprocesar las actas SIAGIE de
@@ -221,6 +230,11 @@ WHERE id=25;`).
     → EXO. En B1 no hay notas de Ética → EREL en blanco es correcto.
 
 ## Pendientes operativos (usuario / colegio)
+- **Alumno retirado (feature del 22/07, migración 045):** falta **marcarlo como
+  `retirado`** por la UI en prod (Gestión de la matrícula) y la **limpieza
+  quirúrgica** de sus respuestas de conducta del II Bim (`DELETE FROM
+  conducta_respuestas WHERE matricula_id=? AND periodo_id=?`, acotado, nada más),
+  **ANTES del cierre de conducta** de su sección.
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
   (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la
   pestaña se cierra y no se acumulan.

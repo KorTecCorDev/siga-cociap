@@ -218,6 +218,12 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   huérfanos mira `eliminado_en`, NO `confirmado_en`).
 - **Estados de matrícula: SOLO `pendiente`/`aprobada`/`desactivado`** (`'activo'` se
   eliminó del enum; otras columnas `estado` de otras tablas son independientes).
+- **Rosters de evaluación (calificaciones, conducta, transversales, tutoría)
+  excluyen matrículas `tipo IN ('trasladado','retirado')`** — el resto (incl.
+  `desactivado` por deuda y `pendiente`) SÍ se califica. `retirado` = ya no asiste
+  sin traslado oficial (migración 045); reversible vía `tipo_anterior`. NO extender
+  a los usos de `trasladado` en boleta (un retirado es desactivado no-trasladado →
+  BORRADOR). Ver `docs/modulos/matriculas.md`.
 - **Orden de mérito excluye áreas `tipo IN ('transversal','tutoria')`** — permanente.
 - **PDO preparado siempre**; `cargas_academicas` y `criterios` NO tienen UNIQUE KEY →
   proteger duplicados con `WHERE NOT EXISTS`.

@@ -293,3 +293,40 @@ queda como traza de auditoría histórica. Se muestra junto al badge en `index` 
   área **Tutoría (TOE)** (id 24) — así aparece rotulada la opción en el select
   (nombre interno; la boleta la muestra como "Ética y Valores"). Ver
   `docs/modulos/calificaciones.md`.
+
+## Tipo `retirado` — estudiante que ya no asiste (22/07/2026)
+
+> Un estudiante deja de asistir pero la familia NO tramita el traslado oficial
+> (no hay constancia ni IE destino; guarda la esperanza de que regrese). Hasta la
+> migración 045 el único marcador de "abandono" era `tipo='trasladado'`, que exige
+> el trámite oficial → un desactivado por otro motivo seguía apareciendo en las
+> grillas del docente/tutor. `retirado` cubre el hueco: excluir de evaluación sin
+> constancia.
+
+- **Semántica de `matriculas.tipo`** (los "no calificables" son siempre `desactivado`):
+
+  | estado | tipo | ¿se califica? |
+  |---|---|---|
+  | aprobada / pendiente | continuador·nuevo | ✅ Sí |
+  | desactivado (deuda u otro motivo, **sigue asistiendo**) | continuador·nuevo | ✅ Sí |
+  | desactivado, **ya no asiste** | `retirado` | ❌ No |
+  | desactivado, traslado oficial | `trasladado` | ❌ No |
+
+- **Exclusión de los 9 rosters de evaluación** (`!= 'trasladado'` →
+  `NOT IN ('trasladado','retirado')`): `Docente\CalificacionController::getAlumnosSeccion`,
+  `ConductaModel` (×5), `CalificacionModel` (resumen/validación de bloqueo),
+  `TransversalModel`, `Docente\TutoriaController`.
+- **NO se tocan** los usos de `trasladado` en boleta (`BoletaController`): un retirado
+  es `desactivado` no-trasladado → cae en **BORRADOR forzado** (sin QR/firma), NO en
+  el trato OFICIAL del trasladado. Tampoco la nómina de *ver* boletas del docente
+  (`PanelController:713/801`) — verla no es calificar. Orden de mérito y SIAGIE ya
+  excluyen `desactivado`.
+- **Acción reversible** en "Gestión de la matrícula" (`show.php`, rol admin/RA):
+  **"Marcar como retirado"** (`POST /matriculas/{id}/retirar` → `retirar()`), solo
+  sobre `desactivado` de tipo continuador/nuevo; guarda el tipo real en
+  `tipo_anterior`. Inversa **"Revertir"** (`/revertir-retiro` → `revertirRetiro()`)
+  restaura `tipo_anterior` (el estado sigue `desactivado`). `activar()` también
+  restaura el tipo al reactivar por completo (condición extendida a
+  `IN ('trasladado','retirado')`).
+- **Migración 045** (`MODIFY tipo ENUM(...,'retirado')`, idempotente). `tipo_anterior`
+  NO incluye `retirado` (nunca se revierte hacia él). Badge `matricula-badge--retirado`.
