@@ -801,7 +801,7 @@ class CalificacionModel extends BaseModel
             -- trasladados. Así el resumen y la validación de bloqueo cuadran con
             -- la grilla de ingreso.
             AND m.estado IN ('aprobada', 'pendiente')
-            AND m.tipo  != 'trasladado'
+            AND m.tipo  NOT IN ('trasladado', 'retirado')
             -- Retorno de grado: misma exclusión que getAlumnosSeccion (oficial en
             -- retorno activo / operativa ya revertida no se califican aquí).
             AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')

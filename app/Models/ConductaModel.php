@@ -130,7 +130,7 @@ class ConductaModel extends BaseModel
                    ON m.seccion_id = s.id AND m.anio_id = s.anio_id
                   -- Mismo roster que el docente (getAlumnosSeccion): todos salvo el
                   -- traslado de salida; retorno excluye la matricula que no aplica.
-                  AND m.tipo != 'trasladado'
+                  AND m.tipo NOT IN ('trasladado', 'retirado')
                   AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
                   AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
             LEFT JOIN (
@@ -175,9 +175,10 @@ class ConductaModel extends BaseModel
               -- Mismo roster que el docente al ingresar notas (getAlumnosSeccion):
               -- TODOS los matriculados de la seccion (aprobada, pendiente e incluso
               -- desactivado por baja administrativa/deuda: siguen asistiendo). El
-              -- UNICO excluido es el traslado de salida (tipo='trasladado'). El
-              -- retorno de grado excluye la matricula que no se califica en su grado.
-              AND m.tipo != 'trasladado'
+              -- Excluidos: el traslado de salida (tipo='trasladado') y el retiro
+              -- (tipo='retirado', ya no asiste; migracion 045). El retorno de grado
+              -- excluye la matricula que no se califica en su grado.
+              AND m.tipo NOT IN ('trasladado', 'retirado')
               AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
               AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
               AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)
@@ -228,7 +229,7 @@ class ConductaModel extends BaseModel
             WHERE m.seccion_id = ?
               -- Mismo roster que getEstudiantesParaRegistro (todos salvo el
               -- traslado de salida; retorno excluye la matricula que no aplica).
-              AND m.tipo != 'trasladado'
+              AND m.tipo NOT IN ('trasladado', 'retirado')
               AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
               AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
               AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)
@@ -327,7 +328,7 @@ class ConductaModel extends BaseModel
             WHERE m.seccion_id = ?
               -- Mismo roster que el docente (getAlumnosSeccion): la compuerta de
               -- completitud debe contar exactamente a quienes aparecen en la grilla.
-              AND m.tipo != 'trasladado'
+              AND m.tipo NOT IN ('trasladado', 'retirado')
               AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
               AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
               AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)
@@ -522,7 +523,7 @@ class ConductaModel extends BaseModel
             WHERE m.seccion_id = ?
               -- Mismo roster que el docente (getAlumnosSeccion): todos salvo el
               -- traslado de salida; retorno excluye la matricula que no aplica.
-              AND m.tipo != 'trasladado'
+              AND m.tipo NOT IN ('trasladado', 'retirado')
               AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
               AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
               AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)

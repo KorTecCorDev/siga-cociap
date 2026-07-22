@@ -170,7 +170,7 @@ class TransversalModel extends BaseModel
             INNER JOIN areas a           ON a.id = comp.area_id AND a.tipo = 'transversal'
             INNER JOIN matriculas m      ON m.id = cal.matricula_id
             WHERE m.seccion_id   = ?
-              AND m.tipo        != 'trasladado'
+              AND m.tipo        NOT IN ('trasladado', 'retirado')
               AND cal.periodo_id = ?
             GROUP BY cal.matricula_id, cal.competencia_id
         ", [$seccionId, $periodoId]);

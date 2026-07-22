@@ -107,6 +107,7 @@
     &--continuador { background: $color-info-bg; color: $color-info; }
     &--nuevo       { background: $brand-light; color: $brand-accent; }
     &--trasladado  { background: #f1f5f9; color: #64748b; }
+    &--retirado    { background: #fbe9ec; color: #b91c4b; } // rosa: ya no asiste (sin traslado)
 
     // Rol dentro de un retorno de grado activo
     &--oficial     { background: #eef5fb; color: #1a5a8c; } // azul (SIAGIE)

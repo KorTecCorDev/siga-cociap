@@ -296,7 +296,7 @@ class MatriculaController extends BaseController
     {
         $r = [
             'total'       => count($alumnos),
-            'tipo'        => ['nuevo' => 0, 'continuador' => 0, 'trasladado' => 0],
+            'tipo'        => ['nuevo' => 0, 'continuador' => 0, 'trasladado' => 0, 'retirado' => 0],
             'estado'      => ['aprobada' => 0, 'pendiente' => 0, 'desactivado' => 0],
             'genero'      => ['M' => 0, 'F' => 0],
             'cursan_aqui' => 0,
@@ -316,7 +316,7 @@ class MatriculaController extends BaseController
     private function describirFiltrosNomina(array $f): string
     {
         $estados = ['aprobada' => 'Aprobado', 'pendiente' => 'Pendiente', 'desactivado' => 'Desactivado'];
-        $tipos   = ['nuevo' => 'Nuevo', 'continuador' => 'Continuador', 'trasladado' => 'Trasladado'];
+        $tipos   = ['nuevo' => 'Nuevo', 'continuador' => 'Continuador', 'trasladado' => 'Trasladado', 'retirado' => 'Retirado'];
 
         $partes = [];
         if (!empty($f['grado_id'])) {
@@ -912,12 +912,12 @@ class MatriculaController extends BaseController
             [(int) $id]
         );
 
-        // Si la matrícula venía de una desactivación quedó marcada 'trasladado'.
-        // Al reactivar se restaura el ORIGEN real preservado en `tipo_anterior`
-        // (reversibilidad 100%), de modo que vuelva a su tipo nuevo/continuador
-        // y reaparezca en calificaciones. Fallback a 'continuador' solo si no
-        // hubiera respaldo (datos previos a esta lógica).
-        if (($matricula['tipo'] ?? '') === 'trasladado') {
+        // Si la matrícula venía de un traslado o de un retiro quedó marcada
+        // 'trasladado'/'retirado'. Al reactivar se restaura el ORIGEN real
+        // preservado en `tipo_anterior` (reversibilidad 100%), de modo que vuelva
+        // a su tipo nuevo/continuador y reaparezca en calificaciones. Fallback a
+        // 'continuador' solo si no hubiera respaldo (datos previos a esta lógica).
+        if (in_array($matricula['tipo'] ?? '', ['trasladado', 'retirado'], true)) {
             $original = $matricula['tipo_anterior'] ?? null;
             $this->model->update((int) $id, [
                 'tipo'          => in_array($original, ['continuador', 'nuevo'], true)
@@ -972,6 +972,60 @@ class MatriculaController extends BaseController
         }
 
         $this->redirectWithSuccess(url('matriculas/' . $id), 'Matrícula desactivada.');
+    }
+
+    // ── POST /matriculas/{id}/retirar ────────────────────────────
+    // Marca una matrícula ya DESACTIVADA como 'retirado': el estudiante ya no
+    // asiste (sin traslado oficial) y NO debe calificarse. Lo excluye de los
+    // rosters de calificaciones, conducta, transversales y tutoría (igual que un
+    // trasladado), pero SIN constancia: su boleta sigue siendo BORRADOR interna.
+    // El tipo real se preserva en `tipo_anterior` para poder revertir. Migración 045.
+    public function retirar(string $id): void
+    {
+        $this->validateCsrf();
+        $this->requireRole(['admin', 'registro_academico']);
+        $matricula = $this->requireMatricula((int) $id);
+
+        // Solo sobre una baja administrativa (desactivado) de tipo continuador o
+        // nuevo. Un trasladado ya está fuera de los rosters; un retirado ya lo está.
+        if ($matricula['estado'] !== 'desactivado'
+            || !in_array($matricula['tipo'] ?? '', ['continuador', 'nuevo'], true)) {
+            $this->redirectWithError(url('matriculas/' . $id),
+                'Solo se puede marcar como retirada una matrícula desactivada de tipo continuador o nuevo.');
+        }
+
+        $this->model->update((int) $id, [
+            'tipo'          => 'retirado',
+            'tipo_anterior' => $matricula['tipo'],
+        ]);
+
+        $this->redirectWithSuccess(url('matriculas/' . $id),
+            'Matrícula marcada como retirada: el estudiante deja de aparecer en calificaciones y conducta.');
+    }
+
+    // ── POST /matriculas/{id}/revertir-retiro ────────────────────
+    // Deshace el marcado 'retirado': restaura el tipo real (tipo_anterior) y el
+    // estudiante vuelve a los rosters de evaluación. La matrícula sigue
+    // 'desactivado' (el retiro solo cambió el tipo, no el estado).
+    public function revertirRetiro(string $id): void
+    {
+        $this->validateCsrf();
+        $this->requireRole(['admin', 'registro_academico']);
+        $matricula = $this->requireMatricula((int) $id);
+
+        if (($matricula['tipo'] ?? '') !== 'retirado') {
+            $this->redirectWithError(url('matriculas/' . $id),
+                'Esta matrícula no está marcada como retirada.');
+        }
+
+        $original = $matricula['tipo_anterior'] ?? null;
+        $this->model->update((int) $id, [
+            'tipo'          => in_array($original, ['continuador', 'nuevo'], true) ? $original : 'continuador',
+            'tipo_anterior' => null,
+        ]);
+
+        $this->redirectWithSuccess(url('matriculas/' . $id),
+            'Se revirtió el retiro: el estudiante vuelve a aparecer en calificaciones y conducta.');
     }
 
     // ── GET /matriculas/{id}/notas-externas ──────────────────────

@@ -395,6 +395,40 @@ $labelDoc = [
                 </div>
             </div>
             <?php endif; ?>
+
+            <?php if ($matricula['estado'] === 'desactivado'
+                      && in_array($matricula['tipo'], ['continuador', 'nuevo'], true)): ?>
+            <!-- Marcar como retirado: el estudiante ya no asiste (sin traslado
+                 oficial) y no debe calificarse. Excluye de calificaciones,
+                 conducta y transversales. Reversible. Ver migración 045. -->
+            <div class="mat-accion mat-accion--danger">
+                <div class="mat-accion__info">
+                    <span class="mat-accion__titulo">Marcar como retirado (ya no asiste)</span>
+                    <span class="mat-accion__desc">El estudiante deja de aparecer en calificaciones, conducta y transversales. Úsalo cuando ya no asiste pero no hay traslado oficial. Es reversible.</span>
+                </div>
+                <div class="mat-accion__control">
+                    <form method="POST" action="<?= url('matriculas/' . $mid . '/retirar') ?>"
+                          onsubmit="return confirm('¿Marcar como retirado? El estudiante dejará de aparecer en calificaciones y conducta. Podrás revertirlo.')">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="btn btn--danger">Marcar retirado</button>
+                    </form>
+                </div>
+            </div>
+            <?php elseif ($matricula['estado'] === 'desactivado' && $matricula['tipo'] === 'retirado'): ?>
+            <div class="mat-accion mat-accion--safe">
+                <div class="mat-accion__info">
+                    <span class="mat-accion__titulo">Retirado — ya no asiste</span>
+                    <span class="mat-accion__desc">Está excluido de calificaciones, conducta y transversales. Puedes revertirlo si retoma la asistencia.</span>
+                </div>
+                <div class="mat-accion__control">
+                    <form method="POST" action="<?= url('matriculas/' . $mid . '/revertir-retiro') ?>"
+                          onsubmit="return confirm('¿Revertir el retiro? El estudiante volverá a aparecer en calificaciones y conducta.')">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="btn btn--primary">Revertir retiro</button>
+                    </form>
+                </div>
+            </div>
+            <?php endif; ?>
         <?php else: ?>
             <!-- Desactivar (requiere motivo) — el motivo se despliega al pulsar
                  "Desactivar". Mejora progresiva: sin JS, el formulario se ve abierto. -->

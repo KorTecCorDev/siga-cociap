@@ -148,6 +148,8 @@ $router->get( '/matriculas/{id}/documentos',     'Matricula\MatriculaController@
 $router->post('/matriculas/{id}/documentos',     'Matricula\MatriculaController@storeDocumentos');
 $router->post('/matriculas/{id}/activar',        'Matricula\MatriculaController@activar');
 $router->post('/matriculas/{id}/desactivar',     'Matricula\MatriculaController@desactivar');
+$router->post('/matriculas/{id}/retirar',         'Matricula\MatriculaController@retirar');
+$router->post('/matriculas/{id}/revertir-retiro', 'Matricula\MatriculaController@revertirRetiro');
 // Traslado de salida (constancia oficial): formulario + registro.
 $router->get( '/matriculas/{id}/trasladar',      'Matricula\TrasladoController@form');
 $router->post('/matriculas/{id}/trasladar',      'Matricula\TrasladoController@store');

@@ -1383,8 +1383,9 @@ class CalificacionController extends BaseController
             -- alumno sigue asistiendo mientras regulariza). El ÚNICO excluido es
             -- el TRASLADO DE SALIDA (tipo='trasladado'): ese sí abandonó el
             -- colegio y no debe calificarse. Un traslado siempre es desactivado,
-            -- así que basta filtrar por tipo.
-            AND m.tipo != 'trasladado'
+            -- así que basta filtrar por tipo. Se suma 'retirado': ya no asiste
+            -- (sin traslado oficial) y tampoco debe calificarse. Ver migración 045.
+            AND m.tipo NOT IN ('trasladado', 'retirado')
             -- Retorno de grado: durante la nivelación la matrícula OFICIAL no se
             -- califica en su grado (lo hace la operativa); tras revertir, la
             -- operativa deja de calificarse (lo hace de nuevo la oficial).
