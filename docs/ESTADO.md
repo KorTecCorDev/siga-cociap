@@ -230,11 +230,10 @@ WHERE id=25;`).
     → EXO. En B1 no hay notas de Ética → EREL en blanco es correcto.
 
 ## Pendientes operativos (usuario / colegio)
-- **Alumno retirado (feature del 22/07, migración 045):** falta **marcarlo como
-  `retirado`** por la UI en prod (Gestión de la matrícula) y la **limpieza
-  quirúrgica** de sus respuestas de conducta del II Bim (`DELETE FROM
-  conducta_respuestas WHERE matricula_id=? AND periodo_id=?`, acotado, nada más),
-  **ANTES del cierre de conducta** de su sección.
+- **Alumno retirado (feature del 22/07, migración 045):** marcado como `retirado`
+  en prod ✓ (22/07). Falta la **limpieza quirúrgica** de sus respuestas de conducta
+  del II Bim (`DELETE FROM conducta_respuestas WHERE matricula_id=? AND periodo_id=?`,
+  acotado, nada más), **ANTES del cierre de conducta** de su sección.
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
   (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la
   pestaña se cierra y no se acumulan.
