@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **21/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **22/07/2026**.
 
 ## Migraciones
 - **`044_periodos_publicacion`** (21/07): COMPUERTA DE PUBLICACIÓN DE BOLETAS.
@@ -10,12 +10,13 @@
   hace el **backfill retroactivo obligatorio** de todo bimestre ya cerrado.
   Cerrar un bimestre ya NO publica sus boletas. Idempotente (verificada con
   2 corridas). Regla completa en `docs/modulos/boletas.md`.
-  **APLICADA EN LOCAL — FALTA APLICARLA EN PROD** (debe ir junto con el deploy
-  del código: sin la tabla, la app rompe; con la tabla y sin backfill, B1
-  desaparece para las familias — el backfill va DENTRO de la migración).
-- **LOCAL y PROD: al día hasta la `043`.** Las 038-043 se aplicaron en prod el
-  **20/07/2026** (confirmado por el usuario), inmediatamente después del merge
-  `dev` → `main` del mismo día. Las 034-037 se habían aplicado el 09/07/2026.
+  **APLICADA EN LOCAL Y PROD.** En prod se importó a mano (phpMyAdmin) el
+  **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
+  código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
+- **LOCAL y PROD: al día hasta la `044`.** En prod: 038-043 el 20/07/2026, 044 el
+  22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
+  había saltado al aplicarse suelta; se corrió el **22/07/2026** (estructura
+  verificada idéntica a la migración) y local quedó igualado a prod.
   Con esto quedan desbloqueados en prod: reprocesar las actas SIAGIE de
   4°A/4°B B1 (ver Pendientes operativos) y la calificación extraordinaria.
 - **`043_cierres_asistencia`** (17/07): crea `cierres_asistencia` (una sola
@@ -63,9 +64,9 @@
   `duracion_hora_min = 50` por defecto; el año 2026 usa 45.
 
 ## Pendientes de desarrollo
-- **Compuerta de publicación: IMPLEMENTADA el 21/07/2026** (migración 044, en
-  LOCAL; falta prod). Cerrar ya no publica; se publica por nivel con fecha/hora
-  desde `/admin/control`. Regla, decisiones y verificación en
+- **Compuerta de publicación: EN PRODUCCIÓN desde el 22/07/2026** (migración 044
+  + merge `dev`→`main` `dca4023`). Cerrar ya no publica; se publica por nivel con
+  fecha/hora desde `/admin/control`. Regla, decisiones y verificación en
   `docs/modulos/boletas.md`. El diseño viejo de `docs/decisiones-diferidas.md`
   (`periodos.publicado`) quedó OBSOLETO: no alcanzaba un booleano.
   - **Pendiente relacionado:** el **logro anual** todavía usa "último bimestre
@@ -101,13 +102,13 @@
   del registro de exoneraciones a "Gestión de la matrícula"
   (`docs/modulos/matriculas.md`).
 
-## Compuerta de publicación de boletas — IMPLEMENTADA (21/07/2026)
+## Compuerta de publicación de boletas — EN PRODUCCIÓN (22/07/2026)
 
 > Cerrar un bimestre **ya no publica** sus boletas a las familias. Publicar es un
 > acto separado, **por nivel y con fecha/hora**, desde `/admin/control`.
-> Migración **044** aplicada en LOCAL; **falta aplicarla en PROD** junto con el
-> deploy del código (el backfill retroactivo va dentro de la migración: sin él,
-> B1 desaparece para todas las familias).
+> Migración **044** aplicada en LOCAL y **PROD** (prod el 22/07/2026, importada a
+> mano antes del merge que desplegó el código). El backfill retroactivo fue
+> dentro de la migración; B1 verificado visible tras el deploy.
 >
 > **La regla completa, el modelo de datos, la matriz de reapertura, los 4 puntos
 > de lectura y la verificación viven en `docs/modulos/boletas.md`** (sección
@@ -251,3 +252,7 @@ WHERE id=25;`).
   con imprimible (migr. 043), vista legado B1 de conducta (admin + banner del
   tutor) y selector de bimestre en /admin/conducta. Migraciones 038-043 ya
   en prod.
+- **22/07/2026 — deploy de la compuerta de publicación:** migración 044 importada
+  a mano en prod y merge `dev`→`main` (`567b7f9..dca4023`, fast-forward). Arrastra
+  también el fix SIAGIE de código de 14 dígitos (`e06f49e`). `dev` y `main`
+  quedaron sincronizados.
