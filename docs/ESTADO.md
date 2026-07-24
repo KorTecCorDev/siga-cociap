@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **22/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **24/07/2026**.
 
 ## Migraciones
 - **`045_matriculas_tipo_retirado`** (22/07): agrega `'retirado'` al enum
@@ -231,9 +231,12 @@ WHERE id=25;`).
 
 ## Pendientes operativos (usuario / colegio)
 - **Alumno retirado (feature del 22/07, migración 045):** marcado como `retirado`
-  en prod ✓ (22/07). Falta la **limpieza quirúrgica** de sus respuestas de conducta
-  del II Bim (`DELETE FROM conducta_respuestas WHERE matricula_id=? AND periodo_id=?`,
-  acotado, nada más), **ANTES del cierre de conducta** de su sección.
+  en prod ✓ (22/07). **Limpieza quirúrgica de conducta B2 HECHA en prod (24/07)**:
+  matrícula 541 (DNI 63361405, sección A, `conducta_cerrada=0` verificado), 10 filas
+  de `conducta_respuestas` del II Bim eliminadas; `calificaciones_conducta` no tenía
+  fila (0). Notas académicas intactas. Respaldo reversible vía tablas
+  `_bkp_conducta_resp_541` / `_bkp_calif_conducta_541` (dejadas en prod como red de
+  seguridad → **borrarlas tras el cierre de conducta de la sección A**).
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
   (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la
   pestaña se cierra y no se acumulan.
