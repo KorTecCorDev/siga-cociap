@@ -225,6 +225,11 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   a los usos de `trasladado` en boleta (un retirado es desactivado no-trasladado →
   BORRADOR). Ver `docs/modulos/matriculas.md`.
 - **Orden de mérito excluye áreas `tipo IN ('transversal','tutoria')`** — permanente.
+- **Orden de mérito: el ranking filtra el roster por `m.tipo NOT IN ('trasladado',
+  'retirado')`** (NO por `estado='aprobada'`). Un alumno permanece hasta que su tipo
+  sea trasladado/retirado; `desactivado` por deuda y `pendiente` SÍ compiten.
+  Conserva el anclaje de retorno (`NOT IN` de la oficial activa). Ver
+  `docs/modulos/orden-merito.md`.
 - **PDO preparado siempre**; `cargas_academicas` y `criterios` NO tienen UNIQUE KEY →
   proteger duplicados con `WHERE NOT EXISTS`.
 - **NUNCA CSS inline en PHP** — todo en SASS bajo `resources/sass/` + `gulp build`.

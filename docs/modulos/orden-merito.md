@@ -97,10 +97,25 @@ extraordinaria"). Lo que importa a ESTE módulo:
   suma al promedio.
 
 ## Integración con matrículas (7.1)
-En ranking/conteo: `m.estado='aprobada'` y se EXCLUYE la matrícula oficial de un
-retorno activo (`m.id NOT IN (SELECT matricula_oficial_id FROM retornos_grado
-WHERE estado='activo')`) — el estudiante compite en su grado OPERATIVO.
+En ranking/conteo el roster se filtra por **`m.tipo NOT IN ('trasladado','retirado')`**
+(NO por `estado='aprobada'`): un alumno permanece en el orden de mérito hasta que su
+tipo sea `trasladado` o `retirado` — los `desactivado` por deuda y los `pendiente` SÍ
+compiten. Alineado con los rosters de evaluación. La operativa de un retorno revertido
+(`continuador`) queda incluida por tipo; ya no hace falta el `OR revertido` explícito.
+Se sigue EXCLUYENDO la matrícula oficial de un retorno activo (`m.id NOT IN
+(SELECT matricula_oficial_id FROM retornos_grado WHERE estado='activo' …)`) — el
+estudiante compite en su grado OPERATIVO (anclaje por bimestre intacto).
+
+> Cambio del 24/07/2026 (Fase A del rediseño): el filtro pasó de `estado` a `tipo`.
+> Nota histórica: la vista live de un bimestre CERRADO sin snapshot (fallback) refleja
+> este roster actual; por eso el reporte oficial debe venir del snapshot congelado
+> (ver Fases B y C en `docs/ESTADO.md`), no del cálculo en vivo tardío.
 
 ## Estado operativo
-Ver `docs/ESTADO.md`: la tabla snapshot está VACÍA en LOCAL y PROD (el backfill
-saltó B1/B3 por empates sin resolver); mientras tanto todo se calcula en vivo.
+Ver `docs/ESTADO.md`: la tabla snapshot está VACÍA en LOCAL y PROD; mientras tanto
+todo se calcula en vivo. B1 ya NO tiene empates pendientes (14 resoluciones), pero su
+congelado está en curso dentro del **rediseño del orden de mérito** (Fases A/B/C):
+A = filtro por tipo (hecho); B = inmutabilidad tras publicar + versión rectificada no
+oficial en Centro de control; C = reconstrucción quirúrgica de B1 contra el documento
+oficial de dirección (541 y otros cambiaron de tipo DESPUÉS del cierre, así que el
+cálculo en vivo tardío no reproduce el B1 público).

@@ -229,6 +229,32 @@ WHERE id=25;`).
     Educación Religiosa (035-EREL)**; la nota única del tutor se DUPLICA; exonerados
     → EXO. En B1 no hay notas de Ética → EREL en blanco es correcto.
 
+## Rediseño del orden de mérito (EN CURSO — 24/07/2026)
+
+> Plan aprobado por el usuario. 3 fases, en `dev`. Reglas de negocio confirmadas:
+> (1) el ranking permanece por `tipo` (fuera solo `trasladado`/`retirado`); (2) el
+> snapshot OFICIAL es inmutable una vez que el periodo **estuvo publicado** (compuerta
+> 044, monotónico, a nivel de periodo — B1 se publicó con ambos niveles a la vez);
+> (3) cierres/reaperturas/rectificaciones posteriores a la publicación generan una
+> versión **rectificada NO oficial**, nunca tocan el oficial.
+
+- **Fase A — filtro por `tipo` (HECHA, `dev`, 24/07):** `OrdenMeritoModel` pasó los 5
+  `estado='aprobada'` a `tipo NOT IN ('trasladado','retirado')`; anclaje de retorno
+  intacto; verificado (pendientes entran, trasladado/retirado fuera, retorno OK, B1 sin
+  empates nuevos). Docs: `orden-merito.md` §7.1 + invariante en CLAUDE.md. Falta commit.
+- **Fase B — inmutabilidad + versión no oficial (PENDIENTE):** migración additiva
+  (`periodos_publicacion.primera_publicacion_en` con backfill + tabla nueva
+  `orden_merito_rectificado`); `PublicacionBoletaModel::fuePublicado()`;
+  `OrdenMeritoModel::generarSnapshotRectificado()`; candado en `PeriodoController::cerrar`
+  y `RectificacionController` (publicado → rectificado; sin oficial aún → crea oficial);
+  vista en `/admin/control`. Opción B (tabla aparte) confirmada.
+- **Fase C — reconstrucción quirúrgica de B1 (PENDIENTE, depende del documento):**
+  script one-off que arma el roster de cierre (incluye a los 9 excluidos por tipo vía
+  `tipo_anterior`), emite comparador vs. el documento oficial de dirección, y tras
+  reconciliar escribe el oficial de B1. El usuario TIENE el documento. Los 9 afectados:
+  8 `trasladado` + 541 `retirado` (541 seguro estaba dentro: continuador al cierre).
+  Desempatadores `num_alto (15,16)`/`num_16` sin recalibrar → se resuelve al comparar.
+
 ## Pendientes operativos (usuario / colegio)
 - **Alumno retirado (feature del 22/07, migración 045):** marcado como `retirado`
   en prod ✓ (22/07). **Limpieza quirúrgica de conducta B2 HECHA en prod (24/07)**:
@@ -245,9 +271,10 @@ WHERE id=25;`).
   (CyT/Matemática primaria 4°-6°, Arte y Cultura 1°A prim., etc.). 3°B ya está completo.
 - **Solape real preexistente:** CLEMENTE ANGELES, lunes, 1°C (14:40-16:10) vs
   5°B (15:45-17:20) — debe resolverlo el colegio.
-- **Orden de mérito:** resolver los empates de B1/B3 y correr el backfill del
-  snapshot (`database/backfill_orden_merito.php`) en LOCAL y PROD. Mientras la
-  tabla esté vacía, todo se calcula en vivo (comportamiento actual, correcto).
+- **Orden de mérito:** ver la sección "Rediseño del orden de mérito (en curso)"
+  abajo. B1 ya NO tiene empates pendientes (14 resoluciones, verificado). El backfill
+  simple quedó SUPERADO por el rediseño: B1 debe reconstruirse contra el documento
+  oficial (varios alumnos cambiaron de tipo tras el cierre).
 - **Re-subir firma/sello del Director EBR** solo si se recrea el entorno
   (se pierden únicamente si se borra el directorio externo `~/siga_uploads/`).
 - **Decisión del colegio pendiente:** regenerar (o no) el ranking B1 tras el

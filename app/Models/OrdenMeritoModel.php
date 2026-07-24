@@ -92,14 +92,11 @@ class OrdenMeritoModel extends BaseModel
               -- Rectificación, migración 042) NO cuentan para el mérito:
               -- van a boleta y SIAGIE, pero no mueven puestos.
               AND cal.extraordinaria = 0
-              AND (
-                  m.estado = 'aprobada'
-                  -- Operativa de un retorno REVERTIDO: sigue compitiendo en los
-                  -- bimestres que cursó, aunque su matrícula esté desactivada.
-                  OR m.id IN (
-                      SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido'
-                  )
-              )
+              -- Filtro por TIPO (no por estado): el alumno permanece en el orden
+              -- de mérito hasta que su tipo sea 'trasladado' o 'retirado'. Los
+              -- 'desactivado' por deuda y 'pendiente' SÍ compiten; la operativa de
+              -- un retorno revertido (continuador) queda incluida por tipo.
+              AND m.tipo NOT IN ('trasladado', 'retirado')
               -- Anclaje por bimestre: el alumno compite donde están sus notas de
               -- ESE periodo. Se excluye la OFICIAL cuando su operativa cubrió este
               -- periodo (retorno activo siempre; revertido solo en sus bimestres).
@@ -171,12 +168,8 @@ class OrdenMeritoModel extends BaseModel
               AND cal.periodo_id = ?
               -- Extraordinarias fuera del mérito (ver rankingGradoLive).
               AND cal.extraordinaria = 0
-              AND (
-                  m.estado = 'aprobada'
-                  OR m.id IN (
-                      SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido'
-                  )
-              )
+              -- Filtro por TIPO (ver rankingGradoLive).
+              AND m.tipo NOT IN ('trasladado', 'retirado')
               AND m.id NOT IN (
                   SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo'
                   UNION
@@ -334,7 +327,7 @@ class OrdenMeritoModel extends BaseModel
             INNER JOIN niveles n          ON n.id  = g.nivel_id
             INNER JOIN calificaciones cal ON cal.matricula_id = m.id
             WHERE cal.periodo_id = ?
-              AND m.estado = 'aprobada'
+              AND m.tipo NOT IN ('trasladado', 'retirado')
             ORDER BY n.id, g.numero
         ", [$periodoId]);
     }
@@ -358,8 +351,7 @@ class OrdenMeritoModel extends BaseModel
             INNER JOIN secciones s        ON s.id  = m.seccion_id
             INNER JOIN grados g           ON g.id  = s.grado_id
             INNER JOIN calificaciones cal ON cal.matricula_id = m.id AND cal.periodo_id = ?
-            WHERE (m.estado = 'aprobada'
-                   OR m.id IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido'))
+            WHERE m.tipo NOT IN ('trasladado', 'retirado')
         ", [$periodoId]);
 
         foreach ($grados as $g) {
@@ -440,7 +432,7 @@ class OrdenMeritoModel extends BaseModel
             INNER JOIN niveles n          ON n.id  = g.nivel_id
             INNER JOIN calificaciones cal ON cal.matricula_id = m.id
             WHERE cal.periodo_id = ?
-              AND m.estado = 'aprobada'
+              AND m.tipo NOT IN ('trasladado', 'retirado')
             ORDER BY n.id, g.numero
         ", [$periodoId]);
 
