@@ -130,7 +130,8 @@ class PeriodoController extends BaseController
             );
         }
 
-        $usuarioId = (int) (Session::user()['id'] ?? 0);
+        $usuarioId   = (int) (Session::user()['id'] ?? 0);
+        $tipoRanking = 'oficial';
 
         try {
             $this->model->beginTransaction();
@@ -149,9 +150,13 @@ class PeriodoController extends BaseController
             // reapertura previa habia suspendido (no crea filas nuevas): asi el
             // ciclo reabrir -> re-cerrar devuelve exactamente el estado anterior.
             $this->publicacionModel->restaurarPorCierre($id);
-            // Recién DESPUÉS se congela el orden de mérito oficial (primero boletas,
-            // luego mérito). Mismo PDO singleton → entra en esta misma transacción.
-            (new OrdenMeritoModel())->generarSnapshot($id, $usuarioId);
+            // Recién DESPUÉS se congela el orden de mérito (primero boletas, luego
+            // mérito). Mismo PDO singleton → entra en esta misma transacción.
+            // registrarRanking respeta la INMUTABILIDAD (migr. 046): si el bimestre
+            // YA estuvo publicado, NO toca el oficial y guarda una versión rectificada.
+            $tipoRanking = (new OrdenMeritoModel())->registrarRanking(
+                $id, $usuarioId, 'Cierre de bimestre'
+            );
             $this->model->commit();
         } catch (\Exception $e) {
             $this->model->rollback();
@@ -160,9 +165,13 @@ class PeriodoController extends BaseController
         }
 
         // Redirige a la vista del año con el flag para abrir el modal de indicadores.
+        $notaRanking = $tipoRanking === 'rectificado'
+            ? ' El orden de mérito oficial NO cambió (bimestre ya publicado); se registró'
+              . ' una versión rectificada en el Centro de control.'
+            : '';
         $this->redirectWithSuccess(
             url('director/anios/' . $periodo['anio_id']) . '?cerrado=' . $id,
-            "{$periodo['nombre_display']} cerrado. Las competencias pendientes quedaron bloqueadas."
+            "{$periodo['nombre_display']} cerrado. Las competencias pendientes quedaron bloqueadas." . $notaRanking
         );
     }
 

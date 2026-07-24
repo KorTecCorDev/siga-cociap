@@ -50,6 +50,34 @@ en documento oficial inmutable por snapshot.
 - Limitación menor conocida: `getConteosGrado` (header del reporte) sigue en vivo —
   solo afecta el conteo del grado operativo de un retorno revertido, no los puestos.
 
+## Inmutabilidad del oficial + versión rectificada (migración 046, 24/07/2026)
+
+Fase B del rediseño. Regla: **el snapshot OFICIAL (`orden_merito_snapshot`) no cambia
+una vez que el periodo ESTUVO publicado** (compuerta 044). Un orden de mérito publicado
+es información pública; corregirlo sin acto formal es una regresión grave.
+
+- **Disparador (monotónico, a nivel de periodo):** `PublicacionBoletaModel::fuePublicado`
+  = existe fila con `primera_publicacion_en` sellada, o `publica_en <= ahora` (cubre las
+  programadas que alcanzaron su hora). El sello lo pone `publicar()` con `COALESCE` (una
+  sola vez, nunca se limpia) → suspender por reapertura o despublicar a mano NO reabren el
+  candado. Columna additiva `periodos_publicacion.primera_publicacion_en` (backfill en 046).
+- **Punto único de escritura:** `OrdenMeritoModel::registrarRanking($periodoId, $usuarioId,
+  $motivo)` → si `fuePublicado` **y** ya hay oficial, escribe la versión RECTIFICADA
+  (`generarSnapshotRectificado`, tabla `orden_merito_rectificado`) y el oficial queda
+  intacto; si no, (re)genera el oficial. Devuelve `'oficial'|'rectificado'`. Lo usan
+  `PeriodoController::cerrar` y `RectificacionController` (antes llamaban `generarSnapshot`
+  directo). **`generarSnapshot` directo NO honra el candado** — reservado para el
+  backfill y la reconstrucción de B1 (registro inicial del oficial de un bimestre ya
+  publicado que aún no tenía snapshot).
+- **Fuente de cálculo común:** `calcularFilasRanking` (extraída) alimenta el oficial y el
+  rectificado con el mismo ranking en vivo, para que solo difieran en tabla y `motivo`.
+- **Vista:** el Centro de control (`/admin/control`) muestra una card cuando hay versión
+  rectificada + una página de solo lectura
+  (`/admin/control/{periodo_id}/orden-merito-rectificado`). El oficial se sigue viendo por
+  el flujo normal del director; la rectificada es "registrada pero no mostrada" ahí.
+- `orden_merito_rectificado` guarda **la última** versión no oficial por periodo (se
+  sobrescribe); la traza por criterio vive en `rectificaciones_calificacion`.
+
 ## Rectificación de calificaciones (17/06/2026)
 
 Módulo GENERAL para que `admin`/`registro_academico` corrijan notas que ya

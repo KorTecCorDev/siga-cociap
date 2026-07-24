@@ -5,6 +5,7 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Models\AnioAcademicoModel;
 use App\Models\ControlOperativoModel;
+use App\Models\OrdenMeritoModel;
 use App\Models\PublicacionBoletaModel;
 use Core\Session;
 
@@ -63,6 +64,7 @@ class ControlOperativoController extends BaseController
                 'incidencias'  => ['docentes' => [], 'resumen' => ['competencias' => 0, 'cargas' => 0, 'docentes' => 0, 'sin_avance' => 0]],
                 'publicacion'  => [],
                 'puedePublicar'=> false,
+                'rectificado'  => null,
             ]);
             return;
         }
@@ -130,6 +132,40 @@ class ControlOperativoController extends BaseController
             // COMPUERTA DE PUBLICACION (044): estado por nivel del bimestre.
             'publicacion'      => $this->publicacionModel->estadoPorNivel($periodoId),
             'puedePublicar'    => $this->puedePublicar(),
+            // Version RECTIFICADA no oficial (migr. 046): metadatos o null.
+            'rectificado'      => (new OrdenMeritoModel())->infoRectificado($periodoId),
+        ]);
+    }
+
+    /**
+     * GET /admin/control/{periodo_id}/orden-merito-rectificado
+     * Vista de SOLO LECTURA del orden de mérito rectificado (no oficial, no
+     * publicado). Existe cuando un cierre/rectificación tocó un bimestre ya
+     * publicado: el oficial no cambió y la versión nueva se registró aparte.
+     */
+    public function ordenMeritoRectificado(string $periodoId): void
+    {
+        $periodoId = (int) $periodoId;
+        $periodo   = $this->model->getPeriodo($periodoId);
+
+        if (!$periodo) {
+            $this->redirectWithError(url('admin/control'), 'Bimestre no encontrado.');
+        }
+
+        $ordenModel = new OrdenMeritoModel();
+        $ranking = [];
+        foreach ($ordenModel->gradosConRectificado($periodoId) as $grado) {
+            $ranking[$grado['id']] = [
+                'grado'       => $grado,
+                'estudiantes' => $ordenModel->rankingGradoRectificado((int) $grado['id'], $periodoId),
+            ];
+        }
+
+        $this->view('admin/control/orden-merito-rectificado', [
+            'titulo'  => 'Orden de mérito rectificado — ' . $periodo['nombre_display'],
+            'periodo' => $periodo,
+            'info'    => $ordenModel->infoRectificado($periodoId),
+            'ranking' => $ranking,
         ]);
     }
 

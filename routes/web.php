@@ -31,6 +31,8 @@ $router->post('/admin/curriculum/competencias/{id}/editar',        'Admin\Curric
 
 // ─── Admin — Centro de Control Operativo ────────────────────
 $router->get( '/admin/control',               'Admin\ControlOperativoController@index');
+// Orden de merito RECTIFICADO (no oficial, no publicado): vista de solo lectura.
+$router->get( '/admin/control/{periodo_id}/orden-merito-rectificado', 'Admin\ControlOperativoController@ordenMeritoRectificado');
 // Cierre de bimestre — Hito A (aprobar boletas -> borrador para docentes).
 $router->post('/admin/control/{periodo_id}/aprobar-bimestre',   'Admin\ControlOperativoController@aprobarBimestre');
 $router->post('/admin/control/{periodo_id}/anular-aprobacion',  'Admin\ControlOperativoController@anularAprobacion');

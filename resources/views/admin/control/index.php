@@ -12,6 +12,9 @@
  *                                       suspendida_en, despublicada_en,
  *                                       motivo_despublicacion, estado}]
  * @var bool        $puedePublicar     admin/RA si; directores solo miran
+ * @var array|null  $rectificado       version no oficial del orden de merito (046)
+ *                                     [{generado_en, motivo, generado_por_nombre,
+ *                                       num_alumnos}] o null si no hay
  */
 $badgePublicacion = static fn(string $est): string => match ($est) {
     'publicado'    => 'badge--activo',
@@ -274,6 +277,37 @@ $badgeSeveridad = static fn(string $sev): string =>
             <?php endif; ?>
         </div>
     </div>
+
+    <!-- Orden de mérito RECTIFICADO (no oficial, migración 046) -->
+    <?php if (!empty($rectificado)): ?>
+        <div class="card mb-lg">
+            <div class="card__header card__header--between">
+                <h2 class="card__title">Orden de mérito rectificado (no publicado)</h2>
+                <span class="badge badge--warning">No oficial</span>
+            </div>
+            <div class="card__body">
+                <p>
+                    Este bimestre ya estaba publicado, así que el orden de mérito
+                    <strong>oficial no cambió</strong>. Un recálculo posterior (cierre o
+                    rectificación de notas) quedó registrado como versión rectificada,
+                    solo para consulta interna.
+                </p>
+                <p>
+                    Generado el
+                    <strong><?= e(date('d/m/Y H:i', strtotime($rectificado['generado_en']))) ?></strong>
+                    <?php if (!empty($rectificado['generado_por_nombre'])): ?>
+                        por <?= e($rectificado['generado_por_nombre']) ?>
+                    <?php endif; ?>
+                    · <?= (int) $rectificado['num_alumnos'] ?> alumno(s).
+                </p>
+                <?php if (!empty($rectificado['motivo'])): ?>
+                    <p class="text-muted"><strong>Motivo:</strong> <?= e($rectificado['motivo']) ?></p>
+                <?php endif; ?>
+                <a href="<?= url('admin/control/' . (int) $periodo['id'] . '/orden-merito-rectificado') ?>"
+                   class="btn btn--secondary btn--sm">Ver orden de mérito rectificado</a>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- F5: Incidencias del cierre forzado (etiqueta neutral) -->
     <?php if ($estadoBoleta !== 'registro'): $res = $incidencias['resumen']; ?>

@@ -18,11 +18,13 @@ class OrdenMeritoModel extends BaseModel
     protected string $table = 'matriculas';
 
     private DesempateMeritoModel $desempateModel;
+    private PublicacionBoletaModel $publicacionModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->desempateModel = new DesempateMeritoModel();
+        $this->desempateModel   = new DesempateMeritoModel();
+        $this->publicacionModel = new PublicacionBoletaModel();
     }
 
     /**
@@ -333,18 +335,16 @@ class OrdenMeritoModel extends BaseModel
     }
 
     /**
-     * (Re)genera el snapshot oficial de un periodo: borra el existente e inserta
-     * el ranking por grado (puesto_grado) + por sección (puesto_seccion) de todos
-     * los grados con ranking. Se llama al CERRAR (dentro de su transacción) y en
-     * el backfill. Usa el cálculo EN VIVO con anclaje por bimestre, por lo que es
-     * inmune al estado actual del retorno (congela dónde estaban las notas).
+     * Calcula las filas del ranking de un periodo (puesto por grado + puesto por
+     * sección + métricas) listas para persistir. Es la fuente COMÚN del snapshot
+     * oficial y de la versión rectificada, para que ambos congelen exactamente el
+     * mismo cálculo EN VIVO (con anclaje por bimestre, inmune al estado actual del
+     * retorno). No escribe nada: solo devuelve las filas.
      */
-    public function generarSnapshot(int $periodoId, ?int $usuarioId = null): void
+    private function calcularFilasRanking(int $periodoId): array
     {
-        $this->execute("DELETE FROM orden_merito_snapshot WHERE periodo_id = ?", [$periodoId]);
-
-        // Grados con notas en el periodo, incluyendo operativas de retornos
-        // revertidos (compiten en los bimestres que cursaron).
+        // Grados con notas en el periodo (incluye operativas de retornos revertidos,
+        // que compiten por tipo en los bimestres que cursaron).
         $grados = $this->query("
             SELECT DISTINCT g.id
             FROM matriculas m
@@ -354,6 +354,7 @@ class OrdenMeritoModel extends BaseModel
             WHERE m.tipo NOT IN ('trasladado', 'retirado')
         ", [$periodoId]);
 
+        $filas = [];
         foreach ($grados as $g) {
             $gradoId = (int) $g['id'];
             $general = $this->rankingGradoLive($gradoId, $periodoId);
@@ -375,23 +376,179 @@ class OrdenMeritoModel extends BaseModel
             foreach ($general as $f) {
                 $mid = (int) $f['matricula_id'];
                 $sec = $secMap[$mid] ?? ['seccion_id' => null, 'puesto_seccion' => null];
-                $this->execute("
-                    INSERT INTO orden_merito_snapshot
-                        (periodo_id, matricula_id, grado_id, seccion_id,
-                         puesto_grado, puesto_seccion,
-                         num_competencias, total_notas, promedio_general, promedio_exacto,
-                         num_c, num_b, num_ad, num_alto, num_16, generado_por)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                ", [
-                    $periodoId, $mid, $gradoId, $sec['seccion_id'],
-                    (int) $f['puesto'], $sec['puesto_seccion'],
-                    (int) $f['num_competencias'], (int) $f['total_notas'],
-                    $f['promedio_general'], $f['promedio_exacto'],
-                    (int) $f['num_c'], (int) $f['num_b'], (int) $f['num_ad'],
-                    (int) $f['num_alto'], (int) $f['num_16'], $usuarioId,
-                ]);
+                $filas[] = [
+                    'periodo_id'       => $periodoId,
+                    'matricula_id'     => $mid,
+                    'grado_id'         => $gradoId,
+                    'seccion_id'       => $sec['seccion_id'],
+                    'puesto_grado'     => (int) $f['puesto'],
+                    'puesto_seccion'   => $sec['puesto_seccion'],
+                    'num_competencias' => (int) $f['num_competencias'],
+                    'total_notas'      => (int) $f['total_notas'],
+                    'promedio_general' => $f['promedio_general'],
+                    'promedio_exacto'  => $f['promedio_exacto'],
+                    'num_c'            => (int) $f['num_c'],
+                    'num_b'            => (int) $f['num_b'],
+                    'num_ad'           => (int) $f['num_ad'],
+                    'num_alto'         => (int) $f['num_alto'],
+                    'num_16'           => (int) $f['num_16'],
+                ];
             }
         }
+
+        return $filas;
+    }
+
+    /**
+     * (Re)genera el snapshot OFICIAL de un periodo: borra el existente e inserta
+     * el ranking calculado. Se llama al CERRAR (dentro de su transacción) y en el
+     * backfill. OJO: NO honra la inmutabilidad por sí mismo — quien deba respetar
+     * "un bimestre publicado no cambia su oficial" usa registrarRanking().
+     */
+    public function generarSnapshot(int $periodoId, ?int $usuarioId = null): void
+    {
+        $this->execute("DELETE FROM orden_merito_snapshot WHERE periodo_id = ?", [$periodoId]);
+
+        foreach ($this->calcularFilasRanking($periodoId) as $f) {
+            $this->execute("
+                INSERT INTO orden_merito_snapshot
+                    (periodo_id, matricula_id, grado_id, seccion_id,
+                     puesto_grado, puesto_seccion,
+                     num_competencias, total_notas, promedio_general, promedio_exacto,
+                     num_c, num_b, num_ad, num_alto, num_16, generado_por)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ", [
+                $f['periodo_id'], $f['matricula_id'], $f['grado_id'], $f['seccion_id'],
+                $f['puesto_grado'], $f['puesto_seccion'],
+                $f['num_competencias'], $f['total_notas'],
+                $f['promedio_general'], $f['promedio_exacto'],
+                $f['num_c'], $f['num_b'], $f['num_ad'],
+                $f['num_alto'], $f['num_16'], $usuarioId,
+            ]);
+        }
+    }
+
+    /**
+     * (Re)genera la versión RECTIFICADA (no oficial) de un periodo. Misma fuente de
+     * cálculo que el oficial, pero va a orden_merito_rectificado con su motivo.
+     * Sobrescribe la versión anterior del periodo (guardamos la última).
+     */
+    public function generarSnapshotRectificado(int $periodoId, ?int $usuarioId, string $motivo): void
+    {
+        $this->execute("DELETE FROM orden_merito_rectificado WHERE periodo_id = ?", [$periodoId]);
+
+        foreach ($this->calcularFilasRanking($periodoId) as $f) {
+            $this->execute("
+                INSERT INTO orden_merito_rectificado
+                    (periodo_id, matricula_id, grado_id, seccion_id,
+                     puesto_grado, puesto_seccion,
+                     num_competencias, total_notas, promedio_general, promedio_exacto,
+                     num_c, num_b, num_ad, num_alto, num_16, generado_por, motivo)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ", [
+                $f['periodo_id'], $f['matricula_id'], $f['grado_id'], $f['seccion_id'],
+                $f['puesto_grado'], $f['puesto_seccion'],
+                $f['num_competencias'], $f['total_notas'],
+                $f['promedio_general'], $f['promedio_exacto'],
+                $f['num_c'], $f['num_b'], $f['num_ad'],
+                $f['num_alto'], $f['num_16'], $usuarioId, $motivo,
+            ]);
+        }
+    }
+
+    /** ¿El periodo ya tiene snapshot OFICIAL grabado? */
+    public function tieneSnapshotOficial(int $periodoId): bool
+    {
+        return $this->queryOne(
+            "SELECT 1 FROM orden_merito_snapshot WHERE periodo_id = ? LIMIT 1",
+            [$periodoId]
+        ) !== null;
+    }
+
+    /**
+     * PUNTO ÚNICO de escritura del ranking que respeta la INMUTABILIDAD (migr. 046).
+     * Si el periodo ya ESTUVO publicado (compuerta 044) y tiene oficial → escribe la
+     * versión RECTIFICADA no oficial (el oficial no se toca). Si no → (re)genera el
+     * oficial. Lo usan PeriodoController::cerrar y RectificacionController.
+     * @return string 'oficial' | 'rectificado'
+     */
+    public function registrarRanking(int $periodoId, ?int $usuarioId, string $motivo): string
+    {
+        if ($this->publicacionModel->fuePublicado($periodoId) && $this->tieneSnapshotOficial($periodoId)) {
+            $this->generarSnapshotRectificado($periodoId, $usuarioId, $motivo);
+            return 'rectificado';
+        }
+        $this->generarSnapshot($periodoId, $usuarioId);
+        return 'oficial';
+    }
+
+    // ── Lectores de la versión RECTIFICADA (Centro de control) ───────────────
+
+    /**
+     * Metadatos de la versión rectificada de un periodo (o null si no hay):
+     * generado_en, motivo, generado_por + nombre y num_alumnos.
+     */
+    public function infoRectificado(int $periodoId): ?array
+    {
+        $row = $this->queryOne("
+            SELECT r.generado_en, r.motivo, r.generado_por,
+                   CONCAT(p.apellido_paterno, ' ', p.apellido_materno, ', ', p.nombres) AS generado_por_nombre
+            FROM orden_merito_rectificado r
+            LEFT JOIN usuarios u ON u.id = r.generado_por
+            LEFT JOIN personas p ON p.id = u.persona_id
+            WHERE r.periodo_id = ?
+            ORDER BY r.generado_en DESC
+            LIMIT 1
+        ", [$periodoId]);
+
+        if (!$row) {
+            return null;
+        }
+        $cnt = $this->queryOne(
+            "SELECT COUNT(*) AS n FROM orden_merito_rectificado WHERE periodo_id = ?",
+            [$periodoId]
+        );
+        $row['num_alumnos'] = (int) ($cnt['n'] ?? 0);
+        return $row;
+    }
+
+    /** Grados con ranking en la versión rectificada de un periodo. */
+    public function gradosConRectificado(int $periodoId): array
+    {
+        return $this->query("
+            SELECT DISTINCT g.id, g.numero, g.nombre_display,
+                   n.id AS nivel_id, n.nombre AS nivel_nombre, n.codigo AS nivel_codigo
+            FROM orden_merito_rectificado r
+            INNER JOIN grados g  ON g.id = r.grado_id
+            INNER JOIN niveles n ON n.id = g.nivel_id
+            WHERE r.periodo_id = ?
+            ORDER BY n.id, g.numero
+        ", [$periodoId]);
+    }
+
+    /** Ranking de grado desde la versión rectificada (mismo shape que el snapshot). */
+    public function rankingGradoRectificado(int $gradoId, int $periodoId): array
+    {
+        $filas = $this->query("
+            SELECT
+                r.matricula_id,
+                p.apellido_paterno, p.apellido_materno, p.nombres, p.dni,
+                r.seccion_id,
+                sec.nombre AS seccion_nombre,
+                r.num_competencias, r.total_notas,
+                r.promedio_general, r.promedio_exacto,
+                r.num_c, r.num_b, r.num_ad, r.num_alto, r.num_16,
+                r.puesto_grado AS puesto
+            FROM orden_merito_rectificado r
+            INNER JOIN matriculas m  ON m.id = r.matricula_id
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas p    ON p.id = e.persona_id
+            LEFT  JOIN secciones sec ON sec.id = r.seccion_id
+            WHERE r.periodo_id = ? AND r.grado_id = ?
+            ORDER BY r.puesto_grado
+        ", [$periodoId, $gradoId]);
+
+        return $this->normalizarSnapshot($filas);
     }
 
     /**

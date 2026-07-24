@@ -4,6 +4,12 @@
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **24/07/2026**.
 
 ## Migraciones
+- **`046_orden_merito_inmutable`** (24/07): Fase B del rediseño del orden de mérito.
+  Additiva: `periodos_publicacion.primera_publicacion_en` (marca monotónica de primera
+  publicación, backfill de lo ya publicado) + tabla nueva `orden_merito_rectificado`
+  (versión no oficial del ranking). No altera datos existentes. Idempotente
+  (`ADD COLUMN IF NOT EXISTS` + `CREATE TABLE IF NOT EXISTS`). **APLICADA EN LOCAL;
+  falta PROD.** Ver `docs/modulos/orden-merito.md`.
 - **`045_matriculas_tipo_retirado`** (22/07): agrega `'retirado'` al enum
   `matriculas.tipo`. Marca al estudiante que YA NO ASISTE pero no se trasladó
   oficialmente (sin constancia ni IE destino; la familia espera que regrese). Los
@@ -242,12 +248,15 @@ WHERE id=25;`).
   `estado='aprobada'` a `tipo NOT IN ('trasladado','retirado')`; anclaje de retorno
   intacto; verificado (pendientes entran, trasladado/retirado fuera, retorno OK, B1 sin
   empates nuevos). Docs: `orden-merito.md` §7.1 + invariante en CLAUDE.md. Falta commit.
-- **Fase B — inmutabilidad + versión no oficial (PENDIENTE):** migración additiva
-  (`periodos_publicacion.primera_publicacion_en` con backfill + tabla nueva
-  `orden_merito_rectificado`); `PublicacionBoletaModel::fuePublicado()`;
-  `OrdenMeritoModel::generarSnapshotRectificado()`; candado en `PeriodoController::cerrar`
-  y `RectificacionController` (publicado → rectificado; sin oficial aún → crea oficial);
-  vista en `/admin/control`. Opción B (tabla aparte) confirmada.
+- **Fase B — inmutabilidad + versión no oficial (HECHA, `dev`, 24/07):** migración
+  **046** additiva (`periodos_publicacion.primera_publicacion_en` con backfill + tabla
+  `orden_merito_rectificado`); `PublicacionBoletaModel::fuePublicado()` (monotónico);
+  `OrdenMeritoModel::registrarRanking()` (punto único con candado) +
+  `generarSnapshotRectificado()` + `calcularFilasRanking()` (refactor) + lectores;
+  `cerrar` y rectificación migrados a `registrarRanking`; card + vista de solo lectura
+  en `/admin/control`. Verificado en local (candado: 1ª sin oficial→oficial;
+  2ª→rectificado, oficial intacto; limpieza restauró snapshot vacío). **Migración 046
+  aplicada en LOCAL; falta PROD.** Falta commit + gulp NO requerido (reusa clases).
 - **Fase C — reconstrucción quirúrgica de B1 (PENDIENTE, depende del documento):**
   script one-off que arma el roster de cierre (incluye a los 9 excluidos por tipo vía
   `tipo_anterior`), emite comparador vs. el documento oficial de dirección, y tras

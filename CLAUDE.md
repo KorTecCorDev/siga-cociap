@@ -230,6 +230,13 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   sea trasladado/retirado; `desactivado` por deuda y `pendiente` SÍ compiten.
   Conserva el anclaje de retorno (`NOT IN` de la oficial activa). Ver
   `docs/modulos/orden-merito.md`.
+- **Orden de mérito: el snapshot OFICIAL es INMUTABLE una vez que el periodo
+  ESTUVO publicado** (compuerta 044; `PublicacionBoletaModel::fuePublicado`,
+  monotónico vía `periodos_publicacion.primera_publicacion_en`). Cierres y
+  rectificaciones posteriores NO tocan el oficial: van a `orden_merito_rectificado`
+  (versión no oficial, visible solo en `/admin/control`). PUNTO ÚNICO:
+  `OrdenMeritoModel::registrarRanking` (lo usan `cerrar` y la rectificación);
+  `generarSnapshot` directo NO honra el candado (solo backfill/reconstrucción).
 - **PDO preparado siempre**; `cargas_academicas` y `criterios` NO tienen UNIQUE KEY →
   proteger duplicados con `WHERE NOT EXISTS`.
 - **NUNCA CSS inline en PHP** — todo en SASS bajo `resources/sass/` + `gulp build`.

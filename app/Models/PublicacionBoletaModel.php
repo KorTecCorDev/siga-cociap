@@ -117,18 +117,48 @@ class PublicacionBoletaModel extends BaseModel
      */
     public function publicar(int $periodoId, int $nivelId, string $publicaEn, int $usuarioId): bool
     {
+        // Sello MONOTÓNICO de primera publicación: se marca solo cuando la
+        // publicación es INMEDIATA (publica_en ya alcanzado). COALESCE evita
+        // sobrescribirlo en republicaciones o reprogramaciones futuras, para
+        // que el candado de inmutabilidad del orden de mérito (fuePublicado)
+        // no se reabra una vez que las familias vieron el bimestre.
+        $primera = ($publicaEn <= $this->ahora()) ? $this->ahora() : null;
+
         return $this->execute("
             INSERT INTO periodos_publicacion
-                (periodo_id, nivel_id, publica_en, publicado_por)
-            VALUES (?, ?, ?, ?)
+                (periodo_id, nivel_id, publica_en, publicado_por, primera_publicacion_en)
+            VALUES (?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
-                publica_en            = VALUES(publica_en),
-                publicado_por         = VALUES(publicado_por),
-                suspendida_en         = NULL,
-                despublicada_en       = NULL,
-                despublicada_por      = NULL,
-                motivo_despublicacion = NULL
-        ", [$periodoId, $nivelId, $publicaEn, $usuarioId]);
+                publica_en             = VALUES(publica_en),
+                publicado_por          = VALUES(publicado_por),
+                suspendida_en          = NULL,
+                despublicada_en        = NULL,
+                despublicada_por       = NULL,
+                motivo_despublicacion  = NULL,
+                primera_publicacion_en = COALESCE(primera_publicacion_en, VALUES(primera_publicacion_en))
+        ", [$periodoId, $nivelId, $publicaEn, $usuarioId, $primera]);
+    }
+
+    /**
+     * ¿El periodo ESTUVO publicado alguna vez (en cualquier nivel)? Monotónico:
+     * una vez público, sigue siendo público aunque luego se suspenda (reapertura)
+     * o se despublique a mano. Es el candado de INMUTABILIDAD del orden de mérito
+     * oficial (migración 046): un bimestre ya publicado no puede cambiar su ranking
+     * oficial; los recálculos posteriores van a la versión rectificada.
+     *
+     * "Publicado alguna vez" = tiene el sello `primera_publicacion_en` (publicación
+     * inmediata pasada) O su `publica_en` ya llegó (cubre las publicaciones
+     * PROGRAMADAS que alcanzaron su hora sin un acto humano que las sellara).
+     */
+    public function fuePublicado(int $periodoId, ?string $ahora = null): bool
+    {
+        return $this->queryOne("
+            SELECT 1
+            FROM periodos_publicacion
+            WHERE periodo_id = ?
+              AND (primera_publicacion_en IS NOT NULL OR publica_en <= ?)
+            LIMIT 1
+        ", [$periodoId, $ahora ?? $this->ahora()]) !== null;
     }
 
     /**

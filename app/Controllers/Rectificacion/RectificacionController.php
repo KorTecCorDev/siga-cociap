@@ -435,23 +435,32 @@ class RectificacionController extends BaseController
         }
 
         // ── Regeneración del orden de mérito + aviso de empate ────
-        // El snapshot lee del cálculo en vivo (ya con la corrección aplicada).
+        // registrarRanking respeta la INMUTABILIDAD (migr. 046): si el bimestre YA
+        // estuvo publicado, el oficial NO cambia y se guarda una versión rectificada
+        // (visible solo en el Centro de control). Lee la corrección ya aplicada.
         $avisoEmpate = '';
+        $notaRanking = '';
         try {
-            $this->ordenMeritoModel->generarSnapshot($periodoId, $usuarioId);
+            $tipoRanking = $this->ordenMeritoModel->registrarRanking(
+                $periodoId, $usuarioId, 'Rectificación de notas'
+            );
+            if ($tipoRanking === 'rectificado') {
+                $notaRanking = ' El orden de mérito oficial (publicado) no se modificó; '
+                    . 'la nueva versión quedó registrada en el Centro de control.';
+            }
             if ($this->ordenMeritoModel->gradoTieneEmpateLivePendiente((int) $info['grado_id'], $periodoId)) {
                 $avisoEmpate = ' Atención: el ranking del grado quedó con un empate pendiente de '
                     . 'resolver; coordina con el director para definirlo.';
             }
         } catch (\Exception $e) {
-            log_error('Error al regenerar snapshot tras rectificación', [
+            log_error('Error al regenerar orden de mérito tras rectificación', [
                 'periodo' => $periodoId, 'error' => $e->getMessage(),
             ]);
             $avisoEmpate = ' (No se pudo regenerar el orden de mérito automáticamente; revísalo manualmente.)';
         }
 
         $this->redirectWithSuccess($volverLista,
-            'Rectificación aplicada.' . $avisoEmpate);
+            'Rectificación aplicada.' . $notaRanking . $avisoEmpate);
     }
 
     /** Respuesta 404 estándar del proyecto. */

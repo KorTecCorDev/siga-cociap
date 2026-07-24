@@ -497,6 +497,13 @@ parámetro preparado. **`NOW()` de MySQL nunca interviene en la lectura**: el hu
 producción (Hostinger) es desconocido y suele ser UTC, así que una publicación
 programada a las 18:00 se dispararía 5 horas antes.
 
+**`fuePublicado($periodoId)` + `primera_publicacion_en` (migración 046):** además de
+la lectura de visibilidad, la tabla ancla la INMUTABILIDAD del orden de mérito. La
+columna `primera_publicacion_en` es una marca monotónica (la sella `publicar()` con
+`COALESCE`, una sola vez) que sobrevive a reaperturas y despublicaciones. `fuePublicado`
+es un candado a nivel de periodo — lo consume `OrdenMeritoModel::registrarRanking`, no
+la boleta. Detalle en `docs/modulos/orden-merito.md`.
+
 ### El corte `'oficial'` / `'archivo'` (decisión del usuario)
 `armar()` suma un cuarto umbral. **Mismo corte de datos** (solo bimestres cerrados);
 lo único que cambia es si se respeta la publicación:
