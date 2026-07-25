@@ -85,6 +85,12 @@ class OrdenMeritoModel extends BaseModel
             INNER JOIN secciones s        ON s.id  = m.seccion_id
             INNER JOIN grados g           ON g.id  = s.grado_id
             INNER JOIN calificaciones cal ON cal.matricula_id = m.id
+            -- P2 (rediseño 2): el mérito en vivo solo cuenta competencias
+            -- BLOQUEADAS (aprobadas por el docente o forzadas por el cierre).
+            INNER JOIN bloqueos_competencia bc
+                    ON bc.carga_id       = cal.carga_id
+                   AND bc.competencia_id = cal.competencia_id
+                   AND bc.periodo_id     = cal.periodo_id
             INNER JOIN competencias comp  ON comp.id = cal.competencia_id
             LEFT  JOIN subareas sa        ON sa.id   = comp.subarea_id
             INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
@@ -117,7 +123,9 @@ class OrdenMeritoModel extends BaseModel
                      p.nombres, p.dni, s.nombre
             ORDER BY promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,
                      num_alto DESC, num_16 DESC,
-                     p.apellido_paterno, p.apellido_materno, p.nombres
+                     -- P1 (rediseño 2): tras num_16 el desempate es MANUAL; el
+                     -- apellido ya no dirime. Orden estable neutro por matricula.
+                     m.id
         ", [$gradoId, $periodoId, $periodoId]);
 
         return $this->aplicarDesempate($estudiantes, $periodoId);
@@ -163,6 +171,12 @@ class OrdenMeritoModel extends BaseModel
             INNER JOIN secciones s        ON s.id  = m.seccion_id
             INNER JOIN grados g           ON g.id  = s.grado_id
             INNER JOIN calificaciones cal ON cal.matricula_id = m.id
+            -- P2 (rediseño 2): el mérito en vivo solo cuenta competencias
+            -- BLOQUEADAS (aprobadas por el docente o forzadas por el cierre).
+            INNER JOIN bloqueos_competencia bc
+                    ON bc.carga_id       = cal.carga_id
+                   AND bc.competencia_id = cal.competencia_id
+                   AND bc.periodo_id     = cal.periodo_id
             INNER JOIN competencias comp  ON comp.id = cal.competencia_id
             LEFT  JOIN subareas sa        ON sa.id   = comp.subarea_id
             INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
@@ -187,7 +201,9 @@ class OrdenMeritoModel extends BaseModel
                      p.nombres, s.id, s.nombre
             ORDER BY s.nombre, promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,
                      num_alto DESC, num_16 DESC,
-                     p.apellido_paterno, p.apellido_materno, p.nombres
+                     -- P1 (rediseño 2): tras num_16 el desempate es MANUAL; el
+                     -- apellido ya no dirime. Orden estable neutro por matricula.
+                     m.id
         ", [$gradoId, $periodoId, $periodoId]);
 
         $porSeccion = [];
@@ -328,6 +344,12 @@ class OrdenMeritoModel extends BaseModel
             INNER JOIN grados g           ON g.id  = s.grado_id
             INNER JOIN niveles n          ON n.id  = g.nivel_id
             INNER JOIN calificaciones cal ON cal.matricula_id = m.id
+            -- P2 (rediseño 2): enumerar solo grados con notas BLOQUEADAS,
+            -- mismo universo que el ranking en vivo.
+            INNER JOIN bloqueos_competencia bc
+                    ON bc.carga_id       = cal.carga_id
+                   AND bc.competencia_id = cal.competencia_id
+                   AND bc.periodo_id     = cal.periodo_id
             WHERE cal.periodo_id = ?
               AND m.tipo NOT IN ('trasladado', 'retirado')
             ORDER BY n.id, g.numero
@@ -351,6 +373,11 @@ class OrdenMeritoModel extends BaseModel
             INNER JOIN secciones s        ON s.id  = m.seccion_id
             INNER JOIN grados g           ON g.id  = s.grado_id
             INNER JOIN calificaciones cal ON cal.matricula_id = m.id AND cal.periodo_id = ?
+            -- P2 (rediseño 2): solo grados con notas BLOQUEADAS.
+            INNER JOIN bloqueos_competencia bc
+                    ON bc.carga_id       = cal.carga_id
+                   AND bc.competencia_id = cal.competencia_id
+                   AND bc.periodo_id     = cal.periodo_id
             WHERE m.tipo NOT IN ('trasladado', 'retirado')
         ", [$periodoId]);
 
@@ -588,6 +615,12 @@ class OrdenMeritoModel extends BaseModel
             INNER JOIN grados g           ON g.id  = s.grado_id
             INNER JOIN niveles n          ON n.id  = g.nivel_id
             INNER JOIN calificaciones cal ON cal.matricula_id = m.id
+            -- P2 (rediseño 2): enumerar solo grados con notas BLOQUEADAS,
+            -- mismo universo que el ranking en vivo.
+            INNER JOIN bloqueos_competencia bc
+                    ON bc.carga_id       = cal.carga_id
+                   AND bc.competencia_id = cal.competencia_id
+                   AND bc.periodo_id     = cal.periodo_id
             WHERE cal.periodo_id = ?
               AND m.tipo NOT IN ('trasladado', 'retirado')
             ORDER BY n.id, g.numero
