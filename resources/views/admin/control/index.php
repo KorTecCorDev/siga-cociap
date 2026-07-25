@@ -454,6 +454,22 @@ $badgeSeveridad = static fn(string $sev): string =>
                         <?php endforeach; ?>
                         </tbody>
 
+                    <?php elseif ($clave === 'evaluacion_incompleta'): ?>
+                        <thead><tr><th>Estudiante</th><th>Grado / Sección</th><th>Competencias y criterios en blanco (sin motivo)</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($c['items'] as $it): ?>
+                            <tr>
+                                <td><?= e($it['alumno']) ?></td>
+                                <td><?= e(trim($it['nivel_nombre'] . ' ' . $it['grado_nombre'] . ' ' . $it['seccion_nombre'])) ?></td>
+                                <td>
+                                    <?php foreach ($it['blancos'] as $i => $b): ?>
+                                        <?= $i > 0 ? '<br>' : '' ?><?= e($b['competencia'] . ' — ' . $b['criterio']) ?>
+                                    <?php endforeach; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+
                     <?php else: /* matriculas */ ?>
                         <thead><tr><th>Estudiante</th><th>Grado / Sección</th><th class="text-center">Estado</th></tr></thead>
                         <tbody>

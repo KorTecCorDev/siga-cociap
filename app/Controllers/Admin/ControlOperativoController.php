@@ -79,6 +79,12 @@ class ControlOperativoController extends BaseController
                 'accion'    => 'Resolver en orden de mérito',
                 'items'     => $this->model->empatesPendientes($periodoId),
             ],
+            'evaluacion_incompleta' => [
+                'titulo'    => 'Evaluación incompleta (notas en blanco sin motivo)',
+                'severidad' => 'critico',
+                'accion'    => 'El docente debe registrar la nota o la omisión (motivo)',
+                'items'     => $this->model->alertasEvaluacionIncompleta($periodoId),
+            ],
             'competencias' => [
                 'titulo'    => 'Competencias con notas sin bloquear',
                 'severidad' => 'critico',

@@ -372,4 +372,86 @@ class ControlOperativoModel extends BaseModel
 
         return ['docentes' => $docentes, 'resumen' => $resumen];
     }
+
+    // ── Chequeo 6 (rediseño 2): alerta de evaluación incompleta ──────
+
+    /**
+     * ALERTA DE EVALUACIÓN INCOMPLETA (P4). Alumnos con criterios en blanco
+     * INJUSTIFICADOS: criterios de las cargas de su SECCIÓN que otros compañeros
+     * SÍ tienen con nota (se evaluaron), pero a ellos les faltan y NO están
+     * cubiertos por omisión (motivo) ni por exoneración. Compara dentro de la
+     * sección (respeta la autonomía docente entre secciones, P4a) y en el mismo
+     * universo del mérito (incluye Ética, excluye transversal/tutoría). Se resuelve
+     * registrando la nota o la omisión desde el módulo del docente. Prerrequisito
+     * del cierre del bimestre. Devuelve una fila por alumno con su detalle.
+     */
+    public function alertasEvaluacionIncompleta(int $periodoId): array
+    {
+        $filas = $this->query("
+            SELECT
+                m.id AS matricula_id,
+                CONCAT(p.apellido_paterno, ' ', p.apellido_materno, ', ', p.nombres) AS alumno,
+                n.nombre         AS nivel_nombre,
+                g.nombre_display AS grado_nombre,
+                s.nombre         AS seccion_nombre,
+                comp.nombre_completo AS competencia,
+                cr.nombre        AS criterio,
+                cr.carga_id      AS carga_id
+            FROM matriculas m
+            INNER JOIN secciones s          ON s.id  = m.seccion_id
+            INNER JOIN grados g             ON g.id  = s.grado_id
+            INNER JOIN niveles n            ON n.id  = g.nivel_id
+            INNER JOIN estudiantes e        ON e.id  = m.estudiante_id
+            INNER JOIN personas p           ON p.id  = e.persona_id
+            INNER JOIN cargas_academicas ca ON ca.seccion_id = m.seccion_id
+            INNER JOIN criterios cr         ON cr.carga_id      = ca.id
+                                           AND cr.periodo_id    = ?
+                                           AND cr.eliminado_en  IS NULL
+                                           AND cr.extraordinario = 0
+            INNER JOIN competencias comp    ON comp.id = cr.competencia_id
+            LEFT  JOIN subareas sa          ON sa.id   = comp.subarea_id
+            INNER JOIN areas a              ON a.id    = COALESCE(sa.area_id, comp.area_id)
+            WHERE m.tipo NOT IN ('trasladado', 'retirado')
+              -- Mismo universo del mérito: incluye Ética, excluye transversal/tutoría.
+              AND (a.tipo NOT IN ('transversal', 'tutoria')
+                   OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
+              -- El criterio SÍ se evaluó en la sección (algún alumno tiene nota).
+              AND EXISTS (SELECT 1 FROM calificaciones_criterio cc2 WHERE cc2.criterio_id = cr.id)
+              -- Al alumno le falta la nota…
+              AND NOT EXISTS (SELECT 1 FROM calificaciones_criterio cc
+                              WHERE cc.criterio_id = cr.id AND cc.matricula_id = m.id)
+              -- …y no la justificó con omisión (motivo)…
+              AND NOT EXISTS (SELECT 1 FROM omisiones_criterio oc
+                              WHERE oc.criterio_id = cr.id AND oc.matricula_id = m.id)
+              -- …ni con exoneración del área.
+              AND NOT EXISTS (SELECT 1 FROM exoneraciones ex
+                              WHERE ex.matricula_id = m.id AND ex.area_id = a.id
+                                AND ex.revocado_en IS NULL)
+              -- Anclaje de retorno: excluye la oficial (compite en su operativa).
+              AND m.id NOT IN (SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo')
+            ORDER BY n.id, g.numero, s.nombre, alumno, comp.nombre_completo, cr.orden
+        ", [$periodoId]);
+
+        $porAlumno = [];
+        foreach ($filas as $f) {
+            $mid = (int) $f['matricula_id'];
+            if (!isset($porAlumno[$mid])) {
+                $porAlumno[$mid] = [
+                    'matricula_id'   => $mid,
+                    'alumno'         => $f['alumno'],
+                    'nivel_nombre'   => $f['nivel_nombre'],
+                    'grado_nombre'   => $f['grado_nombre'],
+                    'seccion_nombre' => $f['seccion_nombre'],
+                    'blancos'        => [],
+                ];
+            }
+            $porAlumno[$mid]['blancos'][] = [
+                'competencia' => $f['competencia'],
+                'criterio'    => $f['criterio'],
+                'carga_id'    => (int) $f['carga_id'],
+            ];
+        }
+
+        return array_values($porAlumno);
+    }
 }
