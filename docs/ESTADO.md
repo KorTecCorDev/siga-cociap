@@ -8,8 +8,10 @@
   Additiva: `periodos_publicacion.primera_publicacion_en` (marca monotónica de primera
   publicación, backfill de lo ya publicado) + tabla nueva `orden_merito_rectificado`
   (versión no oficial del ranking). No altera datos existentes. Idempotente
-  (`ADD COLUMN IF NOT EXISTS` + `CREATE TABLE IF NOT EXISTS`). **APLICADA EN LOCAL;
-  falta PROD.** Ver `docs/modulos/orden-merito.md`.
+  (`ADD COLUMN IF NOT EXISTS` + `CREATE TABLE IF NOT EXISTS`). **APLICADA EN LOCAL
+  Y PROD** (prod el 25/07/2026, importada a mano por phpMyAdmin ANTES del merge
+  `dev`→`main` que desplegó el código de las Fases A y B). Ver
+  `docs/modulos/orden-merito.md`.
 - **`045_matriculas_tipo_retirado`** (22/07): agrega `'retirado'` al enum
   `matriculas.tipo`. Marca al estudiante que YA NO ASISTE pero no se trasladó
   oficialmente (sin constancia ni IE destino; la familia espera que regrese). Los
@@ -247,16 +249,19 @@ WHERE id=25;`).
 - **Fase A — filtro por `tipo` (HECHA, `dev`, 24/07):** `OrdenMeritoModel` pasó los 5
   `estado='aprobada'` a `tipo NOT IN ('trasladado','retirado')`; anclaje de retorno
   intacto; verificado (pendientes entran, trasladado/retirado fuera, retorno OK, B1 sin
-  empates nuevos). Docs: `orden-merito.md` §7.1 + invariante en CLAUDE.md. Falta commit.
+  empates nuevos). Docs: `orden-merito.md` §7.1 + invariante en CLAUDE.md.
+  **Commit `c81a963`; EN PROD (merge `dev`→`main` `68968bb`, 25/07/2026).**
 - **Fase B — inmutabilidad + versión no oficial (HECHA, `dev`, 24/07):** migración
   **046** additiva (`periodos_publicacion.primera_publicacion_en` con backfill + tabla
   `orden_merito_rectificado`); `PublicacionBoletaModel::fuePublicado()` (monotónico);
   `OrdenMeritoModel::registrarRanking()` (punto único con candado) +
   `generarSnapshotRectificado()` + `calcularFilasRanking()` (refactor) + lectores;
   `cerrar` y rectificación migrados a `registrarRanking`; card + vista de solo lectura
-  en `/admin/control`. Verificado en local (candado: 1ª sin oficial→oficial;
-  2ª→rectificado, oficial intacto; limpieza restauró snapshot vacío). **Migración 046
-  aplicada en LOCAL; falta PROD.** Falta commit + gulp NO requerido (reusa clases).
+  en `/admin/control`. Verificado en local (candado: con oficial presente + B1
+  publicado, la 1ª llamada YA rechaza tocar el oficial → rectificado; oficial
+  intacto; limpieza restauró snapshot vacío). **Migración 046 aplicada en LOCAL
+  Y PROD (25/07); commit `bf31526`; EN PROD (merge `68968bb`, 25/07/2026).**
+  Gulp NO requerido (reusa clases).
 - **Fase C — reconstrucción quirúrgica de B1 (PENDIENTE, depende del documento):**
   script one-off que arma el roster de cierre (incluye a los 9 excluidos por tipo vía
   `tipo_anterior`), emite comparador vs. el documento oficial de dirección, y tras
@@ -308,3 +313,11 @@ WHERE id=25;`).
   a mano en prod y merge `dev`→`main` (`567b7f9..dca4023`, fast-forward). Arrastra
   también el fix SIAGIE de código de 14 dígitos (`e06f49e`). `dev` y `main`
   quedaron sincronizados.
+- **25/07/2026 — deploy del rediseño del orden de mérito (Fases A y B):**
+  migración 046 importada a mano en prod (phpMyAdmin) ANTES del merge, y merge
+  `dev`→`main` (`10d6d51..68968bb`, fast-forward). Arrastra las migraciones
+  045/044 que ya estaban en prod más las Fases A (filtro por `tipo`) y B
+  (inmutabilidad del oficial + versión rectificada) verificadas en local, y los
+  scripts de verificación (`database/verificaciones/`). `dev` y `main`
+  sincronizados en `68968bb`. **Queda la Fase C** (reconstrucción de B1 contra el
+  documento oficial, depende del documento del usuario).
