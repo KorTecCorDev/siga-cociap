@@ -237,7 +237,7 @@ WHERE id=25;`).
     Educación Religiosa (035-EREL)**; la nota única del tutor se DUPLICA; exonerados
     → EXO. En B1 no hay notas de Ética → EREL en blanco es correcto.
 
-## Rediseño del orden de mérito (EN CURSO — 24/07/2026)
+## Rediseño del orden de mérito (COMPLETADO — 25/07/2026)
 
 > Plan aprobado por el usuario. 3 fases, en `dev`. Reglas de negocio confirmadas:
 > (1) el ranking permanece por `tipo` (fuera solo `trasladado`/`retirado`); (2) el
@@ -262,12 +262,21 @@ WHERE id=25;`).
   intacto; limpieza restauró snapshot vacío). **Migración 046 aplicada en LOCAL
   Y PROD (25/07); commit `bf31526`; EN PROD (merge `68968bb`, 25/07/2026).**
   Gulp NO requerido (reusa clases).
-- **Fase C — reconstrucción quirúrgica de B1 (PENDIENTE, depende del documento):**
-  script one-off que arma el roster de cierre (incluye a los 9 excluidos por tipo vía
-  `tipo_anterior`), emite comparador vs. el documento oficial de dirección, y tras
-  reconciliar escribe el oficial de B1. El usuario TIENE el documento. Los 9 afectados:
-  8 `trasladado` + 541 `retirado` (541 seguro estaba dentro: continuador al cierre).
-  Desempatadores `num_alto (15,16)`/`num_16` sin recalibrar → se resuelve al comparar.
+- **Fase C — reconstrucción de B1 (HECHA, EN PROD 25/07/2026):** el usuario decidió
+  el roster por REGLA (no por el documento de dirección): **todos los estudiantes con
+  calificaciones bloqueadas/aprobadas en B1, SIN filtro de tipo**, conservando el anclaje
+  de retornos y la exclusión de áreas transversal/tutoría. Resultado: **snapshot oficial
+  de B1 = 528 filas** (roster en vivo con filtro de tipo daba 520/519; la regla reincorpora
+  8 `trasladado` + `541` `retirado`, todos continuadores con notas B1 completas y
+  bloqueadas). "Bloqueadas y aprobadas" no cambia el universo (0 calificaciones de mérito
+  B1 sin bloqueo). El único alumno realmente integrado en B2 (1, sin notas B1) queda fuera
+  por construcción. **0 empates pendientes** con el roster de 528 (verificado con la cascada
+  real `aplicarDesempate`). Snapshot generado por script one-off (SIN filtro de tipo) e
+  importado a mano por phpMyAdmin (DELETE 519 previas + INSERT 528; `filas=528, mn=1,
+  mx=72`). **Caso especial de B1: la regla GENERAL del código NO cambió** (sigue filtrando
+  por tipo, Fase A). El candado 046 protege el oficial (B1 publicado → rectificaciones
+  futuras van a `orden_merito_rectificado`). ⚠️ **NO correr `backfill_orden_merito.php`
+  en prod** (usa `generarSnapshot` con filtro de tipo → sobrescribiría el 528 por 519).
 
 ## Pendientes operativos (usuario / colegio)
 - **Alumno retirado (feature del 22/07, migración 045):** marcado como `retirado`
@@ -285,10 +294,10 @@ WHERE id=25;`).
   (CyT/Matemática primaria 4°-6°, Arte y Cultura 1°A prim., etc.). 3°B ya está completo.
 - **Solape real preexistente:** CLEMENTE ANGELES, lunes, 1°C (14:40-16:10) vs
   5°B (15:45-17:20) — debe resolverlo el colegio.
-- **Orden de mérito:** ver la sección "Rediseño del orden de mérito (en curso)"
-  abajo. B1 ya NO tiene empates pendientes (14 resoluciones, verificado). El backfill
-  simple quedó SUPERADO por el rediseño: B1 debe reconstruirse contra el documento
-  oficial (varios alumnos cambiaron de tipo tras el cierre).
+- **Orden de mérito:** RECONSTRUCCIÓN DE B1 HECHA (25/07, ver "Rediseño del orden de
+  mérito" abajo, Fase C). Snapshot oficial de B1 = 528 en prod. Queda solo el check
+  visual de `/director/orden-merito/1` en prod (que los 9 reincorporados salgan en su
+  puesto). ⚠️ No correr `backfill_orden_merito.php` en prod.
 - **Re-subir firma/sello del Director EBR** solo si se recrea el entorno
   (se pierden únicamente si se borra el directorio externo `~/siga_uploads/`).
 - **Decisión del colegio pendiente:** regenerar (o no) el ranking B1 tras el

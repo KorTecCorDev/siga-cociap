@@ -140,10 +140,14 @@ estudiante compite en su grado OPERATIVO (anclaje por bimestre intacto).
 > (ver Fases B y C en `docs/ESTADO.md`), no del cálculo en vivo tardío.
 
 ## Estado operativo
-Ver `docs/ESTADO.md`: la tabla snapshot está VACÍA en LOCAL y PROD; mientras tanto
-todo se calcula en vivo. B1 ya NO tiene empates pendientes (14 resoluciones), pero su
-congelado está en curso dentro del **rediseño del orden de mérito** (Fases A/B/C):
-A = filtro por tipo (hecho); B = inmutabilidad tras publicar + versión rectificada no
-oficial en Centro de control; C = reconstrucción quirúrgica de B1 contra el documento
-oficial de dirección (541 y otros cambiaron de tipo DESPUÉS del cierre, así que el
-cálculo en vivo tardío no reproduce el B1 público).
+Ver `docs/ESTADO.md`. **Rediseño del orden de mérito COMPLETADO (25/07/2026):**
+A = filtro por tipo (en prod); B = inmutabilidad tras publicar + versión rectificada no
+oficial en Centro de control (migración 046 en prod); C = reconstrucción de B1 EN PROD.
+
+**B1 (periodo 1) tiene snapshot oficial de 528 filas en PROD** (reemplazó a 519 previas).
+Roster por REGLA del usuario: todos los estudiantes con calificaciones bloqueadas/aprobadas
+en B1, SIN filtro de tipo (reincorpora 8 `trasladado` + `541` `retirado`, continuadores con
+notas B1), conservando el anclaje de retornos. Es un CASO ESPECIAL de reconstrucción: la
+regla general del código sigue filtrando por tipo (Fase A) y produce 519/520, por eso NO se
+debe correr `backfill_orden_merito.php` en prod (sobrescribiría el 528). El candado 046
+mantiene el oficial inmutable (B1 publicado → futuras correcciones van a `orden_merito_rectificado`).
