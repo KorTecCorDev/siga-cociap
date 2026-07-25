@@ -4,6 +4,7 @@ namespace App\Controllers\Director;
 
 use App\Controllers\BaseController;
 use App\Models\AnioAcademicoModel;
+use App\Models\ControlOperativoModel;
 use App\Models\OrdenMeritoModel;
 use App\Models\PublicacionBoletaModel;
 use Core\Session;
@@ -127,6 +128,21 @@ class PeriodoController extends BaseController
                 'No se puede cerrar: hay empates sin resolver en el orden de mérito ('
                 . implode('; ', array_unique($empates))
                 . '). Resuélvelos antes de cerrar el bimestre.'
+            );
+        }
+
+        // Rediseño 2 (P4): tampoco se cierra con evaluación incompleta. Un alumno
+        // con notas en blanco SIN motivo (criterios que sus compañeros de sección
+        // sí tienen y a él le faltan, sin omisión ni exoneración) requiere acción
+        // humana: el docente registra la nota o la omisión. El detalle está en el
+        // Centro de control. Cerrar OFICIALIZA el mérito, así que debe estar íntegro.
+        $incompletos = (new ControlOperativoModel())->alertasEvaluacionIncompleta($id);
+        if (!empty($incompletos)) {
+            $this->redirectWithError(
+                $volverUrl,
+                'No se puede cerrar: hay ' . count($incompletos) . ' estudiante(s) con '
+                . 'notas en blanco sin motivo (evaluación incompleta). Regístrales la nota '
+                . 'o la omisión (motivo) antes de cerrar. Revisa el detalle en el Centro de control.'
             );
         }
 
