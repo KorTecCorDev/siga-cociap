@@ -118,7 +118,11 @@ class OrdenMeritoModel extends BaseModel
                      AND c2.periodo_id   = ?
                   WHERE r.estado = 'revertido'
               )
-              AND a.tipo        NOT IN ('transversal', 'tutoria')
+              -- P5 (rediseño 2): Ética y Valores (tutoría de secundaria con la
+              -- competencia C57) SÍ cuenta en el mérito — reemplaza a Ed. Religiosa.
+              -- El resto de la tutoría (TOE) y las transversales siguen fuera.
+              AND (a.tipo NOT IN ('transversal', 'tutoria')
+                   OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, p.dni, s.nombre
             ORDER BY promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,
@@ -196,7 +200,11 @@ class OrdenMeritoModel extends BaseModel
                      AND c2.periodo_id   = ?
                   WHERE r.estado = 'revertido'
               )
-              AND a.tipo        NOT IN ('transversal', 'tutoria')
+              -- P5 (rediseño 2): Ética y Valores (tutoría de secundaria con la
+              -- competencia C57) SÍ cuenta en el mérito — reemplaza a Ed. Religiosa.
+              -- El resto de la tutoría (TOE) y las transversales siguen fuera.
+              AND (a.tipo NOT IN ('transversal', 'tutoria')
+                   OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, s.id, s.nombre
             ORDER BY s.nombre, promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,

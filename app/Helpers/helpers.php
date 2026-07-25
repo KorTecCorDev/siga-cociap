@@ -187,6 +187,16 @@ const NOTA_MIN_AD = 18;
 const NOTA_MIN_A  = 14;
 const NOTA_MIN_B  = 11;
 
+/**
+ * Marca del área de Ética y Valores (Educación Religiosa) — PUNTO ÚNICO.
+ * Es la única área `tipo='tutoria'` que cuenta en el ORDEN DE MÉRITO
+ * (reemplaza a Ed. Religiosa en secundaria; migración 035 la sella con este
+ * `nombre_boleta`, idéntico en local y prod). Se identifica por el nombre y NO
+ * por id (el id del área puede diferir entre entornos). El resto de la tutoría
+ * (TOE) y las transversales siguen fuera del mérito.
+ */
+const AREA_ETICA_NOMBRE_BOLETA = 'Ética y Valores';
+
 /** Convierte nota numérica (0-20) a literal. Misma escala en ambos niveles. */
 function nota_a_literal(int $nota, string $nivel = 'secundaria'): string
 {
