@@ -3,6 +3,10 @@
 > Documentado el 03/07/2026 al crear la red de documentación (este módulo se
 > implementó el 17/06/2026 y no tenía sección propia en CLAUDE.md).
 > Los invariantes globales viven en CLAUDE.md.
+>
+> **Rediseño 2 (aprobado 25/07/2026, SIN implementar): ver
+> `orden-merito-rediseno.md`.** Este archivo describe el estado ACTUAL; se irá
+> actualizando a medida que cada fase del rediseño entre en producción.
 
 ## Orden de mérito — snapshot al cerrar (17/06/2026)
 

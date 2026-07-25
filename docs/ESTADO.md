@@ -81,6 +81,15 @@
   `duracion_hora_min = 50` por defecto; el año 2026 usa 45.
 
 ## Pendientes de desarrollo
+- **Rediseño 2 del orden de mérito (DISEÑO APROBADO 25/07/2026, sin implementar):**
+  documento completo en `docs/modulos/orden-merito-rediseno.md`. 6 decisiones (cascada
+  sin apellido/manual tras num_16; en vivo solo bloqueadas; oficialización del mérito
+  separada del cierre + publicación unificada boletas+mérito por nivel; familias ven
+  ranking completo del grado; alerta de evaluación incompleta por sección; Ética/C57 al
+  promedio de secundaria). Plan de 6 fases (F1 cascada+en vivo · F2 Ética · F3 alerta N ·
+  F4 migración `orden_merito_aprobacion` + oficialización por nivel · F5 publicación
+  unificada · F6 vista familias). Nueva migración pendiente. 4 detalles finos con
+  recomendación por CONFIRMAR (ver doc §4). NO tocar hasta aprobar el plan de fases.
 - **Compuerta de publicación: EN PRODUCCIÓN desde el 22/07/2026** (migración 044
   + merge `dev`→`main` `dca4023`). Cerrar ya no publica; se publica por nivel con
   fecha/hora desde `/admin/control`. Regla, decisiones y verificación en
