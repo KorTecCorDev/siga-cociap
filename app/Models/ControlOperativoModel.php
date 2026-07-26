@@ -384,6 +384,12 @@ class ControlOperativoModel extends BaseModel
      * universo del mérito (incluye Ética, excluye transversal/tutoría). Se resuelve
      * registrando la nota o la omisión desde el módulo del docente. Prerrequisito
      * del cierre del bimestre. Devuelve una fila por alumno con su detalle.
+     *
+     * Solo cargas ACTIVAS: una carga dada de baja (por ejemplo, al reasignar la
+     * sección) conserva sus criterios, y sin este filtro sus blancos aparecerían
+     * como alertas que nadie puede resolver — el docente ya no tiene la carga.
+     * Mismo criterio que el resto del sistema (CalificacionModel, TransversalModel,
+     * ExoneracionModel, AnioAcademicoModel).
      */
     public function alertasEvaluacionIncompleta(int $periodoId): array
     {
@@ -404,6 +410,7 @@ class ControlOperativoModel extends BaseModel
             INNER JOIN estudiantes e        ON e.id  = m.estudiante_id
             INNER JOIN personas p           ON p.id  = e.persona_id
             INNER JOIN cargas_academicas ca ON ca.seccion_id = m.seccion_id
+                                           AND ca.estado     = 'activa'
             INNER JOIN criterios cr         ON cr.carga_id      = ca.id
                                            AND cr.periodo_id    = ?
                                            AND cr.eliminado_en  IS NULL

@@ -33,8 +33,11 @@ $rotuloPublicacion = static fn(string $est): string => match ($est) {
 $fechaLarga = static fn(?string $f): string =>
     $f ? date('d/m/Y', strtotime($f)) . ' a las ' . date('H:i', strtotime($f)) : '';
 
-$badgeSeveridad = static fn(string $sev): string =>
-    $sev === 'critico' ? 'badge--error' : 'badge--warning';
+$badgeSeveridad = static fn(string $sev): string => match ($sev) {
+    'critico'     => 'badge--error',
+    'informativo' => 'badge--info',
+    default       => 'badge--warning',
+};
 ?>
 
 <div class="page-header">

@@ -80,8 +80,12 @@ class ControlOperativoController extends BaseController
                 'items'     => $this->model->empatesPendientes($periodoId),
             ],
             'evaluacion_incompleta' => [
+                // Bloquea el cierre mientras el bimestre esta abierto. Una vez
+                // CERRADO el documento ya salio: los blancos que queden son un
+                // dato historico, no una incidencia accionable, asi que baja a
+                // informativo y no suma al contador (ver mas abajo).
                 'titulo'    => 'Evaluación incompleta (notas en blanco sin motivo)',
-                'severidad' => 'critico',
+                'severidad' => ($periodo['estado'] ?? '') === 'cerrado' ? 'informativo' : 'critico',
                 'accion'    => 'El docente debe registrar la nota o la omisión (motivo)',
                 'items'     => $this->model->alertasEvaluacionIncompleta($periodoId),
             ],
@@ -114,8 +118,13 @@ class ControlOperativoController extends BaseController
             ],
         ];
 
+        // Los chequeos informativos no suman: describen el pasado de un bimestre
+        // ya cerrado y mantendrian el contador encendido para siempre.
         $totalIncidencias = 0;
         foreach ($chequeos as $c) {
+            if (($c['severidad'] ?? '') === 'informativo') {
+                continue;
+            }
             $totalIncidencias += count($c['items']);
         }
 
