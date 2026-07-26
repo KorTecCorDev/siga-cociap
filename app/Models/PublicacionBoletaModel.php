@@ -63,6 +63,56 @@ class PublicacionBoletaModel extends BaseModel
     }
 
     /**
+     * Ids de NIVEL ya publicados para un periodo, como set [nivel_id => true].
+     * Mismo criterio de "publicado" que periodosPublicados, pero indexado al revés.
+     * Gobierna la visibilidad del ORDEN DE MÉRITO (rediseño 2): el claustro y las
+     * familias ven el mérito de un grado solo si su nivel está publicado. La
+     * publicación libera boletas + mérito a la vez (un solo acto por nivel).
+     */
+    public function nivelesPublicados(int $periodoId, ?string $ahora = null): array
+    {
+        $filas = $this->query("
+            SELECT pp.nivel_id
+            FROM periodos_publicacion pp
+            WHERE pp.periodo_id      = ?
+              AND pp.publica_en     <= ?
+              AND pp.suspendida_en   IS NULL
+              AND pp.despublicada_en IS NULL
+        ", [$periodoId, $ahora ?? $this->ahora()]);
+
+        $set = [];
+        foreach ($filas as $f) {
+            $set[(int) $f['nivel_id']] = true;
+        }
+        return $set;
+    }
+
+    /**
+     * Ids de los periodos con AL MENOS UN nivel publicado, como set
+     * [periodo_id => true]. Mismo criterio de "publicado" que los dos metodos
+     * de arriba, sin acotar a un nivel: responde "¿este periodo ya tiene algo
+     * publicado?". Lo usa el selector de periodos del CLAUSTRO (rediseño 2),
+     * que lista los bimestres con mérito visible; el filtrado fino por nivel
+     * lo hace despues nivelesPublicados().
+     */
+    public function periodosConAlgunNivelPublicado(?string $ahora = null): array
+    {
+        $filas = $this->query("
+            SELECT DISTINCT pp.periodo_id
+            FROM periodos_publicacion pp
+            WHERE pp.publica_en     <= ?
+              AND pp.suspendida_en   IS NULL
+              AND pp.despublicada_en IS NULL
+        ", [$ahora ?? $this->ahora()]);
+
+        $set = [];
+        foreach ($filas as $f) {
+            $set[(int) $f['periodo_id']] = true;
+        }
+        return $set;
+    }
+
+    /**
      * Estado de publicacion de UN periodo en todos los niveles, para la UI
      * del Centro de Control. Devuelve una fila por nivel (exista o no la
      * fila de publicacion) con un `estado` derivado ya calculado:
