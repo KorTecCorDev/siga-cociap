@@ -20,6 +20,9 @@ class OrdenMeritoModel extends BaseModel
     private DesempateMeritoModel $desempateModel;
     private PublicacionBoletaModel $publicacionModel;
 
+    /** Memo de debeUsarSnapshot() por periodo (constante dentro de la request). */
+    private array $usaSnapshot = [];
+
     public function __construct()
     {
         parent::__construct();
@@ -233,19 +236,48 @@ class OrdenMeritoModel extends BaseModel
     // ── Snapshot del orden de mérito (documento oficial congelado) ───────────
 
     /**
-     * ¿El periodo debe leerse del SNAPSHOT? Solo si está 'cerrado' y ya tiene
-     * filas grabadas. Antes del backfill (tabla vacía) un periodo cerrado cae al
-     * cálculo en vivo, manteniendo el comportamiento previo sin romper nada.
+     * ¿El periodo debe leerse del SNAPSHOT? Hace falta que YA tenga filas
+     * grabadas (antes del backfill, con la tabla vacía, todo cae al cálculo en
+     * vivo) y además una de dos condiciones:
+     *   - el periodo está 'cerrado' (documento oficial vigente), o
+     *   - el periodo YA FUE PUBLICADO alguna vez (candado de la migración 046).
+     *
+     * La segunda condición cubre la REAPERTURA (rediseño 2): al reabrir un
+     * bimestre publicado su estado deja de ser 'cerrado', pero el orden de mérito
+     * oficial ya salió a las familias y es INMUTABLE. Sin esto, el claustro y las
+     * familias verían un cálculo en vivo distinto del documento entregado. El
+     * efecto de las correcciones se ve al re-cerrar, en la versión rectificada de
+     * /admin/control. Mismo criterio monotónico (`fuePublicado`) que usa
+     * registrarRanking para decidir oficial vs. rectificado.
+     *
+     * Memoizado por periodo: rankingGrado se llama en bucle (un grado por
+     * iteración) y esta decisión es constante dentro de la request.
      */
     private function debeUsarSnapshot(int $periodoId): bool
     {
-        return $this->queryOne("
+        if (isset($this->usaSnapshot[$periodoId])) {
+            return $this->usaSnapshot[$periodoId];
+        }
+
+        $cerradoConSnapshot = $this->queryOne("
             SELECT 1
             FROM periodos pe
             WHERE pe.id = ? AND pe.estado = 'cerrado'
               AND EXISTS (SELECT 1 FROM orden_merito_snapshot s WHERE s.periodo_id = pe.id)
             LIMIT 1
         ", [$periodoId]) !== null;
+
+        if ($cerradoConSnapshot) {
+            return $this->usaSnapshot[$periodoId] = true;
+        }
+
+        // Reabierto: manda el snapshot si el bimestre ya estuvo publicado.
+        $tieneSnapshot = $this->queryOne("
+            SELECT 1 FROM orden_merito_snapshot WHERE periodo_id = ? LIMIT 1
+        ", [$periodoId]) !== null;
+
+        return $this->usaSnapshot[$periodoId] =
+            $tieneSnapshot && $this->publicacionModel->fuePublicado($periodoId);
     }
 
     /** Ranking de grado CONGELADO (lee del snapshot). Mismo shape que el vivo. */
@@ -610,8 +642,14 @@ class OrdenMeritoModel extends BaseModel
      * resolver (etiqueta "Nivel — Grado"). Se usa para impedir el cierre del
      * bimestre hasta que todos los empates estén resueltos: el snapshot oficial
      * del orden de mérito debe congelar un ranking 100% definido. Recorre los
-     * mismos grados y la misma cascada (rankingGrado) que usa el director para
-     * resolverlos, así la validación cuadra exactamente con la UI de desempate.
+     * mismos grados y la misma cascada que usa el director para resolverlos, así
+     * la validación cuadra exactamente con la UI de desempate.
+     *
+     * Usa el cálculo EN VIVO a propósito (rankingGradoLive, NO rankingGrado):
+     * valida lo que se está por congelar, no lo ya congelado. Importa al RE-CERRAR
+     * un bimestre publicado y reabierto — ahí debeUsarSnapshot devuelve true
+     * (candado 046) y leer por rankingGrado devolvería el snapshot viejo, sin ver
+     * los empates que introdujeron las rectificaciones.
      */
     public function gradosConEmpatesPendientes(int $periodoId): array
     {
@@ -636,7 +674,7 @@ class OrdenMeritoModel extends BaseModel
 
         $pendientes = [];
         foreach ($grados as $g) {
-            foreach ($this->rankingGrado((int) $g['id'], $periodoId) as $fila) {
+            foreach ($this->rankingGradoLive((int) $g['id'], $periodoId) as $fila) {
                 if (!empty($fila['empate_pendiente'])) {
                     $pendientes[] = $g['nivel_nombre'] . ' — ' . $g['nombre_display'];
                     break;
