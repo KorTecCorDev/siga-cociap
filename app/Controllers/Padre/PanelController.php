@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\BoletaPublicaModel;
 use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
+use App\Models\OrdenMeritoModel;
 use App\Models\PublicacionBoletaModel;
 use Core\Session;
 
@@ -19,6 +20,7 @@ class PanelController extends BaseController
     private ConductaModel          $conductaModel;
     private BoletaPublicaModel     $bpModel;
     private PublicacionBoletaModel $publicacionModel;
+    private OrdenMeritoModel       $ordenModel;
 
     public function __construct()
     {
@@ -27,6 +29,7 @@ class PanelController extends BaseController
         $this->conductaModel    = new ConductaModel();
         $this->bpModel          = new BoletaPublicaModel();
         $this->publicacionModel = new PublicacionBoletaModel();
+        $this->ordenModel       = new OrdenMeritoModel();
     }
 
     /**
@@ -125,6 +128,121 @@ class PanelController extends BaseController
     }
 
     /**
+     * GET /padre/orden-merito
+     * Orden de mérito del GRADO del hijo (rediseño 2, fase 6). Compite todo el
+     * grado; el 1.er puesto obtiene la media beca.
+     */
+    public function ordenMerito(): void
+    {
+        [$hijo, $periodo, $ctx] = $this->contextoMerito();
+
+        $this->view('padre/orden-merito', [
+            'titulo'        => 'Orden de mérito',
+            'hijo'          => $hijo,
+            'periodo'       => $periodo,
+            'estudiantes'   => $ctx['ranking'],
+            'matriculaHijo' => $ctx['matricula_id'],
+        ]);
+    }
+
+    /**
+     * GET /padre/ranking-seccion
+     * Ranking interno de la SECCIÓN del hijo. NO otorga media beca: solo el
+     * orden de mérito del grado la define.
+     */
+    public function rankingSeccion(): void
+    {
+        [$hijo, $periodo, $ctx] = $this->contextoMerito();
+
+        // Solo la sección del hijo: el resto de secciones del grado no le compete.
+        $porSeccion = $this->ordenModel->rankingPorSeccion((int) $ctx['grado_id'], (int) $periodo['id']);
+        $seccion    = $ctx['seccion_nombre'];
+
+        $this->view('padre/ranking-seccion', [
+            'titulo'        => 'Ranking por sección',
+            'hijo'          => $hijo,
+            'periodo'       => $periodo,
+            'seccionNombre' => $seccion,
+            'estudiantes'   => $porSeccion[$seccion] ?? [],
+            'matriculaHijo' => $ctx['matricula_id'],
+        ]);
+    }
+
+    /**
+     * Contexto común de las dos superficies de mérito: hijo, periodo publicado y
+     * ubicación del alumno en el ranking. Aborta con redirección si falta algo.
+     *
+     * La compuerta es la MISMA que la de las notas (getPeriodoVigentePadre): el
+     * mérito se libera junto con las boletas, por nivel (rediseño 2). Nunca se
+     * expone el ranking de un bimestre no publicado.
+     *
+     * Retorno de grado: el alumno compite con su matrícula OPERATIVA (grado real
+     * de asistencia), mientras que getHijo devuelve siempre la OFICIAL. Por eso se
+     * recorren las fuentes de boletaContexto y se toma la que realmente aparece en
+     * el ranking, en vez de asumir el grado de la matrícula oficial.
+     *
+     * @return array{0: array, 1: array, 2: array}  [hijo, periodo, contexto]
+     */
+    private function contextoMerito(): array
+    {
+        $hijo = $this->getHijo(Session::user()['id']);
+
+        if (!$hijo) {
+            $this->redirectWithError(url('padre/inicio'), 'No se encontró información del estudiante.');
+        }
+
+        $periodo = $this->getPeriodoVigentePadre((int) $hijo['nivel_id']);
+
+        if (!$periodo) {
+            $this->redirectWithError(
+                url('padre/inicio'),
+                'Aún no hay resultados publicados. El orden de mérito se habilita cuando el colegio publica las boletas.'
+            );
+        }
+
+        $periodoId = (int) $periodo['id'];
+        $fuentes   = $this->calModel->boletaContexto((int) $hijo['matricula_id'])['fuentes'];
+
+        // Grado y sección de cada matrícula candidata (la operativa va primero).
+        $marcadores = implode(',', array_fill(0, count($fuentes), '?'));
+        $candidatas = $this->calModel->query("
+            SELECT m.id, s.grado_id, m.seccion_id, s.nombre AS seccion_nombre
+            FROM matriculas m
+            INNER JOIN secciones s ON s.id = m.seccion_id
+            WHERE m.id IN ({$marcadores})
+        ", $fuentes);
+
+        foreach ($candidatas as $c) {
+            $ranking = $this->ordenModel->rankingGrado((int) $c['grado_id'], $periodoId);
+            foreach ($ranking as $fila) {
+                if ((int) $fila['matricula_id'] === (int) $c['id']) {
+                    return [$hijo, $periodo, [
+                        'grado_id'       => (int) $c['grado_id'],
+                        'seccion_nombre' => $fila['seccion_nombre'],
+                        'matricula_id'   => (int) $c['id'],
+                        'ranking'        => $ranking,
+                    ]];
+                }
+            }
+        }
+
+        // Sin puesto: el alumno no entró al ranking (por ejemplo, sin competencias
+        // bloqueadas en el bimestre). Se muestra igual el de su grado, sin resaltar.
+        $propia = $candidatas[0] ?? null;
+
+        if (!$propia) {
+            $this->redirectWithError(url('padre/notas'), 'No se pudo ubicar la matrícula del estudiante.');
+        }
+
+        return [$hijo, $periodo, [
+            'grado_id'       => (int) $propia['grado_id'],
+            'seccion_nombre' => $propia['seccion_nombre'],
+            'matricula_id'   => 0,
+            'ranking'        => $this->ordenModel->rankingGrado((int) $propia['grado_id'], $periodoId),
+        ]];
+    }
+
+    /**
      * GET /padre/alertas
      * Ver alertas del tutor.
      */
@@ -206,7 +324,9 @@ class PanelController extends BaseController
                     p.apellido_materno, ', ',
                     p.nombres
                 )               AS nombre_completo,
+                g.id            AS grado_id,
                 g.nombre_display AS grado_nombre,
+                m.seccion_id,
                 s.nombre        AS seccion_nombre,
                 n.id            AS nivel_id,
                 n.nombre        AS nivel_nombre,

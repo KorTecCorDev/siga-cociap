@@ -1421,6 +1421,9 @@
     tr.fila-empate .col-puesto,
     tr.fila-empate .col-nombre { background: #fff7ed; }
 
+    tr.fila-propia .col-puesto,
+    tr.fila-propia .col-nombre { background: #eff6ff; }
+
     tr:hover .col-puesto,
     tr:hover .col-nombre { background: $bg-secondary; }
 }
@@ -1436,6 +1439,19 @@
     background: #fff7ed !important;
 
     td { border-bottom-color: #fed7aa !important; }
+}
+
+// ── Fila del propio hijo (orden de mérito de las familias) ────
+// Azul: los tintes de estado de notas (gris/ámbar/verde) están reservados y el
+// ámbar ya lo usa la media beca. Va DESPUÉS de .fila-media-beca a propósito: si
+// el hijo es el 1.° del grado, prima "esta es tu fila" — la distinción sigue
+// visible en su columna con el badge de media beca.
+.fila-propia {
+    background: #eff6ff !important;
+
+    td { border-bottom-color: #bfdbfe !important; }
+
+    .col-nombre { font-weight: 600; }
 }
 
 .alerta-empate {

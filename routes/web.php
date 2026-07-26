@@ -246,6 +246,10 @@ $router->post('/docente/calificaciones/conclusion', 'Docente\CalificacionControl
 $router->get('/padre/inicio',  'Padre\PanelController@index');
 $router->get('/padre/notas',   'Padre\PanelController@notas');
 $router->get('/padre/alertas', 'Padre\PanelController@alertas');
+// Orden de merito de las familias (rediseno 2, fase 6): bajo la misma compuerta
+// de publicacion que las boletas — publicar un nivel libera notas Y merito.
+$router->get('/padre/orden-merito',    'Padre\PanelController@ordenMerito');
+$router->get('/padre/ranking-seccion', 'Padre\PanelController@rankingSeccion');
 
 // ─── Boletas públicas por CÓDIGO — DORMIDO (se conserva para reactivar) ──────
 // El acceso público por código tecleado se jubiló en favor del QR por token

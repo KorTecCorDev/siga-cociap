@@ -32,6 +32,12 @@
            target="_blank">
             🖨 Imprimir
         </a>
+        <a href="<?= url('padre/orden-merito') ?>" class="btn btn--secondary btn--sm">
+            Orden de mérito
+        </a>
+        <a href="<?= url('padre/ranking-seccion') ?>" class="btn btn--secondary btn--sm">
+            Ranking por sección
+        </a>
     </div>
 </div>
 
