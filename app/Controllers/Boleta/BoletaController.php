@@ -61,6 +61,14 @@ class BoletaController extends BaseController
         ['matricula_id' => $matriculaId, 'periodo_id' => $periodoId] = $this->resolveToken($token);
         $this->render($matriculaId, $periodoId, 'print', [
             'datos'           => 'oficial',
+            // Formato oficial: SIEMPRE las cuatro columnas de bimestre, aunque
+            // esten vacias (regla de formato 09/07/2026, la misma que ya aplica
+            // la boleta del trasladado). Los DATOS los sigue filtrando el guard
+            // de armar(): solo entran los bimestres oficiales y publicados.
+            // Con la estructura anual fija no hay filtracion de la compuerta: las
+            // columnas estan todo el año, asi que una vacia no revela si el
+            // bimestre cerro. Colapsarlas era justo lo que lo delataba.
+            'estructuraCompleta' => true,
             'registrarVisita' => true,
         ]);
     }
