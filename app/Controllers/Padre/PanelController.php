@@ -97,16 +97,40 @@ class PanelController extends BaseController
         // Agrupar notas por área, UNA FILA POR COMPETENCIA. La indexación por
         // competencia_id no es cosmética: con un retorno de grado se leen dos
         // matrículas (operativa + oficial) y una competencia calificada en ambas
-        // llegaba repetida, mostrando la misma nota dos veces. Es exactamente lo
-        // que hace la boleta oficial en BoletaModel::buildAreasConBimestres
-        // ($areas[$area][$compId]); esta vista sigue ese mismo modelo.
+        // llegaba repetida, mostrando la misma nota dos veces. Es lo que hace la
+        // boleta oficial en BoletaModel::buildAreasConBimestres.
+        //
+        // GANA LA PRIMERA FUENTE, que boletaContexto devuelve en orden
+        // [operativa, oficial]: manda el grado que el alumno CURSA. Si la nota de
+        // esa competencia solo existe en la oficial, esa se usa (no se pierde
+        // ningún dato). Cuando ambas la tienen, el promedio es el mismo pero el
+        // desglose por criterios puede colgar de cargas del grado oficial —de
+        // otro docente y con la nota repetida para no alterar el promedio—, y ese
+        // desglose no se le muestra a la familia.
         $areas = [];
         foreach ($notas as $nota) {
             $areaNombre = $nota['nombre_boleta'] ?? $nota['area_nombre'];
             if ($nota['alias_boleta']) {
                 $areaNombre .= ' ' . $nota['alias_boleta'];
             }
-            $areas[$areaNombre][(int) $nota['competencia_id']] = $nota;
+            $compId = (int) $nota['competencia_id'];
+            if (isset($areas[$areaNombre][$compId])) {
+                continue;
+            }
+
+            // Solo criterios CON nota. getBoletaAlumno devuelve todos los criterios
+            // definidos en la carga, tengan nota del alumno o no, y la vista pinta
+            // los vacíos como '—'. En un retorno de grado la matrícula operativa
+            // trae los criterios de la carga del grado oficial SIN ninguna nota, así
+            // que sin este filtro la familia vería una tabla entera de guiones.
+            if (!empty($nota['criterios'])) {
+                $nota['criterios'] = array_values(array_filter(
+                    $nota['criterios'],
+                    static fn(array $c): bool => ($c['nota'] ?? null) !== null
+                ));
+            }
+
+            $areas[$areaNombre][$compId] = $nota;
         }
 
         // Conducta del periodo: la que tenga la fuente con cierre vigente.
