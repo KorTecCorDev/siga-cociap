@@ -4,8 +4,13 @@
  * Solo la sección del estudiante: el resto de secciones del grado no le compete.
  * NO otorga media beca (esa solo sale del orden de mérito del grado).
  *
+ * Los rótulos usan el grado/nivel/sección donde el alumno COMPITE (matrícula
+ * operativa si hay retorno de grado), NO los de la matrícula oficial.
+ *
  * @var array  $hijo
  * @var array  $periodo
+ * @var string $gradoNombre
+ * @var string $nivelNombre
  * @var string $seccionNombre
  * @var array  $estudiantes    Ranking de la seccion (shape de OrdenMeritoModel)
  * @var int    $matriculaHijo  Matricula del hijo en el ranking (0 = no rankeado)
@@ -17,8 +22,8 @@
     <div>
         <h1 class="page-title">Ranking por sección</h1>
         <p class="page-subtitle">
-            <?= e($hijo['nivel_nombre']) ?> —
-            <?= e($hijo['grado_nombre']) ?> —
+            <?= e($nivelNombre) ?> —
+            <?= e($gradoNombre) ?> —
             Sección <?= e($seccionNombre) ?> —
             <?= e($periodo['nombre_display']) ?>
         </p>

@@ -4,8 +4,13 @@
  * Solo lectura y solo del bimestre PUBLICADO al nivel del hijo (compuerta 044).
  * Misma tabla que ve el claustro; la fila del hijo va resaltada.
  *
+ * Los rótulos usan el grado/nivel donde el alumno COMPITE (matrícula operativa si
+ * hay retorno de grado), NO los de la matrícula oficial: la tabla es de ese grado.
+ *
  * @var array  $hijo
  * @var array  $periodo
+ * @var string $gradoNombre    Grado donde compite (puede diferir del oficial)
+ * @var string $nivelNombre    Nivel de ese grado
  * @var array  $estudiantes    Ranking del grado (shape de OrdenMeritoModel)
  * @var int    $matriculaHijo  Matricula del hijo en el ranking (0 = no rankeado)
  */
@@ -16,8 +21,8 @@
     <div>
         <h1 class="page-title">Orden de mérito del grado</h1>
         <p class="page-subtitle">
-            <?= e($hijo['nivel_nombre']) ?> —
-            <?= e($hijo['grado_nombre']) ?> —
+            <?= e($nivelNombre) ?> —
+            <?= e($gradoNombre) ?> —
             <?= e($periodo['nombre_display']) ?>
         </p>
     </div>
@@ -47,7 +52,7 @@
 
     <div class="card mb-lg">
         <div class="card__header card__header--between">
-            <h2 class="card__title"><?= e($hijo['grado_nombre']) ?> — todas las secciones</h2>
+            <h2 class="card__title"><?= e($gradoNombre) ?> — todas las secciones</h2>
             <span class="badge badge--info"><?= count($estudiantes) ?> estudiantes</span>
         </div>
         <div class="card__body">

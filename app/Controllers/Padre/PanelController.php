@@ -94,14 +94,19 @@ class PanelController extends BaseController
             );
         }
 
-        // Agrupar notas por área
+        // Agrupar notas por área, UNA FILA POR COMPETENCIA. La indexación por
+        // competencia_id no es cosmética: con un retorno de grado se leen dos
+        // matrículas (operativa + oficial) y una competencia calificada en ambas
+        // llegaba repetida, mostrando la misma nota dos veces. Es exactamente lo
+        // que hace la boleta oficial en BoletaModel::buildAreasConBimestres
+        // ($areas[$area][$compId]); esta vista sigue ese mismo modelo.
         $areas = [];
         foreach ($notas as $nota) {
             $areaNombre = $nota['nombre_boleta'] ?? $nota['area_nombre'];
             if ($nota['alias_boleta']) {
                 $areaNombre .= ' ' . $nota['alias_boleta'];
             }
-            $areas[$areaNombre][] = $nota;
+            $areas[$areaNombre][(int) $nota['competencia_id']] = $nota;
         }
 
         // Conducta del periodo: la que tenga la fuente con cierre vigente.
@@ -140,6 +145,11 @@ class PanelController extends BaseController
             'titulo'        => 'Orden de mérito',
             'hijo'          => $hijo,
             'periodo'       => $periodo,
+            // Integridad: se rotula con el grado/sección donde el alumno COMPITE
+            // (la matrícula operativa si hay retorno), nunca con el oficial: los
+            // datos de la tabla son de ese grado y no deben mezclarse rótulos.
+            'gradoNombre'   => $ctx['grado_nombre'],
+            'nivelNombre'   => $ctx['nivel_nombre'],
             'estudiantes'   => $ctx['ranking'],
             'matriculaHijo' => $ctx['matricula_id'],
         ]);
@@ -162,6 +172,9 @@ class PanelController extends BaseController
             'titulo'        => 'Ranking por sección',
             'hijo'          => $hijo,
             'periodo'       => $periodo,
+            // Ver nota de integridad en ordenMerito().
+            'gradoNombre'   => $ctx['grado_nombre'],
+            'nivelNombre'   => $ctx['nivel_nombre'],
             'seccionNombre' => $seccion,
             'estudiantes'   => $porSeccion[$seccion] ?? [],
             'matriculaHijo' => $ctx['matricula_id'],
@@ -206,9 +219,12 @@ class PanelController extends BaseController
         // Grado y sección de cada matrícula candidata (la operativa va primero).
         $marcadores = implode(',', array_fill(0, count($fuentes), '?'));
         $candidatas = $this->calModel->query("
-            SELECT m.id, s.grado_id, m.seccion_id, s.nombre AS seccion_nombre
+            SELECT m.id, s.grado_id, m.seccion_id, s.nombre AS seccion_nombre,
+                   g.nombre_display AS grado_nombre, n.nombre AS nivel_nombre
             FROM matriculas m
             INNER JOIN secciones s ON s.id = m.seccion_id
+            INNER JOIN grados g    ON g.id = s.grado_id
+            INNER JOIN niveles n   ON n.id = g.nivel_id
             WHERE m.id IN ({$marcadores})
         ", $fuentes);
 
@@ -218,6 +234,8 @@ class PanelController extends BaseController
                 if ((int) $fila['matricula_id'] === (int) $c['id']) {
                     return [$hijo, $periodo, [
                         'grado_id'       => (int) $c['grado_id'],
+                        'grado_nombre'   => $c['grado_nombre'],
+                        'nivel_nombre'   => $c['nivel_nombre'],
                         'seccion_nombre' => $fila['seccion_nombre'],
                         'matricula_id'   => (int) $c['id'],
                         'ranking'        => $ranking,
@@ -236,6 +254,8 @@ class PanelController extends BaseController
 
         return [$hijo, $periodo, [
             'grado_id'       => (int) $propia['grado_id'],
+            'grado_nombre'   => $propia['grado_nombre'],
+            'nivel_nombre'   => $propia['nivel_nombre'],
             'seccion_nombre' => $propia['seccion_nombre'],
             'matricula_id'   => 0,
             'ranking'        => $this->ordenModel->rankingGrado((int) $propia['grado_id'], $periodoId),
