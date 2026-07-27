@@ -28,6 +28,25 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
   `gradosConEmpatesPendientes` sí mira el cálculo en vivo. Su **paso 0 es un control**:
   si el vivo y el snapshot coincidieran, los pasos siguientes no probarían nada.
 
+## Consultas operativas (phpMyAdmin)
+
+- **`alerta_evaluacion_incompleta.sql`** — SOLO LECTURA. Replica
+  `ControlOperativoModel::alertasEvaluacionIncompleta()` en SQL puro, para medir contra
+  **producción** desde phpMyAdmin sin depender de que el Centro de control esté
+  desplegado. Cuatro bloques autocontenidos (resumen por sección · detalle por criterio
+  **con el docente responsable** · detalle por alumno · total). Validada contra el método
+  PHP en los dos periodos con datos (B2: 19/19 · B1: 10/671).
+  - Es uno de los **dos** prerrequisitos del cierre. El otro —empates del orden de
+    mérito— **no es replicable en SQL**: su cascada (grupos por promedio, N desigual,
+    tupla de 5 conteos, resolución manual por `grupo_clave`) vive en PHP. Se consulta en
+    `/director/orden-merito/{periodo}`, que ya lista los bimestres `activo`.
+  - **Ojo con la secuencia:** la alerta es estable (no mira `bloqueos_competencia`), así
+    que medirla y resolverla vale antes o después del deploy. Los **empates NO**: P2 del
+    rediseño 2 reduce el universo del cálculo en vivo a competencias BLOQUEADAS, así que
+    los empates cambian con el deploy, y una resolución se ancla al conjunto exacto de
+    matrículas (`grupo_clave`) — si el grupo cambia, deja de cubrirlo. Resolver empates
+    va DESPUÉS del deploy y con todo bloqueado.
+
 Requisitos: haber aplicado la migración `046_orden_merito_inmutable.sql` en local y
 tener B1 (periodo 1) con sus filas de `periodos_publicacion` (backfill de la 044).
 

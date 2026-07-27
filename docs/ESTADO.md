@@ -308,6 +308,32 @@ WHERE id=25;`).
   visual de `/director/orden-merito/1` en prod (que los 9 reincorporados salgan en su
   puesto). ⚠️ No correr `backfill_orden_merito.php` en prod (desde el 26/07 tiene guard
   propio, pero la advertencia sigue valiendo para versiones desplegadas antes).
+- **Cierre de B2 — SECUENCIA CORRECTA (fijada el 27/07/2026).** Los dos prerrequisitos
+  del cierre (F4) NO se comportan igual, así que el orden importa:
+  **docentes terminan de calificar y bloquear → deploy del rediseño 2 → medir →
+  resolver → cerrar.**
+  - La **alerta de evaluación incompleta es estable**: su cálculo no mira
+    `bloqueos_competencia` (depende de criterios con nota, cargas activas, omisiones y
+    exoneraciones). Se puede medir HOY contra prod y el trabajo de resolverla —registrar
+    la nota o la omisión desde el módulo del docente— vale igual antes o después del
+    deploy. Herramienta: `database/verificaciones/alerta_evaluacion_incompleta.sql`
+    (phpMyAdmin, solo lectura; el Centro de control ya la muestra pero está en `dev`).
+  - Los **empates NO son estables**: P2 del rediseño 2 reduce el universo del cálculo en
+    vivo a competencias BLOQUEADAS, así que cambian con el deploy; y una resolución se
+    ancla al conjunto EXACTO de matrículas (`grupo_clave`), de modo que si el grupo
+    cambia deja de cubrirlo y el empate reaparece. **Resolver empates va DESPUÉS del
+    deploy y con todo bloqueado** (al cerrar, el propio cierre fuerza los bloqueos, así
+    que el universo converge). Se consultan en `/director/orden-merito/{periodo}`, que
+    ya lista los bimestres `activo` y está en prod desde el 17/06.
+  - **Al 27/07 no hay ninguna decisión de desempate tomada para B2** (confirmado por el
+    usuario): el bimestre no se ha cerrado, así que no hay trabajo que rehacer.
+  - **OJO — LOCAL NO SIRVE para dimensionar esto:** B2 en local tiene **77
+    calificaciones y 7 criterios** (B1 tiene 12 049 y 2 398). Los "19 alumnos de 4° A" y
+    el "empate de Secundaria 1°" que se miden en local son artefactos del dataset de
+    pruebas — el empate son 22 alumnos con `N=1`, una sola competencia calificada. Toda
+    cifra de bloqueadores de B2 debe salir de PRODUCCIÓN.
+  - La alerta **solo aflora un criterio cuando algún compañero de la sección ya tiene
+    nota en él**: lo que se mida a mitad de bimestre es un PISO, no un total.
 - **Retorno de grado de BALTAZAR SHALOM CRISTEL — BLOQUEARÁ EL CIERRE DE B2.**
   Matrícula oficial 190 (Primaria 2° B, la de SIAGIE) + operativa 692 (1° B, donde
   CURSA); retorno activo desde el 21/06/2026. La evaluó la docente de 1° B, pero **esa
