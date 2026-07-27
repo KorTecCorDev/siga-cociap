@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **26/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **27/07/2026**.
 
 ## Migraciones
 - **`046_orden_merito_inmutable`** (24/07): Fase B del rediseño del orden de mérito.
@@ -75,7 +75,8 @@
   documentos); de esas, 3 además a `tipo='nuevo'` (traslado de entrada) y 1 se
   mantiene `continuador`. Ancla por DNI + año activo + guarda `estado='aprobada'`
   (portable e idempotente). Verificada en local (4 filas; reintento 0/0). NO
-  escribe motivo_estado. Falta aplicarla en PROD.
+  escribe motivo_estado. **APLICADA EN PROD** (20/07/2026, dentro del lote 038-043;
+  ver el punto "LOCAL y PROD: al día" y la sección Git).
 - Orden completo de setup desde cero: ver `docs/infraestructura.md`.
 - OJO al crear un año académico nuevo: `getOrCreateConfiguracion` inserta
   `duracion_hora_min = 50` por defecto; el año 2026 usa 45.
@@ -313,12 +314,20 @@ WHERE id=25;`).
   evaluación no existe en las cargas de 1° B**: los promedios se registraron en las
   cargas de 2° B repitiendo la misma nota en cada criterio para no alterar el promedio
   (la 190 tiene 122 criterios así; la 692 tiene los 22 promedios y CERO criterios).
-  Consecuencia: la alerta de evaluación incompleta le marca **80 blancos** —los 80
-  criterios de 1° B— y con la F4 eso **aborta el cierre** mientras el bimestre esté
-  abierto. Hay que registrarle la nota o la omisión en las cargas de 1° B antes de
-  cerrar B2, o repetir el mismo procedimiento a conciencia. **NO es un duplicado de
-  matrícula: no borrar la 692.** Decisión del usuario (26/07): la alerta se deja como
-  está (solo informa) y se resuelve operativamente.
+  Consecuencia: la alerta de evaluación incompleta le marca los criterios de 1° B en
+  blanco y con la F4 eso **aborta el cierre** mientras el bimestre esté abierto. Hay que
+  registrarle la nota o la omisión en las cargas de 1° B antes de cerrar B2, o repetir el
+  mismo procedimiento a conciencia. **NO es un duplicado de matrícula: no borrar la 692.**
+  Decisión del usuario (26/07): la alerta se deja como está (solo informa) y se resuelve
+  operativamente.
+  - **Cifras reales medidas el 27/07/2026** (las de "80 blancos" que decía antes esta
+    entrada quedaron obsoletas al filtrar `ca.estado = 'activa'` en el fix `af72ac7`):
+    en **B1** son **69 blancos** (matrícula 692), y como B1 está cerrado la alerta ahí es
+    **informativa**, no bloqueante. En **B2** la alerta **todavía NO lo marca**: solo
+    aflora un criterio cuando algún compañero de su sección ya tiene nota en él, y 1° B
+    apenas ha calificado el II Bim. **El riesgo sigue en pie** — irá apareciendo conforme
+    la docente de 1° B avance, y para cuando toque cerrar B2 estará completo. Volver a
+    medir con `ControlOperativoModel::alertasEvaluacionIncompleta(2)` antes de cerrar.
 - **Re-subir firma/sello del Director EBR** solo si se recrea el entorno
   (se pierden únicamente si se borra el directorio externo `~/siga_uploads/`).
 - **Decisión del colegio pendiente:** regenerar (o no) el ranking B1 tras el
@@ -357,16 +366,29 @@ WHERE id=25;`).
   con dos usuarios padre de prueba (creados por SQL y ya borrados). **NO desplegado: el
   usuario no autorizó el merge a `main`.** No hay migración pendiente para este lote.
 
-## Scripts que escriben en la BD — cuidado (26/07/2026)
+## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
   de B1.** Su paso 4 "autolimpieza" hacía `DELETE` ciego de `orden_merito_snapshot` y
   `orden_merito_rectificado` del periodo 1. Se escribió el 24/07, cuando B1 no tenía
   snapshot, y quedó obsoleto al día siguiente con la Fase C. **Destruyó las 528 filas en
-  LOCAL el 26/07** (se reconstruyeron exactas, misma firma, neutralizando temporalmente
-  los 8 `trasladado` con notas B1 y regenerando). Ahora: corre dentro de una transacción
+  LOCAL el 26/07.** Se intentó reconstruirlas (misma firma, neutralizando temporalmente
+  los 8 `trasladado` con notas B1 y regenerando), pero **esa reconstrucción NO quedó
+  persistida** — ver el punto siguiente. Ahora: corre dentro de una transacción
   con ROLLBACK, aborta si detecta el archivo de secretos de producción, y reproduce el
   escenario "sin oficial" dentro de la transacción (antes su primera aserción no probaba
   nada, porque con un oficial presente la llamada devolvía `'rectificado'`).
+- **⚠️ LOCAL tiene el snapshot oficial de B1 VACÍO (verificado el 27/07/2026).**
+  `orden_merito_snapshot` y `orden_merito_rectificado` están en **0 filas**; PROD
+  conserva las **528**. B1 sigue `cerrado` y publicado en ambos niveles, y sus **14
+  desempates resueltos SÍ están intactos**. No es un fallo del código: sin filas,
+  `debeUsarSnapshot()` cae al cálculo en vivo de forma limpia y local muestra **518
+  alumnos** en B1 en lugar de 528. Lo que sí rompe es la CONFIANZA EN LAS PRUEBAS:
+  `verif_fase5b_rediseno_merito.php` avisa "INUTIL: son identicos" en su paso 0 de
+  control y a partir de ahí su **paso 2 da un OK falso** (compara el cálculo en vivo
+  contra sí mismo); solo su paso 3 sigue probando algo real. **Antes de creer cualquier
+  prueba local del mérito de B1, contar las filas del snapshot.** Para reconstruirlo hay
+  que reproducir la regla de la Fase C (roster con notas bloqueadas de B1 **sin filtro de
+  tipo**); `backfill_orden_merito.php` NO sirve (regla general → ~518/519).
 - **`database/backfill_orden_merito.php`** ahora salta los periodos con snapshot oficial
   ya PUBLICADO salvo `--forzar`.
 - **Regla general:** ningún script de `database/` debe "limpiar" con DELETE lo que no
