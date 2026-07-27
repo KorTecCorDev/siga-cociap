@@ -216,6 +216,21 @@ NUNCA CSS inline en PHP (convención del proyecto).
   secretaría_academica/secretaria_administrativa) para que gestión vea el BORRADOR,
   igual que el docente. La pública por token sigue mostrando SOLO lo oficial.
 
+### Formato: las CUATRO columnas de bimestre siempre (26/07/2026)
+`/boleta/ver/{token}` se arma con `estructuraCompleta = true`, así que dibuja los cuatro
+bimestres del año aunque estén vacíos — el formato oficial del documento, la misma regla
+que ya aplicaba la boleta del trasladado (regla de formato 09/07/2026). Antes colapsaba
+las columnas a las publicadas y la familia recibía en B1 una boleta de una sola columna.
+
+Los **datos** no cambian: el guard de `armar()` sigue exigiendo bimestre oficial **y**
+publicado, así que II, III y IV quedan vacías hasta que se publiquen. Esto **no debilita
+la compuerta 044**: con la estructura anual fija las columnas están todo el año y una
+vacía no informa de nada. Colapsarlas era justo lo que delataba el cierre, porque solo
+aparecía columna cuando había datos.
+
+> Pendiente decidir: la boleta **digital** por token sigue colapsando columnas (es
+> mobile-first), igual que el bloque de asistencia, que tiene su propio filtro.
+
 ### Tracking de visitas — `matriculas.token_consultas` (migración `028`)
 - `028_boleta_token_tracking.sql`: `token_consultas INT` + `token_ultima_consulta DATETIME`,
   con **backfill** desde `boletas_publicas.veces_consultada` (preserva el histórico B1).

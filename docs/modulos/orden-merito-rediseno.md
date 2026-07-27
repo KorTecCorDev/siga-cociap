@@ -1,9 +1,12 @@
-# Rediseño del Orden de mérito y Ranking por sección — DISEÑO (plan aprobado 25/07/2026)
+# Rediseño del Orden de mérito y Ranking por sección — IMPLEMENTADO (25-26/07/2026)
 
-> Documento de DISEÑO. Plan aprobado por el usuario; **aún NO implementado**. El
-> estado actual del módulo vive en `orden-merito.md`; este archivo describe hacia
-> dónde vamos y con qué cambios quirúrgicos. Al implementar cada fase se actualiza
-> `orden-merito.md` (estado) y `ESTADO.md` (avance con fecha).
+> **ESTADO: las 6 fases están IMPLEMENTADAS y probadas en navegador (26/07/2026),
+> en la rama `dev` — pendiente de deploy a `main`.** Este archivo se conserva como
+> registro del DISEÑO aprobado; el estado vigente del módulo vive en
+> `orden-merito.md` y el avance con fecha en `ESTADO.md`. Las secciones 1-5 de
+> abajo son el plan tal como se aprobó; la **§8 (al final) registra lo que
+> realmente se construyó y en qué se desvió del plan**. Ante cualquier
+> discrepancia, mandan la §8 y el código.
 >
 > Regla transversal: **cambios mínimos y localizados**. Reutilizar lo existente
 > (`calcularFilasRanking`, `aplicarDesempate`, el cierre que ya congela el snapshot,
@@ -152,7 +155,7 @@ snapshot ya existente y la compuerta. F1, F2 son independientes y de menor riesg
 - **Alerta de N = evaluación incompleta por sección** (menos competencias que la moda,
   descontando exoneradas), resuelta registrando el motivo de cada blanco (`omisiones_criterio`).
 
-## 7. Riesgos y compatibilidad
+## 7. Riesgos y compatibilidad (del plan original)
 - **B1 congelado (528):** el cierre no se re-ejecuta sobre B1; su snapshot no se toca. NO
   correr `backfill` en prod (revertiría a 519).
 - **Candado 046 intacto:** al no separar la aprobación, no hay que re-anclarlo; sigue con
@@ -162,3 +165,81 @@ snapshot ya existente y la compuerta. F1, F2 son independientes y de menor riesg
   (motivos) ocurre en el Centro de control **antes** de cerrar. Precisar la UX en la Fase 3.
 - **Sin migración mayor:** se eliminó la tabla `orden_merito_aprobacion`. Solo una posible
   migración menor en la Fase 3 si se opta por motivo a nivel competencia.
+
+---
+
+## 8. LO QUE SE IMPLEMENTÓ (25-26/07/2026) — manda esta sección
+
+Todo en `dev`, sin migración nueva. Un commit por fase; los scripts de verificación
+viven en `database/verificaciones/`.
+
+| Fase | Commit | Qué quedó |
+|---|---|---|
+| F1 cascada + en vivo | `b316df1` | `ORDER BY … m.id` (sin apellidos) y `INNER JOIN bloqueos_competencia` en las 4 queries del cálculo en vivo. Verif: `verif_fase1_rediseno_merito.php` |
+| F2 Ética | `e7ba896` | Constante `AREA_ETICA_NOMBRE_BOLETA` en `helpers.php` + excepción en las 2 queries del ranking en vivo |
+| F3 alerta de N | `1289c69` | `ControlOperativoModel::alertasEvaluacionIncompleta` + chequeo en `/admin/control` |
+| F4 cierre reforzado | `04e555f` | `PeriodoController::cerrar` aborta si hay evaluación incompleta |
+| F5 publicación unificada | `da37350` | Gate del claustro = compuerta 044 |
+| **F5b candado de reapertura** | `07c308f` | **No estaba en el plan.** Ver abajo |
+| F6 vista de familias | `dbba287` | `/padre/orden-merito` y `/padre/ranking-seccion` |
+| Fixes posteriores | `af72ac7`, `6a08ccd`, `ac7a105` | Ver abajo |
+
+### Desviaciones respecto del plan
+
+1. **F2 identifica Ética por `nombre_boleta`, no por id.** El plan decía
+   `AREA_ETICA_SECUNDARIA = 24`; el id del área puede diferir entre entornos, así que
+   la constante es `AREA_ETICA_NOMBRE_BOLETA = 'Ética y Valores'` (la migración 035 lo
+   sella idéntico en local y prod).
+2. **F3 no compara "moda de competencias por sección".** Resultó más preciso comparar
+   por CRITERIO: un criterio que otros compañeros de la sección sí tienen con nota y al
+   alumno le falta, sin omisión ni exoneración. Así la alerta ya nace con el detalle
+   competencia+criterio que el plan pedía, sin necesidad de una migración nueva.
+   La gestión de motivos usa el flujo de `omisiones_criterio` que ya existía.
+3. **F4 NO valida "0 competencias sin bloquear".** El plan (P3) lo exigía; se omitió a
+   propósito porque el cierre las fuerza mecánicamente (y ese camino maneja las
+   transversales). Lo que sí exige acción humana previa —registrar la nota o la
+   omisión— es lo que se validó. **Queda como diferencia consciente con la §6.**
+4. **F5b (nueva).** Al reabrir un bimestre publicado su estado deja de ser `'cerrado'`,
+   así que `debeUsarSnapshot` caía al cálculo en vivo y el claustro veía un documento
+   distinto del entregado (en local B1: 520 alumnos contra las 528 del oficial). Ahora
+   manda el snapshot si el periodo está cerrado **o** si ya fue publicado
+   (`fuePublicado`, migración 046), memoizado por periodo. Obligatorio junto con esto:
+   `gradosConEmpatesPendientes` pasó a `rankingGradoLive`, porque si no, al RE-cerrar
+   leería el snapshot viejo y no vería los empates que introdujeron las rectificaciones.
+   Verif: `verif_fase5b_rediseno_merito.php`.
+5. **Alerta informativa en bimestres cerrados** (`af72ac7`). Es crítica y bloquea
+   mientras el bimestre está abierto; una vez cerrado el documento ya salió, así que
+   baja a `'informativo'` y deja de sumar al contador de incidencias (si no, B1 mostraba
+   13 casos críticos para siempre). En la misma tanda: la alerta filtra
+   `ca.estado = 'activa'`, como el resto del sistema — una carga dada de baja conserva
+   sus criterios y generaba alertas que nadie podía resolver.
+6. **Retorno de grado en las superficies de familias** (`6a08ccd`, `ac7a105`).
+   `getHijo` devuelve siempre la matrícula OFICIAL, pero el alumno compite con la
+   OPERATIVA. `PanelController::contextoMerito` recorre las fuentes de `boletaContexto`
+   y se queda con la que aparece en el ranking; los rótulos usan ESE grado/sección
+   (integridad: no mezclar "2°" sobre una tabla de 1°). En `/padre/notas`, además, se
+   indexa por `competencia_id` (con retorno llegaban 44 filas en vez de 22), gana la
+   matrícula operativa y se descartan los criterios sin nota.
+7. **Familias ven la lista completa**, con nombre y promedio de cada alumno, igual que
+   el claustro (decisión del usuario 26/07 sobre la alternativa de mostrar solo el
+   puesto del hijo). El ranking por sección muestra solo la sección del hijo.
+
+### Efectos colaterales aceptados
+
+- Durante la reapertura de un bimestre publicado, **el director también ve el oficial
+  congelado** en `/director/orden-merito`. El efecto de las correcciones se observa al
+  re-cerrar, en la versión rectificada de `/admin/control`.
+- El filtro de criterios sin nota de `/padre/notas` aplica a todos los alumnos, no solo
+  a los de retorno. Medido antes de aplicarlo: 0,51% de los criterios (30 de 5877 en una
+  muestra de 60 alumnos) y ninguna competencia que hoy tenga tabla se queda sin ella.
+
+### Scripts destructivos asegurados en la misma sesión
+
+- `verif_fase_b_orden_merito.php` **borraba el snapshot oficial de B1** con un DELETE
+  ciego (su paso 4 "autolimpieza", escrito el 24/07 cuando la tabla estaba vacía y
+  obsoleto al día siguiente con la Fase C). Ahora corre en transacción con rollback,
+  aborta si detecta el entorno de producción y reproduce el escenario "sin oficial"
+  dentro de la transacción — antes su primera aserción estaba en letra muerta.
+- `backfill_orden_merito.php` salta los periodos con snapshot oficial YA PUBLICADO
+  (candado 046) salvo `--forzar`. Protege el 528 de B1 en cualquier entorno sin romper
+  su uso legítimo de setup.

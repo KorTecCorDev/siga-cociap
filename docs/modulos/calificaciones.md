@@ -58,6 +58,21 @@
 - Orden de mérito y estadísticas siguen excluyendo transversales (filtran por
   el área de la competencia — las filas por docente no contaminan el ranking).
 
+#### `/padre/notas` con retorno de grado (26/07/2026)
+Las notas se leen por unión de las fuentes de `boletaContexto` (`[operativa, oficial]`),
+así que una competencia calificada en AMBAS matrículas llegaba repetida: 44 filas en vez
+de 22. `PanelController::notas` ahora indexa por `competencia_id` —el mismo modelo que
+`BoletaModel::buildAreasConBimestres`— y **gana la PRIMERA fuente, la operativa**: manda
+el grado que el alumno cursa. Si la competencia solo existe en la oficial, esa se usa y
+no se pierde el dato.
+
+Además **descarta los criterios sin nota**: `getBoletaAlumno` devuelve todos los
+criterios definidos en la carga, tengan nota del alumno o no, y la vista los pinta como
+`—`. En un retorno la operativa trae los criterios de la carga del grado oficial SIN
+ninguna nota, así que sin ese filtro se veía una tabla entera de guiones. Impacto medido
+en el resto de alumnos: 0,51% de los criterios (30 de 5877 en 60 alumnos) y ninguna
+competencia se queda sin tabla.
+
 ### Vista del tutor (`Docente\TutoriaController`)
 - Rutas: `GET /docente/tutoria[/{periodo_id}]`,
   `POST /docente/tutoria/{periodo_id}/conclusion`, `POST .../cerrar`.

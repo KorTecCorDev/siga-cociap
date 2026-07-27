@@ -24,13 +24,25 @@ en documento oficial inmutable por snapshot.
   `PanelController::getMatriculados`; boletas vía `CalificacionModel::boletaContexto`:
   identidad = oficial, notas por unión [operativa, oficial]).
 - **El snapshot solo se (re)genera al CERRAR** el bimestre. Reabrir para corregir
-  notas SÍ actualiza el ranking (regenera al re-cerrar). Una reversión con el
-  bimestre cerrado nunca lo toca.
+  notas SÍ actualiza el ranking (regenera al re-cerrar) **mientras el bimestre no
+  haya sido publicado**; si ya lo estuvo, el oficial es inmutable y la corrección va
+  a `orden_merito_rectificado` (candado 046). Una reversión con el bimestre cerrado
+  nunca lo toca.
 - **Empates resueltos ANTES de cerrar; bimestres se abren en orden cronológico.**
 - **"Vigente"** (buscador, columna puesto de nómina) = snapshot del cerrado de
   mayor número < bimestre activo (`EstudianteModel::ultimoBimestreCerrado`).
-- **Excluye áreas `tipo IN ('transversal','tutoria')`** — permanente, aunque a
-  futuro tengan notas.
+- **Excluye áreas `tipo IN ('transversal','tutoria')`**, con UNA excepción desde el
+  rediseño 2 (26/07): el área **Ética y Valores** (tutoría de secundaria, C57) SÍ
+  cuenta, porque reemplaza a Ed. Religiosa. Punto único:
+  `AREA_ETICA_NOMBRE_BOLETA` en `helpers.php` — se identifica por `nombre_boleta`,
+  NO por id (el id del área difiere entre entornos). El resto de la tutoría TOE y las
+  transversales siguen fuera, de forma permanente.
+- **El cálculo EN VIVO solo cuenta competencias BLOQUEADAS** (rediseño 2): join a
+  `bloqueos_competencia`, sin filtrar `origen` (cuenta `docente` y `cierre`). En un
+  bimestre cerrado no cambia nada (todo está bloqueado); en uno activo el ranking
+  provisional refleja solo lo ya confirmado.
+- **Cascada de desempate sin apellidos** (rediseño 2): tras `num_16` el desempate es
+  MANUAL y el orden de presentación lo fija `m.id` (neutro y determinista).
 
 ### Implementación
 - **Fase 1 — candados:** `AnioAcademicoModel::hayBimestrePrevioPendiente` (no abrir
@@ -42,13 +54,26 @@ en documento oficial inmutable por snapshot.
   (num_competencias, total_notas, promedios, num_c/b/ad/alto/16).
   UNIQUE(periodo, matricula).
 - `OrdenMeritoModel::rankingGrado`/`rankingPorSeccion` son wrappers snapshot-aware
-  (`debeUsarSnapshot`: cerrado + tiene filas → lee snapshot; si no, cálculo vivo).
+  (`debeUsarSnapshot`: tiene filas Y (cerrado **o** ya fue publicado) → lee snapshot;
+  si no, cálculo vivo). La segunda condición cubre la REAPERTURA de un bimestre
+  publicado: su oficial ya salió a las familias y es inmutable, así que el claustro
+  y las familias siguen viendo el congelado mientras se corrige. Está memoizado por
+  periodo (se llama en bucle, un grado por iteración).
   El cálculo vivo ancla por bimestre: excluye la OFICIAL si su operativa cubrió ese
   periodo e incluye la operativa revertida (desactivada) en sus periodos.
 - `PeriodoController::cerrar` llama `generarSnapshot` DENTRO de su transacción
   (PDO singleton compartido → atómico). `gradosConRanking` es snapshot-aware.
 - **Backfill:** `database/backfill_orden_merito.php` — idempotente; SALTA periodos
-  con empates pendientes para no congelar un orden arbitrario.
+  con empates pendientes para no congelar un orden arbitrario **y, desde el 26/07,
+  también los que ya tienen snapshot oficial PUBLICADO** (candado 046), salvo que se
+  invoque con `--forzar`. Sin esa guarda sobrescribía en silencio el documento
+  entregado a las familias: en B1 habría cambiado las 528 filas reconstruidas a mano
+  por las ~520 de la regla general.
+- `gradosConEmpatesPendientes` usa el cálculo EN VIVO (`rankingGradoLive`), NO el
+  wrapper snapshot-aware: valida lo que se va a congelar, no lo ya congelado. Importa
+  al RE-cerrar un bimestre publicado y reabierto, donde `debeUsarSnapshot` es `true` y
+  leer por `rankingGrado` devolvería el snapshot viejo, sin ver los empates que
+  introdujeron las rectificaciones.
 - Los empates se detectan/resuelven a nivel GRADO (UI por periodo+grado en
   `Director\OrdenMeritoController::desempate`).
 - Limitación menor conocida: `getConteosGrado` (header del reporte) sigue en vivo —
@@ -143,10 +168,42 @@ estudiante compite en su grado OPERATIVO (anclaje por bimestre intacto).
 > este roster actual; por eso el reporte oficial debe venir del snapshot congelado
 > (ver Fases B y C en `docs/ESTADO.md`), no del cálculo en vivo tardío.
 
+## Visibilidad: quién ve el mérito y cuándo (rediseño 2, 26/07/2026)
+
+**Publicar libera boletas Y orden de mérito juntos**, por NIVEL, bajo la compuerta 044.
+Cerrar el bimestre oficializa (congela) el mérito, pero no lo muestra a nadie fuera de
+dirección.
+
+- **Director:** `/director/orden-merito`, siempre (no depende de la compuerta).
+- **Claustro:** `Docente\OrdenMeritoController` lista solo los periodos con **algún**
+  nivel publicado (`PublicacionBoletaModel::periodosConAlgunNivelPublicado`) y, dentro
+  de un periodo, solo los grados de niveles publicados (`nivelesPublicados`). El
+  criterio de "publicado" no se duplica fuera de ese modelo.
+- **Familias:** `/padre/orden-merito` (grado) y `/padre/ranking-seccion` (solo la
+  sección del hijo), bajo la misma compuerta que las notas
+  (`PanelController::getPeriodoVigentePadre`). Ven la lista completa con nombre y
+  promedio, igual que el claustro (decisión del usuario, 26/07).
+- **Retorno de grado:** `getHijo` devuelve la matrícula OFICIAL, pero el alumno compite
+  con la OPERATIVA. `PanelController::contextoMerito` recorre las fuentes de
+  `boletaContexto` y se queda con la que aparece en el ranking; **los rótulos usan ese
+  grado/sección**, no el oficial (integridad: no mostrar "2°" sobre una tabla de 1°).
+  Es la excepción consciente a "boletas y nómina siempre muestran el grado OFICIAL":
+  aquí lo que se muestra es un ranking de un grado concreto, no un documento SIAGIE.
+
+**El cierre exige mérito íntegro:** `PeriodoController::cerrar` aborta si hay empates
+sin resolver o alumnos con evaluación incompleta
+(`ControlOperativoModel::alertasEvaluacionIncompleta`: criterios que otros compañeros de
+su sección sí tienen con nota y a él le faltan, sin omisión ni exoneración, en cargas
+ACTIVAS). NO valida "0 competencias sin bloquear" —el propio cierre las fuerza, y ese
+camino maneja las transversales—, que es una diferencia consciente con el diseño (P3).
+
 ## Estado operativo
-Ver `docs/ESTADO.md`. **Rediseño del orden de mérito COMPLETADO (25/07/2026):**
-A = filtro por tipo (en prod); B = inmutabilidad tras publicar + versión rectificada no
-oficial en Centro de control (migración 046 en prod); C = reconstrucción de B1 EN PROD.
+Ver `docs/ESTADO.md`. **Rediseño 1 COMPLETADO (25/07/2026):** A = filtro por tipo (en
+prod); B = inmutabilidad tras publicar + versión rectificada no oficial en Centro de
+control (migración 046 en prod); C = reconstrucción de B1 EN PROD.
+**Rediseño 2 COMPLETADO en `dev` (26/07/2026), pendiente de deploy:** F1-F6 + F5b y
+fixes, sin migración nueva. Detalle y desviaciones del plan en
+`orden-merito-rediseno.md` §8.
 
 **B1 (periodo 1) tiene snapshot oficial de 528 filas en PROD** (reemplazó a 519 previas).
 Roster por REGLA del usuario: todos los estudiantes con calificaciones bloqueadas/aprobadas

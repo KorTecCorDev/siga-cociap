@@ -207,7 +207,9 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   acto separado, por NIVEL y con fecha/hora (`periodos_publicacion`, migración 044).
   Punto único: `PublicacionBoletaModel`. El umbral `'oficial'` de `BoletaModel::armar()`
   respeta la compuerta (acceso en línea de familias); `'archivo'` la ignora a propósito
-  (documento impreso por staff: salida masiva y trasladado).
+  (documento impreso por staff: salida masiva y trasladado). La boleta por token se
+  arma con `estructuraCompleta = true`: **siempre las 4 columnas de bimestre**, aunque
+  estén vacías (formato oficial); el guard de datos es el que respeta la compuerta.
 - **Escala de notas: punto único de verdad en `app/Helpers/helpers.php`**
   (`NOTA_MIN_AD/A/B`, `nota_a_literal()`, `escala_rangos()`). NUNCA hardcodear umbrales.
 - **Rutas literales ANTES que patrones `{param}`** en `routes/web.php` (el router
@@ -224,7 +226,22 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   sin traslado oficial (migración 045); reversible vía `tipo_anterior`. NO extender
   a los usos de `trasladado` en boleta (un retirado es desactivado no-trasladado →
   BORRADOR). Ver `docs/modulos/matriculas.md`.
-- **Orden de mérito excluye áreas `tipo IN ('transversal','tutoria')`** — permanente.
+- **Orden de mérito excluye áreas `tipo IN ('transversal','tutoria')`** — permanente,
+  con UNA excepción: **Ética y Valores** (tutoría de secundaria, C57) SÍ cuenta.
+  Punto único `AREA_ETICA_NOMBRE_BOLETA` en `helpers.php`; se identifica por
+  `nombre_boleta`, NUNCA por id (difiere entre entornos).
+- **Mérito EN VIVO = solo competencias BLOQUEADAS** (join a `bloqueos_competencia`, sin
+  filtrar `origen`). La cascada ya no desempata por apellido: tras `num_16` es MANUAL y
+  el orden lo fija `m.id`.
+- **PUBLICAR libera boletas Y orden de mérito juntos**, por nivel, bajo la compuerta 044.
+  Cerrar oficializa el mérito pero no lo muestra: claustro y familias lo ven solo cuando
+  su nivel está publicado. **CERRAR EXIGE MÉRITO ÍNTEGRO**: 0 empates sin resolver y 0
+  alumnos con evaluación incompleta (`alertasEvaluacionIncompleta`).
+- **`gradosConEmpatesPendientes` usa `rankingGradoLive`, NO `rankingGrado`** — valida lo
+  que se va a congelar, no lo ya congelado (si no, al re-cerrar un bimestre publicado y
+  reabierto leería el snapshot viejo).
+- **Ningún script de `database/` debe "limpiar" con DELETE lo que no creó.** Si escribe
+  para probar, transacción + rollback (ya pasó: una verificación borró el oficial de B1).
 - **Orden de mérito: el ranking filtra el roster por `m.tipo NOT IN ('trasladado',
   'retirado')`** (NO por `estado='aprobada'`). Un alumno permanece hasta que su tipo
   sea trasladado/retirado; `desactivado` por deuda y `pendiente` SÍ compiten.

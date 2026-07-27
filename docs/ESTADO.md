@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **24/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **26/07/2026**.
 
 ## Migraciones
 - **`046_orden_merito_inmutable`** (24/07): Fase B del rediseño del orden de mérito.
@@ -81,18 +81,14 @@
   `duracion_hora_min = 50` por defecto; el año 2026 usa 45.
 
 ## Pendientes de desarrollo
-- **Rediseño 2 del orden de mérito (DISEÑO COMPLETO Y APROBADO 25/07/2026, sin
-  implementar):** documento en `docs/modulos/orden-merito-rediseno.md`. 5 decisiones +
-  flujo (cascada sin apellido/manual tras num_16; en vivo solo bloqueadas; **cerrar
-  OFICIALIZA el mérito** exigiendo antes 0 desempates + 0 sin bloquear + 0 alertas de N;
-  **publicación unificada boletas+mérito por nivel** vía compuerta 044; familias ven
-  orden de mérito + ranking por sección; alerta de evaluación incompleta por sección con
-  gestión de motivos vía `omisiones_criterio`; Ética/C57 al promedio de secundaria). Los
-  4 detalles finos quedaron RESUELTOS (doc §4). **Flujo simplificado: NO hay tabla nueva
-  ni acción de "aprobar mérito" separada (el cierre la absorbe); candado 046 intacto.**
-  Plan de 6 fases (F1 cascada+en vivo · F2 Ética · F3 alerta N+motivos · F4 cierre
-  reforzado · F5 publicación unificada · F6 vista familias). Sin migración mayor (posible
-  menor en F3). NO tocar código hasta aprobar el arranque por fases.
+- **Rediseño 2 del orden de mérito — IMPLEMENTADO Y PROBADO (26/07/2026), EN `dev`,
+  PENDIENTE DE DEPLOY.** Las 6 fases + una fase extra (F5b) y varios fixes; **sin
+  migración nueva**, así que el deploy es merge + push sin tocar la BD de prod.
+  Qué hace cada fase, las desviaciones respecto del plan y los efectos colaterales
+  aceptados: `docs/modulos/orden-merito-rediseno.md` **§8** (manda esa sección, no las
+  §1-5, que son el plan original). Estado vigente del módulo: `orden-merito.md`.
+  Diferencia consciente con el diseño: el cierre **no** valida "0 competencias sin
+  bloquear" (P3) porque él mismo las fuerza.
 - **Compuerta de publicación: EN PRODUCCIÓN desde el 22/07/2026** (migración 044
   + merge `dev`→`main` `dca4023`). Cerrar ya no publica; se publica por nivel con
   fecha/hora desde `/admin/control`. Regla, decisiones y verificación en
@@ -309,7 +305,20 @@ WHERE id=25;`).
 - **Orden de mérito:** RECONSTRUCCIÓN DE B1 HECHA (25/07, ver "Rediseño del orden de
   mérito" abajo, Fase C). Snapshot oficial de B1 = 528 en prod. Queda solo el check
   visual de `/director/orden-merito/1` en prod (que los 9 reincorporados salgan en su
-  puesto). ⚠️ No correr `backfill_orden_merito.php` en prod.
+  puesto). ⚠️ No correr `backfill_orden_merito.php` en prod (desde el 26/07 tiene guard
+  propio, pero la advertencia sigue valiendo para versiones desplegadas antes).
+- **Retorno de grado de BALTAZAR SHALOM CRISTEL — BLOQUEARÁ EL CIERRE DE B2.**
+  Matrícula oficial 190 (Primaria 2° B, la de SIAGIE) + operativa 692 (1° B, donde
+  CURSA); retorno activo desde el 21/06/2026. La evaluó la docente de 1° B, pero **esa
+  evaluación no existe en las cargas de 1° B**: los promedios se registraron en las
+  cargas de 2° B repitiendo la misma nota en cada criterio para no alterar el promedio
+  (la 190 tiene 122 criterios así; la 692 tiene los 22 promedios y CERO criterios).
+  Consecuencia: la alerta de evaluación incompleta le marca **80 blancos** —los 80
+  criterios de 1° B— y con la F4 eso **aborta el cierre** mientras el bimestre esté
+  abierto. Hay que registrarle la nota o la omisión en las cargas de 1° B antes de
+  cerrar B2, o repetir el mismo procedimiento a conciencia. **NO es un duplicado de
+  matrícula: no borrar la 692.** Decisión del usuario (26/07): la alerta se deja como
+  está (solo informa) y se resuelve operativamente.
 - **Re-subir firma/sello del Director EBR** solo si se recrea el entorno
   (se pierden únicamente si se borra el directorio externo `~/siga_uploads/`).
 - **Decisión del colegio pendiente:** regenerar (o no) el ranking B1 tras el
@@ -342,3 +351,23 @@ WHERE id=25;`).
   scripts de verificación (`database/verificaciones/`). `dev` y `main`
   sincronizados en `68968bb`. **Queda la Fase C** (reconstrucción de B1 contra el
   documento oficial, depende del documento del usuario).
+- **26/07/2026 — `dev` pusheado en `cce5d90`, 17 commits por delante de `main`.**
+  Contiene TODO el rediseño 2 del orden de mérito (F1-F6 + F5b + fixes) y el
+  aseguramiento de los dos scripts destructivos. Probado en navegador por el usuario
+  con dos usuarios padre de prueba (creados por SQL y ya borrados). **NO desplegado: el
+  usuario no autorizó el merge a `main`.** No hay migración pendiente para este lote.
+
+## Scripts que escriben en la BD — cuidado (26/07/2026)
+- **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
+  de B1.** Su paso 4 "autolimpieza" hacía `DELETE` ciego de `orden_merito_snapshot` y
+  `orden_merito_rectificado` del periodo 1. Se escribió el 24/07, cuando B1 no tenía
+  snapshot, y quedó obsoleto al día siguiente con la Fase C. **Destruyó las 528 filas en
+  LOCAL el 26/07** (se reconstruyeron exactas, misma firma, neutralizando temporalmente
+  los 8 `trasladado` con notas B1 y regenerando). Ahora: corre dentro de una transacción
+  con ROLLBACK, aborta si detecta el archivo de secretos de producción, y reproduce el
+  escenario "sin oficial" dentro de la transacción (antes su primera aserción no probaba
+  nada, porque con un oficial presente la llamada devolvía `'rectificado'`).
+- **`database/backfill_orden_merito.php`** ahora salta los periodos con snapshot oficial
+  ya PUBLICADO salvo `--forzar`.
+- **Regla general:** ningún script de `database/` debe "limpiar" con DELETE lo que no
+  creó. Si escribe para probar, que use transacción + rollback.
