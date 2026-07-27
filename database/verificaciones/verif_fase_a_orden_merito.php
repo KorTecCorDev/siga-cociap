@@ -12,6 +12,13 @@
  *  - B1 (periodo 1) no tiene empates pendientes con el roster nuevo.
  *
  * Asume el dataset de referencia (mismos IDs que producción).
+ *
+ * OJO — lee el cálculo EN VIVO (`rankingGradoLive`, por reflexión), NO el wrapper
+ * snapshot-aware `rankingGrado`. Lo que esta fase verifica es el FILTRO del roster,
+ * y B1 congeló un documento con la regla ESPECIAL de la Fase C (roster SIN filtro
+ * de tipo, 528 filas): leído desde el snapshot, un `trasladado` SÍ aparece y las
+ * aserciones de abajo dirían lo contrario de lo que prueban. Mismo motivo por el
+ * que `gradosConEmpatesPendientes` usa el vivo.
  */
 
 define('ROOT_PATH', dirname(__DIR__, 2));
@@ -36,6 +43,10 @@ date_default_timezone_set(config('timezone'));
 $m = new \App\Models\AnioAcademicoModel();
 $o = new \App\Models\OrdenMeritoModel();
 
+// Ranking EN VIVO (ver cabecera): el snapshot de B1 usa la regla especial Fase C.
+$live = new ReflectionMethod(\App\Models\OrdenMeritoModel::class, 'rankingGradoLive');
+$live->setAccessible(true);
+
 // Casos de control: matrícula esperada dentro/fuera del ranking de B1.
 $casos = [
     ['mat' => 220, 'esperado' => 'DENTRO (pendiente)'],
@@ -56,7 +67,7 @@ foreach ($casos as $c) {
     $gradoId = (int) ($g[0]['id'] ?? 0);
 
     $enRanking = false; $puesto = null;
-    foreach ($o->rankingGrado($gradoId, 1) as $f) {
+    foreach ($live->invoke($o, $gradoId, 1) as $f) {
         if ((int) $f['matricula_id'] === $c['mat']) { $enRanking = true; $puesto = $f['puesto']; }
     }
     printf("  mat=%-4s grado=%-3s => %-10s (puesto %s) | esperado: %s\n",
