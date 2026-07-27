@@ -377,19 +377,46 @@ WHERE id=25;`).
   con ROLLBACK, aborta si detecta el archivo de secretos de producción, y reproduce el
   escenario "sin oficial" dentro de la transacción (antes su primera aserción no probaba
   nada, porque con un oficial presente la llamada devolvía `'rectificado'`).
-- **⚠️ LOCAL tiene el snapshot oficial de B1 VACÍO (verificado el 27/07/2026).**
-  `orden_merito_snapshot` y `orden_merito_rectificado` están en **0 filas**; PROD
-  conserva las **528**. B1 sigue `cerrado` y publicado en ambos niveles, y sus **14
-  desempates resueltos SÍ están intactos**. No es un fallo del código: sin filas,
-  `debeUsarSnapshot()` cae al cálculo en vivo de forma limpia y local muestra **518
-  alumnos** en B1 en lugar de 528. Lo que sí rompe es la CONFIANZA EN LAS PRUEBAS:
-  `verif_fase5b_rediseno_merito.php` avisa "INUTIL: son identicos" en su paso 0 de
-  control y a partir de ahí su **paso 2 da un OK falso** (compara el cálculo en vivo
-  contra sí mismo); solo su paso 3 sigue probando algo real. **Antes de creer cualquier
-  prueba local del mérito de B1, contar las filas del snapshot.** Para reconstruirlo hay
-  que reproducir la regla de la Fase C (roster con notas bloqueadas de B1 **sin filtro de
-  tipo**); `backfill_orden_merito.php` NO sirve (regla general → ~518/519).
+- **LOCAL tuvo el snapshot oficial de B1 VACÍO — RESUELTO el 27/07/2026.**
+  `orden_merito_snapshot` y `orden_merito_rectificado` habían quedado en **0 filas**
+  (PROD conservó siempre las 528). No era un fallo del código: sin filas
+  `debeUsarSnapshot()` cae al cálculo en vivo de forma limpia y local mostraba **518
+  alumnos** en B1. Lo que sí rompía era la CONFIANZA EN LAS PRUEBAS
+  (`verif_fase5b` daba un **OK falso** en su paso 2, comparando el vivo contra sí mismo).
+  **Reconstruido con `database/reconstruir_snapshot_b1.php`** (ver abajo): 528 filas,
+  11 grados, 23 secciones, puestos 1-72, 0 empates pendientes. Los **14 desempates
+  resueltos** nunca se perdieron — son lo único no derivable por cálculo.
+  - **Fidelidad verificada antes de escribir** (los 3 cambios del rediseño 2 son
+    inocuos para B1): 0 de las 12 047 calificaciones de B1 carecen de bloqueo (P2 no
+    mueve promedios), hay 0 notas de Ética en B1 (P5 no aplica) y el ranking completo
+    calculado con el `ORDER BY` de hoy (`m.id`) vs. el del 25/07 (apellidos) da
+    **exactamente los mismos puestos** — los 14 desempates cubren todos los grupos
+    irreducibles, así que el apellido nunca llegaba a dirimir. Tampoco hubo
+    rectificaciones posteriores (solo 2 extraordinarias, fuera del mérito por diseño).
+  - **Corrección de cifras (medidas el 27/07):** el roster en vivo de B1 da hoy **518**
+    (no "520/519") y la regla Fase C reincorpora **10**, no 9: los 8 `trasladado`, la
+    541 y además la **357 (HUAMAN VIENRICH CATALEYA)**, que también es `retirado`.
+    518 + 10 = 528, y la firma (528 filas, puestos 1-72) coincide con la de prod.
+  - `backfill_orden_merito.php` NO sirve para B1 (regla general → 518).
 - **`database/backfill_orden_merito.php`** ahora salta los periodos con snapshot oficial
   ya PUBLICADO salvo `--forzar`.
+- **`database/reconstruir_snapshot_b1.php` (nuevo, 27/07):** reconstruye el oficial de
+  B1 con la regla ESPECIAL de la Fase C (roster sin filtro de tipo). Guardas: aborta si
+  detecta el archivo de secretos de PROD; **simula por defecto** (`--confirmar` para
+  escribir); transacción; y antes del COMMIT verifica la FIRMA del documento
+  (528 filas / puestos 1-72 / 0 empates / 0 sin puesto de sección) — si no coincide,
+  ROLLBACK y aborta, prefiriendo dejar local sin snapshot antes que grabar un documento
+  distinto del de producción. Idempotente (verificado con 2 corridas). Reutiliza la
+  cascada del modelo por reflexión; solo duplica el SQL del roster, a propósito: meter
+  la regla Fase C dentro de `OrdenMeritoModel` abriría la puerta a generar rankings sin
+  filtro de tipo por accidente.
+- **`verif_fase_a_orden_merito.php` leía el ranking snapshot-aware (corregido 27/07).**
+  Escrito el 24/07, un día ANTES de la Fase C. Al volver a existir el snapshot de B1
+  —cuyo roster incluye trasladados y retirados por la regla especial— sus casos 541 y
+  308 salían "EN RANKING" contra su expectativa "FUERA". No era un fallo del código:
+  en PROD reportaba lo mismo desde el 25/07, y en local el snapshot vacío lo hacía pasar
+  por la razón equivocada. Ahora lee `rankingGradoLive` por reflexión (igual que
+  `verif_fase5b` y `gradosConEmpatesPendientes`): lo que la Fase A verifica es el FILTRO
+  del roster en vivo, no el documento congelado. Los 6 casos vuelven a coincidir.
 - **Regla general:** ningún script de `database/` debe "limpiar" con DELETE lo que no
   creó. Si escribe para probar, que use transacción + rollback.

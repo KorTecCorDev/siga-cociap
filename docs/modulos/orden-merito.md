@@ -68,7 +68,14 @@ en documento oficial inmutable por snapshot.
   también los que ya tienen snapshot oficial PUBLICADO** (candado 046), salvo que se
   invoque con `--forzar`. Sin esa guarda sobrescribía en silencio el documento
   entregado a las familias: en B1 habría cambiado las 528 filas reconstruidas a mano
-  por las ~520 de la regla general.
+  por las 518 de la regla general.
+- **Reconstrucción de B1:** `database/reconstruir_snapshot_b1.php` — único camino
+  soportado para regenerar el oficial de B1 con la regla ESPECIAL de la Fase C (roster
+  SIN filtro de tipo). Nunca corre en prod (guard por el archivo de secretos), simula
+  salvo `--confirmar`, y verifica la firma del documento (528 / puestos 1-72 / 0
+  empates) dentro de la transacción antes del COMMIT. Existe porque el snapshot local
+  se perdió el 26/07 y `backfill` no puede reponerlo: aplica la regla general. Detalle
+  y verificación de fidelidad en `docs/ESTADO.md`.
 - `gradosConEmpatesPendientes` usa el cálculo EN VIVO (`rankingGradoLive`), NO el
   wrapper snapshot-aware: valida lo que se va a congelar, no lo ya congelado. Importa
   al RE-cerrar un bimestre publicado y reabierto, donde `debeUsarSnapshot` es `true` y
