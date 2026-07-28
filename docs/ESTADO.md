@@ -259,7 +259,13 @@ WHERE id=25;`).
   Etapa 1 del gestor de vínculos SIGA↔SIAGIE. Detalle en
   `docs/modulos/export-siagie.md` §"Vínculos y cobertura".
   - **`/admin/actas-siagie/vinculos`** (solo lectura): áreas con notas y SIN destino,
-    vínculos vigentes, excepciones de hoja resueltas y colisiones de código.
+    vínculos configurados, excepciones de hoja resueltas y colisiones de código.
+    La tabla parte de `areas`, NO de `calificaciones`: un vínculo existe aunque el
+    bimestre no tenga notas (si no, Ética y Ed. Religiosa desaparecían justo cuando
+    hacía falta auditarlas). El índice de hojas ocupadas va por **nivel + código**:
+    sin el nivel, la regla `035` de secundaria marcaba como reemplazada a la
+    **Ed. Religiosa de PRIMARIA**, que se llena con normalidad (381 notas en B1).
+    **Primaria no se toca en nada** — verificado en los 6 grados.
   - **`codigo_siagie` editable en Currículo** (antes solo por migración) con guardas
     de formato y de colisión → **activar un taller que el SIAGIE ya reconozca ya no
     necesita despliegue**.
