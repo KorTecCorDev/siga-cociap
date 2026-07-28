@@ -179,10 +179,46 @@ con nóminas reales (S1A, S5B; primaria 4°A). Puntos propios:
   SIAGIE todavía) → nunca son destino. **Diferido:** cuando se aprueben, un
   **selector por nómina** (sin flag persistente) dejará que RA elija incluirlos; y
   se define cómo llegan (hoja propia = trivial por área; área anfitriona = mapeo).
-- **Ética/EREL (diferido a B2):** la hoja `035-EREL` mapea a las 2 competencias del
-  área 14 (Ed. Religiosa), hoy vacía; la nota real es C57 (área 24, tutoría). En B1
-  no hay notas de Ética → EREL en blanco es correcto. Para B2: mapear C57 → ambas
-  columnas EREL; exonerados → EXO.
+  - Hoy los protegen DOS capas, y conviene saber que la segunda es circunstancial:
+    (1) sin `codigo_siagie`, y (2) sus tres competencias son HOMÓNIMAS de las de
+    Matemática (C54↔C44, C55↔C47, C56↔C45), así que caen en la rama de ambigüedad y
+    el desempate por área las descarta. Si un taller recibiera una competencia con
+    nombre ÚNICO en el nivel, el mapeo por texto la tomaría **sin comprobar el área**
+    (una sola candidata ⇒ se asigna) y podría colarse en una hoja ajena.
+
+## Excepciones de hoja (27/07/2026)
+
+Casos donde el área que el SIAGIE espera en una hoja **no es la que evalúa esa
+competencia en SIGA**. Se aplican DESPUÉS de resolver la hoja y ANTES del mapeo por
+leyenda: el texto acertaría el área "oficial" —que no tiene cargas— y dejaría el acta
+en blanco. Declaradas en `LlenadorSiagie::EXCEPCIONES_HOJA` (decisión: regla en el
+llenador, no tabla de datos — son reglas curriculares estables, no configuración por
+bimestre). El reporte marca cada hoja afectada con `[EXCEPCIÓN: …]`.
+
+- **`035-EREL` ← Ética y Valores, TODOS los grados de secundaria.** El área Educación
+  Religiosa (id 14, código `035`) tiene 2 competencias y **0 cargas**: nadie la
+  califica. Quien evalúa esa dimensión es el tutor, en el área de tutoría cuyo
+  `nombre_boleta` es `Ética y Valores` (competencia única, `codigo_minedu` **C57**).
+  Su nota **se DUPLICA en las dos columnas** de EREL, con la misma conclusión.
+  Exonerados de religión: están registrados contra esa misma área, así que
+  `competenciasExoneradas` los detecta solo y la celda sale **EXO** sin traducción.
+- **`032-EPT` ← GAMA, SOLO 5° de secundaria.** En 5° **no se dicta** Educación para el
+  Trabajo (0 cargas; sus horas las ocupa el Taller de Pre-Cálculo, que no se reporta
+  al SIAGIE por decisión del colegio). Esa acta lleva la competencia transversal
+  **GAMA** (`codigo_minedu` **CT4**, *Gestiona su aprendizaje de manera autónoma*):
+  promedio final + conclusión del tutor, vía `getTransversalesAgregadas`. En 1°-4° EPT
+  se dicta normalmente y la hoja **no se toca**. GAMA queda escrita **dos veces** en
+  5°: en su hoja transversal `0007` y en la `032` (comportamiento esperado).
+  - La excepción es segura aunque el SIAGIE ya rotule esa columna con la leyenda de
+    GAMA: en ese caso el mapeo por texto daría la misma competencia, así que forzarla
+    no cambia el resultado.
+- **⚠️ Nunca anclar por id.** El id **57 es GAMA**, mientras que el código **C57 es
+  Ética** (id 127). Las reglas localizan la competencia por `nombre_boleta`
+  (constante `AREA_ETICA_NOMBRE_BOLETA`) o por `codigo_minedu`, nunca por id.
+- **Degradación segura:** si la competencia de una regla no se identifica de forma
+  ÚNICA (área ausente o renombrada, con ≠1 competencia, o `codigo_minedu` duplicado),
+  la excepción NO se aplica, la hoja vuelve a su mapeo normal y el reporte emite
+  `EXCEPCION NO APLICADA`. Antes escribir una celda en blanco que una nota adivinada.
 
 ## Validado (03/07/2026, local, 1°A B1)
 
@@ -198,6 +234,13 @@ re-importación, la verificación end-to-end y el reprocesamiento de las actas d
 primaria pre-14/07. La discrepancia de Inglés C1 primaria y el poblado de
 `codigo_siagie` de primaria se resolvieron antes (14-16/07, migración 041).
 
-Pendientes vivos (ver `docs/ESTADO.md`): para secundaria, selector de talleres +
-Ética/EREL en B2 (ambos diferidos); y la aspiración de exportación por lote
-("solo subir las nóminas") — hoy el flujo es una sección por vez.
+**Excepciones de hoja implementadas (27/07/2026):** Ética→EREL (todos los grados de
+secundaria) y GAMA→EPT (solo 5°). Verificadas contra la BD con los 10 casos de
+frontera (aplica / no aplica por grado, nivel y hoja; primaria intacta). **Falta la
+verificación con un acta real de secundaria** — sobre todo la de 5°, para confirmar
+que el libro trae hoja `032` y con qué leyenda. Correr `--simular` antes de la
+primera acta de B2.
+
+Pendientes vivos (ver `docs/ESTADO.md`): para secundaria, selector de talleres
+(diferido); y la aspiración de exportación por lote ("solo subir las nóminas") — hoy
+el flujo es una sección por vez.

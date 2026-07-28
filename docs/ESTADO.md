@@ -238,13 +238,28 @@ WHERE id=25;`).
 - **Variante SECUNDARIA — IMPLEMENTADA (12/07), B1 operativo.** Verificada con
   nóminas reales (S1A, S5B). NL literal confirmado; diferenciación por área
   (migración 039) → MATE (4/4, sin choque con talleres) e Inglés (por posición)
-  ya se llenan. Detalle en `docs/modulos/export-siagie.md`. **Diferidos:**
+  ya se llenan. Detalle en `docs/modulos/export-siagie.md`.
+- **EXCEPCIONES DE HOJA — IMPLEMENTADAS (27/07/2026, en `dev`, sin migración).**
+  Reglas del colegio confirmadas por el usuario; viven en
+  `LlenadorSiagie::EXCEPCIONES_HOJA` (se descartó la tabla de datos: son reglas
+  curriculares estables, no configuración por bimestre). Regla completa en
+  `docs/modulos/export-siagie.md` §"Excepciones de hoja".
+  - **`035-EREL` ← Ética y Valores, TODOS los grados de secundaria.** El área
+    Ed. Religiosa tiene 0 cargas; evalúa el tutor. La nota se DUPLICA en las 2
+    columnas. Exonerados → EXO sin traducción (la exoneración ya está contra esa área).
+  - **`032-EPT` ← GAMA (CT4), SOLO 5°.** En 5° no se dicta EPT (0 cargas); sus horas
+    las ocupa el Taller de Pre-Cálculo, que **no se reporta al SIAGIE** (decisión del
+    colegio). GAMA queda escrita 2 veces en 5°: hoja `0007` + hoja `032`.
+  - ⚠️ **id 57 = GAMA; código C57 = Ética (id 127).** Las reglas anclan por
+    `nombre_boleta`/`codigo_minedu`, nunca por id.
+  - **FALTA verificar con un acta real de 5°** (¿trae hoja `032`? ¿con qué leyenda?).
+    La excepción es correcta en ambos escenarios, pero conviene confirmarlo con
+    `--simular` antes de la primera acta de B2.
+  **Diferido:**
   - **Selector de talleres** (por nómina, sin flag persistente) + definir cómo
     llegan sus notas (hoja propia vs área anfitriona) — cuando haya archivo con
-    un taller aprobado en SIAGIE.
-  - **Ética/EREL para B2:** mapear **C57 (área 24, tutoría) → las 2 columnas de
-    Educación Religiosa (035-EREL)**; la nota única del tutor se DUPLICA; exonerados
-    → EXO. En B1 no hay notas de Ética → EREL en blanco es correcto.
+    un taller aprobado en SIAGIE. Hoy los protege que sus 3 competencias sean
+    homónimas de Matemática, además de no tener `codigo_siagie`.
 
 ## Rediseño del orden de mérito (COMPLETADO — 25/07/2026)
 

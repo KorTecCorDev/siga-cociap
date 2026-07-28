@@ -299,6 +299,62 @@ class SiagieExportModel extends BaseModel
     }
 
     /**
+     * Competencias del área del nivel identificada por su `nombre_boleta`
+     * (p. ej. 'Ética y Valores'). Ancla por NOMBRE y no por id: el id del área
+     * difiere entre entornos — mismo criterio que el orden de mérito
+     * (`AREA_ETICA_NOMBRE_BOLETA` en helpers). Devuelve [] si no existe.
+     *
+     * La usan las EXCEPCIONES DE HOJA del llenador (ver `LlenadorSiagie`).
+     */
+    public function competenciasDeAreaPorNombreBoleta(int $nivelId, string $nombreBoleta): array
+    {
+        return $this->query("
+            SELECT
+                c.id   AS competencia_id,
+                c.nombre_completo,
+                c.codigo_minedu,
+                a.id   AS area_id,
+                a.nombre AS area_nombre,
+                a.tipo AS area_tipo
+            FROM competencias c
+            LEFT JOIN subareas s ON s.id = c.subarea_id
+            INNER JOIN areas a   ON a.id = COALESCE(c.area_id, s.area_id)
+            WHERE a.nivel_id      = ?
+              AND a.nombre_boleta = ?
+            ORDER BY c.orden
+        ", [$nivelId, $nombreBoleta]);
+    }
+
+    /**
+     * Competencia del nivel por su `codigo_minedu` (p. ej. 'CT4' = GAMA,
+     * 'Gestiona su aprendizaje de manera autónoma'). Ancla por el código
+     * oficial, NUNCA por id: el id 57 es GAMA pero el código C57 es la
+     * competencia de Ética — confundirlos escribiría la nota equivocada en un
+     * acta oficial. Devuelve null si no existe o si el código está repetido
+     * en el nivel (ambiguo → el llenador no aplica la excepción).
+     */
+    public function competenciaPorCodigoMinedu(int $nivelId, string $codigoMinedu): ?array
+    {
+        $filas = $this->query("
+            SELECT
+                c.id   AS competencia_id,
+                c.nombre_completo,
+                c.codigo_minedu,
+                a.id   AS area_id,
+                a.nombre AS area_nombre,
+                a.tipo AS area_tipo
+            FROM competencias c
+            LEFT JOIN subareas s ON s.id = c.subarea_id
+            INNER JOIN areas a   ON a.id = COALESCE(c.area_id, s.area_id)
+            WHERE a.nivel_id      = ?
+              AND c.codigo_minedu = ?
+            LIMIT 2
+        ", [$nivelId, $codigoMinedu]);
+
+        return count($filas) === 1 ? $filas[0] : null;
+    }
+
+    /**
      * Persiste el código SIAGIE (14 dígitos, col. B del Excel) tras un match
      * exacto por nombre. SOLO escribe si el campo está vacío: un valor
      * distinto ya almacenado es un conflicto que se reporta, nunca se pisa.
