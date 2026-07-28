@@ -23,8 +23,8 @@ class CurriculumModel extends BaseModel
     {
         $area = $this->queryOne("
             SELECT a.id, a.nombre, a.nombre_boleta, a.alias_boleta,
-                   a.nombre_siagie, a.tipo, a.orden, a.activa, a.nivel_id,
-                   n.nombre AS nivel_nombre
+                   a.nombre_siagie, a.codigo_siagie, a.tipo, a.orden, a.activa,
+                   a.nivel_id, n.nombre AS nivel_nombre
             FROM areas a
             INNER JOIN niveles n ON n.id = a.nivel_id
             WHERE a.id = ?
@@ -62,6 +62,38 @@ class CurriculumModel extends BaseModel
     public function actualizarArea(int $id, array $data): bool
     {
         return $this->update($id, $data);
+    }
+
+    /**
+     * Otra área del MISMO nivel que ya usa alguno de estos códigos SIAGIE.
+     * Devuelve su nombre, o null si el código está libre.
+     *
+     * Importa porque `SiagieExportModel::areaPorCodigoSiagie` resuelve la hoja
+     * con `FIND_IN_SET ... LIMIT 1`: si dos áreas comparten el código, la hoja
+     * se asigna a una arbitraria y el acta se llena con el área equivocada, sin
+     * ningún aviso. Es una colisión que hay que impedir al guardar.
+     *
+     * @param string[] $codigos códigos sueltos ya normalizados (sin comas).
+     */
+    public function areaConCodigoSiagie(int $nivelId, array $codigos, int $exceptoAreaId): ?string
+    {
+        if ($codigos === []) {
+            return null;
+        }
+        $cond   = implode(' OR ', array_fill(0, count($codigos), 'FIND_IN_SET(?, a.codigo_siagie)'));
+        $params = array_merge([$nivelId, $exceptoAreaId], $codigos);
+
+        $fila = $this->queryOne("
+            SELECT a.nombre
+            FROM areas a
+            WHERE a.nivel_id = ?
+              AND a.id <> ?
+              AND a.codigo_siagie IS NOT NULL
+              AND ({$cond})
+            LIMIT 1
+        ", $params);
+
+        return $fila['nombre'] ?? null;
     }
 
     public function actualizarSubarea(int $id, string $nombre, int $orden): bool

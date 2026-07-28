@@ -10,6 +10,11 @@
         <h1 class="page-title">Actas SIAGIE</h1>
         <p class="page-subtitle">Vuelca las notas oficiales de SIGA a la plantilla que el SIAGIE exporta por sección</p>
     </div>
+    <div>
+        <a href="<?= url('admin/actas-siagie/vinculos') ?>" class="btn btn--secondary btn--sm">
+            Vínculos y cobertura
+        </a>
+    </div>
 </div>
 
 <div class="actas-siagie">
@@ -30,8 +35,10 @@
                 bloqueadas; las celdas que ya traigan valor nunca se tocan.
             </p>
             <p class="text-muted">
-                En Secundaria, los <strong>talleres</strong> aún no se vuelcan (esperan aprobación en el
-                SIAGIE); el resto de áreas sí. <strong>Una sección por archivo.</strong>
+                Un área solo se vuelca si tiene <strong>código de hoja SIAGIE</strong>; si no, queda
+                fuera del acta sin aviso. Revísalo en
+                <a href="<?= url('admin/actas-siagie/vinculos') ?>">Vínculos y cobertura</a>
+                (ahí se ve qué notas se están quedando fuera). <strong>Una sección por archivo.</strong>
             </p>
         </div>
     </div>

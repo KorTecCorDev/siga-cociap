@@ -44,6 +44,7 @@ $router->post('/admin/control/{periodo_id}/despublicar',        'Admin\ControlOp
 
 // ─── Admin — Actas SIAGIE (llenado de plantillas RegNotas) ──
 $router->get( '/admin/actas-siagie',                     'Admin\ActasSiagieController@index');
+$router->get( '/admin/actas-siagie/vinculos',            'Admin\ActasSiagieController@vinculos');
 $router->post('/admin/actas-siagie/previsualizar',       'Admin\ActasSiagieController@previsualizar');
 $router->get( '/admin/actas-siagie/reporte',             'Admin\ActasSiagieController@reportePreview');
 $router->post('/admin/actas-siagie/confirmar',           'Admin\ActasSiagieController@confirmar');

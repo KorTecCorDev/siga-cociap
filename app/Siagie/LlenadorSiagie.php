@@ -670,6 +670,47 @@ class LlenadorSiagie
     }
 
     /**
+     * EXCEPCIONES declaradas para un nivel, ya resueltas a su competencia, para
+     * MOSTRARLAS (Actas SIAGIE → Vínculos). Sin esto las dos reglas vigentes
+     * solo existirían dentro del código y nadie en Registro académico sabría
+     * por qué la hoja de Ed. Religiosa se llena con la nota del tutor.
+     *
+     * Es la misma resolución que usa el llenado real (mismo método privado), así
+     * que lo que se ve en pantalla es exactamente lo que se aplicará.
+     *
+     * @return array<int, array{codigo_hoja: string, grados: ?array, columnas: ?array,
+     *                          motivo: string, competencia: ?array, error: ?string}>
+     */
+    public function excepcionesDeclaradas(string $nivelCodigo, int $nivelId): array
+    {
+        $out = [];
+        foreach (self::EXCEPCIONES_HOJA as $regla) {
+            if ($regla['nivel_codigo'] !== $nivelCodigo) {
+                continue;
+            }
+            // Un grado cualquiera de los que cubre la regla basta para resolverla:
+            // la competencia destino no depende del grado, solo su aplicabilidad.
+            $grado   = $regla['grados'][0] ?? 1;
+            $reporte = [];
+            $res     = $this->excepcionDeHoja($regla['codigo_hoja'], [
+                'nivel_codigo' => $nivelCodigo,
+                'nivel_id'     => $nivelId,
+                'grado_numero' => $grado,
+            ], $reporte);
+
+            $out[] = [
+                'codigo_hoja' => $regla['codigo_hoja'],
+                'grados'      => $regla['grados'],
+                'columnas'    => $regla['columnas'],
+                'motivo'      => $regla['motivo'],
+                'competencia' => $res['competencia'] ?? null,
+                'error'       => $res === null ? ($reporte[0] ?? 'no se pudo resolver') : null,
+            ];
+        }
+        return $out;
+    }
+
+    /**
      * Excepción de hoja aplicable a este destino, ya resuelta a una competencia
      * concreta, o null si no hay ninguna. Ver EXCEPCIONES_HOJA.
      *

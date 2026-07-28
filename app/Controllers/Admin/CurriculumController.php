@@ -59,11 +59,29 @@ class CurriculumController extends BaseController
             $this->redirectWithError($back, 'El nombre del area es obligatorio.');
         }
 
+        // Codigo(s) de hoja SIAGIE. Formato: uno o varios codigos de 2-4 digitos
+        // separados por coma ('063', '0006,0007'). Es el vinculo hoja->area que
+        // usa el exportador; un codigo mal puesto manda un area entera a la hoja
+        // equivocada del acta oficial, asi que se valida formato Y colision.
+        $codigoSiagie = preg_replace('/\s+/', '', (string)($this->input('codigo_siagie') ?? ''));
+        if ($codigoSiagie !== '') {
+            if (!preg_match('/^\d{2,4}(,\d{2,4})*$/', $codigoSiagie)) {
+                $this->redirectWithError($back,
+                    'El codigo SIAGIE debe ser uno o varios codigos de 2 a 4 digitos separados por coma (ej: 063 o 0006,0007).');
+            }
+            $enUso = $this->model->areaConCodigoSiagie($nivelId, explode(',', $codigoSiagie), $id);
+            if ($enUso !== null) {
+                $this->redirectWithError($back,
+                    "El codigo SIAGIE ya lo usa el area '{$enUso}' en este nivel. Dos areas no pueden compartir hoja: el acta se llenaria con el area equivocada.");
+            }
+        }
+
         $this->model->actualizarArea($id, [
             'nombre'        => $nombre,
             'nombre_boleta' => trim($this->input('nombre_boleta') ?? '') ?: null,
             'alias_boleta'  => trim($this->input('alias_boleta')  ?? '') ?: null,
             'nombre_siagie' => trim($this->input('nombre_siagie') ?? '') ?: null,
+            'codigo_siagie' => $codigoSiagie ?: null,
             'orden'         => (int)($this->input('orden') ?? 0),
         ]);
 

@@ -3,6 +3,7 @@
 namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
+use App\Models\SiagieExportModel;
 use App\Siagie\LlenadorSiagie;
 use Core\Session;
 
@@ -176,6 +177,77 @@ class ActasSiagieController extends BaseController
             'creado'      => time(),
         ]);
         redirect('/admin/actas-siagie/resultado');
+    }
+
+    /**
+     * GET /admin/actas-siagie/vinculos — DIAGNÓSTICO de cobertura (solo lectura).
+     *
+     * Responde una pregunta que hasta ahora nadie podía hacerse: **¿qué notas de
+     * SIGA no están llegando al acta oficial?** Un área sin `codigo_siagie` se
+     * omite EN SILENCIO — así se perdieron los talleres del I Bimestre (322
+     * alumnos con nota, 0 reportados). Muestra, por bimestre:
+     *   - áreas con notas y SIN destino (lo que se está perdiendo),
+     *   - los vínculos hoja→área vigentes,
+     *   - las excepciones de hoja (Ética→EREL, GAMA→EPT 5°), que si no viven
+     *     solo dentro del código,
+     *   - colisiones de código, que romperían el mapeo sin avisar.
+     * No escribe nada: el vínculo se edita en Currículo (campo del área).
+     */
+    public function vinculos(): void
+    {
+        $modelo    = new SiagieExportModel();
+        $periodos  = $modelo->periodosConCalificaciones();
+        $periodoId = (int) ($this->query('periodo') ?? 0);
+
+        $ids = array_map('intval', array_column($periodos, 'id'));
+        if (!in_array($periodoId, $ids, true)) {
+            $periodoId = $ids ? end($ids) : 0;
+        }
+
+        $cobertura = $periodoId ? $modelo->coberturaAreas($periodoId) : [];
+
+        // Excepciones por nivel, resueltas por el propio llenador (mismo camino
+        // que el llenado real: lo que se ve aquí es lo que se aplicará).
+        $excepciones = [];
+        foreach ($this->nivelesDeCobertura($cobertura) as $nivel) {
+            foreach ($this->llenador->excepcionesDeclaradas($nivel['codigo'], $nivel['id']) as $exc) {
+                $exc['nivel_nombre'] = $nivel['nombre'];
+                $excepciones[] = $exc;
+            }
+        }
+
+        // Áreas cubiertas por una excepción: no tienen código propio pero SÍ
+        // llegan al acta, así que no deben contarse como "sin destino".
+        $areasPorExcepcion = [];
+        foreach ($excepciones as $exc) {
+            if (!empty($exc['competencia']['area_id'])) {
+                $areasPorExcepcion[(int) $exc['competencia']['area_id']] = $exc['codigo_hoja'];
+            }
+        }
+
+        $this->view('admin/actas_siagie/vinculos', [
+            'titulo'            => 'Actas SIAGIE — Vínculos y cobertura',
+            'periodos'          => $periodos,
+            'periodoId'         => $periodoId,
+            'cobertura'         => $cobertura,
+            'excepciones'       => $excepciones,
+            'areasPorExcepcion' => $areasPorExcepcion,
+            'duplicados'        => $modelo->codigosSiagieDuplicados(),
+        ]);
+    }
+
+    /** Niveles presentes en la cobertura (id, codigo, nombre), sin repetir. */
+    private function nivelesDeCobertura(array $cobertura): array
+    {
+        $niveles = [];
+        foreach ($cobertura as $fila) {
+            $niveles[(int) $fila['nivel_id']] = [
+                'id'     => (int) $fila['nivel_id'],
+                'codigo' => $fila['nivel_codigo'],
+                'nombre' => $fila['nivel_nombre'],
+            ];
+        }
+        return $niveles;
     }
 
     /** GET /admin/actas-siagie/resultado — confirmación con descargas. */

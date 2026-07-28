@@ -255,11 +255,24 @@ WHERE id=25;`).
   - **FALTA verificar con un acta real de 5°** (¿trae hoja `032`? ¿con qué leyenda?).
     La excepción es correcta en ambos escenarios, pero conviene confirmarlo con
     `--simular` antes de la primera acta de B2.
+- **VÍNCULOS Y COBERTURA — IMPLEMENTADO (28/07/2026, en `dev`, sin migración).**
+  Etapa 1 del gestor de vínculos SIGA↔SIAGIE. Detalle en
+  `docs/modulos/export-siagie.md` §"Vínculos y cobertura".
+  - **`/admin/actas-siagie/vinculos`** (solo lectura): áreas con notas y SIN destino,
+    vínculos vigentes, excepciones de hoja resueltas y colisiones de código.
+  - **`codigo_siagie` editable en Currículo** (antes solo por migración) con guardas
+    de formato y de colisión → **activar un taller que el SIAGIE ya reconozca ya no
+    necesita despliegue**.
+  - **Hallazgo medido:** en B1 se perdieron **321 notas bloqueadas** de talleres
+    (Raz. Mat. 272 + Pre-Cálculo 49) que nunca llegaron al acta, en silencio. En B2
+    ya van 24 del Taller de Raz. Mat.
   **Diferido:**
-  - **Selector de talleres** (por nómina, sin flag persistente) + definir cómo
-    llegan sus notas (hoja propia vs área anfitriona) — cuando haya archivo con
-    un taller aprobado en SIAGIE. Hoy los protege que sus 3 competencias sean
-    homónimas de Matemática, además de no tener `codigo_siagie`.
+  - **Taller SIN hoja propia** (reportar bajo un área anfitriona): es el caso
+    peligroso — sus 3 competencias son homónimas de Matemática (C54↔C44, C55↔C47,
+    C56↔C45) y exigiría invertir la regla "ante homónimos gana la competencia de la
+    hoja", que es la que hoy protege el llenado de Matemática e Inglés. Requeriría el
+    gestor de vínculos completo (etapa 2, columna→competencia).
+  - **Selector de talleres por nómina** (efímero, sin flag persistente) — etapa 3.
 
 ## Rediseño del orden de mérito (COMPLETADO — 25/07/2026)
 

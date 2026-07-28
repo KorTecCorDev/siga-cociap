@@ -103,6 +103,42 @@ dashboard (grupo *Evaluación y reportes*). Rutas `/admin/actas-siagie[...]`.
   token de job atado a sesión, validación de subida (extensión, tamaño, firma
   ZIP `PK`). Único efecto en BD: `guardarCodigoSiagie` (solo si estaba vacío).
 
+## Vínculos y cobertura (28/07/2026)
+
+`GET /admin/actas-siagie/vinculos` — pantalla de **diagnóstico, solo lectura**
+(`ActasSiagieController::vinculos`). Responde una pregunta que antes nadie podía
+hacerse: **¿qué notas de SIGA NO están llegando al acta oficial?**
+
+- **Por qué existe:** un área sin `codigo_siagie` se omite del acta **en silencio**.
+  Así se perdieron los talleres de secundaria en B1 — medido: **321 notas
+  bloqueadas** (Raz. Mat. 272 + Pre-Cálculo 49) que nunca llegaron al SIAGIE, sin
+  un solo aviso en el reporte.
+- **Muestra, por bimestre:** áreas con notas y sin destino (con enlace directo a
+  Currículo para asignarles código), los vínculos hoja→área vigentes, las
+  **excepciones de hoja** ya resueltas —para que no vivan solo dentro del código— y
+  las **colisiones de código**.
+- Las excepciones las resuelve `LlenadorSiagie::excepcionesDeclaradas()`, que usa el
+  MISMO método privado que el llenado real: lo que se ve en pantalla es exactamente
+  lo que se aplicará.
+
+### `codigo_siagie` editable en Currículo
+
+El campo dejó de ser exclusivo de las migraciones (039/041): se edita en
+**Currículo → Editar área → "Codigo de hoja SIAGIE"**. Con esto, **activar un taller
+que el SIAGIE ya reconozca no necesita despliegue** — basta asignarle el código de su
+hoja. Dos guardas en `CurriculumController::guardarArea`:
+
+- **Formato** `^\d{2,4}(,\d{2,4})*$` (admite compuestos como `0006,0007`).
+- **Colisión:** ninguna otra área del mismo nivel puede usar ese código
+  (`CurriculumModel::areaConCodigoSiagie`). Importa porque `areaPorCodigoSiagie`
+  resuelve con `FIND_IN_SET … LIMIT 1`: dos áreas con el mismo código harían que la
+  hoja se asignara a una **arbitraria** y el acta se llenara con el área equivocada,
+  sin ningún aviso.
+
+**Sigue diferido** el caso del taller *sin* hoja propia (reportar bajo un área
+anfitriona), que es el peligroso: sus competencias son homónimas de Matemática y
+exigiría invertir la regla "ante homónimos gana la competencia de la hoja".
+
 ## Estructura del Excel SIAGIE (réplica verificada)
 
 - UN libro por **grado+sección+bimestre**. Hoja `Parametros` (oculta) =

@@ -355,6 +355,78 @@ class SiagieExportModel extends BaseModel
     }
 
     /**
+     * DIAGNÓSTICO DE COBERTURA: qué áreas tienen notas exportables en el periodo
+     * y cuáles de ellas NO tienen destino en el SIAGIE (`codigo_siagie` vacío).
+     * Sin esta vista, un área sin código queda fuera del acta EN SILENCIO — es
+     * lo que pasó en B1 con los talleres (322 alumnos con nota, 0 reportados).
+     *
+     * Cuenta solo notas BLOQUEADAS, que son las únicas que el llenador escribe.
+     * El área de tutoría/Ética aparece sin código a propósito: su destino lo
+     * resuelve una EXCEPCIÓN DE HOJA, que el controlador cruza aparte.
+     */
+    public function coberturaAreas(int $periodoId): array
+    {
+        return $this->query("
+            SELECT
+                a.id            AS area_id,
+                a.nombre        AS area_nombre,
+                a.nombre_boleta,
+                a.codigo_siagie,
+                a.tipo          AS area_tipo,
+                n.id            AS nivel_id,
+                n.nombre        AS nivel_nombre,
+                n.codigo        AS nivel_codigo,
+                COUNT(DISTINCT cal.matricula_id) AS alumnos,
+                COUNT(DISTINCT cal.competencia_id) AS competencias,
+                COUNT(*)        AS notas
+            FROM calificaciones cal
+            INNER JOIN bloqueos_competencia bc
+                    ON bc.carga_id       = cal.carga_id
+                   AND bc.competencia_id = cal.competencia_id
+                   AND bc.periodo_id     = cal.periodo_id
+            INNER JOIN competencias c ON c.id = cal.competencia_id
+            LEFT  JOIN subareas sa    ON sa.id = c.subarea_id
+            INNER JOIN areas a        ON a.id  = COALESCE(sa.area_id, c.area_id)
+            INNER JOIN niveles n      ON n.id  = a.nivel_id
+            WHERE cal.periodo_id = ?
+              AND cal.extraordinaria = 0
+            GROUP BY a.id, a.nombre, a.nombre_boleta, a.codigo_siagie, a.tipo,
+                     n.id, n.nombre, n.codigo
+            ORDER BY n.id, a.orden, a.nombre
+        ", [$periodoId]);
+    }
+
+    /**
+     * Áreas del mismo nivel que comparten algún `codigo_siagie`. Es un ERROR de
+     * configuración silencioso: `areaPorCodigoSiagie` resuelve con LIMIT 1, así
+     * que la hoja se asignaría a un área arbitraria. La UI lo muestra en rojo.
+     */
+    public function codigosSiagieDuplicados(): array
+    {
+        return $this->query("
+            SELECT n.nombre AS nivel_nombre, a.codigo_siagie,
+                   GROUP_CONCAT(a.nombre ORDER BY a.nombre SEPARATOR ' | ') AS areas
+            FROM areas a
+            INNER JOIN niveles n ON n.id = a.nivel_id
+            WHERE a.codigo_siagie IS NOT NULL AND a.codigo_siagie <> ''
+            GROUP BY a.nivel_id, n.nombre, a.codigo_siagie
+            HAVING COUNT(*) > 1
+            ORDER BY n.id, a.codigo_siagie
+        ");
+    }
+
+    /** Periodos que ya tienen alguna calificación, para el selector del diagnóstico. */
+    public function periodosConCalificaciones(): array
+    {
+        return $this->query("
+            SELECT p.id, p.nombre_display, p.estado, p.numero
+            FROM periodos p
+            WHERE EXISTS (SELECT 1 FROM calificaciones c WHERE c.periodo_id = p.id)
+            ORDER BY p.anio_id DESC, p.numero
+        ");
+    }
+
+    /**
      * Persiste el código SIAGIE (14 dígitos, col. B del Excel) tras un match
      * exacto por nombre. SOLO escribe si el campo está vacío: un valor
      * distinto ya almacenado es un conflicto que se reporta, nunca se pisa.
