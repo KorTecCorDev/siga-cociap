@@ -114,9 +114,22 @@ hacerse: **¿qué notas de SIGA NO están llegando al acta oficial?**
   bloqueadas** (Raz. Mat. 272 + Pre-Cálculo 49) que nunca llegaron al SIAGIE, sin
   un solo aviso en el reporte.
 - **Muestra, por bimestre:** áreas con notas y sin destino (con enlace directo a
-  Currículo para asignarles código), los vínculos hoja→área vigentes, las
+  Currículo para asignarles código), los **vínculos configurados**, las
   **excepciones de hoja** ya resueltas —para que no vivan solo dentro del código— y
   las **colisiones de código**.
+- **La tabla de vínculos parte de `areas`, NO de `calificaciones`** (`vinculosDeAreas`):
+  un vínculo existe aunque el bimestre no tenga notas todavía. Si se listaran solo las
+  áreas con notas, no se podría auditar la configuración — Ética y Ed. Religiosa
+  desaparecían de la vista justo cuando hacía falta verlas.
+- **Estados del vínculo** (`ActasSiagieController::estadoVinculo`): `vinculada`,
+  `vinculada + excepción` (tiene hoja propia y ADEMÁS recibe otra: Transversales con
+  `0006,0007` + la `032` en 5°), `recibe por excepción` (Ética con la `035`),
+  `reemplazada [en N°]` (su hoja la llena otra área: Ed. Religiosa y EPT de 5°),
+  `sin destino` (tiene notas y no llega al acta → rojo) y `no se exporta` (sin código
+  y sin notas → gris, situación legítima).
+  - El índice de hojas ocupadas se clavetea por **nivel + código**: las excepciones son
+    por nivel, y sin el nivel en la clave la regla `035` de secundaria marcaba como
+    reemplazada a la Ed. Religiosa de **primaria**, que se llena con normalidad.
 - Las excepciones las resuelve `LlenadorSiagie::excepcionesDeclaradas()`, que usa el
   MISMO método privado que el llenado real: lo que se ve en pantalla es exactamente
   lo que se aplicará.

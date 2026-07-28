@@ -397,6 +397,58 @@ class SiagieExportModel extends BaseModel
     }
 
     /**
+     * VÍNCULOS CONFIGURADOS: TODAS las áreas del currículo con su `codigo_siagie`
+     * y, como dato anexo, cuántas notas tienen en el periodo (0 si ninguna).
+     *
+     * Parte de `areas`, NO de `calificaciones`: un vínculo área↔hoja existe con
+     * independencia de si ese bimestre tuvo notas. Si se listaran solo las áreas
+     * con notas, no se podría auditar la configuración — que es justo lo que hace
+     * falta para ver, por ejemplo, que la hoja `035` la tiene asignada Educación
+     * Religiosa pero la llena Ética por una excepción.
+     *
+     * Incluye las áreas inactivas SOLO si tienen notas en el periodo (una activa
+     * sin notas es configuración legítima; una inactiva sin notas es ruido).
+     */
+    public function vinculosDeAreas(int $periodoId): array
+    {
+        return $this->query("
+            SELECT
+                a.id            AS area_id,
+                a.nombre        AS area_nombre,
+                a.nombre_boleta,
+                a.codigo_siagie,
+                a.tipo          AS area_tipo,
+                a.activa,
+                n.id            AS nivel_id,
+                n.nombre        AS nivel_nombre,
+                n.codigo        AS nivel_codigo,
+                COALESCE(x.alumnos, 0)      AS alumnos,
+                COALESCE(x.competencias, 0) AS competencias,
+                COALESCE(x.notas, 0)        AS notas
+            FROM areas a
+            INNER JOIN niveles n ON n.id = a.nivel_id
+            LEFT JOIN (
+                SELECT COALESCE(sa.area_id, c.area_id) AS area_id,
+                       COUNT(DISTINCT cal.matricula_id)   AS alumnos,
+                       COUNT(DISTINCT cal.competencia_id) AS competencias,
+                       COUNT(*)                           AS notas
+                FROM calificaciones cal
+                INNER JOIN bloqueos_competencia bc
+                        ON bc.carga_id       = cal.carga_id
+                       AND bc.competencia_id = cal.competencia_id
+                       AND bc.periodo_id     = cal.periodo_id
+                INNER JOIN competencias c ON c.id = cal.competencia_id
+                LEFT  JOIN subareas sa    ON sa.id = c.subarea_id
+                WHERE cal.periodo_id = ?
+                  AND cal.extraordinaria = 0
+                GROUP BY COALESCE(sa.area_id, c.area_id)
+            ) x ON x.area_id = a.id
+            WHERE a.activa = 1 OR COALESCE(x.notas, 0) > 0
+            ORDER BY n.id, a.orden, a.nombre
+        ", [$periodoId]);
+    }
+
+    /**
      * Áreas del mismo nivel que comparten algún `codigo_siagie`. Es un ERROR de
      * configuración silencioso: `areaPorCodigoSiagie` resuelve con LIMIT 1, así
      * que la hoja se asignaría a un área arbitraria. La UI lo muestra en rojo.

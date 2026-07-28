@@ -6,20 +6,21 @@
  * se EDITA en Currículo (campo "Codigo de hoja SIAGIE" del área); aquí solo se
  * diagnostica, para que un área sin código deje de perderse en silencio.
  *
- * @var array  $periodos          [{ id, nombre_display, estado, numero }]
+ * La tabla de vínculos parte de las ÁREAS, no de las notas: un vínculo existe
+ * aunque el bimestre no tenga nada registrado todavía.
+ *
+ * @var array  $periodos    [{ id, nombre_display, estado, numero }]
  * @var int    $periodoId
- * @var array  $cobertura         [{ area_id, area_nombre, nombre_boleta, codigo_siagie,
- *                                   area_tipo, nivel_id, nivel_nombre, nivel_codigo,
- *                                   alumnos, competencias, notas }]
- * @var array  $excepciones       [{ codigo_hoja, grados, columnas, motivo,
- *                                   competencia, error, nivel_nombre }]
- * @var array  $areasPorExcepcion area_id => codigo_hoja
- * @var array  $duplicados        [{ nivel_nombre, codigo_siagie, areas }]
+ * @var array  $vinculos    [{ area_id, area_nombre, codigo_siagie, area_tipo, activa,
+ *                             nivel_id, nivel_nombre, nivel_codigo, alumnos,
+ *                             competencias, notas,
+ *                             estado: {clave, etiqueta, tono, detalle} }]
+ * @var array  $excepciones [{ codigo_hoja, grados, columnas, motivo, competencia,
+ *                             error, nivel_nombre }]
+ * @var array  $duplicados  [{ nivel_nombre, codigo_siagie, areas }]
  */
 
-$sinDestino = array_filter($cobertura, static fn($a) =>
-    trim((string) $a['codigo_siagie']) === '' && !isset($areasPorExcepcion[(int) $a['area_id']]));
-
+$sinDestino    = array_filter($vinculos, static fn($v) => $v['estado']['clave'] === 'sin_destino');
 $notasPerdidas = array_sum(array_column($sinDestino, 'notas'));
 ?>
 
@@ -98,23 +99,21 @@ $notasPerdidas = array_sum(array_column($sinDestino, 'notas'));
                         <tr>
                             <th>Nivel</th>
                             <th class="col-nombre">Area</th>
-                            <th>Tipo</th>
                             <th class="col-num">Alumnos</th>
                             <th class="col-num">Notas</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($sinDestino as $a): ?>
+                        <?php foreach ($sinDestino as $v): ?>
                         <tr>
-                            <td><?= e($a['nivel_nombre']) ?></td>
-                            <td class="col-nombre"><?= e($a['area_nombre']) ?></td>
-                            <td><?= e($a['area_tipo']) ?></td>
-                            <td class="col-num"><?= (int) $a['alumnos'] ?></td>
-                            <td class="col-num"><?= (int) $a['notas'] ?></td>
+                            <td><?= e($v['nivel_nombre']) ?></td>
+                            <td class="col-nombre"><?= e($v['area_nombre']) ?></td>
+                            <td class="col-num"><?= (int) $v['alumnos'] ?></td>
+                            <td class="col-num"><?= (int) $v['notas'] ?></td>
                             <td>
                                 <a class="btn btn--secondary btn--sm"
-                                   href="<?= url('admin/curriculum?nivel=' . (int) $a['nivel_id'] . '&area=' . (int) $a['area_id']) ?>">
+                                   href="<?= url('admin/curriculum?nivel=' . (int) $v['nivel_id'] . '&area=' . (int) $v['area_id']) ?>">
                                     Asignar codigo
                                 </a>
                             </td>
@@ -126,14 +125,19 @@ $notasPerdidas = array_sum(array_column($sinDestino, 'notas'));
         </div>
     </div>
 
-    <!-- ── Vinculos vigentes ───────────────────────────────────────── -->
+    <!-- ── Vinculos configurados ───────────────────────────────────── -->
     <div class="card mb-lg">
         <div class="card__header">
-            <h2 class="card__title">Vinculos vigentes (hoja &rarr; area)</h2>
+            <h2 class="card__title">Vinculos configurados (hoja &rarr; area)</h2>
         </div>
         <div class="card__body">
-            <?php if (!$cobertura): ?>
-                <p class="actas-hint">No hay notas registradas en este bimestre.</p>
+            <p class="actas-hint">
+                Todas las areas del curriculo con su hoja del SIAGIE. Las notas son las de este
+                bimestre y pueden ser 0: el vinculo existe igual. El codigo se edita en
+                <strong>Curriculo &rarr; Editar area</strong>.
+            </p>
+            <?php if (!$vinculos): ?>
+                <p class="actas-hint">No hay areas registradas.</p>
             <?php else: ?>
             <table class="tabla-resumen">
                 <thead>
@@ -143,34 +147,34 @@ $notasPerdidas = array_sum(array_column($sinDestino, 'notas'));
                         <th>Hoja</th>
                         <th class="col-num">Alumnos</th>
                         <th class="col-num">Notas</th>
-                        <th>Estado</th>
+                        <th class="col-conclusion">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($cobertura as $a):
-                        $codigo    = trim((string) $a['codigo_siagie']);
-                        $porExc    = $areasPorExcepcion[(int) $a['area_id']] ?? null; ?>
+                    <?php foreach ($vinculos as $v):
+                        $codigo = trim((string) $v['codigo_siagie']);
+                        $est    = $v['estado']; ?>
                     <tr>
-                        <td><?= e($a['nivel_nombre']) ?></td>
-                        <td class="col-nombre"><?= e($a['area_nombre']) ?></td>
+                        <td><?= e($v['nivel_nombre']) ?></td>
+                        <td class="col-nombre">
+                            <?= e($v['area_nombre']) ?>
+                            <?php if (!$v['activa']): ?>
+                            <span class="badge badge--sin-notas">inactiva</span>
+                            <?php endif; ?>
+                        </td>
                         <td>
-                            <?php if ($codigo !== ''): ?>
-                                <code><?= e($codigo) ?></code>
-                            <?php elseif ($porExc !== null): ?>
-                                <code><?= e($porExc) ?></code>
+                            <?php if ($est['hoja'] !== null): ?>
+                                <code><?= e($est['hoja']) ?></code>
                             <?php else: ?>
                                 <span class="text-muted">&mdash;</span>
                             <?php endif; ?>
                         </td>
-                        <td class="col-num"><?= (int) $a['alumnos'] ?></td>
-                        <td class="col-num"><?= (int) $a['notas'] ?></td>
-                        <td>
-                            <?php if ($codigo !== ''): ?>
-                                <span class="badge badge--activo">vinculada</span>
-                            <?php elseif ($porExc !== null): ?>
-                                <span class="badge badge--info">por excepcion</span>
-                            <?php else: ?>
-                                <span class="badge badge--error">sin destino</span>
+                        <td class="col-num"><?= (int) $v['alumnos'] ?></td>
+                        <td class="col-num"><?= (int) $v['notas'] ?></td>
+                        <td class="col-conclusion">
+                            <span class="badge badge--<?= e($est['tono']) ?>"><?= e($est['etiqueta']) ?></span>
+                            <?php if ($est['detalle'] !== ''): ?>
+                            <br><span class="text-muted"><?= e($est['detalle']) ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -193,7 +197,7 @@ $notasPerdidas = array_sum(array_column($sinDestino, 'notas'));
                 aqui) y se muestran para que se sepa por que un acta se llena asi.
             </p>
             <?php if (!$excepciones): ?>
-                <p class="actas-hint">Sin excepciones para los niveles con notas en este bimestre.</p>
+                <p class="actas-hint">Sin excepciones declaradas para estos niveles.</p>
             <?php else: ?>
             <table class="tabla-resumen">
                 <thead>
@@ -211,7 +215,7 @@ $notasPerdidas = array_sum(array_column($sinDestino, 'notas'));
                     <tr>
                         <td><?= e($x['nivel_nombre']) ?></td>
                         <td><code><?= e($x['codigo_hoja']) ?></code></td>
-                        <td><?= $x['grados'] === null ? 'todos' : e(implode(', ', array_map(fn($g) => $g . '&deg;', $x['grados']))) ?></td>
+                        <td><?= $x['grados'] === null ? 'todos' : e(implode('°, ', $x['grados'])) . '°' ?></td>
                         <td class="col-nombre">
                             <?php if ($x['competencia']): ?>
                                 <?= e($x['competencia']['nombre_completo']) ?>
