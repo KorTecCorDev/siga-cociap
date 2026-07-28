@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **27/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **28/07/2026**.
 
 ## Migraciones
 - **`046_orden_merito_inmutable`** (24/07): Fase B del rediseño del orden de mérito.
@@ -346,6 +346,11 @@ WHERE id=25;`).
   del cierre (F4) NO se comportan igual, así que el orden importa:
   **docentes terminan de calificar y bloquear → deploy del rediseño 2 → medir →
   resolver → cerrar.**
+  - **FECHA DURA: el cierre de notas de los docentes es el 31/07/2026** (dato del
+    usuario, 28/07). **Decisión del 28/07: NO medir todavía** la alerta de evaluación
+    incompleta ni perseguir docentes — se les deja terminar. Medir **después del
+    31/07**, cuando las cifras dejen de ser un piso móvil. La herramienta está lista y
+    no requiere edición (`alerta_evaluacion_incompleta.sql` ya trae `@periodo := 2`).
   - La **alerta de evaluación incompleta es estable**: su cálculo no mira
     `bloqueos_competencia` (depende de criterios con nota, cargas activas, omisiones y
     exoneraciones). Se puede medir HOY contra prod y el trabajo de resolverla —registrar
@@ -368,6 +373,35 @@ WHERE id=25;`).
     cifra de bloqueadores de B2 debe salir de PRODUCCIÓN.
   - La alerta **solo aflora un criterio cuando algún compañero de la sección ya tiene
     nota en él**: lo que se mida a mitad de bimestre es un PISO, no un total.
+  - **TERMÓMETRO DE BLOQUEOS — medido en PROD el 28/07/2026: B1 = 0, B2 = 102.**
+    Cuenta pares carga+competencia **con notas y sin fila en `bloqueos_competencia`**
+    (`LEFT JOIN … WHERE bc.id IS NULL`, agrupado por `periodo_id`). Es el indicador de
+    "listos para cerrar": **cuando dé 0, los docentes terminaron.** También es un piso
+    (no ve lo aún no calificado), y tiene variante que desglosa por docente/sección
+    (join a `cargas_academicas` + `usuarios`/`personas`) para saber a quién apurar.
+    El **B1 = 0 confirma de forma independiente** que el snapshot oficial de 528 no
+    arrastra notas sin bloqueo → P2 del rediseño 2 no le mueve un puesto.
+  - ⚠️ **HUECO DEL GUARD DE EMPATES (hallazgo del 28/07/2026 — NO corregido, por
+    decisión).** En `Director/PeriodoController::cerrar` el guard de empates corre en
+    `:124`, pero `bloquearCompetenciasPendientes` está en `:155` y `registrarRanking`
+    en `:173`. Como `gradosConEmpatesPendientes` (`OrdenMeritoModel:666`) y
+    `calcularFilasRanking` (`:417`) hacen `INNER JOIN bloqueos_competencia`, **el guard
+    valida un universo más chico que el que se congela**: cerrar con pares sin bloquear
+    puede PETRIFICAR empates que nadie vio. Lo que `orden-merito-rediseno.md` llama
+    "diferencia consciente" (el cierre no valida P3 porque él mismo fuerza los bloqueos)
+    es justamente el origen del hueco: forzarlos DESPUÉS de validar hace que el conjunto
+    validado no sea el congelado.
+    - **Gravedad baja y REVERSIBLE mientras B2 no se publique:** sin publicación el
+      candado 046 no se activa, `registrarRanking` sigue escribiendo el OFICIAL y basta
+      reabrir → resolver → re-cerrar (costo: las boletas vuelven a BORRADOR). La ventana
+      irreversible se abre al **publicar**.
+    - **Decisión (28/07): opción C — no se toca el código.** Regla operativa:
+      **exigir que el termómetro dé 0 ANTES de pulsar Cerrar**; con 0 el hueco no
+      existe. Se descartó A (guard previo "0 sin bloquear"): mataría la válvula de
+      escape del bloqueo forzado, útil si un docente de licencia nunca bloquea.
+    - **Pendiente para DESPUÉS del cierre de B2 — opción B:** mover el guard de empates
+      a después del bloqueo forzado, dentro de la transacción y con rollback. Es la
+      corrección estructural correcta; no se estrena bajo presión en el cierre.
 - **Retorno de grado de BALTAZAR SHALOM CRISTEL — BLOQUEARÁ EL CIERRE DE B2.**
   Matrícula oficial 190 (Primaria 2° B, la de SIAGIE) + operativa 692 (1° B, donde
   CURSA); retorno activo desde el 21/06/2026. La evaluó la docente de 1° B, pero **esa
@@ -394,6 +428,10 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
+- **31/07/2026 — CIERRE DE NOTAS DE LOS DOCENTES (II Bimestre).** Fecha límite para
+  que terminen de calificar y **bloquear**. Recién después se mide (termómetro de
+  bloqueos + alerta de evaluación incompleta), se despliega, se resuelven empates y se
+  cierra. Detalle en "Cierre de B2 — SECUENCIA CORRECTA", en Pendientes operativos.
 - **08/07/2026 — Capacitación docente (PLAN CERRADO):** demos proyectadas desde
   el entorno de desarrollo; práctica de docentes en producción = trabajo REAL del
   II Bim; sin backup/restore. Dos turnos: primaria 12:30pm-2:00pm, secundaria
