@@ -250,14 +250,22 @@ WHERE id=25;`).
   - **`035-EREL` ← Ética y Valores, TODOS los grados de secundaria.** El área
     Ed. Religiosa tiene 0 cargas; evalúa el tutor. La nota se DUPLICA en las 2
     columnas. Exonerados → EXO sin traducción (la exoneración ya está contra esa área).
-  - **`032-EPT` ← GAMA (CT4), SOLO 5°.** En 5° no se dicta EPT (0 cargas); sus horas
-    las ocupa el Taller de Pre-Cálculo, que **no se reporta al SIAGIE** (decisión del
-    colegio). GAMA queda escrita 2 veces en 5°: hoja `0007` + hoja `032`.
+  - **`032-ETRA` ← GAMA (CT4), SOLO 5°.** En 5° no se dicta EPT (0 cargas; verificado:
+    1°=3, 2°=2, 3°=2, 4°=2, 5°=0); sus horas las ocupa el Taller de Pre-Cálculo, que
+    **no se reporta al SIAGIE** (decisión del colegio). GAMA queda escrita 2 veces en
+    5°: hoja `0007` + hoja `032`.
   - ⚠️ **id 57 = GAMA; código C57 = Ética (id 127).** Las reglas anclan por
     `nombre_boleta`/`codigo_minedu`, nunca por id.
-  - **FALTA verificar con un acta real de 5°** (¿trae hoja `032`? ¿con qué leyenda?).
-    La excepción es correcta en ambos escenarios, pero conviene confirmarlo con
-    `--simular` antes de la primera acta de B2.
+  - **VERIFICADO CON ACTA REAL DE 5° (29/07/2026, `S5B.xlsx`) — pendiente CERRADO.**
+    El libro **sí trae la hoja**; su tab real es **`032-ETRA`** (la doc decía
+    `032-EPT`, que era una abreviatura asumida — irrelevante para el código, que
+    matchea por el código `032` del tab). Tiene **una sola columna**, así que GAMA no
+    se duplica ahí. Su leyenda es **`01 = Gestiona proyectos de emprendimiento
+    económico o social`**, o sea la competencia de **EPT (C53)**, NO la de GAMA:
+    **la excepción es NECESARIA**, sin ella esa columna saldría en blanco en silencio.
+    `CT4` resuelve a una sola competencia, así que no cae en la degradación segura.
+    Detalle en `docs/modulos/export-siagie.md`. Sigue siendo buena práctica correr
+    `--simular` sobre la primera acta de B2 antes de subirla.
 - **VÍNCULOS Y COBERTURA — IMPLEMENTADO (28/07/2026, en `dev`, sin migración).**
   Etapa 1 del gestor de vínculos SIGA↔SIAGIE. Detalle en
   `docs/modulos/export-siagie.md` §"Vínculos y cobertura".

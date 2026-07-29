@@ -251,16 +251,31 @@ bimestre). El reporte marca cada hoja afectada con `[EXCEPCIÓN: …]`.
   Su nota **se DUPLICA en las dos columnas** de EREL, con la misma conclusión.
   Exonerados de religión: están registrados contra esa misma área, así que
   `competenciasExoneradas` los detecta solo y la celda sale **EXO** sin traducción.
-- **`032-EPT` ← GAMA, SOLO 5° de secundaria.** En 5° **no se dicta** Educación para el
+- **`032-ETRA` ← GAMA, SOLO 5° de secundaria.** En 5° **no se dicta** Educación para el
   Trabajo (0 cargas; sus horas las ocupa el Taller de Pre-Cálculo, que no se reporta
   al SIAGIE por decisión del colegio). Esa acta lleva la competencia transversal
   **GAMA** (`codigo_minedu` **CT4**, *Gestiona su aprendizaje de manera autónoma*):
   promedio final + conclusión del tutor, vía `getTransversalesAgregadas`. En 1°-4° EPT
   se dicta normalmente y la hoja **no se toca**. GAMA queda escrita **dos veces** en
   5°: en su hoja transversal `0007` y en la `032` (comportamiento esperado).
-  - La excepción es segura aunque el SIAGIE ya rotule esa columna con la leyenda de
-    GAMA: en ese caso el mapeo por texto daría la misma competencia, así que forzarla
-    no cambia el resultado.
+  - **VERIFICADO contra un acta real de 5° (29/07/2026, `S5B.xlsx`, lectura pura del
+    zip).** Los tres datos que faltaban:
+    1. El libro **sí trae la hoja**, y su tab real es **`032-ETRA`** (no `032-EPT`,
+       que era la abreviatura que asumía esta doc). Da igual para el código: la
+       excepción matchea por el CÓDIGO del tab (`explode('-', $hoja, 2)[0]` → `032`),
+       nunca por la abreviatura.
+    2. La hoja tiene **una sola competencia** (columna `01`, con NL + conclusión), así
+       que GAMA **no se duplica** aquí — a diferencia de EREL, que tiene 2 columnas.
+    3. Su leyenda es **`01 = Gestiona proyectos de emprendimiento económico o social`**,
+       es decir la competencia de **EPT (C53, área 15)**, NO la de GAMA. **Por lo tanto
+       la excepción es NECESARIA, no solo inocua:** sin ella el mapeo por texto daría
+       C53, que en 5° no tiene cargas, y la columna saldría en blanco en silencio.
+       (La versión anterior de esta doc contemplaba el escenario inverso —que el SIAGIE
+       rotulara la columna con la leyenda de GAMA—; el acta real muestra que no ocurre.)
+  - Verificado además que la regla no puede pisar notas reales: EPT (área 15) tiene
+    cargas activas en 1°(3), 2°(2), 3°(2) y 4°(2), y **0 en 5°**. Y `codigo_minedu`
+    `CT4` resuelve a **una sola** competencia (id 57), así que la excepción se aplica
+    y no cae en la degradación segura.
 - **⚠️ Nunca anclar por id.** El id **57 es GAMA**, mientras que el código **C57 es
   Ética** (id 127). Las reglas localizan la competencia por `nombre_boleta`
   (constante `AREA_ETICA_NOMBRE_BOLETA`) o por `codigo_minedu`, nunca por id.
@@ -285,10 +300,13 @@ primaria pre-14/07. La discrepancia de Inglés C1 primaria y el poblado de
 
 **Excepciones de hoja implementadas (27/07/2026):** Ética→EREL (todos los grados de
 secundaria) y GAMA→EPT (solo 5°). Verificadas contra la BD con los 10 casos de
-frontera (aplica / no aplica por grado, nivel y hoja; primaria intacta). **Falta la
-verificación con un acta real de secundaria** — sobre todo la de 5°, para confirmar
-que el libro trae hoja `032` y con qué leyenda. Correr `--simular` antes de la
-primera acta de B2.
+frontera (aplica / no aplica por grado, nivel y hoja; primaria intacta).
+**Verificación con acta real de 5° HECHA el 29/07/2026** (`S5B.xlsx`): el libro trae
+la hoja —tab real **`032-ETRA`**—, con **una sola** columna cuya leyenda es la de EPT
+(*Gestiona proyectos de emprendimiento económico o social*), lo que confirma que la
+excepción es **necesaria** para que esa columna no salga en blanco. Detalle en la
+sección "Excepciones de hoja". Queda como buena práctica correr `--simular` sobre la
+primera acta de B2 antes de subirla.
 
 Pendientes vivos (ver `docs/ESTADO.md`): para secundaria, selector de talleres
 (diferido); y la aspiración de exportación por lote ("solo subir las nóminas") — hoy
