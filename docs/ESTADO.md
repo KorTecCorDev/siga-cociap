@@ -118,6 +118,11 @@
   (vista consolidada, Tutoría/Conducta).
 - **Recreos:** no modelados (hoy son el hueco entre bloques). Primaria tiene 2 y
   secundaria 1 en horas distintas; chocan con el eje de fila única del imprimible.
+- **Limpieza de `bloques_horario` (no urgente, hallazgo 29/07/2026):** la config de 2026
+  tiene **9 bloques basura** con duración de 1 minuto y horarios imposibles (01:00-01:01,
+  02:02-02:03, 03:02-03:03…), **todos con 0 sesiones**; y desde el arreglo del solape de
+  DPCC quedó huérfano el bloque `15:45-17:20`. Nada de esto afecta a nadie hoy — barrerlo
+  cuando se toque el módulo de horarios.
 - **Logins para apoderados** (módulo diferido, análisis de impacto ya hecho):
   alta que reuse persona, soporte multi-hijo (`getHijo` LIMIT 1; 84 apoderados con
   >1 hijo), arreglar `desactivarUsuarioDeEstudiante`, política de contraseñas.
@@ -363,8 +368,10 @@ WHERE id=25;`).
 - **Digitar horarios reales en prod:** 1°A secundaria (11 cursos "sin horario
   propio" tras la migración 031) y las áreas sin bloques reales tras la 030
   (CyT/Matemática primaria 4°-6°, Arte y Cultura 1°A prim., etc.). 3°B ya está completo.
-- **Solape de CLEMENTE ANGELES (DPCC, lunes) — DIAGNOSTICADO 29/07/2026, arreglo
-  pendiente por UI en prod.** El dato anterior tenía las secciones invertidas. Real:
+- ~~**Solape de CLEMENTE ANGELES (DPCC, lunes)**~~ **RESUELTO EN PROD EL 29/07/2026**
+  (corregido por el usuario desde la UI; confirmó que el horario quedó bien). Se deja el
+  diagnóstico porque el patrón puede repetirse. El dato anterior tenía las secciones
+  invertidas. Real:
   **5° B 14:40-16:10** (correcto) vs **1° C 15:45-17:20** (bloque nº111, 95 min, FUERA
   de la grilla) → se pisan **25 min**. Son **dos** solapes: el docente y también la
   **sección 1° C**, que a esa hora tiene Matemática con BUENO. **Horario correcto

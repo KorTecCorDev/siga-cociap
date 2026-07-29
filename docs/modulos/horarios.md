@@ -156,8 +156,10 @@ ser por columna/día, no una fila uniforme). Se analizará al final.
   `horas_semanales` (mismo UPDATE de 030). Idempotente.
 - Resultado: 3°B quedó con su horario completo; 11 cargas de 1°A secundaria
   quedaron "sin horario propio" — **PENDIENTE digitar el horario real de 1°A**.
-- **Solape real preexistente conocido — DIAGNOSTICADO EL 29/07/2026 (arreglo por UI
-  pendiente en prod).** CLEMENTE ANGELES (DPCC, toda la secundaria), lunes.
+- **Solape real preexistente — RESUELTO EN PROD EL 29/07/2026.** Lo corrigió el usuario
+  desde la UI y confirmó que el horario quedó bien. El diagnóstico se conserva abajo
+  porque el patrón (un bloque creado FUERA de la grilla) puede reaparecer y esta es la
+  huella de cómo se detecta. CLEMENTE ANGELES (DPCC, toda la secundaria), lunes.
   ⚠️ La versión anterior de esta nota tenía **las secciones invertidas**; el estado real
   medido es:
   - **5° B: lunes 14:40-16:10** (bloque nº14 de la grilla, 90 min) — correcto.
@@ -181,10 +183,9 @@ ser por columna/día, no una fila uniforme). Se analizará al final.
   - **Efecto esperado al guardar:** `horas_semanales` de esa carga baja de **3 a 2**, que
     es lo correcto: las otras **10** cargas de DPCC tienen 2 h y 90 min; 1° C figuraba
     con 3 h y 140 min solo por el bloque inflado. **No falta un tercer bloque.**
-  - **Vía de arreglo elegida: por la UI en producción** (`/director/cargas` → editar la
-    carga de DPCC de 1° C), no por SQL: así pasa por `verificarSolapes` y queda
-    auditado. El bloque viejo (15:45-17:20) queda sin sesiones; es inocuo, no hay que
-    borrarlo.
+  - **Arreglo APLICADO por la UI en producción** (`/director/cargas` → editar la carga de
+    DPCC de 1° C), no por SQL: así pasó por `verificarSolapes` y quedó auditado. El
+    bloque viejo (15:45-17:20) queda sin sesiones; es inocuo, no hace falta borrarlo.
 
 ### Verificación de las migraciones 030/031 (aplicadas en LOCAL y PROD)
 Query de sanidad — debe dar 0 sesiones cruzadas:
