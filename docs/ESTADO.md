@@ -381,6 +381,11 @@ WHERE id=25;`).
   del cierre (F4) NO se comportan igual, así que el orden importa:
   **docentes terminan de calificar y bloquear → deploy del rediseño 2 → medir →
   resolver → cerrar.**
+  - 📋 **RUNBOOK EJECUTABLE: `docs/runbooks/cierre-de-bimestre.md`** (29/07/2026).
+    Fases 0-6 con checklists, las consultas de prod ya probadas (termómetro, desglose
+    por docente, verificación post-cierre), criterios de aborto y prohibiciones. Escrito
+    para B2 y reutilizable en B3/B4 cambiando `@periodo`. **El día del cierre, seguir
+    ese documento** en vez de reconstruir la secuencia de memoria.
   - **FECHA DURA: el cierre de notas de los docentes es el 31/07/2026** (dato del
     usuario, 28/07). **Decisión del 28/07: NO medir todavía** la alerta de evaluación
     incompleta ni perseguir docentes — se les deja terminar. Medir **después del
