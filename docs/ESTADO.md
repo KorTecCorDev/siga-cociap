@@ -340,10 +340,17 @@ WHERE id=25;`).
   (CyT/Matemática primaria 4°-6°, Arte y Cultura 1°A prim., etc.). 3°B ya está completo.
 - **Solape real preexistente:** CLEMENTE ANGELES, lunes, 1°C (14:40-16:10) vs
   5°B (15:45-17:20) — debe resolverlo el colegio.
-- **Orden de mérito:** RECONSTRUCCIÓN DE B1 HECHA (25/07, ver "Rediseño del orden de
-  mérito" abajo, Fase C). Snapshot oficial de B1 = 528 en prod. Queda solo el check
-  visual de `/director/orden-merito/1` en prod (que los 9 reincorporados salgan en su
-  puesto). ⚠️ No correr `backfill_orden_merito.php` en prod (desde el 26/07 tiene guard
+- **Orden de mérito: RECONSTRUCCIÓN DE B1 HECHA Y VERIFICADA EN PROD (29/07/2026).**
+  El snapshot oficial de B1 se reconstruyó el 25/07 (Fase C, ver "Rediseño del orden de
+  mérito" abajo) y el **check quedó cerrado el 29/07**: la firma en prod da
+  **528 filas / puestos 1-72 / 11 grados / 23 secciones** y los **10 reincorporados**
+  (8 `trasladado` + 2 `retirado`: matrículas 333, 308, **357**, **541**, 581, 191, 613,
+  307, 646, 281) salen cada uno en su puesto de grado y de sección. Eran 10, no 9 —
+  la 357 (HUAMAN VIENRICH) también es `retirado`.
+  Los lectores del snapshot (`OrdenMeritoModel::rankingGradoDesdeSnapshot` y
+  `rankingPorSeccionDesdeSnapshot`) unen `matriculas` solo para llegar a la persona:
+  **no re-filtran por `tipo` ni por `estado`**, por eso los reincorporados se pintan.
+  ⚠️ No correr `backfill_orden_merito.php` en prod (desde el 26/07 tiene guard
   propio, pero la advertencia sigue valiendo para versiones desplegadas antes).
 - **Cierre de B2 — SECUENCIA CORRECTA (fijada el 27/07/2026).** Los dos prerrequisitos
   del cierre (F4) NO se comportan igual, así que el orden importa:
