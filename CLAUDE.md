@@ -271,7 +271,6 @@ siga-cociap/
 │   │                          Rectificacion/ + BaseController, DashboardController
 │   ├── Models/             ← BaseModel + un modelo por dominio (UsuarioModel,
 │   │                          CalificacionModel, BoletaModel, MatriculaModel, …)
-│   ├── Middleware/AuthMiddleware.php   (SIN USAR — la auth es por controlador)
 │   └── Helpers/helpers.php ← funciones globales + constantes de escala
 ├── core/                   ← Router, Database, Session, View, Throttle
 ├── config/
@@ -357,6 +356,9 @@ y `docs/ESTADO.md`.
 - **Vistas:** `$this->view('carpeta/archivo', ['variable' => $valor])`
 - **JSON:** `$this->json(['success' => true, 'mensaje' => '...'])`
 - **CSRF:** siempre `$this->validateCsrf()` en métodos POST
+- **Auth: por controlador — NO hay middleware.** `app/Middleware/AuthMiddleware.php`
+  nunca se usó y se eliminó (commit `eb0e9cf`, 20/06/2026). No reintroducir una capa
+  de middleware sin acordarlo antes.
 - **Commits:** Conventional Commits en español sin tildes
 - **Estilos:** NUNCA CSS inline en PHP — siempre en SASS bajo `resources/sass/`
 - **config():** la función NO soporta notación de puntos. Usar `config('institucion')`,

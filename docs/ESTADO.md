@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **28/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **29/07/2026**.
 
 ## Migraciones
 - **`046_orden_merito_inmutable`** (24/07): Fase B del rediseño del orden de mérito.
@@ -103,9 +103,12 @@
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
 - **CSP:** pasada dedicada — auditar estilos inline (`style="--pct:..."`) y el QR
   antes de aplicar `Content-Security-Policy`.
-- **Limpieza menor:** quitar del `.gitignore` las reglas obsoletas de
-  `public/assets/img/firmas/`; `AuthMiddleware` está SIN USAR (la auth es por
-  controlador) → decidir si se conecta o se elimina.
+- ~~**Limpieza menor:** `.gitignore` + `AuthMiddleware`~~ **CERRADO (verificado
+  29/07/2026).** Las reglas obsoletas de `public/assets/img/firmas/` ya no están en
+  el `.gitignore` (solo queda `/storage/firmas/*.png`, que es la correcta), y
+  `AuthMiddleware` **se eliminó** en el commit `eb0e9cf` (20/06/2026): la carpeta
+  `app/Middleware/` ya no existe. La auth sigue siendo por controlador — invariante
+  registrado en `CLAUDE.md` (Convenciones de código).
 - **Nómina detallada admin/RA — etapa 2** (resumen estadístico); la etapa 1
   (nómina imprimible global con filtros) está implementada. Ver `docs/modulos/admin.md`.
 - **Búsqueda del index de matrículas** no matchea códigos provisionales `P…`
@@ -463,6 +466,12 @@ WHERE id=25;`).
   aseguramiento de los dos scripts destructivos. Probado en navegador por el usuario
   con dos usuarios padre de prueba (creados por SQL y ya borrados). **NO desplegado: el
   usuario no autorizó el merge a `main`.** No hay migración pendiente para este lote.
+- **29/07/2026 — foto verificada: `dev` en `25599ba`, `main` en `68968bb`,
+  28 commits por delante.** El lote acumulado es: rediseño 2 del orden de mérito +
+  excepciones de hoja SIAGIE (Ética→EREL, GAMA→EPT de 5°) + vínculos/cobertura con
+  `codigo_siagie` editable. **Sigue SIN migración pendiente** → el deploy es merge +
+  push, sin tocar la BD de prod. **NO autorizado todavía**; va después del 31/07
+  (cierre de notas de los docentes) y ANTES de medir/resolver empates.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
