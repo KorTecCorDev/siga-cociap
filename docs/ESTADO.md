@@ -292,10 +292,14 @@ WHERE id=25;`).
     registrado en el SIAGIE** → es una gestión del colegio ante SIAGIE/UGEL, no un
     cambio de código. Alcance (local, B1 completo; confirmar en prod): Raz. Mat.
     = 1° a 5°, 11 secciones, 273 notas; Pre-Cálculo = 5° A y B, 49 notas.
-    Tres salidas, todas decisión del colegio: (1) darlo de alta en el SIAGIE y luego
-    teclear el código en Currículo; (2) no reportarlo, como ya se decidió para
-    Pre-Cálculo; (3) etapa 2 (área anfitriona, el caso peligroso). Detalle en
-    `docs/modulos/export-siagie.md`.
+    **CAUSA RAÍZ Y DECISIONES (29/07/2026, usuario):** hay una **aprobación de talleres
+    PENDIENTE en la UGEL de Huaraz** y por eso el SIAGIE no habilita esas hojas.
+    **Taller de Raz. Mat. → SE DARÁ DE ALTA (sí o sí se registrará en el SIAGIE):**
+    cuando la UGEL apruebe, el RegNotas traerá su hoja y bastará teclear su
+    `codigo_siagie` en Currículo, sin despliegue; hasta entonces sus notas viven solo
+    en SIGA y **no son un olvido que perseguir**. **Taller de Pre-Cálculo → NO se
+    reporta** (decisión firme). La opción "área anfitriona" (etapa 2) queda descartada
+    de hecho. Detalle en `docs/modulos/export-siagie.md`.
   **Diferido:**
   - **Taller SIN hoja propia** (reportar bajo un área anfitriona): es el caso
     peligroso — sus 3 competencias son homónimas de Matemática (C54↔C44, C55↔C47,

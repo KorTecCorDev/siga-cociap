@@ -151,6 +151,23 @@ hoja. Dos guardas en `CurriculumController::guardarArea`:
 **Sigue diferido** el caso del taller *sin* hoja propia (reportar bajo un área
 anfitriona), que es el peligroso: sus competencias son homónimas de Matemática y
 exigiría invertir la regla "ante homónimos gana la competencia de la hoja".
+Los pares reales (medidos el 29/07/2026) son **C54↔C44** (cantidad) y **C55↔C47**
+(gestión de datos) del Taller de Raz. Mat., y **C56↔C45** (regularidad) del Taller de
+**Pre-Cálculo** — no del de Raz. Mat., que tiene 2 competencias, no 3.
+
+> **Homónimas entre NIVELES: eso es diseño, no deuda.** Una competencia con la misma
+> definición existe una vez en primaria y otra en secundaria, con `codigo_minedu`
+> propio (13 casos medidos: C4/C28, CT2/CT4, C1/C41, C21/C44…), **a propósito**: así se
+> puede cambiar la descripción de un nivel sin arrastrar al otro (regla confirmada por
+> el usuario el 29/07/2026). Por eso **todo emparejamiento va acotado al nivel** —
+> `areaPorCodigoSiagie($nivelId, …)` y el índice de hojas por nivel+código. Nunca
+> unificar filas homónimas de distinto nivel.
+>
+> **Gotcha al consultar el catálogo:** las competencias de un área `con_subareas`
+> cuelgan de la **subárea** y tienen `competencias.area_id = NULL` (23 de 59 filas).
+> Un `INNER JOIN areas ON a.id = c.area_id` las descarta **en silencio** y hace parecer
+> que Matemática de secundaria no tiene competencias. Usar
+> `LEFT JOIN subareas` + `COALESCE(a.nivel_id, a2.nivel_id)`.
 
 ### ⚠️ Los talleres NO tienen hoja en el SIAGIE (medido el 29/07/2026)
 
@@ -178,19 +195,26 @@ confirmarse en prod):
 | Taller de Razonamiento Matemático | 1° a 5° | 11 | 273 |
 | Taller de Pre-Cálculo | 5° | 2 (A, B) | 49 |
 
-Las tres salidas posibles, todas **decisión del colegio**:
-1. **Darlo de alta en el SIAGIE** → el próximo RegNotas traerá su hoja → recién ahí
-   se teclea el código en Currículo (sin despliegue, ya que el campo es editable).
-2. **No reportarlo**, como ya se decidió para el Taller de Pre-Cálculo → sus notas
-   viven solo en SIGA (boleta y consolidados), y conviene dejarlo explícito.
-3. **Reportarlo bajo un área anfitriona** → es la etapa 2 diferida, el caso
-   peligroso (competencias homónimas de Matemática).
+**CAUSA RAÍZ Y DECISIONES — confirmadas por el usuario el 29/07/2026:**
+
+- **Por qué no hay hoja:** existe una **aprobación de talleres PENDIENTE en la UGEL de
+  Huaraz**. Mientras ese trámite no se resuelva, el SIAGIE no habilita las hojas de los
+  talleres en los Excel. **No es un error de configuración ni de SIGA.**
+- **Taller de Razonamiento Matemático → SE DARÁ DE ALTA (opción 1).** Sí o sí tendrá
+  que registrarse en el SIAGIE. Cuando la UGEL apruebe, el RegNotas traerá su hoja y
+  bastará **teclear su `codigo_siagie` en Currículo** (sin despliegue). Hasta entonces
+  sus notas viven solo en SIGA — **no es un olvido que perseguir cada bimestre.**
+- **Taller de Pre-Cálculo → NO se reporta (opción 2).** Decisión firme, coherente con
+  que las horas que ocupa (las de EPT en 5°) tampoco se reportan. Sus 49 notas de B1
+  quedan solo en SIGA, a propósito.
+- **La opción 3 (área anfitriona) queda descartada de hecho:** si el taller tendrá hoja
+  propia, no hace falta el caso peligroso de las competencias homónimas.
 
 Nota para la pantalla de vínculos: mientras un área con notas no tenga código se
-pinta **`sin destino` (rojo)**. Para un taller que por decisión NO se exporta —hoy
-Pre-Cálculo— ese rojo es un falso positivo permanente; haría falta poder marcar el
-área como "no se exporta a propósito" para distinguir el olvido de la decisión.
-No implementado (requiere columna nueva); anotado como mejora.
+pinta **`sin destino` (rojo)**. Con las decisiones de arriba, **ese rojo es hoy un
+falso positivo esperado en los dos talleres**: uno espera el trámite de la UGEL y el
+otro no se exporta por decisión. Distinguir "olvido" de "decisión" pediría marcar el
+área como *no exportable* (columna nueva); no implementado, anotado como mejora.
 
 ## Estructura del Excel SIAGIE (réplica verificada)
 
