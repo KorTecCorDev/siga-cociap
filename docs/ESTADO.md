@@ -363,8 +363,18 @@ WHERE id=25;`).
 - **Digitar horarios reales en prod:** 1°A secundaria (11 cursos "sin horario
   propio" tras la migración 031) y las áreas sin bloques reales tras la 030
   (CyT/Matemática primaria 4°-6°, Arte y Cultura 1°A prim., etc.). 3°B ya está completo.
-- **Solape real preexistente:** CLEMENTE ANGELES, lunes, 1°C (14:40-16:10) vs
-  5°B (15:45-17:20) — debe resolverlo el colegio.
+- **Solape de CLEMENTE ANGELES (DPCC, lunes) — DIAGNOSTICADO 29/07/2026, arreglo
+  pendiente por UI en prod.** El dato anterior tenía las secciones invertidas. Real:
+  **5° B 14:40-16:10** (correcto) vs **1° C 15:45-17:20** (bloque nº111, 95 min, FUERA
+  de la grilla) → se pisan **25 min**. Son **dos** solapes: el docente y también la
+  **sección 1° C**, que a esa hora tiene Matemática con BUENO. **Horario correcto
+  (usuario):** DPCC 1° C = lunes **16:35-17:20** + jueves 13:10-13:55; 5° B = lunes
+  14:40-16:10. El jueves y 5° B ya están bien → **la corrección es UNA sesión**: mover
+  el lunes de 1° C al bloque 16:35-17:20. Franja destino verificada libre para sección y
+  docente. Al guardar, `horas_semanales` baja de 3 a **2**, igualando a las otras 10
+  cargas de DPCC (90 min); eso es lo correcto, no una pérdida. Se hace **por la UI**
+  (`/director/cargas` → editar la carga), no por SQL. Detalle completo en
+  `docs/modulos/horarios.md`.
 - **Orden de mérito: RECONSTRUCCIÓN DE B1 HECHA Y VERIFICADA EN PROD (29/07/2026).**
   El snapshot oficial de B1 se reconstruyó el 25/07 (Fase C, ver "Rediseño del orden de
   mérito" abajo) y el **check quedó cerrado el 29/07**: la firma en prod da
