@@ -283,6 +283,19 @@ WHERE id=25;`).
   - **Hallazgo medido:** en B1 se perdieron **321 notas bloqueadas** de talleres
     (Raz. Mat. 272 + Pre-Cálculo 49) que nunca llegaron al acta, en silencio. En B2
     ya van 24 del Taller de Raz. Mat.
+  - ⚠️ **BLOQUEO DE FONDO (29/07/2026): los talleres NO tienen hoja en el SIAGIE.**
+    Al ir a asignarles el `codigo_siagie` se verificó, leyendo los dos RegNotas
+    reales de B1 (`S1A.xlsx` de 1°A y `S5B.xlsx` de 5°B), que **ambos libros traen
+    las MISMAS 15 hojas y ninguna es de taller** — y 1°A es una sección donde SÍ se
+    dicta el Taller de Raz. Mat. **Asignar el código no resolvería nada: no hay hoja
+    que llenar.** Lo que falta no está en SIGA sino en el **plan de estudios
+    registrado en el SIAGIE** → es una gestión del colegio ante SIAGIE/UGEL, no un
+    cambio de código. Alcance (local, B1 completo; confirmar en prod): Raz. Mat.
+    = 1° a 5°, 11 secciones, 273 notas; Pre-Cálculo = 5° A y B, 49 notas.
+    Tres salidas, todas decisión del colegio: (1) darlo de alta en el SIAGIE y luego
+    teclear el código en Currículo; (2) no reportarlo, como ya se decidió para
+    Pre-Cálculo; (3) etapa 2 (área anfitriona, el caso peligroso). Detalle en
+    `docs/modulos/export-siagie.md`.
   **Diferido:**
   - **Taller SIN hoja propia** (reportar bajo un área anfitriona): es el caso
     peligroso — sus 3 competencias son homónimas de Matemática (C54↔C44, C55↔C47,

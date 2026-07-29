@@ -152,6 +152,46 @@ hoja. Dos guardas en `CurriculumController::guardarArea`:
 anfitriona), que es el peligroso: sus competencias son homónimas de Matemática y
 exigiría invertir la regla "ante homónimos gana la competencia de la hoja".
 
+### ⚠️ Los talleres NO tienen hoja en el SIAGIE (medido el 29/07/2026)
+
+Al ir a asignarles el `codigo_siagie` apareció el obstáculo de fondo: **las actas
+reales del SIAGIE no traen ninguna hoja de taller.** Verificado leyendo los dos
+RegNotas reales de B1 que conservamos, `S1A.xlsx` (1°A) y `S5B.xlsx` (5°B): ambos
+libros tienen **exactamente las mismas 15 hojas** —`Generalidades`, `Parametros`,
+`0001-ART Y CULT`, `0002-CAST SEGNL`, `0004-CIENC TEC`, `0010-DESARR PCC`,
+`014-CCSS`, `017-COMU`, `031-EFIS`, `032-ETRA`, `035-EREL`, `057-INGL`, `063-MATE`,
+`0006-DESEN TIC`, `0007-GEST AUTO`— y **ninguna corresponde a un taller**. 1°A es
+justamente una sección donde SÍ se dicta el Taller de Raz. Mat., así que no es una
+casualidad de muestra.
+
+**Consecuencia: asignar un `codigo_siagie` al taller no resolvería nada hoy** — no
+hay hoja `NNN-…` que llenar. El vínculo que falta no está en SIGA sino en el
+**plan de estudios registrado en el SIAGIE**: si el taller no está dado de alta ahí,
+el portal no genera su hoja. **No es un problema de código ni de configuración de
+SIGA; es una gestión del colegio ante el SIAGIE/UGEL.**
+
+Alcance real (medido en local, donde B1 está completo; la cifra fina debe
+confirmarse en prod):
+
+| Área | Grados | Secciones | Notas B1 |
+|---|---|---|---|
+| Taller de Razonamiento Matemático | 1° a 5° | 11 | 273 |
+| Taller de Pre-Cálculo | 5° | 2 (A, B) | 49 |
+
+Las tres salidas posibles, todas **decisión del colegio**:
+1. **Darlo de alta en el SIAGIE** → el próximo RegNotas traerá su hoja → recién ahí
+   se teclea el código en Currículo (sin despliegue, ya que el campo es editable).
+2. **No reportarlo**, como ya se decidió para el Taller de Pre-Cálculo → sus notas
+   viven solo en SIGA (boleta y consolidados), y conviene dejarlo explícito.
+3. **Reportarlo bajo un área anfitriona** → es la etapa 2 diferida, el caso
+   peligroso (competencias homónimas de Matemática).
+
+Nota para la pantalla de vínculos: mientras un área con notas no tenga código se
+pinta **`sin destino` (rojo)**. Para un taller que por decisión NO se exporta —hoy
+Pre-Cálculo— ese rojo es un falso positivo permanente; haría falta poder marcar el
+área como "no se exporta a propósito" para distinguir el olvido de la decisión.
+No implementado (requiere columna nueva); anotado como mejora.
+
 ## Estructura del Excel SIAGIE (réplica verificada)
 
 - UN libro por **grado+sección+bimestre**. Hoja `Parametros` (oculta) =

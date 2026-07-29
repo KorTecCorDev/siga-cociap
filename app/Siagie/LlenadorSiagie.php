@@ -44,15 +44,20 @@ class LlenadorSiagie
      *    registrados contra esa misma área, así que `competenciasExoneradas` los
      *    detecta solo y la celda sale EXO sin traducción extra.
      *
-     *  - **032-EPT ← GAMA, SOLO 5° de secundaria.** En 5° no se dicta Educación
+     *  - **032 ← GAMA, SOLO 5° de secundaria.** En 5° no se dicta Educación
      *    para el Trabajo (sus horas las ocupa el Taller de Pre-Cálculo, que no
      *    se reporta al SIAGIE): esa acta lleva la competencia transversal
      *    'Gestiona su aprendizaje de manera autónoma' (promedio final +
      *    conclusión del tutor, vía getTransversalesAgregadas). En 1°-4° EPT se
      *    dicta normalmente y la hoja NO se toca.
-     *    La excepción es segura aunque el SIAGIE ya rotule esa columna con la
-     *    leyenda de GAMA: en ese caso el mapeo por texto daría la misma
-     *    competencia, así que forzarla no cambia el resultado.
+     *    VERIFICADO contra un acta real de 5° (29/07/2026): el tab se llama
+     *    '032-ETRA' —no '032-EPT'—, pero eso da igual porque la regla matchea
+     *    por el CÓDIGO del tab ('032'), nunca por la abreviatura. La hoja trae
+     *    UNA sola columna (GAMA no se duplica ahí, a diferencia de EREL) y su
+     *    leyenda es 'Gestiona proyectos de emprendimiento económico o social',
+     *    es decir la competencia de EPT (C53). Por eso la excepción es
+     *    NECESARIA: sin ella el mapeo por texto daría C53, que en 5° no tiene
+     *    cargas, y la columna quedaría en blanco en silencio.
      *
      * `buscar` NUNCA usa ids: el id del área difiere entre entornos y, peor, el
      * id 57 es GAMA mientras que el código C57 es la competencia de Ética.
