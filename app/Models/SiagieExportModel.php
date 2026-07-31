@@ -299,6 +299,186 @@ class SiagieExportModel extends BaseModel
     }
 
     /**
+     * Competencias del área del nivel identificada por su `nombre_boleta`
+     * (p. ej. 'Ética y Valores'). Ancla por NOMBRE y no por id: el id del área
+     * difiere entre entornos — mismo criterio que el orden de mérito
+     * (`AREA_ETICA_NOMBRE_BOLETA` en helpers). Devuelve [] si no existe.
+     *
+     * La usan las EXCEPCIONES DE HOJA del llenador (ver `LlenadorSiagie`).
+     */
+    public function competenciasDeAreaPorNombreBoleta(int $nivelId, string $nombreBoleta): array
+    {
+        return $this->query("
+            SELECT
+                c.id   AS competencia_id,
+                c.nombre_completo,
+                c.codigo_minedu,
+                a.id   AS area_id,
+                a.nombre AS area_nombre,
+                a.tipo AS area_tipo
+            FROM competencias c
+            LEFT JOIN subareas s ON s.id = c.subarea_id
+            INNER JOIN areas a   ON a.id = COALESCE(c.area_id, s.area_id)
+            WHERE a.nivel_id      = ?
+              AND a.nombre_boleta = ?
+            ORDER BY c.orden
+        ", [$nivelId, $nombreBoleta]);
+    }
+
+    /**
+     * Competencia del nivel por su `codigo_minedu` (p. ej. 'CT4' = GAMA,
+     * 'Gestiona su aprendizaje de manera autónoma'). Ancla por el código
+     * oficial, NUNCA por id: el id 57 es GAMA pero el código C57 es la
+     * competencia de Ética — confundirlos escribiría la nota equivocada en un
+     * acta oficial. Devuelve null si no existe o si el código está repetido
+     * en el nivel (ambiguo → el llenador no aplica la excepción).
+     */
+    public function competenciaPorCodigoMinedu(int $nivelId, string $codigoMinedu): ?array
+    {
+        $filas = $this->query("
+            SELECT
+                c.id   AS competencia_id,
+                c.nombre_completo,
+                c.codigo_minedu,
+                a.id   AS area_id,
+                a.nombre AS area_nombre,
+                a.tipo AS area_tipo
+            FROM competencias c
+            LEFT JOIN subareas s ON s.id = c.subarea_id
+            INNER JOIN areas a   ON a.id = COALESCE(c.area_id, s.area_id)
+            WHERE a.nivel_id      = ?
+              AND c.codigo_minedu = ?
+            LIMIT 2
+        ", [$nivelId, $codigoMinedu]);
+
+        return count($filas) === 1 ? $filas[0] : null;
+    }
+
+    /**
+     * DIAGNÓSTICO DE COBERTURA: qué áreas tienen notas exportables en el periodo
+     * y cuáles de ellas NO tienen destino en el SIAGIE (`codigo_siagie` vacío).
+     * Sin esta vista, un área sin código queda fuera del acta EN SILENCIO — es
+     * lo que pasó en B1 con los talleres (322 alumnos con nota, 0 reportados).
+     *
+     * Cuenta solo notas BLOQUEADAS, que son las únicas que el llenador escribe.
+     * El área de tutoría/Ética aparece sin código a propósito: su destino lo
+     * resuelve una EXCEPCIÓN DE HOJA, que el controlador cruza aparte.
+     */
+    public function coberturaAreas(int $periodoId): array
+    {
+        return $this->query("
+            SELECT
+                a.id            AS area_id,
+                a.nombre        AS area_nombre,
+                a.nombre_boleta,
+                a.codigo_siagie,
+                a.tipo          AS area_tipo,
+                n.id            AS nivel_id,
+                n.nombre        AS nivel_nombre,
+                n.codigo        AS nivel_codigo,
+                COUNT(DISTINCT cal.matricula_id) AS alumnos,
+                COUNT(DISTINCT cal.competencia_id) AS competencias,
+                COUNT(*)        AS notas
+            FROM calificaciones cal
+            INNER JOIN bloqueos_competencia bc
+                    ON bc.carga_id       = cal.carga_id
+                   AND bc.competencia_id = cal.competencia_id
+                   AND bc.periodo_id     = cal.periodo_id
+            INNER JOIN competencias c ON c.id = cal.competencia_id
+            LEFT  JOIN subareas sa    ON sa.id = c.subarea_id
+            INNER JOIN areas a        ON a.id  = COALESCE(sa.area_id, c.area_id)
+            INNER JOIN niveles n      ON n.id  = a.nivel_id
+            WHERE cal.periodo_id = ?
+              AND cal.extraordinaria = 0
+            GROUP BY a.id, a.nombre, a.nombre_boleta, a.codigo_siagie, a.tipo,
+                     n.id, n.nombre, n.codigo
+            ORDER BY n.id, a.orden, a.nombre
+        ", [$periodoId]);
+    }
+
+    /**
+     * VÍNCULOS CONFIGURADOS: TODAS las áreas del currículo con su `codigo_siagie`
+     * y, como dato anexo, cuántas notas tienen en el periodo (0 si ninguna).
+     *
+     * Parte de `areas`, NO de `calificaciones`: un vínculo área↔hoja existe con
+     * independencia de si ese bimestre tuvo notas. Si se listaran solo las áreas
+     * con notas, no se podría auditar la configuración — que es justo lo que hace
+     * falta para ver, por ejemplo, que la hoja `035` la tiene asignada Educación
+     * Religiosa pero la llena Ética por una excepción.
+     *
+     * Incluye las áreas inactivas SOLO si tienen notas en el periodo (una activa
+     * sin notas es configuración legítima; una inactiva sin notas es ruido).
+     */
+    public function vinculosDeAreas(int $periodoId): array
+    {
+        return $this->query("
+            SELECT
+                a.id            AS area_id,
+                a.nombre        AS area_nombre,
+                a.nombre_boleta,
+                a.codigo_siagie,
+                a.tipo          AS area_tipo,
+                a.activa,
+                n.id            AS nivel_id,
+                n.nombre        AS nivel_nombre,
+                n.codigo        AS nivel_codigo,
+                COALESCE(x.alumnos, 0)      AS alumnos,
+                COALESCE(x.competencias, 0) AS competencias,
+                COALESCE(x.notas, 0)        AS notas
+            FROM areas a
+            INNER JOIN niveles n ON n.id = a.nivel_id
+            LEFT JOIN (
+                SELECT COALESCE(sa.area_id, c.area_id) AS area_id,
+                       COUNT(DISTINCT cal.matricula_id)   AS alumnos,
+                       COUNT(DISTINCT cal.competencia_id) AS competencias,
+                       COUNT(*)                           AS notas
+                FROM calificaciones cal
+                INNER JOIN bloqueos_competencia bc
+                        ON bc.carga_id       = cal.carga_id
+                       AND bc.competencia_id = cal.competencia_id
+                       AND bc.periodo_id     = cal.periodo_id
+                INNER JOIN competencias c ON c.id = cal.competencia_id
+                LEFT  JOIN subareas sa    ON sa.id = c.subarea_id
+                WHERE cal.periodo_id = ?
+                  AND cal.extraordinaria = 0
+                GROUP BY COALESCE(sa.area_id, c.area_id)
+            ) x ON x.area_id = a.id
+            WHERE a.activa = 1 OR COALESCE(x.notas, 0) > 0
+            ORDER BY n.id, a.orden, a.nombre
+        ", [$periodoId]);
+    }
+
+    /**
+     * Áreas del mismo nivel que comparten algún `codigo_siagie`. Es un ERROR de
+     * configuración silencioso: `areaPorCodigoSiagie` resuelve con LIMIT 1, así
+     * que la hoja se asignaría a un área arbitraria. La UI lo muestra en rojo.
+     */
+    public function codigosSiagieDuplicados(): array
+    {
+        return $this->query("
+            SELECT n.nombre AS nivel_nombre, a.codigo_siagie,
+                   GROUP_CONCAT(a.nombre ORDER BY a.nombre SEPARATOR ' | ') AS areas
+            FROM areas a
+            INNER JOIN niveles n ON n.id = a.nivel_id
+            WHERE a.codigo_siagie IS NOT NULL AND a.codigo_siagie <> ''
+            GROUP BY a.nivel_id, n.nombre, a.codigo_siagie
+            HAVING COUNT(*) > 1
+            ORDER BY n.id, a.codigo_siagie
+        ");
+    }
+
+    /** Periodos que ya tienen alguna calificación, para el selector del diagnóstico. */
+    public function periodosConCalificaciones(): array
+    {
+        return $this->query("
+            SELECT p.id, p.nombre_display, p.estado, p.numero
+            FROM periodos p
+            WHERE EXISTS (SELECT 1 FROM calificaciones c WHERE c.periodo_id = p.id)
+            ORDER BY p.anio_id DESC, p.numero
+        ");
+    }
+
+    /**
      * Persiste el código SIAGIE (14 dígitos, col. B del Excel) tras un match
      * exacto por nombre. SOLO escribe si el campo está vacío: un valor
      * distinto ya almacenado es un conflicto que se reporta, nunca se pisa.

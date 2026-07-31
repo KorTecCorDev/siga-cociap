@@ -28,6 +28,59 @@ class LlenadorSiagie
     /** Hojas de metadata del libro que no llevan notas. */
     private const HOJAS_META = ['Generalidades', 'Parametros'];
 
+    /**
+     * EXCEPCIONES DE HOJA — casos donde el área que el SIAGIE espera en una hoja
+     * NO es la que evalúa esa competencia en SIGA. Se aplican DESPUÉS de resolver
+     * la hoja y ANTES del mapeo por leyenda, porque el mapeo por texto acertaría
+     * el área "oficial" (que no tiene notas) y dejaría el acta en blanco.
+     *
+     * Reglas del colegio (confirmadas por el usuario el 27/07/2026):
+     *
+     *  - **035-EREL ← Ética y Valores, TODOS los grados de secundaria.** El área
+     *    Educación Religiosa no tiene cargas: quien evalúa esa dimensión es el
+     *    tutor, en el área de tutoría cuyo `nombre_boleta` es 'Ética y Valores'
+     *    (una sola competencia). Su nota se DUPLICA en las dos columnas de EREL
+     *    (`columnas => null` = todas). Los exonerados de religión están
+     *    registrados contra esa misma área, así que `competenciasExoneradas` los
+     *    detecta solo y la celda sale EXO sin traducción extra.
+     *
+     *  - **032 ← GAMA, SOLO 5° de secundaria.** En 5° no se dicta Educación
+     *    para el Trabajo (sus horas las ocupa el Taller de Pre-Cálculo, que no
+     *    se reporta al SIAGIE): esa acta lleva la competencia transversal
+     *    'Gestiona su aprendizaje de manera autónoma' (promedio final +
+     *    conclusión del tutor, vía getTransversalesAgregadas). En 1°-4° EPT se
+     *    dicta normalmente y la hoja NO se toca.
+     *    VERIFICADO contra un acta real de 5° (29/07/2026): el tab se llama
+     *    '032-ETRA' —no '032-EPT'—, pero eso da igual porque la regla matchea
+     *    por el CÓDIGO del tab ('032'), nunca por la abreviatura. La hoja trae
+     *    UNA sola columna (GAMA no se duplica ahí, a diferencia de EREL) y su
+     *    leyenda es 'Gestiona proyectos de emprendimiento económico o social',
+     *    es decir la competencia de EPT (C53). Por eso la excepción es
+     *    NECESARIA: sin ella el mapeo por texto daría C53, que en 5° no tiene
+     *    cargas, y la columna quedaría en blanco en silencio.
+     *
+     * `buscar` NUNCA usa ids: el id del área difiere entre entornos y, peor, el
+     * id 57 es GAMA mientras que el código C57 es la competencia de Ética.
+     */
+    private const EXCEPCIONES_HOJA = [
+        [
+            'nivel_codigo' => 'sec',
+            'codigo_hoja'  => '035',
+            'grados'       => null,                       // todos
+            'columnas'     => null,                       // todas las columnas
+            'buscar'       => ['nombre_boleta' => AREA_ETICA_NOMBRE_BOLETA],
+            'motivo'       => 'Ética y Valores (la evalúa el tutor; Ed. Religiosa no tiene cargas)',
+        ],
+        [
+            'nivel_codigo' => 'sec',
+            'codigo_hoja'  => '032',
+            'grados'       => [5],
+            'columnas'     => null,
+            'buscar'       => ['codigo_minedu' => 'CT4'],  // GAMA
+            'motivo'       => 'GAMA (en 5° no se dicta Educación para el Trabajo)',
+        ],
+    ];
+
     private SiagieExportModel $modelo;
 
     public function __construct(?SiagieExportModel $modelo = null)
@@ -172,9 +225,21 @@ class LlenadorSiagie
             $compsArea  = $areaHoja ? $this->modelo->competenciasDeArea((int) $areaHoja['id']) : [];
             $usadasArea = []; // competencia_id ya asignada en esta hoja (evita doble asignación)
 
+            // EXCEPCIÓN DE HOJA: el área que el SIAGIE espera aquí no es la que
+            // evalúa en SIGA (EREL ← Ética; EPT de 5° ← GAMA). Manda sobre la
+            // leyenda, porque el texto acertaría el área oficial —que no tiene
+            // cargas— y dejaría el acta en blanco. Ver EXCEPCIONES_HOJA.
+            $excepcion = $this->excepcionDeHoja($codigoHoja, $destino, $reporte);
+
             $mapa = []; // numero => competencia (fila del catálogo)
             $sinEquivalente = [];
             foreach ($columnas as $numero => $cc) {
+                if ($excepcion !== null
+                    && ($excepcion['columnas'] === null
+                        || in_array($numero, $excepcion['columnas'], true))) {
+                    $mapa[$numero] = $excepcion['competencia'];
+                    continue;
+                }
                 $texto = $leyenda[$numero] ?? null;
                 if ($texto === null) {
                     $reporte[] = "HOJA {$hoja}: la columna {$numero} no aparece en la leyenda — omitida";
@@ -385,7 +450,12 @@ class LlenadorSiagie
             $totNl   += $celdasNl;
             $totConc += $celdasConc;
             $areaSiga = implode(', ', array_unique(array_column($mapa, 'area_nombre')));
-            $reporte[] = "HOJA {$hoja} → {$areaSiga}: " . count($mapa) . " competencia(s) mapeada(s); {$celdasNl} NL, {$celdasConc} conclusiones";
+            $marcaExc = $excepcion !== null
+                ? " [EXCEPCIÓN: {$excepcion['motivo']}"
+                    . ($excepcion['columnas'] === null ? ', misma nota en todas las columnas' : '')
+                    . ']'
+                : '';
+            $reporte[] = "HOJA {$hoja} → {$areaSiga}{$marcaExc}: " . count($mapa) . " competencia(s) mapeada(s); {$celdasNl} NL, {$celdasConc} conclusiones";
         }
 
         // 4. Advertencias y celdas en blanco
@@ -602,6 +672,107 @@ class LlenadorSiagie
             }
         }
         unset($mm);
+    }
+
+    /**
+     * EXCEPCIONES declaradas para un nivel, ya resueltas a su competencia, para
+     * MOSTRARLAS (Actas SIAGIE → Vínculos). Sin esto las dos reglas vigentes
+     * solo existirían dentro del código y nadie en Registro académico sabría
+     * por qué la hoja de Ed. Religiosa se llena con la nota del tutor.
+     *
+     * Es la misma resolución que usa el llenado real (mismo método privado), así
+     * que lo que se ve en pantalla es exactamente lo que se aplicará.
+     *
+     * @return array<int, array{codigo_hoja: string, grados: ?array, columnas: ?array,
+     *                          motivo: string, competencia: ?array, error: ?string}>
+     */
+    public function excepcionesDeclaradas(string $nivelCodigo, int $nivelId): array
+    {
+        $out = [];
+        foreach (self::EXCEPCIONES_HOJA as $regla) {
+            if ($regla['nivel_codigo'] !== $nivelCodigo) {
+                continue;
+            }
+            // Un grado cualquiera de los que cubre la regla basta para resolverla:
+            // la competencia destino no depende del grado, solo su aplicabilidad.
+            $grado   = $regla['grados'][0] ?? 1;
+            $reporte = [];
+            $res     = $this->excepcionDeHoja($regla['codigo_hoja'], [
+                'nivel_codigo' => $nivelCodigo,
+                'nivel_id'     => $nivelId,
+                'grado_numero' => $grado,
+            ], $reporte);
+
+            $out[] = [
+                'codigo_hoja' => $regla['codigo_hoja'],
+                'grados'      => $regla['grados'],
+                'columnas'    => $regla['columnas'],
+                'motivo'      => $regla['motivo'],
+                'competencia' => $res['competencia'] ?? null,
+                'error'       => $res === null ? ($reporte[0] ?? 'no se pudo resolver') : null,
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Excepción de hoja aplicable a este destino, ya resuelta a una competencia
+     * concreta, o null si no hay ninguna. Ver EXCEPCIONES_HOJA.
+     *
+     * Si la regla existe pero su competencia no se puede identificar de forma
+     * ÚNICA (área ausente o renombrada, con más de una competencia, o código
+     * MINEDU duplicado), devuelve null y deja constancia en $reporte: preferimos
+     * el comportamiento anterior —la celda queda en blanco y se reporta— antes
+     * que escribir una nota adivinada en un acta oficial.
+     *
+     * @return array{competencia: array, columnas: ?array, motivo: string}|null
+     */
+    private function excepcionDeHoja(string $codigoHoja, array $destino, array &$reporte): ?array
+    {
+        foreach (self::EXCEPCIONES_HOJA as $regla) {
+            if ($regla['nivel_codigo'] !== ($destino['nivel_codigo'] ?? null)
+                || $regla['codigo_hoja'] !== $codigoHoja) {
+                continue;
+            }
+            if ($regla['grados'] !== null
+                && !in_array((int) $destino['grado_numero'], $regla['grados'], true)) {
+                continue;
+            }
+
+            $comp = null;
+            if (isset($regla['buscar']['nombre_boleta'])) {
+                $comps = $this->modelo->competenciasDeAreaPorNombreBoleta(
+                    (int) $destino['nivel_id'],
+                    $regla['buscar']['nombre_boleta']
+                );
+                if (count($comps) === 1) {
+                    $comp = $comps[0];
+                } else {
+                    $reporte[] = "EXCEPCION NO APLICADA (hoja {$codigoHoja}): el area '"
+                        . $regla['buscar']['nombre_boleta'] . "' tiene " . count($comps)
+                        . ' competencia(s); se esperaba exactamente 1 — la hoja queda con su mapeo normal';
+                }
+            } elseif (isset($regla['buscar']['codigo_minedu'])) {
+                $comp = $this->modelo->competenciaPorCodigoMinedu(
+                    (int) $destino['nivel_id'],
+                    $regla['buscar']['codigo_minedu']
+                );
+                if ($comp === null) {
+                    $reporte[] = "EXCEPCION NO APLICADA (hoja {$codigoHoja}): no hay una competencia unica con codigo MINEDU '"
+                        . $regla['buscar']['codigo_minedu'] . "' en el nivel — la hoja queda con su mapeo normal";
+                }
+            }
+
+            if ($comp === null) {
+                return null;
+            }
+            return [
+                'competencia' => $comp,
+                'columnas'    => $regla['columnas'],
+                'motivo'      => $regla['motivo'],
+            ];
+        }
+        return null;
     }
 
     /** Estados que cuentan como emparejamiento efectivo (se escribe la nota). */

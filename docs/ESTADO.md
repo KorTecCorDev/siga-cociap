@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **27/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **29/07/2026**.
 
 ## Migraciones
 - **`046_orden_merito_inmutable`** (24/07): Fase B del rediseño del orden de mérito.
@@ -103,9 +103,12 @@
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
 - **CSP:** pasada dedicada — auditar estilos inline (`style="--pct:..."`) y el QR
   antes de aplicar `Content-Security-Policy`.
-- **Limpieza menor:** quitar del `.gitignore` las reglas obsoletas de
-  `public/assets/img/firmas/`; `AuthMiddleware` está SIN USAR (la auth es por
-  controlador) → decidir si se conecta o se elimina.
+- ~~**Limpieza menor:** `.gitignore` + `AuthMiddleware`~~ **CERRADO (verificado
+  29/07/2026).** Las reglas obsoletas de `public/assets/img/firmas/` ya no están en
+  el `.gitignore` (solo queda `/storage/firmas/*.png`, que es la correcta), y
+  `AuthMiddleware` **se eliminó** en el commit `eb0e9cf` (20/06/2026): la carpeta
+  `app/Middleware/` ya no existe. La auth sigue siendo por controlador — invariante
+  registrado en `CLAUDE.md` (Convenciones de código).
 - **Nómina detallada admin/RA — etapa 2** (resumen estadístico); la etapa 1
   (nómina imprimible global con filtros) está implementada. Ver `docs/modulos/admin.md`.
 - **Búsqueda del index de matrículas** no matchea códigos provisionales `P…`
@@ -115,6 +118,11 @@
   (vista consolidada, Tutoría/Conducta).
 - **Recreos:** no modelados (hoy son el hueco entre bloques). Primaria tiene 2 y
   secundaria 1 en horas distintas; chocan con el eje de fila única del imprimible.
+- **Limpieza de `bloques_horario` (no urgente, hallazgo 29/07/2026):** la config de 2026
+  tiene **9 bloques basura** con duración de 1 minuto y horarios imposibles (01:00-01:01,
+  02:02-02:03, 03:02-03:03…), **todos con 0 sesiones**; y desde el arreglo del solape de
+  DPCC quedó huérfano el bloque `15:45-17:20`. Nada de esto afecta a nadie hoy — barrerlo
+  cuando se toque el módulo de horarios.
 - **Logins para apoderados** (módulo diferido, análisis de impacto ya hecho):
   alta que reuse persona, soporte multi-hijo (`getHijo` LIMIT 1; 84 apoderados con
   >1 hijo), arreglar `desactivarUsuarioDeEstudiante`, política de contraseñas.
@@ -238,13 +246,72 @@ WHERE id=25;`).
 - **Variante SECUNDARIA — IMPLEMENTADA (12/07), B1 operativo.** Verificada con
   nóminas reales (S1A, S5B). NL literal confirmado; diferenciación por área
   (migración 039) → MATE (4/4, sin choque con talleres) e Inglés (por posición)
-  ya se llenan. Detalle en `docs/modulos/export-siagie.md`. **Diferidos:**
-  - **Selector de talleres** (por nómina, sin flag persistente) + definir cómo
-    llegan sus notas (hoja propia vs área anfitriona) — cuando haya archivo con
-    un taller aprobado en SIAGIE.
-  - **Ética/EREL para B2:** mapear **C57 (área 24, tutoría) → las 2 columnas de
-    Educación Religiosa (035-EREL)**; la nota única del tutor se DUPLICA; exonerados
-    → EXO. En B1 no hay notas de Ética → EREL en blanco es correcto.
+  ya se llenan. Detalle en `docs/modulos/export-siagie.md`.
+- **EXCEPCIONES DE HOJA — IMPLEMENTADAS (27/07/2026, en `dev`, sin migración).**
+  Reglas del colegio confirmadas por el usuario; viven en
+  `LlenadorSiagie::EXCEPCIONES_HOJA` (se descartó la tabla de datos: son reglas
+  curriculares estables, no configuración por bimestre). Regla completa en
+  `docs/modulos/export-siagie.md` §"Excepciones de hoja".
+  - **`035-EREL` ← Ética y Valores, TODOS los grados de secundaria.** El área
+    Ed. Religiosa tiene 0 cargas; evalúa el tutor. La nota se DUPLICA en las 2
+    columnas. Exonerados → EXO sin traducción (la exoneración ya está contra esa área).
+  - **`032-ETRA` ← GAMA (CT4), SOLO 5°.** En 5° no se dicta EPT (0 cargas; verificado:
+    1°=3, 2°=2, 3°=2, 4°=2, 5°=0); sus horas las ocupa el Taller de Pre-Cálculo, que
+    **no se reporta al SIAGIE** (decisión del colegio). GAMA queda escrita 2 veces en
+    5°: hoja `0007` + hoja `032`.
+  - ⚠️ **id 57 = GAMA; código C57 = Ética (id 127).** Las reglas anclan por
+    `nombre_boleta`/`codigo_minedu`, nunca por id.
+  - **VERIFICADO CON ACTA REAL DE 5° (29/07/2026, `S5B.xlsx`) — pendiente CERRADO.**
+    El libro **sí trae la hoja**; su tab real es **`032-ETRA`** (la doc decía
+    `032-EPT`, que era una abreviatura asumida — irrelevante para el código, que
+    matchea por el código `032` del tab). Tiene **una sola columna**, así que GAMA no
+    se duplica ahí. Su leyenda es **`01 = Gestiona proyectos de emprendimiento
+    económico o social`**, o sea la competencia de **EPT (C53)**, NO la de GAMA:
+    **la excepción es NECESARIA**, sin ella esa columna saldría en blanco en silencio.
+    `CT4` resuelve a una sola competencia, así que no cae en la degradación segura.
+    Detalle en `docs/modulos/export-siagie.md`. Sigue siendo buena práctica correr
+    `--simular` sobre la primera acta de B2 antes de subirla.
+- **VÍNCULOS Y COBERTURA — IMPLEMENTADO (28/07/2026, en `dev`, sin migración).**
+  Etapa 1 del gestor de vínculos SIGA↔SIAGIE. Detalle en
+  `docs/modulos/export-siagie.md` §"Vínculos y cobertura".
+  - **`/admin/actas-siagie/vinculos`** (solo lectura): áreas con notas y SIN destino,
+    vínculos configurados, excepciones de hoja resueltas y colisiones de código.
+    La tabla parte de `areas`, NO de `calificaciones`: un vínculo existe aunque el
+    bimestre no tenga notas (si no, Ética y Ed. Religiosa desaparecían justo cuando
+    hacía falta auditarlas). El índice de hojas ocupadas va por **nivel + código**:
+    sin el nivel, la regla `035` de secundaria marcaba como reemplazada a la
+    **Ed. Religiosa de PRIMARIA**, que se llena con normalidad (381 notas en B1).
+    **Primaria no se toca en nada** — verificado en los 6 grados.
+  - **`codigo_siagie` editable en Currículo** (antes solo por migración) con guardas
+    de formato y de colisión → **activar un taller que el SIAGIE ya reconozca ya no
+    necesita despliegue**.
+  - **Hallazgo medido:** en B1 se perdieron **321 notas bloqueadas** de talleres
+    (Raz. Mat. 272 + Pre-Cálculo 49) que nunca llegaron al acta, en silencio. En B2
+    ya van 24 del Taller de Raz. Mat.
+  - ⚠️ **BLOQUEO DE FONDO (29/07/2026): los talleres NO tienen hoja en el SIAGIE.**
+    Al ir a asignarles el `codigo_siagie` se verificó, leyendo los dos RegNotas
+    reales de B1 (`S1A.xlsx` de 1°A y `S5B.xlsx` de 5°B), que **ambos libros traen
+    las MISMAS 15 hojas y ninguna es de taller** — y 1°A es una sección donde SÍ se
+    dicta el Taller de Raz. Mat. **Asignar el código no resolvería nada: no hay hoja
+    que llenar.** Lo que falta no está en SIGA sino en el **plan de estudios
+    registrado en el SIAGIE** → es una gestión del colegio ante SIAGIE/UGEL, no un
+    cambio de código. Alcance (local, B1 completo; confirmar en prod): Raz. Mat.
+    = 1° a 5°, 11 secciones, 273 notas; Pre-Cálculo = 5° A y B, 49 notas.
+    **CAUSA RAÍZ Y DECISIONES (29/07/2026, usuario):** hay una **aprobación de talleres
+    PENDIENTE en la UGEL de Huaraz** y por eso el SIAGIE no habilita esas hojas.
+    **Taller de Raz. Mat. → SE DARÁ DE ALTA (sí o sí se registrará en el SIAGIE):**
+    cuando la UGEL apruebe, el RegNotas traerá su hoja y bastará teclear su
+    `codigo_siagie` en Currículo, sin despliegue; hasta entonces sus notas viven solo
+    en SIGA y **no son un olvido que perseguir**. **Taller de Pre-Cálculo → NO se
+    reporta** (decisión firme). La opción "área anfitriona" (etapa 2) queda descartada
+    de hecho. Detalle en `docs/modulos/export-siagie.md`.
+  **Diferido:**
+  - **Taller SIN hoja propia** (reportar bajo un área anfitriona): es el caso
+    peligroso — sus 3 competencias son homónimas de Matemática (C54↔C44, C55↔C47,
+    C56↔C45) y exigiría invertir la regla "ante homónimos gana la competencia de la
+    hoja", que es la que hoy protege el llenado de Matemática e Inglés. Requeriría el
+    gestor de vínculos completo (etapa 2, columna→competencia).
+  - **Selector de talleres por nómina** (efímero, sin flag persistente) — etapa 3.
 
 ## Rediseño del orden de mérito (COMPLETADO — 25/07/2026)
 
@@ -301,13 +368,97 @@ WHERE id=25;`).
 - **Digitar horarios reales en prod:** 1°A secundaria (11 cursos "sin horario
   propio" tras la migración 031) y las áreas sin bloques reales tras la 030
   (CyT/Matemática primaria 4°-6°, Arte y Cultura 1°A prim., etc.). 3°B ya está completo.
-- **Solape real preexistente:** CLEMENTE ANGELES, lunes, 1°C (14:40-16:10) vs
-  5°B (15:45-17:20) — debe resolverlo el colegio.
-- **Orden de mérito:** RECONSTRUCCIÓN DE B1 HECHA (25/07, ver "Rediseño del orden de
-  mérito" abajo, Fase C). Snapshot oficial de B1 = 528 en prod. Queda solo el check
-  visual de `/director/orden-merito/1` en prod (que los 9 reincorporados salgan en su
-  puesto). ⚠️ No correr `backfill_orden_merito.php` en prod (desde el 26/07 tiene guard
+- ~~**Solape de CLEMENTE ANGELES (DPCC, lunes)**~~ **RESUELTO EN PROD EL 29/07/2026**
+  (corregido por el usuario desde la UI; confirmó que el horario quedó bien). Se deja el
+  diagnóstico porque el patrón puede repetirse. El dato anterior tenía las secciones
+  invertidas. Real:
+  **5° B 14:40-16:10** (correcto) vs **1° C 15:45-17:20** (bloque nº111, 95 min, FUERA
+  de la grilla) → se pisan **25 min**. Son **dos** solapes: el docente y también la
+  **sección 1° C**, que a esa hora tiene Matemática con BUENO. **Horario correcto
+  (usuario):** DPCC 1° C = lunes **16:35-17:20** + jueves 13:10-13:55; 5° B = lunes
+  14:40-16:10. El jueves y 5° B ya están bien → **la corrección es UNA sesión**: mover
+  el lunes de 1° C al bloque 16:35-17:20. Franja destino verificada libre para sección y
+  docente. Al guardar, `horas_semanales` baja de 3 a **2**, igualando a las otras 10
+  cargas de DPCC (90 min); eso es lo correcto, no una pérdida. Se hace **por la UI**
+  (`/director/cargas` → editar la carga), no por SQL. Detalle completo en
+  `docs/modulos/horarios.md`.
+- **Orden de mérito: RECONSTRUCCIÓN DE B1 HECHA Y VERIFICADA EN PROD (29/07/2026).**
+  El snapshot oficial de B1 se reconstruyó el 25/07 (Fase C, ver "Rediseño del orden de
+  mérito" abajo) y el **check quedó cerrado el 29/07**: la firma en prod da
+  **528 filas / puestos 1-72 / 11 grados / 23 secciones** y los **10 reincorporados**
+  (8 `trasladado` + 2 `retirado`: matrículas 333, 308, **357**, **541**, 581, 191, 613,
+  307, 646, 281) salen cada uno en su puesto de grado y de sección. Eran 10, no 9 —
+  la 357 (HUAMAN VIENRICH) también es `retirado`.
+  Los lectores del snapshot (`OrdenMeritoModel::rankingGradoDesdeSnapshot` y
+  `rankingPorSeccionDesdeSnapshot`) unen `matriculas` solo para llegar a la persona:
+  **no re-filtran por `tipo` ni por `estado`**, por eso los reincorporados se pintan.
+  ⚠️ No correr `backfill_orden_merito.php` en prod (desde el 26/07 tiene guard
   propio, pero la advertencia sigue valiendo para versiones desplegadas antes).
+- **Cierre de B2 — SECUENCIA CORRECTA (fijada el 27/07/2026).** Los dos prerrequisitos
+  del cierre (F4) NO se comportan igual, así que el orden importa:
+  **docentes terminan de calificar y bloquear → deploy del rediseño 2 → medir →
+  resolver → cerrar.**
+  - 📋 **RUNBOOK EJECUTABLE: `docs/runbooks/cierre-de-bimestre.md`** (29/07/2026).
+    Fases 0-6 con checklists, las consultas de prod ya probadas (termómetro, desglose
+    por docente, verificación post-cierre), criterios de aborto y prohibiciones. Escrito
+    para B2 y reutilizable en B3/B4 cambiando `@periodo`. **El día del cierre, seguir
+    ese documento** en vez de reconstruir la secuencia de memoria.
+  - **FECHA DURA: el cierre de notas de los docentes es el 31/07/2026** (dato del
+    usuario, 28/07). **Decisión del 28/07: NO medir todavía** la alerta de evaluación
+    incompleta ni perseguir docentes — se les deja terminar. Medir **después del
+    31/07**, cuando las cifras dejen de ser un piso móvil. La herramienta está lista y
+    no requiere edición (`alerta_evaluacion_incompleta.sql` ya trae `@periodo := 2`).
+  - La **alerta de evaluación incompleta es estable**: su cálculo no mira
+    `bloqueos_competencia` (depende de criterios con nota, cargas activas, omisiones y
+    exoneraciones). Se puede medir HOY contra prod y el trabajo de resolverla —registrar
+    la nota o la omisión desde el módulo del docente— vale igual antes o después del
+    deploy. Herramienta: `database/verificaciones/alerta_evaluacion_incompleta.sql`
+    (phpMyAdmin, solo lectura; el Centro de control ya la muestra pero está en `dev`).
+  - Los **empates NO son estables**: P2 del rediseño 2 reduce el universo del cálculo en
+    vivo a competencias BLOQUEADAS, así que cambian con el deploy; y una resolución se
+    ancla al conjunto EXACTO de matrículas (`grupo_clave`), de modo que si el grupo
+    cambia deja de cubrirlo y el empate reaparece. **Resolver empates va DESPUÉS del
+    deploy y con todo bloqueado** (al cerrar, el propio cierre fuerza los bloqueos, así
+    que el universo converge). Se consultan en `/director/orden-merito/{periodo}`, que
+    ya lista los bimestres `activo` y está en prod desde el 17/06.
+  - **Al 27/07 no hay ninguna decisión de desempate tomada para B2** (confirmado por el
+    usuario): el bimestre no se ha cerrado, así que no hay trabajo que rehacer.
+  - **OJO — LOCAL NO SIRVE para dimensionar esto:** B2 en local tiene **77
+    calificaciones y 7 criterios** (B1 tiene 12 049 y 2 398). Los "19 alumnos de 4° A" y
+    el "empate de Secundaria 1°" que se miden en local son artefactos del dataset de
+    pruebas — el empate son 22 alumnos con `N=1`, una sola competencia calificada. Toda
+    cifra de bloqueadores de B2 debe salir de PRODUCCIÓN.
+  - La alerta **solo aflora un criterio cuando algún compañero de la sección ya tiene
+    nota en él**: lo que se mida a mitad de bimestre es un PISO, no un total.
+  - **TERMÓMETRO DE BLOQUEOS — medido en PROD el 28/07/2026: B1 = 0, B2 = 102.**
+    Cuenta pares carga+competencia **con notas y sin fila en `bloqueos_competencia`**
+    (`LEFT JOIN … WHERE bc.id IS NULL`, agrupado por `periodo_id`). Es el indicador de
+    "listos para cerrar": **cuando dé 0, los docentes terminaron.** También es un piso
+    (no ve lo aún no calificado), y tiene variante que desglosa por docente/sección
+    (join a `cargas_academicas` + `usuarios`/`personas`) para saber a quién apurar.
+    El **B1 = 0 confirma de forma independiente** que el snapshot oficial de 528 no
+    arrastra notas sin bloqueo → P2 del rediseño 2 no le mueve un puesto.
+  - ⚠️ **HUECO DEL GUARD DE EMPATES (hallazgo del 28/07/2026 — NO corregido, por
+    decisión).** En `Director/PeriodoController::cerrar` el guard de empates corre en
+    `:124`, pero `bloquearCompetenciasPendientes` está en `:155` y `registrarRanking`
+    en `:173`. Como `gradosConEmpatesPendientes` (`OrdenMeritoModel:666`) y
+    `calcularFilasRanking` (`:417`) hacen `INNER JOIN bloqueos_competencia`, **el guard
+    valida un universo más chico que el que se congela**: cerrar con pares sin bloquear
+    puede PETRIFICAR empates que nadie vio. Lo que `orden-merito-rediseno.md` llama
+    "diferencia consciente" (el cierre no valida P3 porque él mismo fuerza los bloqueos)
+    es justamente el origen del hueco: forzarlos DESPUÉS de validar hace que el conjunto
+    validado no sea el congelado.
+    - **Gravedad baja y REVERSIBLE mientras B2 no se publique:** sin publicación el
+      candado 046 no se activa, `registrarRanking` sigue escribiendo el OFICIAL y basta
+      reabrir → resolver → re-cerrar (costo: las boletas vuelven a BORRADOR). La ventana
+      irreversible se abre al **publicar**.
+    - **Decisión (28/07): opción C — no se toca el código.** Regla operativa:
+      **exigir que el termómetro dé 0 ANTES de pulsar Cerrar**; con 0 el hueco no
+      existe. Se descartó A (guard previo "0 sin bloquear"): mataría la válvula de
+      escape del bloqueo forzado, útil si un docente de licencia nunca bloquea.
+    - **Pendiente para DESPUÉS del cierre de B2 — opción B:** mover el guard de empates
+      a después del bloqueo forzado, dentro de la transacción y con rollback. Es la
+      corrección estructural correcta; no se estrena bajo presión en el cierre.
 - **Retorno de grado de BALTAZAR SHALOM CRISTEL — BLOQUEARÁ EL CIERRE DE B2.**
   Matrícula oficial 190 (Primaria 2° B, la de SIAGIE) + operativa 692 (1° B, donde
   CURSA); retorno activo desde el 21/06/2026. La evaluó la docente de 1° B, pero **esa
@@ -334,6 +485,10 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
+- **31/07/2026 — CIERRE DE NOTAS DE LOS DOCENTES (II Bimestre).** Fecha límite para
+  que terminen de calificar y **bloquear**. Recién después se mide (termómetro de
+  bloqueos + alerta de evaluación incompleta), se despliega, se resuelven empates y se
+  cierra. Detalle en "Cierre de B2 — SECUENCIA CORRECTA", en Pendientes operativos.
 - **08/07/2026 — Capacitación docente (PLAN CERRADO):** demos proyectadas desde
   el entorno de desarrollo; práctica de docentes en producción = trabajo REAL del
   II Bim; sin backup/restore. Dos turnos: primaria 12:30pm-2:00pm, secundaria
@@ -365,6 +520,12 @@ WHERE id=25;`).
   aseguramiento de los dos scripts destructivos. Probado en navegador por el usuario
   con dos usuarios padre de prueba (creados por SQL y ya borrados). **NO desplegado: el
   usuario no autorizó el merge a `main`.** No hay migración pendiente para este lote.
+- **29/07/2026 — foto verificada: `dev` en `25599ba`, `main` en `68968bb`,
+  28 commits por delante.** El lote acumulado es: rediseño 2 del orden de mérito +
+  excepciones de hoja SIAGIE (Ética→EREL, GAMA→EPT de 5°) + vínculos/cobertura con
+  `codigo_siagie` editable. **Sigue SIN migración pendiente** → el deploy es merge +
+  push, sin tocar la BD de prod. **NO autorizado todavía**; va después del 31/07
+  (cierre de notas de los docentes) y ANTES de medir/resolver empates.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
@@ -377,19 +538,46 @@ WHERE id=25;`).
   con ROLLBACK, aborta si detecta el archivo de secretos de producción, y reproduce el
   escenario "sin oficial" dentro de la transacción (antes su primera aserción no probaba
   nada, porque con un oficial presente la llamada devolvía `'rectificado'`).
-- **⚠️ LOCAL tiene el snapshot oficial de B1 VACÍO (verificado el 27/07/2026).**
-  `orden_merito_snapshot` y `orden_merito_rectificado` están en **0 filas**; PROD
-  conserva las **528**. B1 sigue `cerrado` y publicado en ambos niveles, y sus **14
-  desempates resueltos SÍ están intactos**. No es un fallo del código: sin filas,
-  `debeUsarSnapshot()` cae al cálculo en vivo de forma limpia y local muestra **518
-  alumnos** en B1 en lugar de 528. Lo que sí rompe es la CONFIANZA EN LAS PRUEBAS:
-  `verif_fase5b_rediseno_merito.php` avisa "INUTIL: son identicos" en su paso 0 de
-  control y a partir de ahí su **paso 2 da un OK falso** (compara el cálculo en vivo
-  contra sí mismo); solo su paso 3 sigue probando algo real. **Antes de creer cualquier
-  prueba local del mérito de B1, contar las filas del snapshot.** Para reconstruirlo hay
-  que reproducir la regla de la Fase C (roster con notas bloqueadas de B1 **sin filtro de
-  tipo**); `backfill_orden_merito.php` NO sirve (regla general → ~518/519).
+- **LOCAL tuvo el snapshot oficial de B1 VACÍO — RESUELTO el 27/07/2026.**
+  `orden_merito_snapshot` y `orden_merito_rectificado` habían quedado en **0 filas**
+  (PROD conservó siempre las 528). No era un fallo del código: sin filas
+  `debeUsarSnapshot()` cae al cálculo en vivo de forma limpia y local mostraba **518
+  alumnos** en B1. Lo que sí rompía era la CONFIANZA EN LAS PRUEBAS
+  (`verif_fase5b` daba un **OK falso** en su paso 2, comparando el vivo contra sí mismo).
+  **Reconstruido con `database/reconstruir_snapshot_b1.php`** (ver abajo): 528 filas,
+  11 grados, 23 secciones, puestos 1-72, 0 empates pendientes. Los **14 desempates
+  resueltos** nunca se perdieron — son lo único no derivable por cálculo.
+  - **Fidelidad verificada antes de escribir** (los 3 cambios del rediseño 2 son
+    inocuos para B1): 0 de las 12 047 calificaciones de B1 carecen de bloqueo (P2 no
+    mueve promedios), hay 0 notas de Ética en B1 (P5 no aplica) y el ranking completo
+    calculado con el `ORDER BY` de hoy (`m.id`) vs. el del 25/07 (apellidos) da
+    **exactamente los mismos puestos** — los 14 desempates cubren todos los grupos
+    irreducibles, así que el apellido nunca llegaba a dirimir. Tampoco hubo
+    rectificaciones posteriores (solo 2 extraordinarias, fuera del mérito por diseño).
+  - **Corrección de cifras (medidas el 27/07):** el roster en vivo de B1 da hoy **518**
+    (no "520/519") y la regla Fase C reincorpora **10**, no 9: los 8 `trasladado`, la
+    541 y además la **357 (HUAMAN VIENRICH CATALEYA)**, que también es `retirado`.
+    518 + 10 = 528, y la firma (528 filas, puestos 1-72) coincide con la de prod.
+  - `backfill_orden_merito.php` NO sirve para B1 (regla general → 518).
 - **`database/backfill_orden_merito.php`** ahora salta los periodos con snapshot oficial
   ya PUBLICADO salvo `--forzar`.
+- **`database/reconstruir_snapshot_b1.php` (nuevo, 27/07):** reconstruye el oficial de
+  B1 con la regla ESPECIAL de la Fase C (roster sin filtro de tipo). Guardas: aborta si
+  detecta el archivo de secretos de PROD; **simula por defecto** (`--confirmar` para
+  escribir); transacción; y antes del COMMIT verifica la FIRMA del documento
+  (528 filas / puestos 1-72 / 0 empates / 0 sin puesto de sección) — si no coincide,
+  ROLLBACK y aborta, prefiriendo dejar local sin snapshot antes que grabar un documento
+  distinto del de producción. Idempotente (verificado con 2 corridas). Reutiliza la
+  cascada del modelo por reflexión; solo duplica el SQL del roster, a propósito: meter
+  la regla Fase C dentro de `OrdenMeritoModel` abriría la puerta a generar rankings sin
+  filtro de tipo por accidente.
+- **`verif_fase_a_orden_merito.php` leía el ranking snapshot-aware (corregido 27/07).**
+  Escrito el 24/07, un día ANTES de la Fase C. Al volver a existir el snapshot de B1
+  —cuyo roster incluye trasladados y retirados por la regla especial— sus casos 541 y
+  308 salían "EN RANKING" contra su expectativa "FUERA". No era un fallo del código:
+  en PROD reportaba lo mismo desde el 25/07, y en local el snapshot vacío lo hacía pasar
+  por la razón equivocada. Ahora lee `rankingGradoLive` por reflexión (igual que
+  `verif_fase5b` y `gradosConEmpatesPendientes`): lo que la Fase A verifica es el FILTRO
+  del roster en vivo, no el documento congelado. Los 6 casos vuelven a coincidir.
 - **Regla general:** ningún script de `database/` debe "limpiar" con DELETE lo que no
   creó. Si escribe para probar, que use transacción + rollback.

@@ -3,6 +3,7 @@
 namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
+use App\Models\SiagieExportModel;
 use App\Siagie\LlenadorSiagie;
 use Core\Session;
 
@@ -176,6 +177,161 @@ class ActasSiagieController extends BaseController
             'creado'      => time(),
         ]);
         redirect('/admin/actas-siagie/resultado');
+    }
+
+    /**
+     * GET /admin/actas-siagie/vinculos — DIAGNÓSTICO de cobertura (solo lectura).
+     *
+     * Responde una pregunta que hasta ahora nadie podía hacerse: **¿qué notas de
+     * SIGA no están llegando al acta oficial?** Un área sin `codigo_siagie` se
+     * omite EN SILENCIO — así se perdieron los talleres del I Bimestre (322
+     * alumnos con nota, 0 reportados). Muestra, por bimestre:
+     *   - áreas con notas y SIN destino (lo que se está perdiendo),
+     *   - los vínculos hoja→área vigentes,
+     *   - las excepciones de hoja (Ética→EREL, GAMA→EPT 5°), que si no viven
+     *     solo dentro del código,
+     *   - colisiones de código, que romperían el mapeo sin avisar.
+     * No escribe nada: el vínculo se edita en Currículo (campo del área).
+     */
+    public function vinculos(): void
+    {
+        $modelo    = new SiagieExportModel();
+        $periodos  = $modelo->periodosConCalificaciones();
+        $periodoId = (int) ($this->query('periodo') ?? 0);
+
+        $ids = array_map('intval', array_column($periodos, 'id'));
+        if (!in_array($periodoId, $ids, true)) {
+            $periodoId = $ids ? end($ids) : 0;
+        }
+
+        $vinculos = $periodoId ? $modelo->vinculosDeAreas($periodoId) : [];
+
+        // Excepciones de TODOS los niveles del currículo (no solo los que tienen
+        // notas): un vínculo existe aunque el bimestre aún no tenga nada.
+        $excepciones = [];
+        foreach ($this->nivelesDeCobertura($vinculos) as $nivel) {
+            foreach ($this->llenador->excepcionesDeclaradas($nivel['codigo'], $nivel['id']) as $exc) {
+                $exc['nivel_nombre'] = $nivel['nombre'];
+                $exc['nivel_id']     = $nivel['id'];
+                $excepciones[] = $exc;
+            }
+        }
+
+        // Índices para clasificar cada área:
+        //  - recibe: área que se lleva una hoja por excepción (aunque no tenga código),
+        //  - hojaTomada: código de hoja → área que la ocupa por excepción, para
+        //    detectar el área cuyo código quedó REEMPLAZADO (Ed. Religiosa ↔ 035).
+        // OJO: `hojaTomada` se indexa por NIVEL + código. Las excepciones son por
+        // nivel ('035' solo aplica en secundaria), y sin el nivel en la clave la
+        // regla de secundaria marcaría como reemplazada a la Ed. Religiosa de
+        // PRIMARIA, que se llena con normalidad.
+        $recibePorExcepcion = [];
+        $hojaTomada         = [];
+        foreach ($excepciones as $exc) {
+            if (!empty($exc['competencia']['area_id'])) {
+                $areaId = (int) $exc['competencia']['area_id'];
+                $recibePorExcepcion[$areaId] = $exc['codigo_hoja'];
+                $hojaTomada[$exc['nivel_id'] . '|' . $exc['codigo_hoja']] = [
+                    'area_id'     => $areaId,
+                    'area_nombre' => $exc['competencia']['area_nombre'] ?? '',
+                    'grados'      => $exc['grados'],
+                ];
+            }
+        }
+
+        foreach ($vinculos as &$v) {
+            $v['estado'] = $this->estadoVinculo($v, $recibePorExcepcion, $hojaTomada);
+        }
+        unset($v);
+
+        $this->view('admin/actas_siagie/vinculos', [
+            'titulo'      => 'Actas SIAGIE — Vínculos y cobertura',
+            'periodos'    => $periodos,
+            'periodoId'   => $periodoId,
+            'vinculos'    => $vinculos,
+            'excepciones' => $excepciones,
+            'duplicados'  => $modelo->codigosSiagieDuplicados(),
+        ]);
+    }
+
+    /**
+     * Clasifica el vínculo de un área. El caso que importa —y que antes no se
+     * veía— es `reemplazada`: el área tiene su código configurado, pero una
+     * excepción entrega esa hoja a OTRA área, así que sus competencias no se
+     * escriben. Sin esta distinción, la configuración miente.
+     *
+     * @return array{clave: string, etiqueta: string, tono: string, detalle: string, hoja: ?string}
+     */
+    private function estadoVinculo(array $v, array $recibePorExcepcion, array $hojaTomada): array
+    {
+        $areaId  = (int) $v['area_id'];
+        $nivelId = (int) $v['nivel_id'];
+        $codigo  = trim((string) $v['codigo_siagie']);
+        $notas   = (int) $v['notas'];
+        $recibe  = $recibePorExcepcion[$areaId] ?? null;
+
+        // Hojas propias que una excepción entregó a OTRA área.
+        $robadas = [];
+        foreach ($codigo !== '' ? explode(',', $codigo) : [] as $cod) {
+            $k = $nivelId . '|' . $cod;
+            if (isset($hojaTomada[$k]) && $hojaTomada[$k]['area_id'] !== $areaId) {
+                $robadas[$cod] = $hojaTomada[$k];
+            }
+        }
+
+        if ($robadas !== []) {
+            $cod   = array_key_first($robadas);
+            $g     = $robadas[$cod]['grados'];
+            $donde = $g === null ? 'en todos los grados' : 'en ' . implode('°, ', $g) . '°';
+            return [
+                'clave'    => 'reemplazada',
+                'etiqueta' => $g === null ? 'reemplazada por excepción' : 'reemplazada ' . $donde,
+                'tono'     => 'warning',
+                'hoja'     => $codigo,
+                'detalle'  => 'La hoja ' . $cod . ' la llena «' . $robadas[$cod]['area_nombre'] . '» ' . $donde
+                            . '; las competencias de esta área no se escriben ahí.',
+            ];
+        }
+
+        if ($codigo !== '') {
+            // Puede tener hoja propia Y ADEMÁS recibir otra por excepción
+            // (Transversales: sus 0006/0007 y, en 5°, la 032 de EPT).
+            if ($recibe !== null) {
+                return ['clave' => 'vinculada', 'etiqueta' => 'vinculada + excepción', 'tono' => 'activo',
+                        'hoja' => $codigo . ' + ' . $recibe,
+                        'detalle' => 'Además llena la hoja ' . $recibe . ', que no es su área.'];
+            }
+            return ['clave' => 'vinculada', 'etiqueta' => 'vinculada', 'tono' => 'activo',
+                    'hoja' => $codigo, 'detalle' => ''];
+        }
+
+        if ($recibe !== null) {
+            return ['clave' => 'excepcion', 'etiqueta' => 'recibe por excepción', 'tono' => 'info',
+                    'hoja' => $recibe,
+                    'detalle' => 'Llena la hoja ' . $recibe . ' aunque no sea su área.'];
+        }
+
+        if ($notas > 0) {
+            return ['clave' => 'sin_destino', 'etiqueta' => 'sin destino', 'tono' => 'error',
+                    'hoja' => null, 'detalle' => 'Tiene notas bloqueadas que NO llegan al acta.'];
+        }
+
+        return ['clave' => 'no_exporta', 'etiqueta' => 'no se exporta', 'tono' => 'sin-notas',
+                'hoja' => null, 'detalle' => 'Sin código y sin notas en este bimestre.'];
+    }
+
+    /** Niveles presentes en la lista (id, codigo, nombre), sin repetir. */
+    private function nivelesDeCobertura(array $filas): array
+    {
+        $niveles = [];
+        foreach ($filas as $fila) {
+            $niveles[(int) $fila['nivel_id']] = [
+                'id'     => (int) $fila['nivel_id'],
+                'codigo' => $fila['nivel_codigo'],
+                'nombre' => $fila['nivel_nombre'],
+            ];
+        }
+        return $niveles;
     }
 
     /** GET /admin/actas-siagie/resultado — confirmación con descargas. */

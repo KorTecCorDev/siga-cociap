@@ -126,7 +126,7 @@ if ($area) {
                     <span class="curr-badge-inactiva">Inactiva</span>
                     <?php endif; ?>
                 </div>
-                <?php if ($area['nombre_boleta'] || $area['nombre_siagie']): ?>
+                <?php if ($area['nombre_boleta'] || $area['nombre_siagie'] || $area['codigo_siagie']): ?>
                 <div class="curr-detail__meta">
                     <?php if ($area['nombre_boleta']): ?>
                     <span class="curr-meta-item">
@@ -140,6 +140,11 @@ if ($area) {
                     <?php if ($area['nombre_siagie']): ?>
                     <span class="curr-meta-item">
                         <strong>SIAGIE:</strong> <?= e($area['nombre_siagie']) ?>
+                    </span>
+                    <?php endif; ?>
+                    <?php if ($area['codigo_siagie']): ?>
+                    <span class="curr-meta-item">
+                        <strong>Hoja:</strong> <code><?= e($area['codigo_siagie']) ?></code>
                     </span>
                     <?php endif; ?>
                 </div>
@@ -283,6 +288,20 @@ if ($area) {
                     <input type="text" id="area-nombre-siagie" name="nombre_siagie"
                            class="form-input" maxlength="120"
                            value="<?= e($area['nombre_siagie'] ?? '') ?>">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="area-codigo-siagie">Codigo de hoja SIAGIE</label>
+                    <input type="text" id="area-codigo-siagie" name="codigo_siagie"
+                           class="form-input" maxlength="40"
+                           placeholder="Ej: 063 (o 0006,0007)"
+                           pattern="\s*\d{2,4}(\s*,\s*\d{2,4})*\s*"
+                           value="<?= e($area['codigo_siagie'] ?? '') ?>">
+                    <p class="form-hint">
+                        Prefijo del nombre de la hoja en el archivo del SIAGIE
+                        (<code>063-MATE</code> &rarr; <code>063</code>). Sin codigo, el area
+                        <strong>no se vuelca</strong> al acta. Dos areas del mismo nivel no
+                        pueden compartir codigo.
+                    </p>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="area-orden">Orden</label>
