@@ -131,13 +131,22 @@ $saludo = match($auth_user['sexo'] ?? null) {
             $tEstado = 'progreso';
             $tTexto  = 'Bloqueadas ' . $tutoria['bloqueadas'] . ' de ' . $tutoria['total'];
         }
+        // Semaforo de estado del dashboard docente (ver docs/modulos/ui.md):
+        // gris = todavia no depende de ti · ambar = te toca · verde = terminado.
+        // "Disponible para cerrar" sigue en ambar a proposito: mientras quede
+        // una accion del tutor, la card no esta cerrada.
+        $tBadge = match ($tEstado) {
+            'cerrado'    => 'activo',
+            'disponible' => 'warning',
+            default      => 'espera',
+        };
         ?>
         <a href="<?= url('docente/tutoria') ?>" class="card dpanel-card dpanel-card--tutoria dpanel-card--<?= $tEstado ?>">
             <div class="dpanel-card__head">
                 <h2 class="card__title">Competencias Transversales — <?= e($tutoria['seccion']['grado_nombre']) ?> <?= e($tutoria['seccion']['nombre']) ?></h2>
             </div>
             <p class="dpanel-card__sub">Revisa los promedios TIC/GAMA, registra las conclusiones y cierra el bimestre de tu sección.</p>
-            <span class="badge badge--<?= $tEstado === 'cerrado' ? 'activo' : 'warning' ?>"><?= e($tTexto) ?></span>
+            <span class="badge badge--<?= $tBadge ?>"><?= e($tTexto) ?></span>
         </a>
     <?php endif; ?>
 
@@ -154,13 +163,20 @@ $saludo = match($auth_user['sexo'] ?? null) {
             $cEstado = 'progreso';
             $cTexto  = 'En espera';
         }
+        // Mismo semaforo que Competencias Transversales. "En espera" = RA aun no
+        // bloqueo, el tutor no puede registrar nada todavia -> gris.
+        $cBadge = match ($cEstado) {
+            'cerrado'    => 'activo',
+            'disponible' => 'warning',
+            default      => 'espera',
+        };
         ?>
         <a href="<?= url('docente/conducta') ?>" class="card dpanel-card dpanel-card--conducta dpanel-card--<?= $cEstado ?>">
             <div class="dpanel-card__head">
                 <h2 class="card__title">Conducta — <?= e($conducta['seccion']['grado_nombre']) ?> <?= e($conducta['seccion']['nombre']) ?></h2>
             </div>
             <p class="dpanel-card__sub">Revisa la nota de los auxiliares, agrega tu nota y cierra la conducta del bimestre.</p>
-            <span class="badge badge--<?= $cEstado === 'cerrado' ? 'activo' : 'warning' ?>"><?= e($cTexto) ?></span>
+            <span class="badge badge--<?= $cBadge ?>"><?= e($cTexto) ?></span>
         </a>
     <?php endif; ?>
 

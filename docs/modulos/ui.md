@@ -72,10 +72,16 @@
   `$tutoria`/`$conducta` (y se quitaron de ese controlador `TransversalModel`/`ConductaModel`
   que quedaron sin uso). La vista solo lista cargas.
 - **SASS** en `pages/_docente-panel.scss`: modificadores `.dpanel-card--{cargas,tutoria,
-  conducta,nomina}` (borde + título por color). El **fondo tenue (`-bg`) SOLO se pinta
-  cuando la card lleva un estado activo** (`--cerrado`/`--disponible`/`--progreso`); libre
-  de estados = fondo blanco (menos ruido). Como Mis cargas y Nómina nunca llevan estado,
-  quedan blancas; Tutoría/Conducta siempre traen estado, así que muestran su tinte.
+  conducta,nomina}` (borde + título por color). Todas las cards van sobre **fondo blanco**;
+  el color de concepto vive solo en el borde izquierdo y el título.
+- **CORRECCIÓN (31/07/2026):** este doc afirmaba que el fondo tenue (`-bg`) se pintaba
+  cuando la card llevaba estado activo. **No es cierto hoy**: las clases
+  `.dpanel-card--{cerrado,disponible,progreso}` que la vista sigue emitiendo **no tienen
+  ninguna regla** ni en `pages/_docente-panel.scss` ni en `public/css/app.css` (verificado
+  sobre el CSS compilado). Son ganchos inertes. Las reglas `&--progreso/&--disponible/
+  &--cerrado` que existen en `pages/_dashboard.scss:929` pertenecen a `.tutoria-card`, la
+  card larga que se retiró de `/docente/mis-cargas`. **En `/docente/inicio` el ÚNICO
+  elemento que comunica estado es el badge** (ver sección del semáforo, más abajo).
 
 ## Nómina del docente — buscador destacado + íconos de sección (22/06/2026)
 
@@ -204,3 +210,48 @@ de repetir el nombre. Motivo: con Ética y Valores, "Tutoría (TOE)" es ahora un
 carga académica más en mis-cargas y el rótulo viejo era ambiguo. La página
 destino ya se titulaba "Tutoría — Competencias Transversales" (sin cambios); la
 clase `.dpanel-card--tutoria` y el color teal de wayfinding se conservan.
+
+## Semáforo de estado de las cards del tutor (31/07/2026)
+
+> Las cards **Competencias Transversales** y **Conducta** de `/docente/inicio` pintaban
+> de ÁMBAR todo lo que no estuviera cerrado, así que "todavía no depende de ti" y "te
+> toca registrar" se veían idénticos. Ahora el color distingue **de quién depende la
+> acción**.
+
+**REGLA — tres estados, un solo significado por color:**
+
+| Color | Badge | Significado | Transversales | Conducta |
+|---|---|---|---|---|
+| **Gris** | `badge--espera` | **No depende del tutor todavía** | `Bloqueadas X de Y` (faltan docentes de área) | `En espera` (RA no bloqueó) |
+| **Ámbar** | `badge--warning` | **Le toca al tutor** | `Disponible — N conclusión(es) pendiente(s)` · `Disponible para cerrar` | `Disponible` |
+| **Verde** | `badge--activo` | **Terminado** | `Cerrado el dd/mm/aaaa` | `Cerrada el dd/mm/aaaa` |
+
+- **Punto único:** `$tBadge` / `$cBadge` (dos `match()` en `resources/views/docente/inicio.php`,
+  junto al cálculo de `$tEstado`/`$cEstado`). El badge se elige ahí, nunca inline en el HTML.
+- **`badge--espera`** (`components/_cards.scss`) es NUEVO y separado de `badge--sin-notas`
+  aunque compartan fondo `#f1f5f9`: significan cosas distintas y el texto va un paso más
+  oscuro (`#475569` vs `#64748b`) porque en 11px el gris claro queda al límite del
+  contraste AA.
+- **"Disponible para cerrar" se queda en ÁMBAR a propósito.** El verde tiene UN solo
+  significado: "esta card ya no me pide nada". Si se pintara verde al terminar de
+  registrar, el docente asumiría que acabó y dejaría el bimestre sin cerrar (y el KPI
+  "Avance del bimestre" nunca llegaría a 100%, porque cuenta `cierre`/`cerrado`, no los
+  registros — ver `PanelController::index`).
+- **NO usar rojo para "todavía no te toca"** (evaluado y descartado el 31/07/2026):
+  1. invierte la jerarquía de atención — el rojo jala la vista hacia la única card donde
+     el docente **no puede actuar**, y deja la accionable por debajo;
+  2. es el estado NORMAL al abrir cada bimestre, así que todo tutor vería sus dos cards
+     en rojo sin haber hecho nada mal → el rojo se desgasta;
+  3. en esa misma pantalla el rojo YA significa urgencia (`dpanel-kpi__num--err` en
+     "Cargas sin criterios" y en `diasCierre <= 3`, `badge--error` en Pendientes).
+- **Los textos NO cambiaron** — solo el color. La lógica de estados
+  (`PanelController::index`, líneas de `$tutoria`/`$conducta`) quedó intacta.
+
+### Asimetría conocida (deuda consciente)
+En **Conducta**, el ámbar (`Disponible`) NO distingue "aún no registro ninguna nota" de
+"ya registré todo, solo falta cerrar", porque **ese dato no existe**: `PanelController`
+solo trae `cierre` y `cerrado`. Para diferenciarlo haría falta un método nuevo en
+`ConductaModel` que cuente matrículas del roster con `nota_tutor IS NULL`
+(`completitudSeccion()` NO sirve: mide las respuestas del auxiliar, no la nota del tutor).
+Se decidió **no implementarlo por ahora** (31/07/2026). Transversales sí distingue, vía
+`$tutoria['pendientes']`, pero ambos sub-casos comparten el ámbar por la regla de arriba.

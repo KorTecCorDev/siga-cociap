@@ -89,6 +89,12 @@ details.card {
     &--info      { background: $color-info-bg;     color: $color-info;    }
     // Bloqueada sin calificaciones: tono apagado para diferenciar del verde normal
     &--sin-notas { background: #f1f5f9; color: #64748b; }
+    // "Todavia no te toca": estado NO accionable de las cards del dashboard
+    // docente (depende de otro actor: los docentes de area o RA). Apagado a
+    // proposito — solo el ambar debe reclamar atencion. Separado de
+    // --sin-notas (otro significado) y con texto un paso mas oscuro, que en
+    // 11px el #64748b queda al limite del contraste AA sobre este fondo.
+    &--espera    { background: #f1f5f9; color: #475569; }
     // Docente de aula (unidocente): color wayfinding de "Academicas / Mis cargas"
     // (azul) para identificar de un vistazo al tutor(a) de aula.
     &--aula      { background: $card-cargas-bg; color: $card-cargas-ink; }
