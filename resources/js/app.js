@@ -30,6 +30,19 @@ window.Modal = {
             overlay.classList.remove('modal--activo', 'modal--saliendo');
             overlay.setAttribute('hidden', '');
             document.body.classList.remove('modal-abierto');
+            // CERRAR DESCARTA lo no guardado. Los modales se renderizan una sola
+            // vez con los valores de la BD en el atributo value; al escribir se
+            // cambia la PROPIEDAD del control, no el atributo, asi que sin este
+            // reset el modal se reabria con lo tecleado y aparentaba que el
+            // cambio se habia guardado. form.reset() devuelve cada control a su
+            // valor por defecto, que es justo el que pinto el servidor.
+            // Se hace en cleanup (no al iniciar el cierre) para que los campos
+            // no parpadeen durante la animacion de salida.
+            // Seguro para los modales que puebla el JS (fechas, reapertura,
+            // tutor): todos reescriben sus campos en CADA apertura.
+            overlay.querySelectorAll('form').forEach(function(form) {
+                form.reset();
+            });
         };
 
         var onEnd = function(e) {

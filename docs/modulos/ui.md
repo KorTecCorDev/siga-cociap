@@ -255,3 +255,35 @@ solo trae `cierre` y `cerrado`. Para diferenciarlo haría falta un método nuevo
 (`completitudSeccion()` NO sirve: mide las respuestas del auxiliar, no la nota del tutor).
 Se decidió **no implementarlo por ahora** (31/07/2026). Transversales sí distingue, vía
 `$tutoria['pendientes']`, pero ambos sub-casos comparten el ámbar por la regla de arriba.
+
+## Modales: cerrar descarta lo no guardado (04/08/2026)
+
+**Síntoma (detectado probando `/admin/curriculum`):** se abría "Editar área", se
+tecleaba algo, se pulsaba **Cancelar** y al volver a abrir el modal seguían los valores
+tecleados — como si el cambio se hubiera guardado, cuando no se envió nada a la BD.
+
+**Causa:** `Modal.cerrar()` (`resources/js/app.js`) solo ocultaba el overlay. Los modales
+se renderizan **una sola vez** con los valores de la BD en el atributo `value`; al
+escribir se cambia la **propiedad** del control, no el atributo, así que el DOM conserva
+lo tecleado indefinidamente. No era un fallo de servidor: la BD nunca se tocó.
+
+**Arreglo:** `Modal.cerrar()` hace `form.reset()` sobre cada `<form>` del overlay, dentro
+de `cleanup()` (no al iniciar el cierre, para que los campos no parpadeen durante la
+animación de salida). `reset()` devuelve cada control a su valor por defecto, que es
+exactamente el que pintó el servidor.
+
+**Por qué es seguro tocarlo en el `Modal` genérico** — inventario completo de los 7
+modales del sistema al momento del cambio:
+
+| Modal | Origen de sus valores | Efecto del reset |
+|---|---|---|
+| Currículo: área, subárea, competencia | servidor (`value="..."`) | **corrige el bug** |
+| `modalFechas`, `modalReabrir` (`anio-academico.js`) | JS, reescritos en CADA apertura | ninguno |
+| `modalTutor` (`secciones.js`) | JS: `sel.innerHTML` se rehace en CADA apertura | ninguno |
+| `modalCierre` (`director/anios/show.php`) | sin formulario | ninguno |
+
+El envío AJAX de `modalTutor` llama a `Modal.cerrar()` y acto seguido a
+`window.location.reload()`, así que el reset no puede revertir nada ya guardado.
+
+⚠️ **Regla para modales nuevos:** si un modal se puebla por JS, debe hacerlo en **cada**
+apertura, nunca una sola vez al cargar la página. `Modal.cerrar` asume esa invariante.
