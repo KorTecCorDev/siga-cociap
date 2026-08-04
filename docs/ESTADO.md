@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **29/07/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **04/08/2026**.
 
 ## Migraciones
 - **`046_orden_merito_inmutable`** (24/07): Fase B del rediseño del orden de mérito.
@@ -90,6 +90,25 @@
   §1-5, que son el plan original). Estado vigente del módulo: `orden-merito.md`.
   Diferencia consciente con el diseño: el cierre **no** valida "0 competencias sin
   bloquear" (P3) porque él mismo las fuerza.
+  - **Al 04/08/2026 el lote está LISTO para desplegar** y las dos condiciones duras
+    están en verde (ver "Cierre de B2 — SECUENCIA CORRECTA"). Falta solo la
+    autorización explícita del usuario para mergear `dev` → `main`.
+- **Efecto colateral del guard P4 (llega con el deploy del rediseño 2) — REABRIR UN
+  BIMESTRE YA CERRADO SE VUELVE UNA PUERTA DE UN SOLO SENTIDO.** `cerrar()` exige
+  ahora `alertasEvaluacionIncompleta = 0`, y esa alerta se evalúa sobre bimestres
+  `activo`. Un bimestre que se cerró ANTES de que existiera el guard puede no
+  cumplirlo: **B1 tiene hoy 12 alumnos con blancos sin motivo**, así que reabrirlo lo
+  dejaría imposible de re-cerrar hasta resolverlos uno a uno (nota u omisión desde el
+  módulo del docente). No es un defecto —es la regla funcionando— pero es una
+  restricción que HOY no existe y que aparece en el instante del merge.
+  Antes de reabrir B1 (p. ej. para una rectificación), medir primero con
+  `alerta_evaluacion_incompleta.sql` cambiando a `@periodo := 1`.
+- **La superficie de mérito para familias entra OSCURA (medido el 04/08/2026):** en
+  prod hay **0 usuarios con rol Padre** (35 docentes, 1 admin, 1 registro académico,
+  1 Director EBR). `/padre/orden-merito` y `/padre/ranking-seccion` (fase 6) solo son
+  alcanzables por admin/RA, que están en el `requireRole` del controlador. Baja el
+  riesgo del deploy, pero significa que **la parte más nueva del lote no la va a
+  estrenar nadie** hasta que exista el módulo de logins para apoderados.
 - **Compuerta de publicación: EN PRODUCCIÓN desde el 22/07/2026** (migración 044
   + merge `dev`→`main` `dca4023`). Cerrar ya no publica; se publica por nivel con
   fecha/hora desde `/admin/control`. Regla, decisiones y verificación en
@@ -362,6 +381,21 @@ WHERE id=25;`).
   fila (0). Notas académicas intactas. Respaldo reversible vía tablas
   `_bkp_conducta_resp_541` / `_bkp_calif_conducta_541` (dejadas en prod como red de
   seguridad → **borrarlas tras el cierre de conducta de la sección A**).
+  - **ACTUALIZACIÓN 04/08/2026 — la 541 YA NO ES `retirado`: es `trasladado`**
+    (su traslado se consumó; `tipo_anterior='continuador'` intacto). El único
+    `retirado` que queda en prod es la **357** (HUAMAN VIENRICH). Reparto actual de
+    `matriculas.tipo`: 520 continuador · 9 trasladado · 5 nuevo · 1 retirado.
+    - **No mueve nada del mérito:** ambos tipos están excluidos del roster en vivo, y
+      el snapshot oficial de B1 está congelado en 528 (los 10 reincorporados de la
+      Fase C son exactamente estas 10 matrículas: 191, 281, 307, 308, 333, 357, 541,
+      581, 613, 646). 518 en vivo + 10 = 528 ✓.
+    - **Sí cambia su BOLETA:** como `trasladado` la 541 pasa a calificar para la
+      última boleta **OFICIAL** con estructura anual completa vía gestión, donde como
+      `retirado` salía forzada a BORRADOR. Ver `docs/modulos/boletas.md`.
+  - ✅ **Condición de borrado de los backups CUMPLIDA (verificado 04/08/2026):** la
+    conducta de B2 tiene **23 cierres** (todas las secciones) y la sección de la 541
+    —3° A, `seccion_id=18`— está entre ellas. **Ya se pueden hacer los `DROP TABLE`
+    de `_bkp_conducta_resp_541` y `_bkp_calif_conducta_541` en prod** (siguen ahí).
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
   (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la
   pestaña se cierra y no se acumulan.
@@ -398,6 +432,26 @@ WHERE id=25;`).
   del cierre (F4) NO se comportan igual, así que el orden importa:
   **docentes terminan de calificar y bloquear → deploy del rediseño 2 → medir →
   resolver → cerrar.**
+  - ✅ **MEDICIÓN DEL 04/08/2026 (BD local sincronizada con PROD ese día) — LAS DOS
+    CONDICIONES DURAS EN VERDE:**
+
+    | Condición | Valor | Antes |
+    |---|---|---|
+    | Termómetro de bloqueos | **B1 = 0 · B2 = 0** | B2 = 102 (28/07) |
+    | Alerta de evaluación incompleta B2 | **0 alumnos / 0 blancos** | 19/19 (27/07) |
+    | Empates pendientes B2 | **1 grado: Secundaria 4°** | sin medir |
+    | Empates pendientes B1 | 0 | 0 |
+
+    - B2 tiene **28 270 calificaciones y 1 283 bloqueos, TODOS con `origen='docente'`**
+      (ninguno forzado por cierre) → los docentes cerraron su parte en la fecha.
+    - La alerta se midió por **dos vías coincidentes**: el SQL de
+      `database/verificaciones/alerta_evaluacion_incompleta.sql` y el método PHP real
+      `ControlOperativoModel::alertasEvaluacionIncompleta(2)`.
+    - El empate de **Secundaria 4°** se midió **con el código de `dev`** (rediseño 2)
+      contra datos de prod → **es lo que se verá después del deploy**, no un piso móvil.
+      Se resuelve en la Fase 3 del runbook, DESPUÉS de mergear.
+    - ⚠️ **Con el termómetro en 0, el hueco del guard de empates no muerde** (ver abajo):
+      el universo validado y el congelado coinciden.
   - 📋 **RUNBOOK EJECUTABLE: `docs/runbooks/cierre-de-bimestre.md`** (29/07/2026).
     Fases 0-6 con checklists, las consultas de prod ya probadas (termómetro, desglose
     por docente, verificación post-cierre), criterios de aborto y prohibiciones. Escrito
@@ -431,6 +485,8 @@ WHERE id=25;`).
   - La alerta **solo aflora un criterio cuando algún compañero de la sección ya tiene
     nota en él**: lo que se mida a mitad de bimestre es un PISO, no un total.
   - **TERMÓMETRO DE BLOQUEOS — medido en PROD el 28/07/2026: B1 = 0, B2 = 102.**
+    *(SUPERADO: el 04/08 da B2 = 0 — ver la medición de arriba. Se conserva la
+    definición porque es la consulta que hay que repetir en cada cierre.)*
     Cuenta pares carga+competencia **con notas y sin fila en `bloqueos_competencia`**
     (`LEFT JOIN … WHERE bc.id IS NULL`, agrupado por `periodo_id`). Es el indicador de
     "listos para cerrar": **cuando dé 0, los docentes terminaron.** También es un piso
@@ -459,7 +515,20 @@ WHERE id=25;`).
     - **Pendiente para DESPUÉS del cierre de B2 — opción B:** mover el guard de empates
       a después del bloqueo forzado, dentro de la transacción y con rollback. Es la
       corrección estructural correcta; no se estrena bajo presión en el cierre.
-- **Retorno de grado de BALTAZAR SHALOM CRISTEL — BLOQUEARÁ EL CIERRE DE B2.**
+- ~~**Retorno de grado de BALTAZAR SHALOM CRISTEL — BLOQUEARÁ EL CIERRE DE B2.**~~
+  **RESUELTO PARA B2 (verificado el 04/08/2026):** la alerta de evaluación incompleta
+  de B2 da **0** y la matrícula **692 ya no aparece** en el detalle por alumno. El
+  riesgo que se anticipó abajo no llegó a materializarse como bloqueo del cierre.
+  - ⚠️ **En B1 SIGUE ABIERTO y ahora tiene consecuencia:** B1 arroja **12 alumnos**
+    con blancos sin motivo (692 entre ellos, con 69 blancos). Mientras B1 esté
+    **cerrado** la alerta ahí es solo informativa (fix `af72ac7`), pero el guard P4
+    llega con este lote → **si alguna vez se REABRE B1, no se podrá volver a cerrar**
+    hasta resolver esos 12. Tenerlo presente antes de reabrir B1 para una
+    rectificación. Ver "Efecto colateral del guard P4" en Pendientes de desarrollo.
+  - Se conserva el diagnóstico completo porque el patrón (evaluación registrada en las
+    cargas del grado oficial en vez de las del operativo) puede repetirse en B3/B4.
+
+  **Diagnóstico original (26-27/07/2026):**
   Matrícula oficial 190 (Primaria 2° B, la de SIAGIE) + operativa 692 (1° B, donde
   CURSA); retorno activo desde el 21/06/2026. La evaluó la docente de 1° B, pero **esa
   evaluación no existe en las cargas de 1° B**: los promedios se registraron en las
@@ -485,10 +554,14 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
-- **31/07/2026 — CIERRE DE NOTAS DE LOS DOCENTES (II Bimestre).** Fecha límite para
-  que terminen de calificar y **bloquear**. Recién después se mide (termómetro de
-  bloqueos + alerta de evaluación incompleta), se despliega, se resuelven empates y se
-  cierra. Detalle en "Cierre de B2 — SECUENCIA CORRECTA", en Pendientes operativos.
+- ~~**31/07/2026 — CIERRE DE NOTAS DE LOS DOCENTES (II Bimestre).**~~ **CUMPLIDA.**
+  Era la fecha límite para que terminaran de calificar y **bloquear**. Medido el
+  **04/08/2026**: termómetro de bloqueos **B2 = 0** (1 283 bloqueos, todos con
+  `origen='docente'`) y alerta de evaluación incompleta **B2 = 0**. Los docentes
+  cumplieron. Siguiente paso de la secuencia: **deploy** → resolver el empate de
+  Secundaria 4° → cerrar. Detalle en "Cierre de B2 — SECUENCIA CORRECTA", en
+  Pendientes operativos, y el procedimiento en
+  `docs/runbooks/cierre-de-bimestre.md`.
 - **08/07/2026 — Capacitación docente (PLAN CERRADO):** demos proyectadas desde
   el entorno de desarrollo; práctica de docentes en producción = trabajo REAL del
   II Bim; sin backup/restore. Dos turnos: primaria 12:30pm-2:00pm, secundaria
@@ -526,6 +599,21 @@ WHERE id=25;`).
   `codigo_siagie` editable. **Sigue SIN migración pendiente** → el deploy es merge +
   push, sin tocar la BD de prod. **NO autorizado todavía**; va después del 31/07
   (cierre de notas de los docentes) y ANTES de medir/resolver empates.
+- **04/08/2026 — foto verificada: `dev` en `c8c218d` (= `origin/dev`), `origin/main`
+  en `68968bb`, 39 commits por delante.** Suma al lote del 29/07 el **semáforo de las
+  cards del dashboard docente** (`05ac6ea`: gris "todavía no te toca" / ámbar / verde,
+  en Transversales y Conducta) y el merge de `origin/dev`. Árbol de trabajo LIMPIO.
+  **`origin/main` es ancestro directo de `dev` → el merge sería fast-forward.**
+  Sigue SIN migración pendiente. Verificado el mismo día: `gulp build` reproduce
+  `public/css/app.css` y `public/js/` **idénticos** a lo commiteado (sin CSS
+  desincronizado), y los 29 archivos PHP del lote pasan `php -l`.
+  - ⚠️ **`main` LOCAL está 6 commits detrás de `origin/main`.** Un
+    `git checkout main && git merge dev` sin actualizar antes NO da el fast-forward
+    esperado. Poner `main` al día con `origin/main` primero.
+  - **Verificado contra la copia fresca de prod (04/08):** las 4 verificaciones del
+    mérito pasan (fase A 6/6 · fase B candado 046 + rollback · fase 1 snapshot 528 ·
+    fase 5b control discrimina 518≠528) y **no dejan rastro** — tras correrlas el
+    snapshot sigue en 528 filas, 0 rectificados y 14 desempates.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
