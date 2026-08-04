@@ -452,6 +452,40 @@ WHERE id=25;`).
       Se resuelve en la Fase 3 del runbook, DESPUÉS de mergear.
     - ⚠️ **Con el termómetro en 0, el hueco del guard de empates no muerde** (ver abajo):
       el universo validado y el congelado coinciden.
+    - **El empate de Secundaria 4° lo resolvió el usuario el 04/08 a las 10:36** →
+      B2 queda con **0 empates reales**. Al resolverlo afloró el bug de la card
+      (ver el punto siguiente).
+  - 🐞 **CARD DE EMPATES DE `/admin/control` — FANTASMAS IRRESOLUBLES (CORREGIDO el
+    04/08/2026).** La card mostraba empates que ya estaban resueltos —o que nunca
+    existieron— y no se limpiaba nunca.
+    - **Causa:** el Centro de Control tenía su **propia copia de la cascada**
+      (`ControlOperativoModel::detectarGruposIrreducibles`, nacida el 08/06 a las 08:36)
+      que se quedó congelada en la tupla de 3 conteos (`num_c|num_b|num_ad`) y nunca
+      incorporó los criterios de regularidad alta `num_alto`/`num_16`, que el motor
+      real ganó **ese mismo día a las 12:59** (`d41c548`). Dos meses divergiendo.
+    - **Por qué era irresoluble:** la pantalla donde se resuelve
+      (`/director/orden-merito/{periodo}/desempate/{grado}`) usa el motor REAL, que no
+      considera empatados a esos alumnos → nunca los ofrecía. Caso medido: Secundaria 4°
+      B2, grupo {464, 652} — misma tupla de 3, pero `num_16` = 7 vs 2, así que el motor
+      real los ordena solo (puestos 30 y 31).
+    - **Alcance medido antes del arreglo:** B1 mostraba **7 grados** "pendientes" con
+      **0 reales** (sus 14 desempates estaban resueltos desde junio); B2 mostraba 6 con
+      0 reales.
+    - **NO era una regresión del lote:** el método era byte-idéntico al de `origin/main`
+      → el bug estaba **vivo en producción desde el 08/06/2026**. Tampoco afectaba a
+      ningún dato: el guard del cierre, el snapshot y la boleta siempre usaron el motor
+      real. Era un problema de confianza en la UI.
+    - **Arreglo (opción A):** se borró la copia; `empatesPendientes` ahora **delega** en
+      `OrdenMeritoModel::gradosConEmpatesPendientesDetalle`, punto único nuevo que el
+      guard del cierre también consume (vía el wrapper de strings, cuyo contrato NO
+      cambió). Se eliminó de paso la dependencia huérfana `DesempateMeritoModel` del
+      Centro de Control. Sin migración; sin cambios de SASS.
+    - **Verificación:** `database/verificaciones/verif_empates_card_control.php`
+      (transacción + ROLLBACK). Retira temporalmente las resoluciones para tener
+      empates de verdad y comprueba que card y motor real coinciden en grados **y**
+      conteos: B1 → 3 grados / 4 grupos, B2 → 4 grados / 6 grupos; con las
+      resoluciones puestas, ambos 0. Rollback verificado (14 y 7 resoluciones,
+      42 filas de detalle).
   - 📋 **RUNBOOK EJECUTABLE: `docs/runbooks/cierre-de-bimestre.md`** (29/07/2026).
     Fases 0-6 con checklists, las consultas de prod ya probadas (termómetro, desglose
     por docente, verificación post-cierre), criterios de aborto y prohibiciones. Escrito

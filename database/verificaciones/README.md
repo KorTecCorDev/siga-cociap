@@ -28,6 +28,19 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
   `gradosConEmpatesPendientes` sí mira el cálculo en vivo. Su **paso 0 es un control**:
   si el vivo y el snapshot coincidieran, los pasos siguientes no probarían nada.
 
+- **`verif_empates_card_control.php`** — Transacción + ROLLBACK. La card de empates de
+  `/admin/control` y la pantalla donde se resuelven (+ el guard del cierre) deben
+  reportar **los mismos grados y los mismos conteos**. Su **paso 2 retira temporalmente
+  las resoluciones humanas** para tener un escenario con empates de verdad: con todo
+  resuelto ambos dan 0 y la comparación no probaría nada. El paso 3 verifica que el
+  ROLLBACK las devolvió.
+  - Existe porque el Centro de Control tuvo su **propia copia de la cascada** desde el
+    08/06/2026, congelada en la tupla de 3 conteos (`num_c|num_b|num_ad`) sin los
+    criterios de regularidad alta (`num_alto`, `num_16`) que el motor real incorporó
+    ese mismo día. Inventaba empates que el motor deshace solo y que la pantalla de
+    resolución nunca ofrecía → **fantasmas irresolubles**. Corregido el 04/08/2026
+    delegando en `OrdenMeritoModel::gradosConEmpatesPendientesDetalle`.
+
 ## Consultas operativas (phpMyAdmin)
 
 - **`alerta_evaluacion_incompleta.sql`** — SOLO LECTURA. Replica

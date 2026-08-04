@@ -13,16 +13,14 @@ class ControlOperativoModel extends BaseModel
 {
     protected string $table = 'periodos';
 
-    private CalificacionModel    $calModel;
-    private SeccionModel         $seccionModel;
-    private DesempateMeritoModel $desempateModel;
+    private CalificacionModel $calModel;
+    private SeccionModel      $seccionModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->calModel       = new CalificacionModel();
-        $this->seccionModel   = new SeccionModel();
-        $this->desempateModel = new DesempateMeritoModel();
+        $this->calModel     = new CalificacionModel();
+        $this->seccionModel = new SeccionModel();
     }
 
     // ── Selector de periodo / año ────────────────────────────────
@@ -69,110 +67,22 @@ class ControlOperativoModel extends BaseModel
 
     /**
      * Grados del periodo con ≥1 grupo de empate irreducible aún sin resolver.
-     * Replica la regla de detección de OrdenMeritoController::aplicarDesempate
-     * (igual promedio exacto + N desigual, o igual distribución literal), y excluye
-     * los grupos ya resueltos consultando DesempateMeritoModel::getResolucion.
+     *
+     * DELEGA en `OrdenMeritoModel::gradosConEmpatesPendientesDetalle`, que es el
+     * MISMO cálculo que usa la pantalla donde se resuelven (`/director/orden-merito`)
+     * y el guard del cierre. No replicar la cascada aquí: este método tuvo su propia
+     * copia desde el 08/06/2026 y se quedó congelada en la tupla de 3 conteos
+     * (num_c|num_b|num_ad), sin los criterios de regularidad alta (`num_alto`,
+     * `num_16`) que el motor real incorporó ese mismo día. Resultado: la card
+     * inventaba empates que el motor deshace solo y que, al no existir para la
+     * pantalla de resolución, eran IRRESOLUBLES — no se limpiaban nunca.
+     * De paso arrastraba el roster viejo (`estado='aprobada'` en vez del filtro por
+     * `tipo`), no excluía las notas extraordinarias ni las no bloqueadas (P2) y
+     * contaba toda la tutoría en lugar de solo Ética y Valores.
      */
     public function empatesPendientes(int $periodoId): array
     {
-        $filas = $this->query("
-            SELECT
-                m.id AS matricula_id,
-                g.id AS grado_id,
-                g.numero AS grado_numero,
-                g.nombre_display AS grado_nombre,
-                n.nombre AS nivel_nombre,
-                n.id AS nivel_id,
-                COUNT(cal.nota_numerica)                  AS n_comp,
-                AVG(cal.nota_numerica)                    AS promedio_exacto,
-                SUM(cal.nota_numerica <= 10)              AS num_c,
-                SUM(cal.nota_numerica BETWEEN 11 AND 13)  AS num_b,
-                SUM(cal.nota_numerica >= " . NOTA_MIN_AD . ")              AS num_ad
-            FROM matriculas m
-            INNER JOIN secciones s        ON s.id  = m.seccion_id
-            INNER JOIN grados g           ON g.id  = s.grado_id
-            INNER JOIN niveles n          ON n.id  = g.nivel_id
-            INNER JOIN calificaciones cal ON cal.matricula_id = m.id
-            INNER JOIN competencias comp  ON comp.id = cal.competencia_id
-            LEFT  JOIN subareas sa        ON sa.id   = comp.subarea_id
-            INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
-            WHERE cal.periodo_id = ?
-              AND m.estado = 'aprobada'
-              AND m.id NOT IN (
-                  SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo'
-              )
-              AND a.tipo != 'transversal'
-            GROUP BY m.id, g.id, g.numero, g.nombre_display, n.nombre, n.id
-            ORDER BY n.id, g.numero
-        ", [$periodoId]);
-
-        // Agrupar por grado
-        $porGrado = [];
-        foreach ($filas as $f) {
-            $porGrado[(int) $f['grado_id']]['info'] = [
-                'grado_id'     => (int) $f['grado_id'],
-                'grado_nombre' => $f['grado_nombre'],
-                'nivel_nombre' => $f['nivel_nombre'],
-            ];
-            $porGrado[(int) $f['grado_id']]['filas'][] = $f;
-        }
-
-        $resultado = [];
-        foreach ($porGrado as $grado) {
-            $grupos = $this->detectarGruposIrreducibles($grado['filas']);
-            $pendientes = 0;
-            foreach ($grupos as $grupo) {
-                $mats = array_map(static fn($r) => (int) $r['matricula_id'], $grupo);
-                if ($this->desempateModel->getResolucion($periodoId, $mats) === null) {
-                    $pendientes++;
-                }
-            }
-            if ($pendientes > 0) {
-                $resultado[] = $grado['info'] + ['n_grupos' => $pendientes];
-            }
-        }
-
-        return $resultado;
-    }
-
-    /**
-     * Dado el conjunto de alumnos de un grado, devuelve los grupos empatados
-     * irreducibles (mismo promedio + N desigual, o misma distribución literal).
-     */
-    private function detectarGruposIrreducibles(array $alumnos): array
-    {
-        // Agrupar por promedio exacto
-        $porProm = [];
-        foreach ($alumnos as $a) {
-            $clave = (string) round((float) $a['promedio_exacto'], 6);
-            $porProm[$clave][] = $a;
-        }
-
-        $grupos = [];
-        foreach ($porProm as $grupoProm) {
-            if (count($grupoProm) < 2) {
-                continue;
-            }
-            $ns = array_unique(array_map(static fn($r) => (int) $r['n_comp'], $grupoProm));
-            if (count($ns) > 1) {
-                // N desigual → todo el grupo es irreducible
-                $grupos[] = $grupoProm;
-                continue;
-            }
-            // N uniforme → subagrupar por distribución literal (num_c, num_b, num_ad)
-            $porTupla = [];
-            foreach ($grupoProm as $a) {
-                $t = (int) $a['num_c'] . '|' . (int) $a['num_b'] . '|' . (int) $a['num_ad'];
-                $porTupla[$t][] = $a;
-            }
-            foreach ($porTupla as $sub) {
-                if (count($sub) >= 2) {
-                    $grupos[] = $sub;
-                }
-            }
-        }
-
-        return $grupos;
+        return (new OrdenMeritoModel())->gradosConEmpatesPendientesDetalle($periodoId);
     }
 
     // ── Chequeo 2: competencias con notas pero sin bloquear ──────

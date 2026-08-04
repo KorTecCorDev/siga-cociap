@@ -43,6 +43,23 @@ en documento oficial inmutable por snapshot.
   provisional refleja solo lo ya confirmado.
 - **Cascada de desempate sin apellidos** (rediseño 2): tras `num_16` el desempate es
   MANUAL y el orden de presentación lo fija `m.id` (neutro y determinista).
+- **PUNTO ÚNICO de "qué empates faltan" (desde el 04/08/2026):**
+  `OrdenMeritoModel::gradosConEmpatesPendientesDetalle`. Lo consumen el guard del
+  cierre (vía el wrapper `gradosConEmpatesPendientes`, que devuelve strings) y la card
+  del Centro de Control (`ControlOperativoModel::empatesPendientes`, que ahora solo
+  delega). **NUNCA reimplementar la cascada fuera de `aplicarDesempate`.**
+  - **Por qué existe la regla:** el Centro de Control tuvo su propia copia desde el
+    08/06/2026 (`detectarGruposIrreducibles`, hoy eliminada) que se quedó en la tupla
+    de 3 conteos y nunca incorporó `num_alto`/`num_16` — añadidos al motor real ese
+    mismo día, cuatro horas después (`d41c548`). Durante dos meses la card inventó
+    empates que el motor deshace solo; y como la pantalla de resolución sí usa el
+    motor real, esos grupos **jamás aparecían allí para resolverse**: la card no se
+    limpiaba nunca. Medido antes del arreglo: B1 mostraba 7 grados "pendientes" con
+    0 reales (14 desempates ya resueltos), B2 mostraba 6 con 0 reales.
+  - La copia además arrastraba el roster viejo (`estado='aprobada'` en vez del filtro
+    por `tipo`), no excluía notas extraordinarias ni no bloqueadas (P2) y contaba
+    toda la tutoría en vez de solo Ética y Valores.
+  - Regresión cubierta por `database/verificaciones/verif_empates_card_control.php`.
 
 ### Implementación
 - **Fase 1 — candados:** `AnioAcademicoModel::hayBimestrePrevioPendiente` (no abrir

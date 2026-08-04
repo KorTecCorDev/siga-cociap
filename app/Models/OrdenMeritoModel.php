@@ -653,6 +653,35 @@ class OrdenMeritoModel extends BaseModel
      */
     public function gradosConEmpatesPendientes(int $periodoId): array
     {
+        return array_map(
+            static fn(array $g): string => $g['nivel_nombre'] . ' — ' . $g['grado_nombre'],
+            $this->gradosConEmpatesPendientesDetalle($periodoId)
+        );
+    }
+
+    /**
+     * Igual que gradosConEmpatesPendientes, pero con el detalle que necesita una
+     * UI para enlazar a la pantalla de resolución: id del grado y CUÁNTOS grupos
+     * irreducibles siguen sin resolver.
+     *
+     * PUNTO ÚNICO de "qué empates faltan": lo usan el guard del cierre (vía el
+     * wrapper de arriba) y la card del Centro de Control. Antes el Centro tenía su
+     * propia copia de la cascada en `ControlOperativoModel::detectarGruposIrreducibles`,
+     * que se quedó congelada en la tupla de 3 conteos (num_c|num_b|num_ad) y nunca
+     * incorporó los criterios de regularidad alta (`num_alto`, `num_16`, commit
+     * `d41c548`). Consecuencia: inventaba empates que el motor real deshace solo, y
+     * como la pantalla de resolución sí usa el motor real, esos fantasmas eran
+     * IRRESOLUBLES — la card no se limpiaba nunca. No volver a duplicar esta lógica.
+     *
+     * `empate_clave` es la clave canónica del grupo (CSV de matrícula_id ordenados,
+     * `DesempateMeritoModel::claveGrupo`), así que contar claves distintas cuenta
+     * grupos, no alumnos.
+     *
+     * @return array<int, array{grado_id:int, grado_nombre:string, nivel_id:int,
+     *                          nivel_nombre:string, n_grupos:int}>
+     */
+    public function gradosConEmpatesPendientesDetalle(int $periodoId): array
+    {
         $grados = $this->query("
             SELECT DISTINCT g.id, g.numero, g.nombre_display,
                             n.id AS nivel_id, n.nombre AS nivel_nombre
@@ -674,11 +703,20 @@ class OrdenMeritoModel extends BaseModel
 
         $pendientes = [];
         foreach ($grados as $g) {
+            $claves = [];
             foreach ($this->rankingGradoLive((int) $g['id'], $periodoId) as $fila) {
-                if (!empty($fila['empate_pendiente'])) {
-                    $pendientes[] = $g['nivel_nombre'] . ' — ' . $g['nombre_display'];
-                    break;
+                if (!empty($fila['empate_pendiente']) && !empty($fila['empate_clave'])) {
+                    $claves[$fila['empate_clave']] = true;
                 }
+            }
+            if ($claves !== []) {
+                $pendientes[] = [
+                    'grado_id'     => (int) $g['id'],
+                    'grado_nombre' => $g['nombre_display'],
+                    'nivel_id'     => (int) $g['nivel_id'],
+                    'nivel_nombre' => $g['nivel_nombre'],
+                    'n_grupos'     => count($claves),
+                ];
             }
         }
 
