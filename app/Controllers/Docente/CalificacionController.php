@@ -1391,7 +1391,7 @@ class CalificacionController extends BaseController
             -- operativa deja de calificarse (lo hace de nuevo la oficial).
             AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
             AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
-            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
+            ORDER BY " . orden_alfabetico('p') . "
         ", [$seccionId]);
     }
 

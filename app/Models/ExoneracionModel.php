@@ -147,7 +147,7 @@ class ExoneracionModel extends BaseModel
             WHERE m.seccion_id  = ?
               AND e.anio_id     = ?
               AND e.revocado_en IS NULL
-            ORDER BY p.apellido_paterno, p.apellido_materno
+            ORDER BY " . orden_alfabetico('p', 2) . "
         ", [$seccionId, $anioId]);
     }
 
@@ -244,7 +244,7 @@ class ExoneracionModel extends BaseModel
             WHERE m.seccion_id = ?
               AND m.anio_id   = ?
               AND m.estado    = 'aprobada'
-            ORDER BY p.apellido_paterno, p.apellido_materno
+            ORDER BY " . orden_alfabetico('p', 2) . "
         ", [$seccionId, $anioId]);
     }
 

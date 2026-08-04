@@ -182,7 +182,7 @@ class ConductaModel extends BaseModel
               AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
               AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
               AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)
-            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
+            ORDER BY " . orden_alfabetico('p') . "
         ", [$seccionId]);
 
         if (empty($alumnos)) {
@@ -233,7 +233,7 @@ class ConductaModel extends BaseModel
               AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
               AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
               AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)
-            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
+            ORDER BY " . orden_alfabetico('p') . "
         ", [$periodoId, $seccionId]);
     }
 
@@ -527,7 +527,7 @@ class ConductaModel extends BaseModel
               AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
               AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
               AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)
-            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
+            ORDER BY " . orden_alfabetico('p') . "
         ", [$periodoId, $periodoId, $periodoId, $seccionId]);
 
         foreach ($rows as &$r) {

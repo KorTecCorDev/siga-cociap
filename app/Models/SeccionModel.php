@@ -62,7 +62,7 @@ class SeccionModel extends BaseModel
             INNER JOIN roles r    ON r.id = u.rol_id
             WHERE r.codigo = 'docente'
               AND u.estado = 'activo'
-            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
+            ORDER BY " . orden_alfabetico('p') . "
         ");
     }
 

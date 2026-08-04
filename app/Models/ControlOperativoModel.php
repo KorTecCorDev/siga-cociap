@@ -212,7 +212,7 @@ class ControlOperativoModel extends BaseModel
             INNER JOIN niveles n     ON n.id = g.nivel_id
             WHERE m.anio_id = ?
               AND m.estado = 'pendiente'
-            ORDER BY n.id, g.numero, s.nombre, p.apellido_paterno
+            ORDER BY n.id, g.numero, s.nombre, " . orden_alfabetico('p', 1) . "
         ", [$anioId]);
     }
 
@@ -260,7 +260,8 @@ class ControlOperativoModel extends BaseModel
             WHERE bc.origen     = 'cierre'
               AND bc.periodo_id = ?
             GROUP BY ca.docente_id, p.apellido_paterno, p.apellido_materno, p.nombres
-            ORDER BY n_competencias DESC, p.apellido_paterno, p.nombres
+            ORDER BY n_competencias DESC, p.apellido_paterno " . COLLATE_ES . ",
+                     p.nombres " . COLLATE_ES . "
         ", [$periodoId]);
 
         $resumen = ['competencias' => 0, 'cargas' => 0, 'docentes' => 0, 'sin_avance' => 0];
@@ -346,7 +347,8 @@ class ControlOperativoModel extends BaseModel
                                 AND ex.revocado_en IS NULL)
               -- Anclaje de retorno: excluye la oficial (compite en su operativa).
               AND m.id NOT IN (SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo')
-            ORDER BY n.id, g.numero, s.nombre, alumno, comp.nombre_completo, cr.orden
+            ORDER BY n.id, g.numero, s.nombre, " . orden_alfabetico('p') . ",
+                     comp.nombre_completo, cr.orden
         ", [$periodoId]);
 
         $porAlumno = [];

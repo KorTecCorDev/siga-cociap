@@ -364,7 +364,7 @@ class RectificacionModel extends BaseModel
               AND r.competencia_id = ?
               AND r.periodo_id     = ?
               AND r.tipo           = 'extraordinaria'
-            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres, r.id
+            ORDER BY " . orden_alfabetico('p') . ", r.id
         ", [$cargaId, $competenciaId, $periodoId]);
     }
 

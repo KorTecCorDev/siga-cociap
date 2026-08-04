@@ -120,7 +120,7 @@ class EstudianteModel extends BaseModel
             LEFT  JOIN personas   tp ON tp.id = tu.persona_id
             WHERE m.anio_id = ?
               AND ({$condicion})
-            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
+            ORDER BY " . orden_alfabetico('p') . "
             LIMIT {$limite}
         ", $params);
     }

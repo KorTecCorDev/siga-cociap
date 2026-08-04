@@ -223,7 +223,7 @@ class TutoriaController extends BaseController
             INNER JOIN personas p    ON p.id = e.persona_id
             WHERE m.seccion_id = ?
               AND m.tipo      NOT IN ('trasladado', 'retirado')
-            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
+            ORDER BY " . orden_alfabetico('p') . "
         ", [$seccionId]);
     }
 }

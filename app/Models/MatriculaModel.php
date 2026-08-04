@@ -227,7 +227,7 @@ class MatriculaModel extends BaseModel
             LEFT  JOIN personas ap    ON ap.id = apo.persona_id
             WHERE {$where}
             ORDER BY n.id, g.numero, s.nombre,
-                     p.apellido_paterno, p.apellido_materno, p.nombres
+                     " . orden_alfabetico('p') . "
         ", $params);
     }
 

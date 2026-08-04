@@ -287,3 +287,54 @@ El envío AJAX de `modalTutor` llama a `Modal.cerrar()` y acto seguido a
 
 ⚠️ **Regla para modales nuevos:** si un modal se puebla por JS, debe hacerlo en **cada**
 apertura, nunca una sola vez al cargar la página. `Modal.cerrar` asume esa invariante.
+
+## Orden alfabético en español: la Ñ va después de la N (04/08/2026)
+
+**Síntoma (detectado en la grilla de notas de 4° A primaria):** ÑIQUEN PAJUELO aparecía
+**antes** que NOLASCO REYES.
+
+**Causa:** las columnas de `personas` son `utf8mb4_unicode_ci`, colación que equipara
+**Ñ ≡ N** en el nivel primario de comparación. Al comparar "ÑIQUEN" con "NOLASCO" la Ñ
+pesa como N, empatan en la primera letra y decide la segunda: **I < O**, así que ÑIQUEN
+salía primero. En el alfabeto español la Ñ es letra propia y va **después** de la N, o
+sea NOLASCO → ÑIQUEN. No era un fallo del roster ni de la grilla: era el `ORDER BY`.
+
+**Arreglo:** `COLLATE utf8mb4_spanish_ci` en el ordenamiento, con punto único en
+`app/Helpers/helpers.php`:
+
+```php
+const COLLATE_ES = 'COLLATE utf8mb4_spanish_ci';
+function orden_alfabetico(string $alias = 'p', int $campos = 3): string
+
+// uso:  ORDER BY " . orden_alfabetico('p') . "
+//       ORDER BY n.id, g.numero, " . orden_alfabetico('per') . "
+```
+
+Aplicado a los **30 `ORDER BY`** de 19 archivos: grillas de notas/asistencia/conducta,
+tutoría, boletas públicas, nóminas, exportación SIAGIE, usuarios, apoderados,
+exoneraciones, rectificaciones y Centro de Control.
+
+**Por qué NO se cambió la colación de las columnas** (la alternativa obvia, que habría
+arreglado los 30 sitios con un `ALTER TABLE`): la colación no gobierna solo el orden,
+también el `=` y el `LIKE`. Hoy, gracias a `unicode_ci`, buscar "NUNUVERO" encuentra a
+**NUÑUVERO** — y la gente teclea sin ñ. Además arrastra riesgo de
+`Illegal mix of collations` contra columnas de otras tablas que siguen en `unicode_ci`.
+El `COLLATE` en el `ORDER BY` cambia el orden y **nada más**.
+
+`spanish_ci` y no `spanish2_ci`: la segunda trata CH y LL como letras independientes,
+criterio que la RAE abandonó en 1994.
+
+**Impacto real medido:** 58 personas tienen Ñ en su nombre, pero comparando las 23
+secciones con ambas colaciones **solo cambia 4° A de primaria** — en las demás la Ñ está
+en medio del apellido y no compite contra una N en la misma posición.
+
+**Lo que NO se ve afectado:**
+- **Actas SIAGIE:** `MatcherEstudiantes::normalizar` mapea `'Ñ' => 'N'` y casa por código
+  o por nombre normalizado **en PHP**, nunca por posición de fila.
+- **Orden de mérito:** los puestos ya no se desempatan por apellido (la cascada termina
+  en `m.id`), así que el snapshot de B1 no se mueve.
+
+⚠️ **Regla para consultas nuevas:** todo `ORDER BY` sobre nombres de personas usa
+`orden_alfabetico()`. Nunca ordenar por `p.apellido_paterno` a secas ni por un alias
+`CONCAT(...)` — el alias hereda la colación de la columna y reintroduce el problema (era
+el caso de `ControlOperativoModel::alertasEvaluacionIncompleta`, que ordenaba por `alumno`).

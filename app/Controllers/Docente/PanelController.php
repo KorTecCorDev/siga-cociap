@@ -810,7 +810,7 @@ class PanelController extends BaseController
               )
               AND n.id IN ($ph)$filtroSeccion
             ORDER BY n.id, g.numero, s.nombre,
-                     p.apellido_paterno, p.apellido_materno, p.nombres
+                     " . orden_alfabetico('p') . "
         ", $params);
     }
 

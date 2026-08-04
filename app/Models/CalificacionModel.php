@@ -806,7 +806,7 @@ class CalificacionModel extends BaseModel
             -- retorno activo / operativa ya revertida no se califican aquí).
             AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
             AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
-            ORDER BY p.apellido_paterno, p.apellido_materno
+            ORDER BY " . orden_alfabetico('p', 2) . "
         ", [$cargaId, $competenciaId, $periodoId, $cargaId]);
 
         // Agregar notas por criterio a cada alumno

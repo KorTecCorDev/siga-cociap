@@ -592,7 +592,7 @@ class AnioAcademicoModel extends BaseModel
               AND a.tipo        != 'transversal'
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, s.nombre
-            ORDER BY promedio_general DESC, p.apellido_paterno
+            ORDER BY promedio_general DESC, " . orden_alfabetico('p', 1) . "
         ", [$gradoId, $periodoId]);
 
         foreach ($estudiantes as $i => &$est) {

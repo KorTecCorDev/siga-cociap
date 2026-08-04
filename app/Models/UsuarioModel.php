@@ -110,7 +110,7 @@ class UsuarioModel extends BaseModel
             FROM usuarios u
             INNER JOIN personas p ON p.id = u.persona_id
             INNER JOIN roles r    ON r.id = u.rol_id
-            ORDER BY r.id, p.apellido_paterno, p.apellido_materno
+            ORDER BY r.id, " . orden_alfabetico('p', 2) . "
         ");
     }
 

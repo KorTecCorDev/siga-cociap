@@ -128,7 +128,7 @@ class SiagieExportModel extends BaseModel
               AND m.id NOT IN (
                   SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'activo'
               )
-            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
+            ORDER BY " . orden_alfabetico('p') . "
         ", [$seccionId]);
     }
 
@@ -163,7 +163,7 @@ class SiagieExportModel extends BaseModel
               AND m.id NOT IN (
                   SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'activo'
               )
-            ORDER BY s.nombre, p.apellido_paterno, p.apellido_materno, p.nombres
+            ORDER BY s.nombre, " . orden_alfabetico('p') . "
         ", [$gradoId, $anioId, $seccionExcluida]);
     }
 

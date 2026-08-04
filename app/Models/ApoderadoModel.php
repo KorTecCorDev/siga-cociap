@@ -52,7 +52,7 @@ class ApoderadoModel extends BaseModel
             INNER JOIN estudiantes e  ON e.id = vf.estudiante_id
             INNER JOIN personas    pe ON pe.id = e.persona_id
             WHERE vf.apoderado_id = ?
-            ORDER BY pe.apellido_paterno
+            ORDER BY " . orden_alfabetico('pe', 1) . "
         ", [(int) $apoderado['id']]);
 
         return $apoderado;
@@ -186,7 +186,7 @@ class ApoderadoModel extends BaseModel
             LEFT  JOIN usuarios tu   ON tu.id = s.tutor_id
             LEFT  JOIN personas tp   ON tp.id = tu.persona_id
             WHERE vf.apoderado_id = ?
-            ORDER BY p.apellido_paterno
+            ORDER BY " . orden_alfabetico('p', 1) . "
         ", [$anioId, $apoderadoId]);
     }
 

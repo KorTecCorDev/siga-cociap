@@ -188,6 +188,49 @@ const NOTA_MIN_A  = 14;
 const NOTA_MIN_B  = 11;
 
 /**
+ * Colación de ordenamiento alfabético en ESPAÑOL — PUNTO ÚNICO DE VERDAD.
+ *
+ * Las columnas de `personas` son `utf8mb4_unicode_ci`, que equipara Ñ ≡ N: al
+ * comparar "ÑIQUEN" con "NOLASCO" la Ñ pesa como N, decide la segunda letra
+ * (I < O) y ÑIQUEN sale ANTES. En el alfabeto español la Ñ es letra propia y va
+ * DESPUÉS de la N, así que lo correcto es NOLASCO → ÑIQUEN.
+ *
+ * Se aplica SOLO en el ORDER BY, nunca a la colación de las columnas: cambiarlas
+ * afectaría también `=` y `LIKE`, y las búsquedas dejarían de encontrar a
+ * NUÑUVERO cuando alguien escribe "NUNUVERO" (la ñ se omite al teclear).
+ *
+ * `spanish_ci` y no `spanish2_ci`: la segunda trata CH y LL como letras
+ * independientes, criterio que la RAE abandonó en 1994.
+ */
+const COLLATE_ES = 'COLLATE utf8mb4_spanish_ci';
+
+/**
+ * Fragmento de ORDER BY para listar personas alfabéticamente en español.
+ * Se interpola en SQL: es una constante del código, nunca entrada del usuario.
+ *
+ *   ORDER BY " . orden_alfabetico('p') . "
+ *   ORDER BY n.id, g.numero, " . orden_alfabetico('per') . "
+ *
+ * @param string $alias  alias de la tabla `personas` en la consulta.
+ * @param int    $campos 3 = paterno+materno+nombres (lo normal), 2 = sin
+ *                       nombres, 1 = solo paterno. Para combinaciones raras,
+ *                       interpolar COLLATE_ES a mano junto a cada columna.
+ */
+function orden_alfabetico(string $alias = 'p', int $campos = 3): string
+{
+    $columnas = array_slice(
+        ['apellido_paterno', 'apellido_materno', 'nombres'],
+        0,
+        max(1, min(3, $campos))
+    );
+
+    return implode(', ', array_map(
+        static fn(string $c): string => "{$alias}.{$c} " . COLLATE_ES,
+        $columnas
+    ));
+}
+
+/**
  * Marca del área de Ética y Valores (Educación Religiosa) — PUNTO ÚNICO.
  * Es la única área `tipo='tutoria'` que cuenta en el ORDEN DE MÉRITO
  * (reemplaza a Ed. Religiosa en secundaria; migración 035 la sella con este

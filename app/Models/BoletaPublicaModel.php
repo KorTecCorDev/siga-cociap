@@ -113,7 +113,7 @@ class BoletaPublicaModel extends BaseModel
                AND bc.periodo_id     = cal.periodo_id
             WHERE m.estado = 'aprobada'
               {$whereSeccion}
-            ORDER BY g.id, s.nombre, per.apellido_paterno, per.apellido_materno, per.nombres
+            ORDER BY g.id, s.nombre, " . orden_alfabetico('per') . "
         ", $params);
     }
 
@@ -158,7 +158,7 @@ class BoletaPublicaModel extends BaseModel
             WHERE m.estado = 'aprobada'
               {$whereSeccion}
             ORDER BY n.id, g.numero, s.nombre,
-                     per.apellido_paterno, per.apellido_materno, per.nombres
+                     " . orden_alfabetico('per') . "
         ", $params);
     }
 
@@ -248,7 +248,7 @@ class BoletaPublicaModel extends BaseModel
             WHERE bp.periodo_id = ?
               AND m.estado <> 'desactivado'
               {$whereSeccion}
-            ORDER BY n.id, g.numero, s.nombre, per.apellido_paterno, per.apellido_materno, per.nombres
+            ORDER BY n.id, g.numero, s.nombre, " . orden_alfabetico('per') . "
         ", $params);
     }
 
