@@ -60,6 +60,18 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     matrículas (`grupo_clave`) — si el grupo cambia, deja de cubrirlo. Resolver empates
     va DESPUÉS del deploy y con todo bloqueado.
 
+- **`transversales_pendientes.sql`** — SOLO LECTURA. Lista a los **docentes que aún no
+  aprobaron+bloquearon las transversales (TIC/GAMA)** de sus cargas: el bloqueador
+  típico del cierre del tutor. Cuatro bloques autocontenidos (periodos y secciones de
+  referencia · resumen por docente · detalle por carga+competencia · resumen por sección
+  con el estado del cierre transversal), con `@periodo`, `@seccion_id` y `@seccion_txt`
+  para acotar. Replica el universo de cargas de `CalificacionController::formulario()`
+  —incluida la regla de carga **dueña** en secciones unidocentes— verificado 1 a 1
+  contra `cargaDuenaTransversales()` (345 = 345 cargas, 0 diferencias) y contrastado en
+  los dos periodos con datos (B1 cerrado: 0 pendientes en las 23 secciones; B2: las
+  lista). Excluye por diseño la carga de Tutoría/Ética y la carga transversal del modelo
+  viejo (migración 019), que no llevan TIC/GAMA.
+
 Requisitos: haber aplicado la migración `046_orden_merito_inmutable.sql` en local y
 tener B1 (periodo 1) con sus filas de `periodos_publicacion` (backfill de la 044).
 
