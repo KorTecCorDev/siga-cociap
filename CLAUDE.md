@@ -187,6 +187,7 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | Producción, seguridad, despliegue, secretos, setup SQL desde cero | `docs/infraestructura.md` |
 | Decisiones diferidas (suspensiones, compuerta de publicación, capacitación) | `docs/decisiones-diferidas.md` |
 | **CERRAR un bimestre en producción** (secuencia, consultas, verificación) | `docs/runbooks/cierre-de-bimestre.md` |
+| Compuerta temporal de edición y los 4 registros del bimestre (PLAN, sin implementar) | `docs/modulos/cierre-cuatro-registros.md` |
 | **Estado vivo: pendientes, migraciones, planes con fecha** | `docs/ESTADO.md` |
 
 ### Reglas de mantenimiento de la red

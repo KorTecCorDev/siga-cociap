@@ -117,6 +117,21 @@
   - **Pendiente relacionado:** el **logro anual** todavía usa "último bimestre
     cerrado"; debe exigir **año académico cerrado**. Se dejó fuera a propósito
     (decisión #9): el usuario explicará antes la situación del cierre de fin de año.
+- **LOS 4 REGISTROS DEL BIMESTRE Y EL CONTRATO DEL CIERRE — PLAN APROBADO, SIN
+  IMPLEMENTAR (04/08/2026).** Se ejecuta **después de cerrar y publicar B2**, para que
+  el primer bimestre bajo las reglas nuevas sea B3. Plan completo con fases, riesgos y
+  preguntas abiertas: **`docs/modulos/cierre-cuatro-registros.md`**.
+  - **Origen:** al verificar la regla del colegio ("los 4 registros aprobados y
+    bloqueados antes de cerrar") se descubrió que **conducta y asistencia están fuera
+    del contrato del cierre** (ni se exigen ni se fuerzan), y que la compuerta temporal
+    está escrita **4 veces en 3 regímenes distintos** — transversales no tiene ninguna.
+  - **Decisiones cerradas del usuario (no re-preguntar):** D1 el cierre **EXIGE**
+    (aborta) conducta y asistencia bloqueadas —académicas y transversales se siguen
+    forzando—; D2 `limite_notas` sigue siendo **una sola fecha**, sin migración;
+    D3 transversales **sí** pasa a respetar la compuerta; D4 **no** se puede bloquear
+    una sección de asistencia sin ninguna fila registrada.
+  - **Sin migración.** Orden: F1 punto único → F3 guard de sección vacía → F2 guard del
+    cierre → F4 transversales (esta última **exige avisar antes a los tutores**).
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
@@ -396,6 +411,22 @@ WHERE id=25;`).
     conducta de B2 tiene **23 cierres** (todas las secciones) y la sección de la 541
     —3° A, `seccion_id=18`— está entre ellas. **Ya se pueden hacer los `DROP TABLE`
     de `_bkp_conducta_resp_541` y `_bkp_calif_conducta_541` en prod** (siguen ahí).
+- 🔴 **ASISTENCIA DE B2 VACÍA — BLOQUEA EL CIERRE (detectado el 04/08/2026).**
+  `inasistencias` tiene **528 filas en B1 y 0 en B2**; `cierres_asistencia`, 23 secciones
+  en B1 y **0 en B2**. Cerrar y publicar así mandaría a las familias asistencia **en
+  ceros**, que es un dato FALSO, no ausente (la boleta pinta una columna por bimestre
+  cerrado y suma lo que encuentre).
+  - **Causa de que no se pudiera registrar:** `limite_notas` de B2 = **04/08/2026
+    04:00**, ya vencido. El bimestre sigue `activo`, pero `AsistenciaModel::periodoEditable`
+    exige `activo` **Y** estar dentro del plazo → la captura se cerró sola.
+    ⚠️ **El registro de asistencia NO requiere el bimestre cerrado — requiere lo
+    contrario.** Cerrarlo lo deja en solo lectura para siempre.
+  - **Mismo plazo corta también notas y conducta** (`CalificacionModel::periodoEstaBloqueado`,
+    `ConductaModel`), no solo asistencia.
+  - **ACCIÓN, antes de la Fase 4 del runbook:** ampliar `limite_notas` desde
+    `/director/anios/1` → registrar las incidencias de las 23 secciones en
+    `/admin/asistencia` → bloquear cada sección. Recién entonces cerrar B2.
+  - Que esto no se repita es el objeto del plan `docs/modulos/cierre-cuatro-registros.md`.
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
   (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la
   pestaña se cierra y no se acumulan.
