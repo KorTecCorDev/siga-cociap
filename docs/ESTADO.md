@@ -641,9 +641,15 @@ WHERE id=25;`).
   Sigue SIN migración pendiente. Verificado el mismo día: `gulp build` reproduce
   `public/css/app.css` y `public/js/` **idénticos** a lo commiteado (sin CSS
   desincronizado), y los 29 archivos PHP del lote pasan `php -l`.
-  - ⚠️ **`main` LOCAL está 6 commits detrás de `origin/main`.** Un
+  - ⚠️ **`main` LOCAL estaba 6 commits detrás de `origin/main`.** Un
     `git checkout main && git merge dev` sin actualizar antes NO da el fast-forward
-    esperado. Poner `main` al día con `origin/main` primero.
+    esperado. **RESUELTO el 04/08:** se puso `main` al día (`10d6d51`→`68968bb`) y se
+    mergeó `dev` por fast-forward → **`main` local en `0e250d1`, SIN PUSHEAR**
+    (producción sigue en `68968bb`; el auto-deploy no se disparó).
+  - **04/08 (después del merge local) — `dev` en `495cb3d`:** suma el fix de la card
+    de empates de `/admin/control` (ver "CARD DE EMPATES" en Pendientes operativos).
+    `main` local quedó **un commit por detrás de `dev`** → hay que repetir el
+    fast-forward antes de pushear. Sigue sin migración.
   - **Verificado contra la copia fresca de prod (04/08):** las 4 verificaciones del
     mérito pasan (fase A 6/6 · fase B candado 046 + rollback · fase 1 snapshot 528 ·
     fase 5b control discrimina 518≠528) y **no dejan rastro** — tras correrlas el
