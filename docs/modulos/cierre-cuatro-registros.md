@@ -56,6 +56,8 @@ Dos consecuencias:
 | D2 | Fecha límite | **ÚNICA para los 4 registros**, lectura unificada en un punto único. **Sin migración** |
 | D3 | Transversales | **Sí, igualarla**: pasa a respetar la compuerta temporal |
 | D4 | Bloquear una sección de asistencia sin ninguna fila | **Rechazar con aviso** |
+| D5 | Universo canónico de secciones del guard (F2) | **TODAS las secciones del año**, sin filtrar por tutor ni por nómina |
+| D6 | Etapas de conducta que exige el guard (F2) | **Las dos**: `ra_bloqueado_en` **y** `tutor_cerrado_en` |
 
 Notas de alcance derivadas:
 
@@ -69,9 +71,15 @@ Notas de alcance derivadas:
 
 ### F1 — Punto único de la compuerta temporal
 
-Hoy la regla "¿se puede editar este periodo?" está escrita **cuatro veces**: dos en PHP
+Hoy la regla "¿se puede editar este periodo?" está escrita **cinco veces**: tres en PHP
 (`CalificacionModel:288`, `AsistenciaModel:419`, `ConductaModel:703`) y dos como columna
 calculada en SQL (`AsistenciaModel:50`, `ConductaModel:53`).
+
+> **No confundir con lecturas que NO son compuerta** y quedan fuera del refactor:
+> `AnioAcademicoModel:617` (ranking de docentes más rápidos: usa `limite_notas` como
+> referencia de margen, con fallback a `fecha_fin`), `BloqueoController:143` y
+> `PanelController:115` (cuenta de días restantes para mostrar en pantalla). Ninguna
+> decide si se puede escribir.
 
 **Propuesta:** un modelo dedicado, siguiendo el idioma ya establecido por
 `PublicacionBoletaModel` (punto único de la compuerta 044):
@@ -89,32 +97,41 @@ app/Models/EdicionPeriodoModel.php
   incidente de B2 fue difícil de diagnosticar precisamente porque la pantalla no
   distinguía "bimestre cerrado" de "plazo vencido".
 
-> ⚠️ **Riesgo a validar antes de tocar académicas:** unificar significa elegir una
-> semántica para los periodos `pendiente`. La correcta es **no editable** (aún no
-> empieza), que es lo que ya hacen conducta y asistencia; adoptarla cambia el
-> comportamiento actual de **académicas**. Antes de implementar, comprobar que ningún
-> flujo docente dependa de escribir en un bimestre `pendiente`.
+> ✅ **Riesgo de los periodos `pendiente`: VERIFICADO Y DESCARTADO (04/08/2026).**
+> Unificar obliga a elegir una semántica para `pendiente`; la correcta es **no editable**
+> (aún no empieza), que es lo que ya hacen conducta y asistencia, y adoptarla cambia en
+> teoría el comportamiento de académicas. En la práctica **no cambia nada alcanzable**:
+> `periodoEstaBloqueado` solo lo consume `Docente\CalificacionController` (8 llamadas,
+> ningún otro archivo); 7 reciben el periodo de `getPeriodoActivo()`, que es
+> `WHERE p.estado = 'activo'` (`:1139`), y el selector de bimestre del docente ofrece
+> solo `estado IN ('activo','cerrado')` (`:62-69`). Las 2 restantes (`:957`, `:1035`)
+> derivan el periodo de `criterios.periodo_id`, y un criterio solo nace bajo el periodo
+> activo. Un `pendiente` nunca llega a la función.
 
 ### F2 — Guard del cierre (D1)
 
 En `Director\PeriodoController::cerrar`, un **tercer guard** junto a los de empates y
 evaluación incompleta, y **antes** de abrir la transacción:
 
-- Fuente de datos: `ConductaModel::getResumenSeccionesPorPeriodo($id)` y
-  `AsistenciaModel::getResumenSeccionesPorPeriodo($id)` — **ya existen y son simétricos**;
-  ambos devuelven `cierre_id` (null = sin bloquear). No hay que escribir SQL nuevo.
-- Si alguna sección tiene `cierre_id IS NULL`, abortar nombrando **registro + secciones**
-  (no un conteo suelto: el mensaje tiene que decir a dónde ir).
+- **Universo (D5): TODAS las secciones del año del periodo**, sin filtrar por tutor ni por
+  nómina. Es el criterio estricto: ninguna sección puede quedar invisible al contrato.
+- Falta bloqueo si **asistencia** no tiene `cierre_id`, o si **conducta** no tiene
+  `cierre_id` **o** le falta `tutor_cerrado_en` (D6: se exigen las dos etapas).
+- Abortar nombrando **registro + secciones** (no un conteo suelto: el mensaje tiene que
+  decir a dónde ir).
 
-> ⚠️ **Asimetría del universo de secciones — resolver antes de implementar.** Los dos
-> resúmenes no miran el mismo conjunto: conducta exige `s.tutor_id IS NOT NULL`;
-> asistencia exige `s.estado_nomina = 'aprobada'`. Una sección sin tutor sería
-> **invisible** para el guard de conducta. Hay que decidir cuál es el universo canónico
-> del cierre y aplicarlo a ambos.
+> ⚠️ **D5 obliga a SQL nuevo — corrige una suposición de la primera versión del plan.**
+> Se creía reutilizables `ConductaModel::getResumenSeccionesPorPeriodo` y su gemelo de
+> `AsistenciaModel`, pero **ninguno recorre el universo canónico**: conducta hace
+> `INNER JOIN usuarios` por `s.tutor_id` y exige `s.tutor_id IS NOT NULL` (`:363-373`);
+> asistencia exige `s.estado_nomina = 'aprobada'` (`:388`).
+> **Recomendación:** query propia para el guard y **no tocar** los dos resúmenes — los
+> consume la UI del panel de bloqueos (`BloqueoController:174-175`) y ampliarles el
+> universo pintaría secciones sin tutor con el nombre en `null`. Decidir al implementar.
 
-> ❓ **Pregunta abierta para el usuario:** conducta tiene **dos etapas**
-> (`ra_bloqueado_en` y `tutor_cerrado_en`). ¿El guard exige solo que exista el cierre, o
-> exige además la etapa del tutor? No se asume: se pregunta al implementar.
+> 📊 **Medido en local el 04/08/2026:** las 23 secciones del año tienen tutor **y** nómina
+> aprobada, así que hoy los tres universos coinciden y la diferencia es **latente**.
+> Antes de activar el guard conviene repetir la medición **en producción**.
 
 ### F3 — Guard de sección vacía (D4)
 
@@ -123,10 +140,24 @@ en `inasistencias` para ese periodo, rechazar con
 *"Esta sección no tiene ninguna incidencia registrada. Si de verdad no hubo faltas ni
 tardanzas, guarda las filas en cero y vuelve a bloquear."*
 
-El progreso ya se calcula (`getProgresoPorSeccion` → `registrados`), así que el guard
-reusa esa cuenta.
-
 **Este es el guard que habría evitado el incidente de B2.**
+
+> ⚠️ **NO reusar `getProgresoPorSeccion` → `registrados` como fuente del guard** (era la
+> idea original). Esa query filtra las matrículas por `m.estado = 'aprobada'` (`:77`), y
+> el invariante del repo dice que los rosters de evaluación **sí** incluyen `desactivado`
+> y `pendiente` (solo excluyen `trasladado`/`retirado`). Una sección cuyas únicas
+> incidencias fueran de alumnos `desactivado` daría `registrados = 0` y el guard
+> **rechazaría un bloqueo legítimo**. Contar filas de `inasistencias` de la sección
+> directamente.
+
+> ✅ **Viabilidad confirmada:** `AsistenciaModel::guardar` (`:172`) es un upsert que
+> persiste filas con los 4 contadores en cero, y el índice ya las cuenta como registro
+> consciente del operador (`:59-64`). El mensaje del guard es ejecutable tal cual: la
+> sección sin incidencias reales guarda ceros y bloquea.
+
+> 📝 **Al implementar, reescribir el comentario de `AsistenciaModel:304-307`**, que hoy
+> documenta la decisión CONTRARIA: *"Sin fila = 0 incidencias (estado valido), asi que NO
+> exige completitud"*. D4 la revierte; si el comentario queda, miente.
 
 ### F4 — Transversales bajo la compuerta (D3)
 
@@ -162,6 +193,11 @@ escritura, igual que los otros tres.
 - Prueba del guard del cierre en local con una sección desbloqueada a propósito, dentro
   de **transacción con ROLLBACK** (regla del repo: ningún script de `database/` borra lo
   que no creó).
+  - ⚠️ **En local `cierres_asistencia` está VACÍA** (0 filas, ni siquiera B1: la tabla
+    nació con la migración 043 aplicada el 22/07 y los bloqueos de B1 se hicieron en
+    prod). El escenario "bloqueado" hay que **construirlo** dentro de la transacción;
+    no se puede partir de datos existentes. Conducta sí sirve de referencia: B1 local
+    tiene las 23 secciones con las dos etapas.
 - Comprobar que `EdicionPeriodoModel` devuelve lo mismo que las 4 implementaciones
   actuales para los periodos 1-4 **antes** de borrarlas — es un refactor de
   equivalencia, igual que el de la card de empates.
