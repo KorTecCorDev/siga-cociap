@@ -74,8 +74,13 @@ class AsistenciaModel extends BaseModel
             INNER JOIN anios_academicos a ON a.id = s.anio_id AND a.estado = 'activo'
             LEFT JOIN matriculas m
                    ON m.seccion_id = s.id
-                  AND m.estado     = 'aprobada'
                   AND m.anio_id    = s.anio_id
+                  -- Mismo roster que getEstudiantesConIncidencias: los
+                  -- 'esperados' tienen que contar exactamente a quienes
+                  -- aparecen en la grilla, o el avance miente.
+                  AND m.tipo NOT IN ('trasladado', 'retirado')
+                  AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
+                  AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
             LEFT JOIN inasistencias i
                    ON i.matricula_id = m.id
                   AND i.periodo_id   = ?
@@ -112,9 +117,20 @@ class AsistenciaModel extends BaseModel
             INNER JOIN estudiantes e ON e.id = m.estudiante_id
             INNER JOIN personas    p ON p.id = e.persona_id
             WHERE m.seccion_id = ?
-              AND m.estado     = 'aprobada'
+              -- MISMO ROSTER QUE LA GRILLA DEL DOCENTE (getAlumnosSeccion):
+              -- el registro de asistencia debe cubrir exactamente a quien se
+              -- evalua. NO se filtra por estado: 'pendiente' y 'desactivado'
+              -- (baja administrativa por deuda) siguen asistiendo y deben
+              -- tener donde registrarse. Los unicos excluidos son el traslado
+              -- de salida y el retiro (migracion 045), que ya no asisten.
+              AND m.tipo NOT IN ('trasladado', 'retirado')
+              -- Retorno de grado: durante la nivelacion la asistencia se toma
+              -- en la matricula OPERATIVA (el grado donde la estudiante esta
+              -- fisicamente); tras revertir, vuelve a la OFICIAL.
+              AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
+              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
               AND m.anio_id    = (SELECT id FROM anios_academicos WHERE estado = 'activo' LIMIT 1)
-            ORDER BY p.apellido_paterno, p.apellido_materno, p.nombres
+            ORDER BY " . orden_alfabetico('p') . "
         ", [$seccionId]);
 
         if (empty($alumnos)) {
@@ -408,6 +424,26 @@ class AsistenciaModel extends BaseModel
             SELECT seccion_id FROM matriculas WHERE id = ?
         ", [$matriculaId]);
         return $row ? (int) $row['seccion_id'] : null;
+    }
+
+    /**
+     * true si la matricula pertenece al ROSTER de asistencia (mismo criterio
+     * que getEstudiantesConIncidencias). Guard del endpoint de guardado: la
+     * grilla ya no pinta a los excluidos, pero una pestaña abierta desde antes
+     * del cambio si podria enviarlos.
+     */
+    public function matriculaEnRoster(int $matriculaId): bool
+    {
+        $row = $this->queryOne("
+            SELECT 1 AS ok
+            FROM matriculas m
+            WHERE m.id = ?
+              AND m.tipo NOT IN ('trasladado', 'retirado')
+              AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
+              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+        ", [$matriculaId]);
+
+        return $row !== null;
     }
 
     // ── Verificación de edición ──────────────────────────────────

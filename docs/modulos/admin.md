@@ -211,6 +211,45 @@ de retorno de grado (oficial en retorno activo / operativa revertida).
   lecturas por matricula no se tocan (la boleta muestra la conducta segun el
   cierre, independiente del estado — coherente con boletas de desactivados).
 
+## Asistencia: roster igual al del docente al calificar (04/08/2026)
+
+Mismo cambio que conducta hizo el 09/07 — a asistencia se le habia quedado pendiente
+casi un mes. `/admin/asistencia/{id}?periodo={pid}` lista ahora EL MISMO roster que
+`getAlumnosSeccion`.
+
+- **Antes:** `getEstudiantesConIncidencias` filtraba `m.estado='aprobada'` y **no**
+  miraba `tipo` ni el retorno de grado. Divergia en los dos sentidos:
+  - dejaba **fuera** a `pendiente` y `desactivado` (deuda), que SI asisten → nadie
+    podia registrarles faltas y su boleta salia con **0 inasistencias**: un dato
+    falso, no ausente;
+  - dejaba **dentro** al trasladado/retirado y a la matricula **oficial de un
+    retorno activo** — el grado donde la estudiante ya no esta (su asistencia de B1
+    se registro ahi, en el grado equivocado).
+- **Ahora:** `m.tipo NOT IN ('trasladado','retirado')` + las dos exclusiones de
+  `retornos_grado`, sin filtro de estado. Se movieron **las dos** queries juntas:
+  - `getEstudiantesConIncidencias` (grilla **y** imprimible oficial),
+  - `getProgresoPorSeccion` (barra del indice + `esperados` de
+    `getResumenSeccionesPorPeriodo`, que alimenta el panel del director).
+  Si solo se cambiara la primera, el avance mentiria: `esperados` contaria un
+  universo distinto al que ve el operador.
+- **Guard del endpoint:** `AsistenciaModel::matriculaEnRoster` + su chequeo en
+  `Admin\AsistenciaController::guardar`. La grilla ya no pinta a los excluidos, pero
+  una pestaña abierta desde antes del cambio si podria enviarlos.
+- **Seguro contra NULL:** las dos columnas de `retornos_grado` son `NOT NULL` y su
+  `estado` es `enum('activo','revertido')`, asi que los `NOT IN` no descartan filas
+  por accidente.
+- **Aplica a TODOS los periodos, incluidos los ya bloqueados** (decision del usuario,
+  04/08): el imprimible de un bimestre cerrado se recalcula con el roster nuevo. Se
+  eligio contra la alternativa de congelar el roster viejo en los periodos con cierre
+  vigente, porque hacia convivir dos rosters en el mismo modulo. **Medir el impacto en
+  prod antes de desplegar** con `verif_roster_asistencia.php` (bloque 3).
+- **La boleta NO cambia:** `getDelBimestreUnion`/`getAcumuladoAnualUnion` van por
+  matricula, no por roster. Las filas de `inasistencias` de matriculas fuera del
+  roster (11 en local) conservan su dato historico y siguen sumando; lo unico que
+  pierden es la edicion por grilla.
+- **Sin migracion.** Verificado con `database/verificaciones/verif_roster_asistencia.php`:
+  23/23 secciones coinciden con la grilla de notas y los `esperados` cuadran.
+
 ## Conducta y Asistencia: historial por bimestre + imprimible oficial (17/07/2026)
 
 Historial de lectura de los registros aprobados y bloqueados en `/admin/conducta`

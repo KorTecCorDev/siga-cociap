@@ -124,14 +124,25 @@
   - **Origen:** al verificar la regla del colegio ("los 4 registros aprobados y
     bloqueados antes de cerrar") se descubrió que **conducta y asistencia están fuera
     del contrato del cierre** (ni se exigen ni se fuerzan), y que la compuerta temporal
-    está escrita **4 veces en 3 regímenes distintos** — transversales no tiene ninguna.
+    está escrita **5 veces en 3 regímenes distintos** (3 en PHP + 2 columnas SQL) —
+    transversales no tiene ninguna.
   - **Decisiones cerradas del usuario (no re-preguntar):** D1 el cierre **EXIGE**
     (aborta) conducta y asistencia bloqueadas —académicas y transversales se siguen
     forzando—; D2 `limite_notas` sigue siendo **una sola fecha**, sin migración;
     D3 transversales **sí** pasa a respetar la compuerta; D4 **no** se puede bloquear
-    una sección de asistencia sin ninguna fila registrada.
+    una sección de asistencia sin ninguna fila registrada; **D5** (04/08) el universo del
+    guard es **TODAS las secciones del año** (sin filtrar por tutor ni por nómina);
+    **D6** (04/08) conducta se exige con **las dos etapas** (`ra_bloqueado_en` **y**
+    `tutor_cerrado_en`).
   - **Sin migración.** Orden: F1 punto único → F3 guard de sección vacía → F2 guard del
     cierre → F4 transversales (esta última **exige avisar antes a los tutores**).
+  - **Revisión del plan (04/08, mismo día):** el riesgo de los periodos `pendiente` en F1
+    quedó **descartado con evidencia** (un `pendiente` nunca llega a
+    `periodoEstaBloqueado`); D5 **obliga a SQL nuevo** para el guard (los dos resúmenes
+    existentes no recorren el universo canónico); F3 **no puede** reusar
+    `getProgresoPorSeccion` (filtra `m.estado='aprobada'`); y en local
+    `cierres_asistencia` está **vacía**, así que el escenario de prueba hay que
+    construirlo. Detalle en el doc del plan.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
@@ -424,9 +435,40 @@ WHERE id=25;`).
   - **Mismo plazo corta también notas y conducta** (`CalificacionModel::periodoEstaBloqueado`,
     `ConductaModel`), no solo asistencia.
   - **ACCIÓN, antes de la Fase 4 del runbook:** ampliar `limite_notas` desde
-    `/director/anios/1` → registrar las incidencias de las 23 secciones en
-    `/admin/asistencia` → bloquear cada sección. Recién entonces cerrar B2.
+    `/director/anios/1` → **desplegar el fix del roster (abajo)** → registrar las
+    incidencias de las 23 secciones en `/admin/asistencia` → bloquear cada sección.
+    Recién entonces cerrar B2.
   - Que esto no se repita es el objeto del plan `docs/modulos/cierre-cuatro-registros.md`.
+- 🔴 **ROSTER DE ASISTENCIA ≠ ROSTER DE NOTAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
+  DESPLEGAR.** `/admin/asistencia` filtraba `m.estado='aprobada'` e ignoraba `tipo` y el
+  retorno de grado, así que **los `pendiente` y `desactivado` no aparecían en la grilla**:
+  nadie podía registrarles faltas y su boleta salía con 0 inasistencias (dato falso). A
+  la vez mostraba la matrícula **oficial de un retorno activo**, o sea el grado donde la
+  estudiante ya no está. Es el mismo arreglo que conducta recibió el 09/07 y que a
+  asistencia se le quedó pendiente. Detalle en `docs/modulos/admin.md`.
+  - **Impacto medido en local:** 6 matrículas entran (todas `pendiente`; la 220 con 2
+    faltas de B1 que la grilla no mostraba) y 1 sale (la 190, oficial del retorno #1).
+    **Falta medirlo en prod** con `database/verificaciones/verif_roster_asistencia.php`
+    (solo lectura, corre en prod).
+  - **URGENTE — el orden importa:** hay que **desplegar ANTES de registrar la asistencia
+    de B2**. Si se registra con el roster viejo, los `pendiente` de prod quedan fuera y
+    se repite el problema en pequeño.
+  - Decisión del usuario: aplica a **todos los periodos, incluidos los bloqueados**, así
+    que el imprimible oficial de B1 se recalcula con el roster nuevo. Sin migración.
+- **ORDEN ALFABÉTICO: LA Ñ IBA ANTES QUE LA N — CORREGIDO EN LOCAL EL 04/08/2026, SIN
+  DESPLEGAR.** Detectado por el usuario en la grilla de 4° A primaria (ÑIQUEN PAJUELO
+  salía antes que NOLASCO REYES). Causa: las columnas de `personas` son
+  `utf8mb4_unicode_ci`, que equipara Ñ ≡ N. Arreglado con `COLLATE utf8mb4_spanish_ci`
+  en los **30 `ORDER BY`** de 19 archivos, con punto único `COLLATE_ES` /
+  `orden_alfabetico()` en `helpers.php`. Detalle y alternativas descartadas en
+  `docs/modulos/ui.md`.
+  - **Impacto:** 58 personas con Ñ, pero **solo 4° A de primaria** cambia de orden entre
+    las 23 secciones. Actas SIAGIE y orden de mérito **no se ven afectados** (el matcher
+    normaliza Ñ→N en PHP; el mérito ya no desempata por apellido).
+  - **NO se cambió la colación de las columnas** a propósito: rompería la búsqueda
+    tolerante a la ñ (hoy "NUNUVERO" encuentra a NUÑUVERO) y arriesga
+    `Illegal mix of collations`. Sin migración.
+  - Va en el **mismo deploy** que el roster de asistencia (decisión del usuario).
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
   (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la
   pestaña se cierra y no se acumulan.

@@ -41,6 +41,21 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     resolución nunca ofrecía → **fantasmas irresolubles**. Corregido el 04/08/2026
     delegando en `OrdenMeritoModel::gradosConEmpatesPendientesDetalle`.
 
+- **`verif_roster_asistencia.php`** — **SOLO LECTURA** (no escribe, no abre
+  transacciones): es el único que **se puede correr en PRODUCCIÓN**, y por eso NO lleva
+  el guard de secretos de los demás. Comprueba que la grilla de
+  `/admin/asistencia/{id}?periodo={pid}` lista **el mismo roster que la grilla de notas**
+  (`getAlumnosSeccion`: filtro por `tipo` + las dos exclusiones de retorno de grado, sin
+  filtrar por estado) y que los `esperados` de `getProgresoPorSeccion` cuadran con ella.
+  - Su **bloque 3 mide el impacto del despliegue** frente a la regla vieja
+    (`m.estado='aprobada'`, sin tipo ni retornos): quién entra, quién sale y cuántas
+    filas de `inasistencias` tiene cada uno. **Correrlo en prod ANTES del deploy** dice
+    exactamente qué imprimibles ya firmados cambian. En local: 6 entran (todos
+    `pendiente`, dos con datos de B1 que la grilla no mostraba) y 1 sale (la matrícula
+    oficial de un retorno activo).
+  - El bloque 4 cuenta las filas de matrículas fuera del roster: **dato histórico, no se
+    borra** — siguen sumando en la boleta, que va por matrícula y no por roster.
+
 ## Consultas operativas (phpMyAdmin)
 
 - **`alerta_evaluacion_incompleta.sql`** — SOLO LECTURA. Replica

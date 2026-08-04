@@ -244,6 +244,16 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   reabierto leería el snapshot viejo).
 - **Ningún script de `database/` debe "limpiar" con DELETE lo que no creó.** Si escribe
   para probar, transacción + rollback (ya pasó: una verificación borró el oficial de B1).
+- **Roster de asistencia = roster de notas** (`getAlumnosSeccion`): `/admin/asistencia`
+  usa el mismo filtro por `tipo` + exclusiones de retorno, SIN filtrar por `estado`.
+  Filtrar por `estado='aprobada'` dejaba fuera a `pendiente`/`desactivado`, que sí
+  asisten, y su boleta salía con 0 inasistencias (dato falso). Ver `docs/modulos/admin.md`.
+- **Orden alfabético SIEMPRE con `orden_alfabetico()` / `COLLATE_ES`** (`helpers.php`):
+  las columnas de `personas` son `utf8mb4_unicode_ci`, que equipara Ñ ≡ N y coloca
+  ÑIQUEN antes que NOLASCO. El `COLLATE utf8mb4_spanish_ci` va SOLO en el `ORDER BY`
+  — cambiar la colación de las columnas rompería la búsqueda tolerante a la ñ.
+  Nunca ordenar por un alias `CONCAT(...)`: hereda la colación de la columna.
+  Ver `docs/modulos/ui.md`.
 - **Orden de mérito: el ranking filtra el roster por `m.tipo NOT IN ('trasladado',
   'retirado')`** (NO por `estado='aprobada'`). Un alumno permanece hasta que su tipo
   sea trasladado/retirado; `desactivado` por deuda y `pendiente` SÍ compiten.

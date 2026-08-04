@@ -242,6 +242,15 @@ class AsistenciaController extends BaseController
         if ($seccionId === null) {
             $this->json(['success' => false, 'mensaje' => 'Matrícula no encontrada.'], 404);
         }
+
+        // La matricula tiene que estar en el roster de la seccion (mismo que la
+        // grilla del docente). Cubre la pestaña abierta desde antes del cambio.
+        if (!$this->model->matriculaEnRoster($matriculaId)) {
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Esta matrícula no forma parte del registro de asistencia de la sección.',
+            ], 403);
+        }
         if ($this->model->getCierreVigente($seccionId, $periodoId)) {
             $this->json(['success' => false, 'mensaje' => 'La asistencia de esta sección ya fue bloqueada; no se puede editar.'], 403);
         }
