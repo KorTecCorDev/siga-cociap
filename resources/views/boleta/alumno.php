@@ -48,17 +48,15 @@ $areasOrdenadas = array_merge($areasRegulares, $areasTransversales);
 unset($_n, $_c);
 ?>
 
-<?php if ($vistaPrevia): ?>
-<!-- ── Banner BORRADOR (vista previa, una vez por boleta = una por página) ── -->
-<div class="boleta-borrador-banner" role="note">
-    <span class="boleta-borrador-banner__tag">BORRADOR</span>
-    <span class="boleta-borrador-banner__msg">
-        Vista previa para revisión &middot;
-        No constituye documento oficial mientras no sea aprobado por Registro Académico
-    </span>
-</div>
-<?php endif; ?>
-
+<?php
+// SIN BANNER DE BORRADOR (05/08/2026). Ocupaba ~6mm de alto —dos filas de tabla—
+// y con el plan completo de competencias eso empujaba las firmas a una segunda
+// hoja. La vista previa se señaliza con la MARCA DE AGUA diagonal de
+// admin/boletas-publicas/vista-previa.php, que no consume alto y se repite en
+// cada página impresa: el documento puede imprimirse con el bimestre aún
+// abierto, así que la señal tiene que sobrevivir en el PAPEL, no solo en
+// pantalla. $vistaPrevia sigue gobernando el QR y la firma del director.
+?>
 <!-- ── Cabecera institucional ───────────────────────────────── -->
 <header class="boleta-header">
     <div class="boleta-header__logo-wrap">

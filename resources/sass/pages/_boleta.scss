@@ -650,55 +650,20 @@ body.boleta-body {
 }
 
 // ════════════════════════════════════════════════════════════
-// VISTA PREVIA — banner institucional + marca de agua
-// El banner vive dentro de boleta/alumno.php (una vez por boleta =
-// una por página al imprimir, sin necesidad de position:fixed).
-// La marca de agua vive en el wrapper vista-previa.php, position:fixed
-// para repetirse por página. print-color-adjust:exact obliga al driver
-// a respetar tonos traslúcidos.
+// VISTA PREVIA — marca de agua (UNICA señal de BORRADOR)
+// Vive en el wrapper vista-previa.php, position:fixed para repetirse
+// por página. print-color-adjust:exact obliga al driver a respetar
+// tonos traslúcidos.
+//
+// El BANNER de borrador que iba arriba de cada boleta se ELIMINO el
+// 05/08/2026: ocupaba ~6mm de alto (dos filas de tabla) y con el plan
+// completo de competencias empujaba las firmas a una segunda hoja. La
+// restricción del documento es UNA hoja A4 y la señalización no puede
+// costar alto, porque este documento SI se imprime en papel con el
+// bimestre todavia abierto.
 // ════════════════════════════════════════════════════════════
 
-// ── Banner BORRADOR (ámbar institucional) ──────────────────
-.boleta-borrador-banner {
-    display: flex;
-    align-items: center;
-    gap: 2.5mm;
-    margin: 0 0 1.2mm;
-    padding: 1mm 2.5mm;
-    background: #fff7e6;
-    border: 0.6pt solid #d97706;
-    border-left-width: 2pt;
-    border-radius: 1mm;
-    color: #7a4a00;
-    page-break-inside: avoid;
-    page-break-after:  avoid;
-
-    -webkit-print-color-adjust: exact;
-    print-color-adjust:         exact;
-
-    &__tag {
-        flex-shrink: 0;
-        background: #d97706;
-        color: #fff;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 7pt;
-        font-weight: 800;
-        letter-spacing: 0.4pt;
-        padding: 0.4mm 2mm;
-        border-radius: 0.8mm;
-
-        -webkit-print-color-adjust: exact;
-        print-color-adjust:         exact;
-    }
-
-    &__msg {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 6pt;
-        line-height: 1.2;
-    }
-}
-
-// ── Marca de agua diagonal BORRADOR (gris suave) ───────────
+// ── Marca de agua diagonal BORRADOR ────────────────────────
 .boleta-watermark {
     position: fixed;
     top: 50%;
@@ -709,8 +674,14 @@ body.boleta-body {
     font-size: 140pt;
     font-weight: 900;
     letter-spacing: 12pt;
-    color: #555;
-    opacity: 0.08;
+    // REFORZADA al quedar como unica señal (antes #555 al 8%, que en una
+    // impresora en modo ahorro podia salir casi invisible). El techo es la
+    // legibilidad de las notas que quedan DEBAJO: la marca va con z-index
+    // por encima del contenido, asi que subir mas empieza a ensuciar la
+    // lectura de la tabla. Es TEXTO, no un background, de modo que ningun
+    // driver lo descarta por "no imprimir fondos".
+    color: #3f3f3f;
+    opacity: 0.16;
     text-transform: uppercase;
     pointer-events: none;
     user-select: none;
