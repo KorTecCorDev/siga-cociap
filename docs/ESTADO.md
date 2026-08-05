@@ -455,6 +455,37 @@ WHERE id=25;`).
     se repite el problema en pequeño.
   - Decisión del usuario: aplica a **todos los periodos, incluidos los bloqueados**, así
     que el imprimible oficial de B1 se recalcula con el roster nuevo. Sin migración.
+- **FORMATO OFICIAL EN TODAS LAS BOLETAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
+  DESPLEGAR.** La regla de formato del 09/07 (las 4 columnas de bimestre siempre) se había
+  aplicado solo a `/boleta/ver/{token}` y a la boleta del trasladado: la **impresión masiva**
+  (`/admin/boletas-publicas/{id}/boletas-alumno`), el **ZIP de archivo** y la **digital de
+  familias** llamaban a `armar()` sin el 4.º parámetro y colapsaban columnas. El papel que
+  RA firma y entrega salía con **1 columna** mientras la misma boleta por QR salía con 4,
+  siendo el mismo componente `boleta/alumno.php`. Ahora **las 9 entradas** pasan
+  `estructuraCompleta = true`. Detalle en `docs/modulos/boletas.md`.
+  - **No es una fuga:** el flag gobierna la estructura, no los datos. Verificado con
+    `verif_estructura_boleta.php` (solo lectura, corre en prod): con `'oficial'` hay 4
+    columnas y solo aportan notas los bimestres cerrados **y** publicados, aunque B2 ya
+    tenga notas. Su paso 3 compara los datos con y sin el flag y exige que sean idénticos.
+  - **Decidirlo antes de imprimir B2:** si ya se entregó papel de B1 con una columna, el de
+    B2 saldrá con formato distinto al de B1. Sin migración.
+  - **La TABLA DE ASISTENCIA también** (mismo día, tras revisar las 4 vistas donde se
+    dibuja): siempre 4 columnas, en boleta oficial y digital. Cada columna lleva
+    `sin_registro`, que se pinta con **guion apagado** —nunca `0`— cuando el bimestre es
+    `pendiente` o no corresponde al umbral. Cuando es `true` **no se consulta** la
+    asistencia, así que la columna vacía no sale de datos que ese umbral no debe ver. Se
+    añadió `.bd-asistencia__num--pendiente` al SASS de la digital, que no tenía ningún
+    estado para "sin dato" y habría pintado ceros. `admin/asistencia/imprimir.php` y
+    `seccion.php` NO se tocan: son otro documento (alumnos × contadores de una sección).
+  - **EMITIR el documento oficial ahora exige el bimestre CERRADO.** En
+    `/admin/boletas-publicas/{id}`, "🖨 Boletas" y "🗂 Archivar" se condicionaban solo a
+    "hay ≥1 competencia bloqueada", así que se podía imprimir un lote entero **con la
+    columna del bimestre vacía**. Dos capas: botones inertes con aviso en la vista +
+    guard en `boletasAlumno()`/`archivar()` (son rutas GET que quedan en marcadores). La
+    **vista previa NO se bloquea** —es la herramienta para decidir el Hito A— ni el
+    enlace por token de cada alumno. Criterio en `periodoEsOficial()`, vía
+    `boleta_estado_bimestre()`. ⚠️ Es **cerrado, no publicado** (`'archivo'` ignora la
+    044 a propósito), y el **Hito A tampoco habilita** (da `'borrador'`, no `'oficial'`).
 - **ASISTENCIA EN LA VISTA PREVIA DE BOLETAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
   DESPLEGAR (posterior al deploy `de449e2`).** En
   `/admin/boletas-publicas/{id}/vista-previa` no aparecía la asistencia del bimestre en

@@ -83,6 +83,12 @@ class BoletaController extends BaseController
         ['matricula_id' => $matriculaId, 'periodo_id' => $periodoId] = $this->resolveToken($token);
         $this->render($matriculaId, $periodoId, 'digital', [
             'datos'           => 'oficial',
+            // Misma REGLA DE FORMATO que la imprimible por token: estructura anual
+            // completa. La vista ya pinta los bimestres sin nota como chip vacio
+            // ('--vacio' / '--empty'), y con las 4 columnas fijas una vacia no
+            // revela si el bimestre ya cerro. Los DATOS los sigue filtrando el
+            // guard de armar() (solo cerrados y publicados).
+            'estructuraCompleta' => true,
             'registrarVisita' => true,
         ]);
     }
@@ -100,7 +106,10 @@ class BoletaController extends BaseController
         $periodoId   = $res['periodo_id'];
 
         $this->render($matriculaId, $periodoId, 'digital', [
-            'datos'       => 'borrador',
+            'datos'              => 'borrador',
+            // Explicito aunque 'borrador' hoy no colapse columnas: la estructura
+            // anual es del DOCUMENTO, no del umbral de datos.
+            'estructuraCompleta' => true,
             'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
                           || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
         ]);
@@ -118,7 +127,8 @@ class BoletaController extends BaseController
         $periodoId   = $res['periodo_id'];
 
         $this->render($matriculaId, $periodoId, 'print', [
-            'datos'       => 'borrador',
+            'datos'              => 'borrador',
+            'estructuraCompleta' => true,   // ver verDigitalDocente
             'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
                           || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
         ]);
@@ -279,7 +289,8 @@ class BoletaController extends BaseController
         }
 
         return [
-            'datos'       => 'borrador',
+            'datos'              => 'borrador',
+            'estructuraCompleta' => true,   // ver verDigitalDocente
             'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
                           || $this->estadoBoletaDePeriodo($res['periodo_id']) !== 'oficial',
         ];

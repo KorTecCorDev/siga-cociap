@@ -428,8 +428,15 @@ $vistaPrevia = $vistaPrevia ?? false;
                     <?php foreach ($camposAsis as $clave => $etiqueta): ?>
                     <tr>
                         <td><?= $etiqueta ?></td>
-                        <?php foreach ($asistencia['bimestres'] as $bim): ?>
-                            <td class="bd-asistencia__num"><?= (int) $bim['datos'][$clave] ?></td>
+                        <?php foreach ($asistencia['bimestres'] as $bim):
+                            // Sin dato aun (bimestre futuro o que no corresponde a este
+                            // umbral): guion apagado. Un 0 se leeria como "no falto
+                            // ningun dia", que seria un dato inventado.
+                            $sinRegistro = !empty($bim['sin_registro']);
+                        ?>
+                            <td class="bd-asistencia__num<?= $sinRegistro ? ' bd-asistencia__num--pendiente' : '' ?>">
+                                <?= $sinRegistro ? '&ndash;' : (int) $bim['datos'][$clave] ?>
+                            </td>
                         <?php endforeach; ?>
                         <td class="bd-asistencia__num bd-asistencia__num--total"><?= (int) $asisTotal[$clave] ?></td>
                     </tr>

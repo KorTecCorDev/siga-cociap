@@ -364,10 +364,14 @@ justo en la herramienta con la que RA decide el Hito A.
    anterior** ("solo cerrados en TODAS las boletas").
 2. Alcance: `'todos'` **y `'borrador'`**. Si una boleta de docente ya muestra las notas
    del bimestre con Hito A, debe mostrar también su asistencia.
-3. Los bimestres `'pendiente'` se pintan **apagados** (`--pendiente`, guion) en lugar de
+3. Los bimestres sin dato se pintan **apagados** (`--pendiente`, guion) en lugar de
    ceros: un `0` se lee como "no faltó ningún día", y ahí no hay dato que mostrar.
 4. El **total suma el bimestre en curso** (solo los que tienen registro). En vista previa
    es, por tanto, provisional.
+
+> ⚠️ Esta sección describe **qué bimestres APORTAN datos**. La **estructura** (cuántas
+> columnas se dibujan) se corrigió después, el mismo día: son **siempre las 4**. Ver
+> "La tabla de asistencia también es estructura anual" más abajo.
 
 ### Lo que NO cambió — verificado modo por modo
 | Modo | Quién lo usa | Regla | ¿Cambia? |
@@ -654,3 +658,117 @@ explicará antes la situación del cierre de fin de año.
 - Eliminado `003_bloqueos_competencia.sql.sql` (nombre con extensión duplicada).
 - Orden de rutas en `routes/web.php`: `/boleta/digital/{id}/{id}` debe ir ANTES
   de `/boleta/{id}/{id}` para que el router no capture "digital" como parámetro.
+
+## Formato oficial en TODAS las vistas de boleta (04/08/2026)
+
+> **Síntoma:** `/admin/boletas-publicas/{id}/boletas-alumno?seccion_id={id}` —la impresión
+> masiva, o sea el papel que RA firma, sella y entrega— salía con **una sola columna** de
+> bimestre, mientras la misma boleta abierta por QR (`/boleta/ver/{token}`) salía con las
+> **cuatro** del formato oficial. Mismo documento, dos formatos.
+
+### Causa
+La **regla de formato del 09/07/2026** (estructura anual completa) se aplicó al token y a
+la boleta del trasladado, pero **no se propagó** a la impresión masiva ni al ZIP de
+archivo: llamaban a `armar($mat, $per, 'archivo')` **sin el 4.º parámetro**, así que caían
+en `estructuraCompleta = false` y `colapsarColumnas` (`BoletaModel:106`) recortaba las
+columnas a los bimestres cerrados. No hay plantilla propia: `boletas-alumno.php:20` hace
+`include boleta/alumno.php`, el mismo componente que el token.
+
+Medido antes del arreglo (solo B1 cerrado): token **4** columnas · impresión masiva **1** ·
+ZIP **1** · trasladado **4** · vista previa y boleta docente **4** (por su umbral, no por
+el flag) · digital de familias **1**.
+
+### Regla nueva
+**Las 9 entradas de boleta pasan `estructuraCompleta = true`.** La estructura anual es una
+propiedad del DOCUMENTO, no del umbral de datos, así que se pide explícitamente incluso
+donde el umbral (`'todos'`, `'borrador'`) ya no colapsaba — si mañana cambia el umbral, el
+formato no se mueve.
+
+| Entrada | Umbral | Antes | Ahora |
+|---|---|---|---|
+| `/boleta/ver/{token}` | oficial | 4 | 4 |
+| `/boleta/digital/{token}` | oficial | **1** | **4** |
+| `/docente/boleta/{id}` y `/imprimir` | borrador | 4 | 4 (explícito) |
+| Boleta de gestión — trasladado | archivo | 4 | 4 |
+| Boleta de gestión — resto | borrador | 4 | 4 (explícito) |
+| **Impresión masiva** | archivo | **1** | **4** |
+| **ZIP de archivo** | archivo | **1** | **4** |
+| Vista previa de RA | todos | 4 | 4 (explícito) |
+
+### Por qué abrir columnas NO es una fuga
+`colapsarColumnas` gobierna la ESTRUCTURA; los DATOS los sigue filtrando
+`periodoAportaNotas` por periodo. Verificado en `verif_estructura_boleta.php`: con
+`'oficial'` la boleta muestra 4 columnas y **solo aporta notas del bimestre cerrado y
+publicado**, aunque el bimestre en curso ya tenga notas en la BD. Su paso 3 es el control:
+compara los bimestres con datos **con y sin** el flag y exige que sean los mismos — si
+difirieran, el flag estaría filtrando datos y no solo formato.
+
+Es además el argumento original de la regla del 09/07 (`BoletaController:68-70`): con la
+estructura anual fija, una columna vacía **no revela** si el bimestre cerró. *Colapsarlas
+era justo lo que lo delataba* — y la digital de familias, que es el destino del QR, era la
+que seguía colapsando.
+
+### La tabla de asistencia también es estructura anual (04/08/2026)
+La primera versión de este cambio dejó la asistencia fuera: la boleta salía con 4 columnas
+de notas y 1 de asistencia. **Corregido el mismo día** — la tabla de asistencia es parte
+del modelo oficial igual que la de notas, así que **siempre dibuja una columna por bimestre
+del año**, en las cuatro vistas y en los cuatro umbrales.
+
+Cada columna lleva `sin_registro` (bool). Es `true` por dos motivos distintos que se pintan
+igual, con **guion apagado**:
+
+| Motivo | Ejemplo |
+|---|---|
+| El bimestre aún no puede tener registro | B3/B4 `pendiente` |
+| No corresponde a este umbral | bimestre cerrado **no publicado**, o el bimestre en curso bajo `'oficial'` |
+
+**Nunca un `0`**: un cero se lee como "no faltó ningún día" y sería un dato inventado.
+Además, con guiones el lector no intenta cuadrar la suma de las columnas con el **Total**,
+que solo acumula las que sí tienen registro.
+
+Cuando `sin_registro` es `true` **no se consulta la asistencia**: la columna vacía no puede
+salir de datos que ese umbral no debe ver.
+
+- `boleta/alumno.php` → `.boleta-asistencia__num--pendiente` (ya existía en el SASS).
+- `boleta/digital.php` → `.bd-asistencia__num--pendiente`, **añadido** en
+  `_boleta-digital.scss`: la digital no tenía ningún estado para "sin dato" y habría
+  pintado ceros.
+- **No se tocan** `admin/asistencia/imprimir.php` ni `admin/asistencia/seccion.php`: son
+  otro documento (alumnos × contadores de UNA sección y UN bimestre), no la asistencia
+  anual del alumno.
+
+## Emitir el documento oficial exige el bimestre CERRADO (04/08/2026)
+
+En `/admin/boletas-publicas/{id}` los botones **🖨 Boletas** y **🗂 Archivar** se
+condicionaban solo a `total_aprobables > 0` ("hay ≥1 competencia bloqueada"). Pero tener
+competencias bloqueadas **no** significa que el bimestre haya cerrado, y el umbral
+`'archivo'` solo deja pasar bimestres cerrados: se podía imprimir un lote entero de
+boletas oficiales **con la columna del bimestre vacía**. Fallo silencioso — el papel sale
+bien formado y está vacío justo donde importa.
+
+### Regla
+Emitir el documento oficial (impresión masiva y ZIP) exige `periodos.estado = 'cerrado'`.
+La **vista previa NO** se bloquea: es la herramienta con la que RA decide el Hito A, y
+para eso existe. El enlace *Ver boleta ↗* de cada alumno tampoco: va al token, que
+respeta la compuerta por su cuenta y no produce papel.
+
+### Dos capas
+- **Vista** (`admin/boletas-publicas/periodo.php`): botones visibles pero inertes
+  (`is-disabled` + `aria-disabled` + `tabindex="-1"`, patrón ya usado en
+  `docente/nomina.php`) y aviso ámbar explicando el motivo. Se dejan a la vista, no se
+  ocultan, para que se entienda **por qué** no se puede.
+- **Servidor**: `boletasAlumno()` y `archivar()` abortan con `redirectWithError`. Son
+  rutas `GET` que se abren en pestaña nueva, así que la URL queda en historial y
+  marcadores; sin guard bastaba reabrirla para generar el lote vacío.
+
+Criterio en un punto único: `BoletaPublicaController::periodoEsOficial()`, que delega en
+`boleta_estado_bimestre()` en vez de comparar el string a mano. Obligó a ampliar
+`getPeriodo()`, que no traía `estado` ni `boletas_aprobadas_en`.
+
+> ⚠️ **La condición es CERRADO, no publicado.** `'archivo'` ignora la compuerta 044 a
+> propósito porque RA imprime **antes** de la reunión de entrega; exigir publicación
+> rompería ese flujo.
+>
+> ⚠️ **El Hito A tampoco habilita la emisión.** `boleta_estado_bimestre` devuelve
+> `'borrador'` con Hito A y solo `'oficial'` (= cerrado) abre la puerta. Verificado: con
+> el Hito A simulado sobre el bimestre activo, `periodoEsOficial()` sigue dando `false`.

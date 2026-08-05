@@ -82,6 +82,9 @@ class BoletaPublicaController extends BaseController
             'secciones'        => $secciones,
             'totalBoletas'     => $totalBoletas,
             'totalConsultadas' => $totalConsultadas,
+            // Emitir el documento oficial (imprimir / archivar) exige el bimestre
+            // CERRADO; la vista previa no, que para eso existe.
+            'periodoOficial'   => $this->periodoEsOficial($periodo),
         ]);
     }
 
@@ -195,7 +198,9 @@ class BoletaPublicaController extends BaseController
             // EXCEPCION a la compuerta del Hito A: la vista previa de RA muestra
             // TODOS los periodos (incluido el activo en 'registro') porque es su
             // herramienta para decidir el Hito A. Staff, sin QR, marcada BORRADOR.
-            $data = $this->boletaModel->armar((int) $m['matricula_id'], $periodoId, 'todos');
+            // 'todos' hoy no colapsa columnas, pero se pide la estructura anual
+            // de forma explicita: es una regla del DOCUMENTO, no del umbral.
+            $data = $this->boletaModel->armar((int) $m['matricula_id'], $periodoId, 'todos', true);
             if ($data) {
                 // En vista previa no inyectamos url_boleta (sin QR) ni mostramos
                 // firma del director; el flag lo decide en alumno.php.
@@ -226,6 +231,16 @@ class BoletaPublicaController extends BaseController
             $this->redirectWithError(url('admin/boletas-publicas'), 'Período no encontrado.');
         }
 
+        // Guard: con el bimestre abierto saldria papel oficial con su columna
+        // VACIA (el umbral 'archivo' solo deja pasar bimestres cerrados). La vista
+        // ya deshabilita el boton; esto cubre la URL guardada o reabierta.
+        if (!$this->periodoEsOficial($periodo)) {
+            $this->redirectWithError(
+                url('admin/boletas-publicas/' . $periodoId),
+                'Las boletas oficiales se imprimen cuando el bimestre está cerrado. Usa la vista previa mientras tanto.'
+            );
+        }
+
         $seccionId   = (int) $this->query('seccion_id', 0) ?: null;
         $matriculas  = $this->model->getMatriculasAprobadasParaBoleta($periodoId, $seccionId);
         $boletasData = [];
@@ -238,7 +253,12 @@ class BoletaPublicaController extends BaseController
             // blanco. La compuerta protege el acceso EN LINEA, no la impresion.
             // El QR que lleva impreso si respeta la compuerta: al escanearlo el
             // dia de la entrega, la publicacion ya esta vigente.
-            $data = $this->boletaModel->armar($matriculaId, $periodoId, 'archivo');
+            // REGLA DE FORMATO (09/07/2026): estructura anual completa, las 4
+            // columnas de bimestre aunque esten vacias. Es EL MISMO documento que
+            // /boleta/ver/{token} (mismo componente boleta/alumno.php); sin esto
+            // salia con las columnas colapsadas y el impreso que se firma y
+            // entrega tenia otro formato que el que la familia abre por QR.
+            $data = $this->boletaModel->armar($matriculaId, $periodoId, 'archivo', true);
             if ($data) {
                 $data['url_boleta'] = $this->urlBoletaToken($matriculaId);
                 $boletasData[] = $data;
@@ -267,6 +287,14 @@ class BoletaPublicaController extends BaseController
             $this->redirectWithError(url('admin/boletas-publicas'), 'Período no encontrado.');
         }
 
+        // Mismo guard que boletasAlumno: es el mismo documento, en PDF.
+        if (!$this->periodoEsOficial($periodo)) {
+            $this->redirectWithError(
+                url('admin/boletas-publicas/' . $periodoId),
+                'El archivo de boletas se genera cuando el bimestre está cerrado. Usa la vista previa mientras tanto.'
+            );
+        }
+
         $seccionId   = (int) $this->query('seccion_id', 0) ?: null;
         $matriculas  = $this->model->getMatriculasAprobadasParaBoleta($periodoId, $seccionId);
         $boletasData = [];
@@ -275,8 +303,9 @@ class BoletaPublicaController extends BaseController
             $matriculaId = (int) $m['matricula_id'];
             // Documento de ARCHIVO (PDF/ZIP para el colegio): igual que
             // boletasAlumno — solo cerrados, ignorando la compuerta de
-            // publicacion (044). Ver el comentario extendido alli.
-            $data = $this->boletaModel->armar($matriculaId, $periodoId, 'archivo');
+            // publicacion (044) y con estructura anual completa. Ver el
+            // comentario extendido alli.
+            $data = $this->boletaModel->armar($matriculaId, $periodoId, 'archivo', true);
             if (!$data) continue;
 
             $a = $data['alumno'];
@@ -314,12 +343,30 @@ class BoletaPublicaController extends BaseController
     private function getPeriodo(int $periodoId): ?array
     {
         return $this->model->queryOne("
-            SELECT p.id, p.numero, p.nombre_display, a.anio, a.id AS anio_id
+            SELECT p.id, p.numero, p.nombre_display, p.estado, p.boletas_aprobadas_en,
+                   a.anio, a.id AS anio_id
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id
             WHERE p.id = ?
             LIMIT 1
         ", [$periodoId]);
+    }
+
+    /**
+     * ¿El bimestre ya cerro? Es la condicion para EMITIR el documento oficial
+     * (impresion masiva y ZIP de archivo): con el bimestre abierto, el umbral
+     * 'archivo' no deja pasar sus notas y saldria papel con la columna vacia.
+     *
+     * OJO: la condicion es CERRADO, **no publicado**. 'archivo' ignora la
+     * compuerta 044 a proposito, porque RA imprime ANTES de la reunion de
+     * entrega; exigir publicacion romperia ese flujo.
+     */
+    private function periodoEsOficial(array $periodo): bool
+    {
+        return boleta_estado_bimestre(
+            $periodo['estado'] ?? null,
+            $periodo['boletas_aprobadas_en'] ?? null
+        ) === 'oficial';
     }
 
 }

@@ -121,46 +121,69 @@ $pubs = $pdo->prepare("
 $pubs->execute([(int) $mat['seccion_id']]);
 $publicados = array_map('intval', array_column($pubs->fetchAll(), 'periodo_id'));
 
-$numsCerrados      = array_map(fn($p) => (int) $p['numero'], $cerrados);
-$numsCerradosPub   = array_map(fn($p) => (int) $p['numero'],
+/**
+ * Firma ESPERADA: SIEMPRE una columna por bimestre del anio (estructura anual
+ * completa, parte del modelo oficial). Lleva ':sin_registro' la que no aporta a
+ * este umbral o aun no puede tener registro ('pendiente').
+ * @param array<int> $hitoA ids de periodo a los que se les simula el Hito A.
+ */
+$espera = static function (string $modo, array $publicados, array $periodos, array $hitoA = []): string {
+    $out = [];
+    foreach ($periodos as $p) {
+        $aprob  = in_array((int) $p['id'], $hitoA, true) ? '2026-01-01 00:00:00' : $p['boletas_aprobadas_en'];
+        $estado = boleta_estado_bimestre($p['estado'], $aprob);
+        $aporta = match ($modo) {
+            'oficial'  => $estado === 'oficial' && in_array((int) $p['id'], $publicados, true),
+            'archivo'  => $estado === 'oficial',
+            'borrador' => $estado !== 'registro',
+            'todos'    => true,
+        };
+        $sinRegistro = !$aporta || $p['estado'] === 'pendiente';
+        $out[] = $p['numero'] . ($sinRegistro ? ':sin_registro' : '');
+    }
+    return implode(' ', $out);
+};
+
+$numsCerrados    = array_map(fn($p) => (int) $p['numero'], $cerrados);
+$numsCerradosPub = array_map(fn($p) => (int) $p['numero'],
     array_values(array_filter($cerrados, fn($p) => in_array((int) $p['id'], $publicados, true))));
 
-echo "=== 1-2. Umbrales de FAMILIAS: no deben cambiar ===\n";
-$check("'oficial'  = cerrados Y publicados",
-    implode(' ', $numsCerradosPub), $firma($boletas->armar($matriculaId, $verPeriodo, 'oficial')));
-$check("'archivo'  = cerrados (ignora publicacion)",
-    implode(' ', $numsCerrados), $firma($boletas->armar($matriculaId, $verPeriodo, 'archivo')));
+echo "=== 1-2. Umbrales de FAMILIAS: estructura anual, datos intactos ===\n";
+$check("'oficial'  aporta solo cerrados Y publicados",
+    $espera('oficial', $publicados, $periodos), $firma($boletas->armar($matriculaId, $verPeriodo, 'oficial')));
+$check("'archivo'  aporta solo cerrados",
+    $espera('archivo', $publicados, $periodos), $firma($boletas->armar($matriculaId, $verPeriodo, 'archivo')));
 
-echo "\n=== 3. 'todos' (vista previa de RA) = todos, pendientes apagados ===\n";
-$espTodos = [];
-foreach ($periodos as $p) {
-    $espTodos[] = $p['numero'] . ($p['estado'] === 'pendiente' ? ':sin_registro' : '');
+echo "\n=== 3. 'todos' (vista previa de RA) = aporta todo lo que existe ===\n";
+$check("'todos'    solo 'pendiente' queda sin registro",
+    $espera('todos', $publicados, $periodos), $firma($boletas->armar($matriculaId, $verPeriodo, 'todos')));
+
+echo "\n=== 3b. TODOS los umbrales dibujan las " . count($periodos) . " columnas ===\n";
+foreach (['oficial', 'archivo', 'borrador', 'todos'] as $modo) {
+    $d = $boletas->armar($matriculaId, $verPeriodo, $modo);
+    $check("'{$modo}' numero de columnas", (string) count($periodos), (string) count($d['asistencia']['bimestres']));
 }
-$check("'todos'    = 4 columnas, 'pendiente' sin registro",
-    implode(' ', $espTodos), $firma($boletas->armar($matriculaId, $verPeriodo, 'todos')));
 
 echo "\n=== 4. 'borrador' con Hito A SIMULADO (transaccion + ROLLBACK) ===\n";
 if (!$activo) {
     echo "  (omitido: no hay bimestre activo en este entorno)\n";
 } else {
     $check("'borrador' SIN Hito A = igual que 'archivo'",
-        implode(' ', $numsCerrados), $firma($boletas->armar($matriculaId, $verPeriodo, 'borrador')));
+        $espera('archivo', $publicados, $periodos), $firma($boletas->armar($matriculaId, $verPeriodo, 'borrador')));
 
     $pdo->beginTransaction();
     $pdo->prepare("UPDATE periodos SET boletas_aprobadas_en = NOW() WHERE id = ?")
         ->execute([(int) $activo['id']]);
 
-    $espBorrador = $numsCerrados;
-    $espBorrador[] = (int) $activo['numero'];
-    sort($espBorrador);
+    $hitoA = [(int) $activo['id']];
     $check("'borrador' CON Hito A = suma el bimestre en curso",
-        implode(' ', $espBorrador), $firma($boletas->armar($matriculaId, $verPeriodo, 'borrador')));
+        $espera('borrador', $publicados, $periodos, $hitoA), $firma($boletas->armar($matriculaId, $verPeriodo, 'borrador')));
 
     // El bimestre en curso NO debe filtrarse a las familias ni al impreso.
     $check("  ...y 'oficial' sigue sin el bimestre en curso",
-        implode(' ', $numsCerradosPub), $firma($boletas->armar($matriculaId, $verPeriodo, 'oficial')));
+        $espera('oficial', $publicados, $periodos, $hitoA), $firma($boletas->armar($matriculaId, $verPeriodo, 'oficial')));
     $check("  ...y 'archivo' sigue sin el bimestre en curso",
-        implode(' ', $numsCerrados), $firma($boletas->armar($matriculaId, $verPeriodo, 'archivo')));
+        $espera('archivo', $publicados, $periodos, $hitoA), $firma($boletas->armar($matriculaId, $verPeriodo, 'archivo')));
 
     $pdo->rollBack();
 

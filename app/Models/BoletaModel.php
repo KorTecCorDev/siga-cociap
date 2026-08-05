@@ -160,22 +160,30 @@ class BoletaModel extends BaseModel
         // El total SUMA los bimestres CON REGISTRO mostrados (no un acumulado por
         // numero<=, que podria incluir uno no mostrado); incluye el bimestre en
         // curso a proposito, asi que en vista previa es provisional.
+        // ESTRUCTURA ANUAL COMPLETA tambien aqui (04/08/2026): SIEMPRE una columna por
+        // bimestre del anio, aunque no tenga dato. La tabla de asistencia es parte del
+        // MODELO OFICIAL igual que la de notas, asi que su forma no puede depender de
+        // cuantos bimestres cerraron. Mismo argumento que las notas: con las columnas
+        // fijas, una vacia no revela si el bimestre cerro.
         $asisBimestres = [];
         $asisTotal = ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0];
+        $ceros = ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0];
+
         foreach ($this->getPeriodosDelAnio($anioId) as $pa) {
-            if (!$this->periodoAportaNotas($pa, $datos, $publicados)) {
-                continue;
-            }
-            // Un bimestre 'pendiente' aun no puede tener registro: se marca para que
-            // la vista lo pinte apagado en vez de con ceros — un cero se lee como
-            // dato real ("no falto ningun dia") y aqui no hay dato. Solo ocurre en
-            // 'todos': los demas umbrales ya lo descartan via periodoAportaNotas.
-            $sinRegistro = ($pa['estado'] ?? '') === 'pendiente';
+            // SIN DATO que mostrar, por dos motivos distintos que se pintan igual (guion):
+            //   - el bimestre aun no puede tener registro ('pendiente'), o
+            //   - no corresponde a este umbral (no publicado, o en curso bajo 'oficial').
+            // Se marca para que la vista lo pinte apagado en vez de con ceros: un cero
+            // se lee como dato real ("no falto ningun dia") y aqui no hay dato. Ademas,
+            // con guiones el lector no intenta cuadrar la suma con el Total.
+            $sinRegistro = !$this->periodoAportaNotas($pa, $datos, $publicados)
+                        || ($pa['estado'] ?? '') === 'pendiente';
 
             // OJO: variable propia, NO reusar el nombre $datos (parametro del metodo,
-            // leido mas abajo por el filtro de conducta).
+            // leido mas abajo por el filtro de conducta). Si no aporta NO se consulta:
+            // la columna vacia no puede salir de datos que este umbral no debe ver.
             $asisDatos = $sinRegistro
-                ? ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0]
+                ? $ceros
                 : $this->asistenciaModel->getDelBimestreUnion($fuentes, (int) $pa['id']);
 
             $asisBimestres[] = [

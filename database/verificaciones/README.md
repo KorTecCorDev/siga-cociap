@@ -67,6 +67,18 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
   - Existe porque la asistencia era el único de los tres bloques por periodo (notas,
     conducta, asistencia) que no honraba la excepción de la vista previa de RA.
 
+- **`verif_estructura_boleta.php`** — **SOLO LECTURA**, apto para producción. Comprueba que
+  las boletas se arman con la **estructura anual completa** (las 4 columnas de bimestre) en
+  los cuatro umbrales, y —lo importante— que abrir esas columnas **NO relaja el guard de
+  datos**: con `'oficial'` se ven 4 columnas pero solo aportan notas los bimestres cerrados
+  Y publicados, aunque el bimestre en curso ya tenga notas en la BD.
+  - Su **paso 3 es el control**: compara los bimestres con datos **con y sin**
+    `estructuraCompleta` y exige que sean los mismos. Si difirieran, el flag estaría
+    filtrando datos y no solo formato.
+  - Existe porque la regla de formato del 09/07/2026 se había aplicado solo al token y al
+    trasladado: la impresión masiva y el ZIP de archivo colapsaban columnas, y el papel que
+    se firma salía con otro formato que el que la familia abre por QR.
+
 ## Consultas operativas (phpMyAdmin)
 
 - **`alerta_evaluacion_incompleta.sql`** — SOLO LECTURA. Replica

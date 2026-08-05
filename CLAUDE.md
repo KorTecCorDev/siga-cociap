@@ -209,9 +209,12 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   acto separado, por NIVEL y con fecha/hora (`periodos_publicacion`, migración 044).
   Punto único: `PublicacionBoletaModel`. El umbral `'oficial'` de `BoletaModel::armar()`
   respeta la compuerta (acceso en línea de familias); `'archivo'` la ignora a propósito
-  (documento impreso por staff: salida masiva y trasladado). La boleta por token se
-  arma con `estructuraCompleta = true`: **siempre las 4 columnas de bimestre**, aunque
-  estén vacías (formato oficial); el guard de datos es el que respeta la compuerta.
+  (documento impreso por staff: salida masiva y trasladado). **TODAS las vistas de
+  boleta se arman con `estructuraCompleta = true`** (9 entradas, desde el 04/08/2026):
+  **siempre las 4 columnas de bimestre**, aunque estén vacías (formato oficial); el
+  guard de datos es el que respeta la compuerta — abrir columnas NO filtra notas.
+  Si nace una entrada nueva, pasa el flag: la estructura anual es del DOCUMENTO, no
+  del umbral de datos.
 - **Escala de notas: punto único de verdad en `app/Helpers/helpers.php`**
   (`NOTA_MIN_AD/A/B`, `nota_a_literal()`, `escala_rangos()`). NUNCA hardcodear umbrales.
 - **Rutas literales ANTES que patrones `{param}`** en `routes/web.php` (el router
