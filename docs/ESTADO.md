@@ -183,10 +183,23 @@
     quedaba **antes** de Ética, `orden 90`). Ahora se detecta por `'transv'`.
   - ⚠️ **Contrapartida del universo por cargas:** un área sin carga por olvido
     desaparecería del documento en silencio. El bloque 1 de la verificación lo vigila.
+  - **La CONDUCTA también lleva guion** en sus celdas vacías (05/08). Numeral y
+    conclusión no le aplican —es siempre literal—, así que van con guion permanente.
+  - **BANNER DE BORRADOR ELIMINADO (05/08).** En la vista previa de RA las firmas se
+    fueron a una segunda hoja (visto en Secundaria 4.º A): el banner costaba **~6 mm**,
+    dos filas de tabla. Queda como única señal la **marca de agua diagonal**, reforzada
+    de `#555`/8% a `#3f3f3f`/16% — el documento **se imprime en papel con el bimestre
+    abierto**, así que la señal debe sobrevivir a la impresora. Decisión del usuario
+    sobre 4 alternativas. Ver `docs/modulos/boletas.md`.
   - 🔴 **PENDIENTE ANTES DE DESPLEGAR: checklist de impresión en navegador** (§8.3 del
     doc). La restricción dura es **UNA hoja A4 vertical**: el máximo de filas no sube
     (29 → 29) y el peor incremento es +5 (Primaria 2.º A), pero eso **no está probado en
     papel**. Toca SASS (`gulp` ya lo compiló en local).
+    - **El alto ya no lo fijan las filas sino las CONCLUSIONES DESCRIPTIVAS** (2 líneas
+      por celda, `.conclusion-clip`): el nº de filas es fijo por sección, el alto no.
+      Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
+      (ROSALES STEPHANO), **6 filas con conclusión**, hasta 233 caracteres. Es la boleta
+      que hay que mirar para dar por buena esa sección.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.

@@ -766,8 +766,33 @@ se dicta en 5.º. En **primaria sí** se muestra Ed. Religiosa (12 cargas).
 - ⚠️ El bloque transversal se detecta por **`'transv'`**, no `'transversal'`: en
   secundaria el área se rotula `Comp. Transv.`.
 
+**La CONDUCTA sigue la misma regla:** sus celdas vacías llevan guion. Las columnas de
+numeral y de conclusión no le aplican (la conducta es siempre literal), así que van con
+guion permanente en vez de en blanco.
+
 Verificación: `database/verificaciones/verif_plan_completo_boleta.php`. Detalle completo,
 trampas y cifras: `docs/modulos/boleta-competencias-completas.md` §10.
+
+### El banner de BORRADOR se eliminó — la señal es la marca de agua (05/08/2026)
+
+La vista previa de RA (`/admin/boletas-publicas/{id}/vista-previa`) llevaba un banner
+ámbar encima de cada boleta. Ocupaba **~6 mm de alto, dos filas de tabla**, y con el plan
+completo de competencias eso empujó **las firmas a una segunda hoja** (visto en
+Secundaria 4.º A). La restricción del documento es UNA hoja A4, así que la señalización
+no puede costar alto.
+
+Queda como única señal la **marca de agua diagonal** de `vista-previa.php`
+(`position: fixed`, se repite en cada página impresa), **reforzada** de `#555` al 8% a
+`#3f3f3f` al 16%. El refuerzo importa porque este documento **sí se imprime en papel con
+el bimestre todavía abierto**: la señal tiene que sobrevivir a la impresora, no solo
+verse en pantalla. Es texto, no un `background`, así que ningún driver lo descarta por
+"no imprimir fondos".
+
+⚠️ **Techo del refuerzo:** la marca va con `z-index` **por encima** del contenido; subir
+más la opacidad empieza a estorbar la lectura de la tabla de notas. Si alguna vez hace
+falta más contraste, el camino es mandarla detrás del contenido, no subir el porcentaje.
+
+`$vistaPrevia` sigue gobernando lo demás (sin QR, sin imagen de firma del director).
 
 ## Emitir el documento oficial exige el bimestre CERRADO (04/08/2026)
 
