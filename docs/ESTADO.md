@@ -1,9 +1,23 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **04/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **05/08/2026**.
 
 ## Migraciones
+- **`047_retorno_grado_asistencia_solapada`** (05/08): corrección de DATOS (no toca
+  esquema). Borra la fila de `inasistencias` que quedó en la matrícula **OFICIAL** de
+  un retorno de grado cuando la **OPERATIVA** ya tiene fila del mismo bimestre. Con
+  el solape, `getDelBimestreUnion` —que SUMA las dos fuentes— mostraba el **doble de
+  inasistencias** en la boleta (caso real: 4 faltas en vez de 2 en B2). Ancla por el
+  vínculo `retornos_grado`, **no por ids**; se autolimita al solape y exige
+  `p.fecha_fin >= r.fecha_retorno`, así que **no puede** tocar un bimestre anterior al
+  retorno. Idempotente (verificada con 2 corridas: 1 fila y luego 0). Probada
+  ejecutando el archivo real en transacción con ROLLBACK.
+  **APLICADA EN LOCAL** (verificado el 05/08: `inasistencias` pasó de 1053 a 1052 y
+  la fila de la matrícula oficial en B2 ya no existe). **PENDIENTE DE CONFIRMAR EN
+  PROD.** Antes de correrla, ejecutar el PREVIEW del propio archivo: debe devolver
+  **exactamente 1 fila** (si devuelve 0, ya está aplicada).
+  Ver `docs/modulos/retorno-grado.md`.
 - **`046_orden_merito_inmutable`** (24/07): Fase B del rediseño del orden de mérito.
   Additiva: `periodos_publicacion.primera_publicacion_en` (marca monotónica de primera
   publicación, backfill de lo ya publicado) + tabla nueva `orden_merito_rectificado`
@@ -422,11 +436,76 @@ WHERE id=25;`).
     conducta de B2 tiene **23 cierres** (todas las secciones) y la sección de la 541
     —3° A, `seccion_id=18`— está entre ellas. **Ya se pueden hacer los `DROP TABLE`
     de `_bkp_conducta_resp_541` y `_bkp_calif_conducta_541` en prod** (siguen ahí).
-- 🔴 **ASISTENCIA DE B2 VACÍA — BLOQUEA EL CIERRE (detectado el 04/08/2026).**
-  `inasistencias` tiene **528 filas en B1 y 0 en B2**; `cierres_asistencia`, 23 secciones
-  en B1 y **0 en B2**. Cerrar y publicar así mandaría a las familias asistencia **en
-  ceros**, que es un dato FALSO, no ausente (la boleta pinta una columna por bimestre
-  cerrado y suma lo que encuentre).
+- ✅ **ASISTENCIA DE B2 — REGISTRADA Y BLOQUEADA EN PROD (05/08/2026). Ya NO bloquea el
+  cierre.** El usuario amplió `limite_notas` y capturó las 23 secciones entre el 04/08
+  16:29 y el 05/08 00:01. **Verificado el 05/08** sobre la copia local sincronizada:
+  **525 filas** en `inasistencias` de B2 contra un roster canónico de **524** →
+  **0 huecos**; **23 de 23 secciones** con cierre vivo, sin duplicados; 352 alumnos con
+  alguna incidencia y 173 en cero absoluto (que es el dato válido "registrado sin
+  incidencias", distinto de "sin registro"). `verif_roster_asistencia.php` da **OK** en
+  sus 3 bloques. Los 7 cierres anulados entre las 18:10 y las 23:52 corresponden a
+  rehacer las secciones 1-6 tras aplicar el fix del roster.
+  - ⚠️ **Al terminar, `limite_notas` quedó en `2026-08-04 23:59` → `periodoEditable(2)`
+    es `false` otra vez.** Cualquier corrección de asistencia, conducta o notas de B2
+    exige volver a ampliar el plazo (y eso reabre la calificación docente: re-medir el
+    termómetro antes de cerrar).
+  - 🔴 **SECUELA ABIERTA — DOBLE CONTEO EN LA BOLETA DE BALTAZAR PINTO, SHALOM CRISTEL
+    (matrícula oficial 190 / operativa 692, retorno #1 del 21/06/2026).** Ambas matrículas
+    quedaron con `faltas=2` en B2, y `getDelBimestreUnion` **suma las dos fuentes** → su
+    boleta muestra **4 faltas** en vez de 2. Verificado ejecutando el modelo real
+    (`UNION B1 -> 2` correcto, `UNION B2 -> 4` incorrecto).
+    - **Origen:** la fila de la 190 se escribió el 04/08 a las **16:40:06**, con el roster
+      VIEJO todavía activo. Rehacer la sección con el roster nuevo no la borró.
+    - **La UI NO puede corregirlo:** con el roster nuevo la 190 no está en la grilla y
+      `matriculaEnRoster` rechaza toda escritura sobre ella (403). Solo por SQL.
+    - **REGLA (confirmada por el usuario el 05/08):** todo registro va a la matrícula
+      **OPERATIVA**; el documento se emite con la **OFICIAL**. El corte es por bimestre:
+      la fila de **B1 en la 190 es CORRECTA** (el retorno es del 21/06 y B1 cierra el
+      16/06) y **no se toca**; la de **B2 sobra**.
+    - **ACCIÓN en prod (antes de cerrar/publicar B2): aplicar la migración
+      `047_retorno_grado_asistencia_solapada.sql`**, que trae PREVIEW, el DELETE
+      acotado al solape y las consultas de verificación. Correr el PREVIEW primero:
+      debe devolver exactamente 1 fila.
+    - Las otras **11 filas fuera del roster son todas de B1** (trasladados/retirados),
+      cada una de una sola matrícula → no duplican nada. No tocarlas.
+    - Detalle de la trampa y consulta de guardia permanente: memoria
+      `project_retorno_grado_doble_conteo`.
+- **RETORNO DE GRADO — REGLA A IMPLEMENTADA (05/08/2026, en `dev`, SIN MIGRACIÓN).**
+  Se evalúa en la matrícula **operativa**, se documenta con la **oficial**, y los
+  datos **no se copian ni se mueven**. Doc completo: `docs/modulos/retorno-grado.md`.
+  - **F1 — `BoletaPublicaModel` conoce el retorno.** Dos constantes privadas
+    (`SQL_EXCLUIR_OPERATIVA`, `SQL_TIENE_BLOQUEOS`) aplicadas a las 3 consultas que
+    alimentan índice, vista previa, impresión masiva y archivar. Corrige un defecto
+    **preexistente desde el 21/06**: en B1 el estudiante salía **dos veces**
+    (517→**516**) y en B2 **desaparecía** de su sección oficial (2° B: 18→**19**).
+    El contador de 1° B en B1 pasó de mentir (19 aprobables / 18 generadas) a 18/18.
+  - **F2 — candado del bimestre en curso + fin de la copia.** El retorno se bloquea
+    si la oficial ya tiene notas, criterios u omisiones en un periodo `activo`
+    (`evaluacionEnBimestreActivo`, en `create()` y `store()`). Se eliminó el
+    `INSERT IGNORE` que duplicaba todas las calificaciones; asistencia y conducta
+    de los bimestres **activos** ahora se **MUEVEN** a la operativa. El retorno real
+    del 21/06 **pasa** el candado (no tenía nada en B2).
+  - **F3 — token único.** `BoletaController::resolveToken` rechaza (404) el token de
+    una matrícula operativa. Medido: **1 token de 531** deja de resolver, y nunca se
+    generó boleta ni se consultó con él. Los QR ya emitidos no se ven afectados: se
+    anclan a la matrícula IDENTIDAD, que en un retorno es siempre la oficial.
+  - **Verificación:** `database/verificaciones/verif_retorno_grado.php` (solo lectura,
+    corre en prod). Su bloque 1 prueba la **equivalencia** con la lógica anterior:
+    B1 `viejo=517 nuevo=516 (sale 692)`, B2 `viejo=518 nuevo=518 (sale 692, entra 190)`,
+    **0 matrículas ajenas afectadas**. El bloque 5 seguirá FALLANDO hasta que se
+    aplique el `DELETE` de F0 en prod — es la señal de que hace su trabajo.
+  - **Decisiones del usuario (no re-preguntar):** la copia de B1 **NO se borra** (es la
+    base probatoria del snapshot de mérito publicado: sin ella el promedio 12.05 deja
+    de ser reproducible); el token de la operativa se da de baja; la Regla A rige de
+    aquí en adelante y **no se corrige el snapshot de B1**, que queda con la
+    estudiante en 1° B por el candado 046.
+  - **Pendiente relacionado:** la regla del retorno está escrita a mano en ~15 sitios.
+    Unificarla en un punto único es un refactor con nombre propio, fuera de este lote.
+
+  **Diagnóstico original (04/08/2026):** `inasistencias` tenía **528 filas en B1 y 0 en
+  B2**; `cierres_asistencia`, 23 secciones en B1 y **0 en B2**. Cerrar y publicar así
+  habría mandado a las familias asistencia **en ceros**, que es un dato FALSO, no ausente
+  (la boleta pinta una columna por bimestre cerrado y suma lo que encuentre).
   - **Causa de que no se pudiera registrar:** `limite_notas` de B2 = **04/08/2026
     04:00**, ya vencido. El bimestre sigue `activo`, pero `AsistenciaModel::periodoEditable`
     exige `activo` **Y** estar dentro del plazo → la captura se cerró sola.
@@ -434,25 +513,26 @@ WHERE id=25;`).
     contrario.** Cerrarlo lo deja en solo lectura para siempre.
   - **Mismo plazo corta también notas y conducta** (`CalificacionModel::periodoEstaBloqueado`,
     `ConductaModel`), no solo asistencia.
-  - **ACCIÓN, antes de la Fase 4 del runbook:** ampliar `limite_notas` desde
-    `/director/anios/1` → **desplegar el fix del roster (abajo)** → registrar las
-    incidencias de las 23 secciones en `/admin/asistencia` → bloquear cada sección.
-    Recién entonces cerrar B2.
+  - **Secuencia ejecutada:** ampliar `limite_notas` desde `/director/anios/1` →
+    desplegar el fix del roster → registrar las incidencias de las 23 secciones en
+    `/admin/asistencia` → bloquear cada sección. **Cumplida.**
   - Que esto no se repita es el objeto del plan `docs/modulos/cierre-cuatro-registros.md`.
-- 🔴 **ROSTER DE ASISTENCIA ≠ ROSTER DE NOTAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
-  DESPLEGAR.** `/admin/asistencia` filtraba `m.estado='aprobada'` e ignoraba `tipo` y el
+- ✅ **ROSTER DE ASISTENCIA ≠ ROSTER DE NOTAS — EN PRODUCCIÓN (commit `de449e2`, pusheado
+  el 04/08/2026).** `/admin/asistencia` filtraba `m.estado='aprobada'` e ignoraba `tipo` y el
   retorno de grado, así que **los `pendiente` y `desactivado` no aparecían en la grilla**:
   nadie podía registrarles faltas y su boleta salía con 0 inasistencias (dato falso). A
   la vez mostraba la matrícula **oficial de un retorno activo**, o sea el grado donde la
   estudiante ya no está. Es el mismo arreglo que conducta recibió el 09/07 y que a
   asistencia se le quedó pendiente. Detalle en `docs/modulos/admin.md`.
-  - **Impacto medido en local:** 6 matrículas entran (todas `pendiente`; la 220 con 2
-    faltas de B1 que la grilla no mostraba) y 1 sale (la 190, oficial del retorno #1).
-    **Falta medirlo en prod** con `database/verificaciones/verif_roster_asistencia.php`
-    (solo lectura, corre en prod).
-  - **URGENTE — el orden importa:** hay que **desplegar ANTES de registrar la asistencia
-    de B2**. Si se registra con el roster viejo, los `pendiente` de prod quedan fuera y
-    se repite el problema en pequeño.
+  - **Impacto medido:** 6 matrículas entran (todas `pendiente`: 220, 470, 696, 690, 695,
+    693) y 1 sale (la 190, oficial del retorno #1). **Las 6 quedaron registradas en B2**,
+    o sea el fix cumplió su objetivo. `verif_roster_asistencia.php` (solo lectura, corre
+    en prod) da OK en las 23 secciones.
+  - ⚠️ **El orden se respetó a medias y dejó cola:** el registro empezó a las 16:29 con el
+    roster VIEJO; a las 18:10 se anularon las secciones 1-6 y se rehicieron con el nuevo.
+    Rehacer NO borra las filas que el roster nuevo dejó fuera → de ahí el doble conteo de
+    la matrícula 190 (ver la entrada de asistencia de B2, arriba). **Lección: al cambiar
+    un roster, rehacer no basta; hay que barrer las filas huérfanas.**
   - Decisión del usuario: aplica a **todos los periodos, incluidos los bloqueados**, así
     que el imprimible oficial de B1 se recalcula con el roster nuevo. Sin migración.
 - 🔴 **DECISIÓN ABIERTA — ¿ÉTICA Y VALORES vuelve al promedio del orden de mérito en TODA
@@ -801,6 +881,23 @@ WHERE id=25;`).
     mérito pasan (fase A 6/6 · fase B candado 046 + rollback · fase 1 snapshot 528 ·
     fase 5b control discrimina 518≠528) y **no dejan rastro** — tras correrlas el
     snapshot sigue en 528 filas, 0 rectificados y 14 desempates.
+- **04/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `68968bb` a `de449e2`.**
+  Entró a producción el lote acumulado: rediseño 2 del orden de mérito completo,
+  excepciones de hoja SIAGIE, vínculos/cobertura con `codigo_siagie` editable, semáforo
+  de las cards del dashboard docente, fix de la card de empates, fix del orden
+  alfabético con la Ñ y **el fix del roster de asistencia** (que habilitó la captura de
+  B2 esa misma tarde). Sin migración.
+- **05/08/2026 — foto verificada: `dev` = `origin/dev` = `fae5481`, `origin/main` =
+  `de449e2` → 4 commits SIN desplegar.** Árbol limpio. Son `7e40a3d` (la asistencia de
+  la boleta usa el mismo umbral que las notas), `c2865e2` (formato oficial —las 4
+  columnas— en las 9 entradas de boleta), `ab3966e` (los bimestres `pendiente` no se
+  abren desde el índice) y `fae5481` (docs + **la exclusión de Ética del mérito**).
+  Sigue sin migración → el deploy sería merge + push.
+  - ⚠️ **PRODUCCIÓN HOY SÍ CUENTA ÉTICA Y VALORES EN EL ORDEN DE MÉRITO.** La reversión
+    decidida el 04/08 vive solo en `dev`. La decisión abierta (ver arriba) determina si
+    ese commit se despliega tal cual o se ajusta — y hay que cerrarla ANTES de cerrar B2.
+  - ⚠️ **`main` LOCAL quedó en `0e250d1`, por DETRÁS de `origin/main`.** Es la trampa de
+    siempre: actualizar `main` antes de mergear, o el fast-forward no sale.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial

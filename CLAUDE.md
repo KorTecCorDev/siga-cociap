@@ -179,6 +179,7 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | Boletas (imprimible, digital, token, pública dormida, firmas) | `docs/modulos/boletas.md` |
 | Calificaciones, criterios, bloqueos, transversales, consulta de notas | `docs/modulos/calificaciones.md` |
 | Matrículas, apoderados, estados, alta provisional, retorno/traslado | `docs/modulos/matriculas.md` |
+| **Retorno de grado** (matrícula oficial vs operativa, candado, uniones) | `docs/modulos/retorno-grado.md` |
 | Horarios, cargas académicas, solapes, Tutoría TOE | `docs/modulos/horarios.md` |
 | Orden de mérito, snapshot, desempates, rectificaciones | `docs/modulos/orden-merito.md` |
 | Usuarios, secciones/tutores, Director EBR, panel de bloqueos, conducta | `docs/modulos/admin.md` |
@@ -225,6 +226,14 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   huérfanos mira `eliminado_en`, NO `confirmado_en`).
 - **Estados de matrícula: SOLO `pendiente`/`aprobada`/`desactivado`** (`'activo'` se
   eliminó del enum; otras columnas `estado` de otras tablas son independientes).
+- **Retorno de grado: se EVALÚA en la operativa, se DOCUMENTA con la oficial**
+  (Regla A, 05/08/2026). Los datos NO se copian ni se mueven entre matrículas:
+  cada bimestre queda donde se cursó y la boleta une las fuentes al leer
+  (`boletaContexto`). ⚠️ Las dos exclusiones son **INVERSAS**: los 9 rosters de
+  evaluación excluyen la **oficial**; el lote de boletas y el token público
+  excluyen la **operativa**. Un retorno NO se registra a mitad de bimestre ya
+  evaluado (candado en `RetornoGradoController`), y se ancla en el DATO, no en la
+  fecha: **los bimestres se solapan**. Ver `docs/modulos/retorno-grado.md`.
 - **Rosters de evaluación (calificaciones, conducta, transversales, tutoría)
   excluyen matrículas `tipo IN ('trasladado','retirado')`** — el resto (incl.
   `desactivado` por deuda y `pendiente`) SÍ se califica. `retirado` = ya no asiste
