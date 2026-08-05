@@ -403,13 +403,25 @@ class BoletaController extends BaseController
         // Una matrícula 'desactivado' (baja o traslado) no expone su boleta por
         // token aunque el QR impreso siga circulando: se trata como inexistente.
         // El NIVEL se necesita para la compuerta de publicación (es por nivel).
+        //
+        // RETORNO DE GRADO (05/08/2026): la matrícula OPERATIVA tampoco expone
+        // boleta. El documento se emite SIEMPRE con la OFICIAL, así que cada
+        // estudiante tiene UNA sola URL pública; si la operativa respondiera,
+        // habría dos direcciones distintas sirviendo el mismo documento. Se trata
+        // como inexistente (404), sin revelar que el token existe.
+        // No rompe nada emitido: el QR se ancla a la matrícula IDENTIDAD, que en
+        // un retorno es siempre la oficial (ver renderBoleta), y ninguna boleta
+        // pública se llegó a generar con el token de una operativa.
         $matricula = $this->calModel->queryOne(
             "SELECT m.id, m.anio_id, n.id AS nivel_id
              FROM matriculas m
              INNER JOIN secciones s ON s.id = m.seccion_id
              INNER JOIN grados    g ON g.id = s.grado_id
              INNER JOIN niveles   n ON n.id = g.nivel_id
-             WHERE m.token_acceso = ? AND m.estado <> 'desactivado' LIMIT 1",
+             WHERE m.token_acceso = ?
+               AND m.estado <> 'desactivado'
+               AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
+             LIMIT 1",
             [$token]
         );
 
