@@ -17,11 +17,13 @@ $esSecundaria = ($alumno['escala_boleta'] === 'ambas');
 $hoy          = (new DateTime())->format('d/m/Y');
 $romanos      = ['I', 'II', 'III', 'IV'];
 
-// Separa las competencias transversales para ubicarlas al final
+// Separa las competencias transversales para ubicarlas al final.
+// "transv", no "transversal": en SECUNDARIA el area se rotula "Comp. Transv."
+// (misma nota que en boleta/alumno.php).
 $areasRegulares     = [];
 $areasTransversales = [];
 foreach ($areas as $_n => $_c) {
-    if (stripos($_n, 'transversal') !== false) {
+    if (stripos($_n, 'transv') !== false) {
         $areasTransversales[$_n] = $_c;
     } else {
         $areasRegulares[$_n] = $_c;
@@ -181,7 +183,7 @@ $vistaPrevia = $vistaPrevia ?? false;
             $dividerMostrado = false;
             foreach ($areasOrdenadas as $areaNombre => $competencias):
                 $areaIndex++;
-                $esTransversal = stripos($areaNombre, 'transversal') !== false;
+                $esTransversal = stripos($areaNombre, 'transv') !== false;   // ver nota arriba
                 $areaId        = 'bd-area-' . $areaIndex;
                 $areaBodyId    = $areaId . '-body';
             ?>

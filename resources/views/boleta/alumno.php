@@ -28,11 +28,17 @@ $totalCols = 1 + count($periodos) * $subCols + 1;
 // Etiquetas de bimestre abreviadas para el encabezado de columna
 $romanos = ['I', 'II', 'III', 'IV'];
 
-// Separa las competencias transversales para ubicarlas al final
+// Separa las competencias transversales para ubicarlas al final.
+// OJO al criterio: se busca "transv", no "transversal", porque el area
+// transversal de SECUNDARIA se rotula "Comp. Transv." (la de primaria,
+// "Competencias Transversales"). Con la cadena larga, en secundaria el bloque
+// no se movia al final ni recibia su estilo, y quedaba ANTES de Etica y
+// Valores (orden 90 contra el orden 13 del area transversal). Ninguna otra
+// area de ningun nivel contiene "transv".
 $areasRegulares     = [];
 $areasTransversales = [];
 foreach ($areas as $_n => $_c) {
-    if (stripos($_n, 'transversal') !== false) {
+    if (stripos($_n, 'transv') !== false) {
         $areasTransversales[$_n] = $_c;
     } else {
         $areasRegulares[$_n] = $_c;
@@ -157,7 +163,7 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
     </thead>
     <tbody>
         <?php foreach ($areasOrdenadas as $areaNombre => $competencias):
-            $esTransversal = stripos($areaNombre, 'transversal') !== false;
+            $esTransversal = stripos($areaNombre, 'transv') !== false;   // ver nota arriba
         ?>
 
             <tr class="fila-area <?= $esTransversal ? 'fila-area--transversal' : '' ?>">
