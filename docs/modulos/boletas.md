@@ -792,6 +792,30 @@ verse en pantalla. Es texto, no un `background`, así que ningún driver lo desc
 más la opacidad empieza a estorbar la lectura de la tabla de notas. Si alguna vez hace
 falta más contraste, el camino es mandarla detrás del contenido, no subir el porcentaje.
 
+#### La marca de agua NO CABÍA en la hoja al imprimir (medido)
+
+La marca lleva dos líneas — `BORRADOR` + la leyenda *"Vista previa · no constituye
+documento oficial"*— y **en impresión usa tamaños propios**. El motivo es una medición,
+no una preferencia: con la fuente real (Arial Bold, vía `imagettfbbox`), a **140 pt con
+12 pt de tracking** la palabra mide **317 mm de largo**, y rotada −30° proyecta **275 mm**
+sobre los **190 mm útiles** del A4. Se perdían ~85 mm: **el papel salía con la palabra
+cortada** (dos o tres letras por lado). En pantalla no se notaba porque el viewport es
+más ancho que una hoja.
+
+| Tamaño | Largo | Proyección (×cos 30°) | vs 190 mm útiles |
+|---|---|---|---|
+| 140 pt / 12 pt (antes, impresión) | 317 mm | 275 mm | **−85 mm, se corta** |
+| 110 pt / 8 pt | 246 mm | 213 mm | −23 mm, se corta |
+| **90 pt / 6 pt (actual, impresión)** | 200 mm | **173 mm** | **+17 mm** ✓ |
+| Leyenda 16 pt | 174 mm | 151 mm | +39 mm ✓ |
+
+La holgura de 17 mm existe para absorber la diferencia entre el motor del navegador y la
+medición de GD. **En pantalla no se tocó nada** (130 pt / 18 pt): ahí se lee entera.
+
+🔁 **Si se cambia el texto de la leyenda o el tamaño, hay que recalcular** — el límite es
+la **proyección**, no el largo: `proyección = largo × cos 30°`, y el ancho de la palabra
+crece con el tracking, que se aplica a cada letra.
+
 `$vistaPrevia` sigue gobernando lo demás (sin QR, sin imagen de firma del director).
 
 ## Emitir el documento oficial exige el bimestre CERRADO (04/08/2026)
