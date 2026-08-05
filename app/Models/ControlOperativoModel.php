@@ -330,7 +330,11 @@ class ControlOperativoModel extends BaseModel
             LEFT  JOIN subareas sa          ON sa.id   = comp.subarea_id
             INNER JOIN areas a              ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE m.tipo NOT IN ('trasladado', 'retirado')
-              -- Mismo universo del mérito: incluye Ética, excluye transversal/tutoría.
+              -- OJO: este universo YA NO es el del mérito. Desde el 04/08/2026 el mérito
+              -- excluye TODA la tutoría, incluida Ética y Valores; esta alerta la
+              -- mantiene A PROPOSITO, porque vigila la COMPLETITUD del registro y no el
+              -- ranking: a Ética le falta una nota que va a BOLETA y a SIAGIE (hoja
+              -- EREL), así que sigue siendo una evaluación incompleta.
               AND (a.tipo NOT IN ('transversal', 'tutoria')
                    OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
               -- El criterio SÍ se evaluó en la sección (algún alumno tiene nota).

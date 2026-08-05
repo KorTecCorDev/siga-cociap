@@ -79,6 +79,18 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     trasladado: la impresión masiva y el ZIP de archivo colapsaban columnas, y el papel que
     se firma salía con otro formato que el que la familia abre por QR.
 
+- **`verif_universo_merito.php`** — **SOLO LECTURA**, apto para producción. Lista, grado por
+  grado y periodo por periodo, **qué áreas aportan al promedio del orden de mérito** y
+  cuáles quedan excluidas, con el conteo de notas de cada una.
+  - **Falla (exit 1)** si un área PROHIBIDA en un grado empieza a aportar. La lista vive
+    en el array `$prohibidas` del propio script: hoy solo cubre **5.º de secundaria**
+    (Arte y Cultura, EPT, Ética y Valores, Ed. Religiosa y Transversales), que es la regla
+    del colegio del 04/08/2026.
+  - Existe porque el universo del mérito **no está declarado en ninguna tabla**: se deriva
+    de las notas que existan, así que un área entra al promedio en cuanto alguien le crea
+    una carga y registra notas. Esta verificación es la red de seguridad — a propósito NO
+    se hardcodeó la exclusión en el SQL del mérito, que duplicaría el plan de estudios.
+
 ## Consultas operativas (phpMyAdmin)
 
 - **`alerta_evaluacion_incompleta.sql`** — SOLO LECTURA. Replica

@@ -31,12 +31,11 @@ en documento oficial inmutable por snapshot.
 - **Empates resueltos ANTES de cerrar; bimestres se abren en orden cronológico.**
 - **"Vigente"** (buscador, columna puesto de nómina) = snapshot del cerrado de
   mayor número < bimestre activo (`EstudianteModel::ultimoBimestreCerrado`).
-- **Excluye áreas `tipo IN ('transversal','tutoria')`**, con UNA excepción desde el
-  rediseño 2 (26/07): el área **Ética y Valores** (tutoría de secundaria, C57) SÍ
-  cuenta, porque reemplaza a Ed. Religiosa. Punto único:
-  `AREA_ETICA_NOMBRE_BOLETA` en `helpers.php` — se identifica por `nombre_boleta`,
-  NO por id (el id del área difiere entre entornos). El resto de la tutoría TOE y las
-  transversales siguen fuera, de forma permanente.
+- **Excluye áreas `tipo IN ('transversal','tutoria')` — SIN EXCEPCIONES (04/08/2026).**
+  ~~Entre el 26/07 y el 04/08 el área **Ética y Valores** (tutoría de secundaria, C57)
+  contaba, por reemplazar a Ed. Religiosa (P5 del rediseño 2).~~ **Revertido por decisión
+  del usuario.** Ética sigue yendo a boleta y a SIAGIE (hoja EREL): solo salió del
+  promedio del mérito. Detalle e impacto medido: ver la sección de auditoría más abajo.
 - **El cálculo EN VIVO solo cuenta competencias BLOQUEADAS** (rediseño 2): join a
   `bloqueos_competencia`, sin filtrar `origen` (cuenta `docente` y `cierre`). En un
   bimestre cerrado no cambia nada (todo está bloqueado); en uno activo el ranking
@@ -220,6 +219,180 @@ sin resolver o alumnos con evaluación incompleta
 su sección sí tienen con nota y a él le faltan, sin omisión ni exoneración, en cargas
 ACTIVAS). NO valida "0 competencias sin bloquear" —el propio cierre las fuerza, y ese
 camino maneja las transversales—, que es una diferencia consciente con el diseño (P3).
+
+## El motor de cálculo, auditado (04/08/2026) — DECISIONES CERRADAS, no re-preguntar
+
+Auditoría de `rankingGradoLive` + `aplicarDesempate` a petición del usuario. **No se
+cambió nada del código**: las tres preguntas abiertas se decidieron por mantener el
+comportamiento actual. Se documenta para no volver a plantearlas.
+
+### Cómo calcula, en una línea
+**Promedio aritmético simple por COMPETENCIA** (`AVG(cal.nota_numerica)`), sin ponderar
+por área, horas ni nivel: un área con 4 competencias pesa el cuádruple que una con 1.
+`promedio_exacto` (sin redondear) ordena; `promedio_general` (2 decimales) se muestra;
+el agrupamiento de empates redondea a 6 decimales.
+
+**El denominador varía entre compañeros del mismo grado** (medido en B1: 1° primaria de
+19 a 23 competencias, 5° secundaria de 18 a 20). No es un fallo —`AVG` es por alumno—
+pero el promedio no mide lo mismo para todos. Por eso la cascada trata el **N desigual**
+como empate irreducible: si dos alumnos empatan en promedio con distinto N, la decisión
+es humana. *(En B1 esa rama no llegó a dispararse: 0 grupos con N desigual.)*
+
+### El motor NO distingue primaria de secundaria
+No hay una sola condición por `nivel_id` en el cálculo. Las diferencias entre niveles las
+producen los DATOS, no el código: primaria aporta 25 competencias evaluables al mérito y
+secundaria 28 (29 menos Ética, ver abajo).
+
+### Ética y Valores SALE del mérito (04/08/2026) — ⚠️ DECISIÓN NO CERRADA
+Revierte P5 del rediseño 2. El filtro vuelve a ser `a.tipo NOT IN ('transversal',
+'tutoria')` **sin excepción**, en las dos queries del cálculo en vivo.
+
+> 🔴 **PENDIENTE ABIERTO (usuario, 04/08/2026): puede volver a entrar en TODA secundaria.**
+> Razón: Ética va al SIAGIE (hoja `035-EREL`) y **participa del cuadro de mérito oficial
+> del MINEDU al terminar 5.º**. Si SIGA la excluye, el mérito interno **diverge del
+> oficial de los egresados**.
+> **Decidirlo ANTES de cerrar B2:** el cierre congela el snapshot, y si B3/B4 se calculan
+> con otra regla, el promedio anual de 5.º mezclaría criterios. Detalle, impacto medido y
+> disparador en `docs/ESTADO.md`. Revertir = una línea en cada una de las dos queries
+> (`OR a.nombre_boleta = AREA_ETICA_NOMBRE_BOLETA`); la constante sigue viva.
+> **Dato que condiciona:** las 271 notas de Ética del año están **todas en B2**; B1 tiene
+> 0 en los cinco grados, así que B1 no la tendrá nunca.
+
+**Impacto medido en B2 comparando el ranking real antes/después** (las 271 notas de Ética
+del año están TODAS en B2; B1 no tiene ninguna, así que su snapshot oficial no se ve
+afectado):
+
+| | Primaria | Secundaria |
+|---|---|---|
+| Alumnos | 245 | 272 |
+| Cambian de denominador (N) | **0** | 271 |
+| Cambian de promedio | **0** | 257 |
+| **Cambian de puesto** | **0** | **76** |
+| Salto máximo | — | 3 puestos |
+| **Primeros puestos que cambian** | **0** | **0** |
+| Empates pendientes antes → después | 0 → 0 | 2 → **0** |
+
+Primaria no se mueve porque su área de tutoría tiene 0 competencias. **Ningún grado cambia
+de primer puesto**, así que la media beca no se ve afectada, y los 2 empates pendientes de
+Secundaria 4° se resolvieron solos al separarse los promedios.
+
+**Lo que NO se tocó, a propósito:**
+- `ControlOperativoModel::alertasEvaluacionIncompleta` **mantiene** Ética en su universo:
+  vigila la completitud del registro, no el ranking, y a Ética le falta una nota que va a
+  boleta y a SIAGIE. Su comentario ya no dice "mismo universo del mérito".
+- `database/reconstruir_snapshot_b1.php` conserva la excepción: reproduce el documento
+  oficial de B1 tal como se generó. Es inocuo (B1 tiene 0 notas de Ética).
+- La constante `AREA_ETICA_NOMBRE_BOLETA` sigue viva: la usan SIAGIE (hoja EREL) y la
+  alerta.
+
+### Qué entra y qué no en el promedio — tabla de referencia (04/08/2026)
+
+| Nivel | Tipo | Área | Subáreas | Comps. | ¿Entra? |
+|---|---|---|---|---|---|
+| Primaria | área-curso | Arte y Cultura | — | 2 | **Sí** |
+| Primaria | área-curso | Educación Física | — | 3 | **Sí** |
+| Primaria | área-curso | Educación Religiosa | — | 2 | **Sí** |
+| Primaria | área-curso | Inglés | — | 3 | **Sí** |
+| Primaria | área-curso | Personal Social | — | 5 | **Sí** |
+| Primaria | con subáreas | Ciencia y Tecnología | Química · Biología · Física | 3 | **Sí** |
+| Primaria | con subáreas | Comunicación | Gramática · Plan Lector · Razonamiento Verbal | 3 | **Sí** |
+| Primaria | con subáreas | Matemática | Aritmética · Álgebra · Geometría · Raz. Matemático | 4 | **Sí** |
+| Primaria | transversal | Competencias Transversales | — | 2 | No |
+| Primaria | tutoría | Tutoría (TOE) | — | 0 | No |
+| Secundaria | área-curso | Arte y Cultura | — | 2 | **Sí** |
+| Secundaria | área-curso | DPCC | — | 2 | **Sí** |
+| Secundaria | área-curso | Educación Física | — | 3 | **Sí** |
+| Secundaria | área-curso | Educación para el Trabajo | — | 1 | **Sí** |
+| Secundaria | área-curso | Educación Religiosa | — | 2 | **Sí** |
+| Secundaria | área-curso | Inglés | — | 3 | **Sí** |
+| Secundaria | área-curso | Taller de Pre-Cálculo | — | 1 | **Sí** |
+| Secundaria | área-curso | Taller de Razonamiento Matemático | — | 2 | **Sí** |
+| Secundaria | con subáreas | Ciencia y Tecnología | Química · Biología · Física | 3 | **Sí** |
+| Secundaria | con subáreas | Ciencias Sociales | Historia · Geografía · Economía | 3 | **Sí** |
+| Secundaria | con subáreas | Comunicación | Raz. Verbal · Literatura · Lenguaje | 3 | **Sí** |
+| Secundaria | con subáreas | Matemática | Aritmética · Álgebra · Geometría · Trigonometría | 4 | **Sí** |
+| Secundaria | transversal | Competencias Transversales | — | 2 | No |
+| Secundaria | tutoría | **Ética y Valores** | — | 1 | **No** (desde 04/08) |
+
+**Totales que entran: Primaria 25 competencias · Secundaria 28.**
+
+Notas de lectura:
+- **Las subáreas no son una unidad de cómputo.** El promedio es por COMPETENCIA: cada
+  subárea aporta las suyas (normalmente 1) y el área con subáreas pesa la suma. Matemática
+  (4) pesa el doble que Arte y Cultura (2).
+- **La CONDUCTA no entra**, y no por un filtro: vive en otra tabla
+  (`calificaciones_conducta`) que el mérito ni siquiera consulta. Verificado: no hay
+  ninguna referencia a conducta en `OrdenMeritoModel`.
+- **Las competencias transversales (TIC/GAMA) no entran** en ninguno de los dos niveles.
+- Ese universo aún se filtra por: nota **bloqueada**, `extraordinaria = 0` y el roster
+  (`tipo NOT IN ('trasladado','retirado')` + anclaje de retorno).
+
+### 5.º de secundaria lleva OTRO plan — regla del colegio (04/08/2026)
+
+**En 5.º de secundaria jamás entran al mérito:** Arte y Cultura, Educación para el
+Trabajo, Ética y Valores, Educación Religiosa y las Competencias Transversales.
+**Las cinco ya se cumplen**, por dos vías distintas:
+
+| Área | Por qué está fuera de 5.º |
+|---|---|
+| Arte y Cultura | 5.º **no la lleva**: 0 cargas y 0 notas (sí en 1.º-4.º) |
+| Educación para el Trabajo | 5.º **no la lleva**: 0 cargas y 0 notas (sí en 1.º-4.º) |
+| Educación Religiosa (secundaria) | **0 cargas en cualquier estado y 0 notas** en todo el nivel: es un cascarón del catálogo, reemplazado por Ética |
+| Ética y Valores | excluida por `tipo='tutoria'` (desde el 04/08) — ⚠️ **decisión abierta**, puede volver: ver el aviso de arriba |
+| Competencias Transversales | excluida por `tipo='transversal'` |
+
+**Plan de 5.º frente a 1.º-4.º:** no lleva Arte y Cultura ni EPT, y sí lleva **Taller de
+Pre-Cálculo** (exclusivo del grado). Competencias que entran: **1.º-4.º = 26 · 5.º = 24**.
+
+> **Ojo al leer el acta SIAGIE de 5.º:** dos de sus hojas se nutren de áreas que NO
+> cuentan para el mérito — `035-EREL` ← **Ética y Valores** (todos los grados) y
+> `032-EPT` ← **GAMA**, una competencia transversal (`LlenadorSiagie:77`, solo 5.º,
+> precisamente porque el grado no lleva el curso de EPT). El acta y el ranking no tienen
+> por qué cuadrar área por área.
+
+**Por qué esto NO se codificó como excepción en el SQL del mérito:** el plan de estudios
+se deriva de las **cargas académicas**; hardcodear "5.º no lleva Arte" en la query
+duplicaría esa fuente de verdad y quedaría desincronizado el día que el plan cambie. La
+red de seguridad es `database/verificaciones/verif_universo_merito.php` (solo lectura,
+corre en prod): lista qué área aporta al promedio en cada grado y **falla** si una
+prohibida empieza a aportar.
+
+**Refuerzo pendiente (dato, no código):** desactivar el área *Educación Religiosa* de
+secundaria desde `/admin/curriculum`. `CargaAcademicaModel` solo ofrece áreas con
+`activa = 1`, así que impide crearle una carga — sin carga no hay notas. **No** añadir
+`AND a.activa = 1` al mérito: convertiría desactivar un área en una alteración
+**retroactiva** de rankings ya calculados (el exportador SIAGIE ya evita esa trampa con
+`WHERE a.activa = 1 OR notas > 0`).
+
+### Decisiones del usuario (04/08/2026)
+1. **Primaria se sigue ordenando por PROMEDIO NUMÉRICO**, igual que secundaria. Se evaluó
+   ordenarla por conteo literal (más AD, menos C…) —que es lo que su boleta comunica, ya
+   que en primaria solo se publica AD/A/B/C— y **se decidió mantener el promedio**.
+   - Consecuencia asumida, medida en B1: **180 alumnos de primaria** están en grupos con
+     la boleta literal idéntica (mismo N y misma distribución C/B/A/AD), y en **42** de
+     esos grupos el orden lo decide el numeral, que la familia de primaria **no ve**.
+     En secundaria son 81 alumnos / 33 grupos, pero allí el numeral sí se publica.
+2. **`num_alto` (15,16) y `num_16` se quedan como están**, aunque sean criterios de escala
+   vigesimal aplicados también a primaria. Siguen congelados desde el cambio de escala del
+   10/06/2026.
+3. **Los umbrales de `num_c`/`num_b` se quedan HARDCODEADOS.** No se unifican con las
+   constantes pese a ser un cambio sin efecto en el resultado de hoy.
+
+### ⚠️ Riesgo latente que dejan las decisiones 2 y 3
+La cascada mezcla dos fuentes de umbral:
+```sql
+SUM(cal.nota_numerica <= 10)             AS num_c    -- literal, hardcodeado
+SUM(cal.nota_numerica BETWEEN 11 AND 13) AS num_b    -- literal, hardcodeado
+SUM(cal.nota_numerica >= " . NOTA_MIN_AD . ") AS num_ad  -- constante
+```
+Hoy los tres coinciden con la escala vigente (`NOTA_MIN_B=11`, `NOTA_MIN_A=14`,
+`NOTA_MIN_AD=18`), así que el ranking es correcto.
+
+**DISPARADOR:** si alguna vez se mueve `NOTA_MIN_B` o `NOTA_MIN_A`, `num_ad` se ajustará
+solo y `num_c`/`num_b` se quedarán atrás **en silencio**, desincronizando el desempate.
+Ante un cambio de escala hay que venir aquí y actualizar estas dos líneas a mano (y
+revisar `num_alto`/`num_16`, congelados desde el cambio anterior). Las dos queries del
+modelo (`rankingGradoLive` y `rankingPorSeccionLive`) llevan la misma copia.
 
 ## Estado operativo
 Ver `docs/ESTADO.md`. **Rediseño 1 COMPLETADO (25/07/2026):** A = filtro por tipo (en

@@ -455,6 +455,30 @@ WHERE id=25;`).
     se repite el problema en pequeño.
   - Decisión del usuario: aplica a **todos los periodos, incluidos los bloqueados**, así
     que el imprimible oficial de B1 se recalcula con el roster nuevo. Sin migración.
+- 🔴 **DECISIÓN ABIERTA — ¿ÉTICA Y VALORES vuelve al promedio del orden de mérito en TODA
+  secundaria? (planteada por el usuario el 04/08/2026).** Hoy el código la **EXCLUYE**
+  (cambio del mismo día, ver abajo), pero la decisión **no está cerrada**.
+  - **Argumento a favor de incluirla:** Ética entra al SIAGIE (hoja `035-EREL`) y
+    **participa del cuadro de mérito oficial del MINEDU al finalizar 5.º de secundaria**.
+    Si SIGA la excluye, el orden de mérito interno **no coincidirá con el oficial** de los
+    egresados — con impacto en certificados y en el primer puesto de la promoción.
+  - ⏰ **HAY QUE DECIDIRLO ANTES DE CERRAR B2.** Al cerrar se congela el snapshot: si B2
+    cierra sin Ética y luego se decide incluirla, **B2 y B3/B4 quedarían con reglas
+    distintas dentro del mismo año**, y el promedio anual de 5.º —el que alimenta el
+    cuadro de egresados— se armaría sobre bases mezcladas. Peor si B2 llega a publicarse:
+    el candado 046 vuelve inmutable el oficial y la corrección iría a
+    `orden_merito_rectificado`.
+  - **Dato que condiciona la decisión (medido 04/08):** las **271 notas de Ética del año
+    están TODAS en B2**; en **B1 hay 0** en los cinco grados. Así que B1 no la tendrá
+    nunca, decida lo que se decida, y cualquier promedio anual mezclará un bimestre sin
+    Ética con el resto.
+  - **Impacto de incluirla, ya medido en B2:** 271 alumnos de secundaria cambian de
+    denominador, 257 de promedio y **76 de puesto** (saltos de hasta 3); **ningún primer
+    puesto cambia** y los 2 empates pendientes de 4.º desaparecen. Primaria: 0 cambios.
+  - **Revertir es de una línea** en las dos queries de `OrdenMeritoModel` (volver a
+    `OR a.nombre_boleta = AREA_ETICA_NOMBRE_BOLETA`). La constante sigue viva.
+  - Relacionado: la regla de 5.º (Arte, EPT, Ed. Religiosa, Ética y Transversales fuera)
+    quedaría **parcialmente revisada** si Ética vuelve. Ver `docs/modulos/orden-merito.md`.
 - **FORMATO OFICIAL EN TODAS LAS BOLETAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
   DESPLEGAR.** La regla de formato del 09/07 (las 4 columnas de bimestre siempre) se había
   aplicado solo a `/boleta/ver/{token}` y a la boleta del trasladado: la **impresión masiva**

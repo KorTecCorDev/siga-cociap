@@ -121,11 +121,12 @@ class OrdenMeritoModel extends BaseModel
                      AND c2.periodo_id   = ?
                   WHERE r.estado = 'revertido'
               )
-              -- P5 (rediseño 2): Ética y Valores (tutoría de secundaria con la
-              -- competencia C57) SÍ cuenta en el mérito — reemplaza a Ed. Religiosa.
-              -- El resto de la tutoría (TOE) y las transversales siguen fuera.
-              AND (a.tipo NOT IN ('transversal', 'tutoria')
-                   OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
+              -- El mérito excluye TODA área 'transversal' y 'tutoria', sin excepciones
+              -- (decisión del usuario, 04/08/2026). Entre el 26/07 y esa fecha, Ética y
+              -- Valores (la tutoría de secundaria, area_id 24 en local) SÍ contaba —P5 del
+              -- rediseño 2, por reemplazar a Ed. Religiosa—; se revirtió. Ética sigue
+              -- yendo a BOLETA y a SIAGIE (hoja EREL): solo sale del promedio del mérito.
+              AND a.tipo NOT IN ('transversal', 'tutoria')
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, p.dni, s.nombre
             ORDER BY promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,
@@ -203,11 +204,12 @@ class OrdenMeritoModel extends BaseModel
                      AND c2.periodo_id   = ?
                   WHERE r.estado = 'revertido'
               )
-              -- P5 (rediseño 2): Ética y Valores (tutoría de secundaria con la
-              -- competencia C57) SÍ cuenta en el mérito — reemplaza a Ed. Religiosa.
-              -- El resto de la tutoría (TOE) y las transversales siguen fuera.
-              AND (a.tipo NOT IN ('transversal', 'tutoria')
-                   OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
+              -- El mérito excluye TODA área 'transversal' y 'tutoria', sin excepciones
+              -- (decisión del usuario, 04/08/2026). Entre el 26/07 y esa fecha, Ética y
+              -- Valores (la tutoría de secundaria, area_id 24 en local) SÍ contaba —P5 del
+              -- rediseño 2, por reemplazar a Ed. Religiosa—; se revirtió. Ética sigue
+              -- yendo a BOLETA y a SIAGIE (hoja EREL): solo sale del promedio del mérito.
+              AND a.tipo NOT IN ('transversal', 'tutoria')
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, s.id, s.nombre
             ORDER BY s.nombre, promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,

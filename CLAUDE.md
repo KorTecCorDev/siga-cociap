@@ -231,10 +231,16 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   sin traslado oficial (migración 045); reversible vía `tipo_anterior`. NO extender
   a los usos de `trasladado` en boleta (un retirado es desactivado no-trasladado →
   BORRADOR). Ver `docs/modulos/matriculas.md`.
-- **Orden de mérito excluye áreas `tipo IN ('transversal','tutoria')`** — permanente,
-  con UNA excepción: **Ética y Valores** (tutoría de secundaria, C57) SÍ cuenta.
-  Punto único `AREA_ETICA_NOMBRE_BOLETA` en `helpers.php`; se identifica por
-  `nombre_boleta`, NUNCA por id (difiere entre entornos).
+- **Orden de mérito excluye áreas `tipo IN ('transversal','tutoria')` — SIN EXCEPCIONES**
+  (04/08/2026). Entre el 26/07 y esa fecha, **Ética y Valores** (la tutoría de secundaria)
+  contaba; se revirtió por decisión del usuario. ⚠️ **La decisión sobre Ética NO está
+  cerrada** (podría volver en toda secundaria: entra al SIAGIE y al cuadro de mérito
+  oficial de 5.º) — **decidir antes de cerrar B2**; ver `docs/ESTADO.md`. Ética sigue yendo a **boleta y SIAGIE**
+  (hoja EREL): solo salió del promedio del mérito. La constante
+  `AREA_ETICA_NOMBRE_BOLETA` sigue viva para SIAGIE y para
+  `ControlOperativoModel::alertasEvaluacionIncompleta`, que **sí** la mantiene a propósito
+  (vigila completitud del registro, no el ranking); se identifica por `nombre_boleta`,
+  NUNCA por id (difiere entre entornos).
 - **Mérito EN VIVO = solo competencias BLOQUEADAS** (join a `bloqueos_competencia`, sin
   filtrar `origen`). La cascada ya no desempata por apellido: tras `num_16` es MANUAL y
   el orden lo fija `m.id`.
@@ -340,6 +346,11 @@ y `docs/ESTADO.md`.
   - Conversión PHP: SIEMPRE via `nota_a_literal()` (los modelos delegan, no duplican el match).
   - Queries SQL: interpolan las constantes (`OrdenMeritoModel` x2, `ControlOperativoModel`,
     `AnioAcademicoModel`). NUNCA hardcodear el umbral en una query nueva.
+    - ⚠️ **EXCEPCIÓN CONOCIDA (auditada el 04/08/2026, se mantiene por decisión):** en las
+      dos queries de `OrdenMeritoModel` solo `num_ad` usa la constante; `num_c` (`<= 10`)
+      y `num_b` (`BETWEEN 11 AND 13`) están **hardcodeados**. Hoy coinciden con la escala,
+      pero **si se mueve `NOTA_MIN_B` o `NOTA_MIN_A` hay que actualizarlos a mano** o el
+      desempate se desincroniza en silencio. Ver `docs/modulos/orden-merito.md`.
   - Leyendas de boletas: `escala_rangos()` genera los rangos de texto.
   - El cambio es retroactivo automático: la BD solo guarda `nota_numerica`; el literal
     se calcula al vuelo (B1: 717 notas de 17 pasaron de AD a A).
