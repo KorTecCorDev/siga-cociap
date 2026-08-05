@@ -812,6 +812,14 @@ más ancho que una hoja.
 La holgura de 17 mm existe para absorber la diferencia entre el motor del navegador y la
 medición de GD. **En pantalla no se tocó nada** (130 pt / 18 pt): ahí se lee entera.
 
+**Intensidad en papel (ajustada el 05/08/2026 tras verla impresa):** `#1f1f1f` al **15 %**.
+Se usa color casi negro con opacidad baja, no un gris claro a secas: el color define el
+trazo y la opacidad gobierna cuánta tinta cae sobre la tabla. El gris efectivo es
+`255 − (255 − color) × opacidad` → ~`#DD`, un 13 % de tinta. Venía del 22 % (~19 %), que
+se leía bien pero **competía con las notas al imprimir en blanco y negro**. El 15 % es el
+suelo razonable: por debajo vuelve el riesgo de que una impresora en modo ahorro se coma
+la señal, que es justo lo que motivó reforzarla.
+
 🔁 **Si se cambia el texto de la leyenda o el tamaño, hay que recalcular** — el límite es
 la **proyección**, no el largo: `proyección = largo × cos 30°`, y el ancho de la palabra
 crece con el tracking, que se aplica a cada letra.

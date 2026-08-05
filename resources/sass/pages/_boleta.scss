@@ -737,8 +737,18 @@ body.boleta-body {
     // PROYECCION (largo x cos30), no el largo. La cuenta y el metodo de
     // medicion estan en docs/modulos/boletas.md.
     @media print {
+        // COLOR OSCURO + OPACIDAD BAJA, no un gris claro a secas: mantener el
+        // color casi negro define mejor el trazo de las letras, y la opacidad
+        // gobierna cuanta tinta cae encima de la tabla. El gris EFECTIVO sobre
+        // papel es 255 - (255 - color) x opacidad:
+        //   0.22 -> ~#CE (19% de tinta): se leia bien pero competia con las
+        //           notas al imprimir en blanco y negro;
+        //   0.15 -> ~#DD (13%): ajustado el 05/08/2026 tras verlo impreso.
+        // Es el suelo razonable: por debajo vuelve el riesgo de que una
+        // impresora en modo ahorro se coma la señal, que es lo que motivo
+        // reforzarla.
         color: #1f1f1f;
-        opacity: 0.22;
+        opacity: 0.15;
 
         .boleta-watermark__palabra {
             font-size: 90pt;
