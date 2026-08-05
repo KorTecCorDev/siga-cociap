@@ -809,6 +809,10 @@ más ancho que una hoja.
 | **90 pt / 6 pt (actual, impresión)** | 200 mm | **173 mm** | **+17 mm** ✓ |
 | Leyenda 16 pt | 174 mm | 151 mm | +39 mm ✓ |
 
+> Los 190 mm eran los útiles con el margen de 1 cm. Desde el ajuste de `@page boleta`
+> (8 mm) son **194 mm**, así que la holgura real es mayor (+21 mm). La tabla se conserva
+> con el número conservador.
+
 La holgura de 17 mm existe para absorber la diferencia entre el motor del navegador y la
 medición de GD. **En pantalla no se tocó nada** (130 pt / 18 pt): ahí se lee entera.
 
@@ -825,6 +829,31 @@ la **proyección**, no el largo: `proyección = largo × cos 30°`, y el ancho d
 crece con el tracking, que se aplica a cada letra.
 
 `$vistaPrevia` sigue gobernando lo demás (sin QR, sin imagen de firma del director).
+
+### Ajuste de página para que las firmas no se partan (05/08/2026)
+
+Con el plan completo de competencias el documento quedó al límite: en Secundaria 4.º A
+**el nombre y el cargo de los firmantes caían en una segunda hoja**. Se recuperaron 8 mm
+sin tocar ni un dato del contenido:
+
+| Ajuste | Gana |
+|---|---|
+| `@page boleta { margin: 8mm }` (era 1 cm) | **4 mm** de alto (y 4 de ancho) |
+| `.boleta-footer__espacio-firma` 15 mm → 12 mm | 3 mm |
+| `.boleta-footer` `margin-top` 2 mm → 1 mm | 1 mm |
+
+- **Página con nombre**, igual que `@page paisaje`: el margen reducido se aplica **solo a
+  la boleta** (`body.boleta-body { page: boleta }`) y no toca a los demás documentos que
+  comparten el layout print (constancias, actas, asistencia). 8 mm sigue por encima del
+  área no imprimible de una impresora de oficina (~5-6 mm).
+- El `padding` de la hoja simulada **en pantalla** bajó a 8 mm también: si no, la vista
+  previa mentiría sobre dónde cae el corte de página.
+- `.boleta-footer` lleva ahora **`page-break-inside: avoid`**: una boleta con la línea de
+  firma en una hoja y el nombre del firmante en la siguiente no es un documento firmable.
+  Si algún día no cupiera, el bloque caerá entero a la hoja siguiente — que es la señal
+  visible de que hay que recortar más.
+- `__firma-img` pasa a `max-height: 12mm`. Antes eran **16 mm dentro de un contenedor de
+  15 mm**: la firma del director se salía 1 mm hacia arriba, sobre la tabla.
 
 ## Emitir el documento oficial exige el bimestre CERRADO (04/08/2026)
 
