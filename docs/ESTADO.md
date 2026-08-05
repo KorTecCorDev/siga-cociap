@@ -185,6 +185,16 @@
     desaparecería del documento en silencio. El bloque 1 de la verificación lo vigila.
   - **La CONDUCTA también lleva guion** en sus celdas vacías (05/08). Numeral y
     conclusión no le aplican —es siempre literal—, así que van con guion permanente.
+  - **DESCARGA DE BORRADORES EN ZIP (05/08, pedido del usuario).** Botón
+    **📄 Borradores** por sección → `/admin/boletas-publicas/{id}/archivar-borrador`.
+    Mismo mecanismo que Archivar (un PDF por alumno, carpetas `NIVEL/GRADO_SECCION`)
+    pero con el documento de la vista previa: umbral `'todos'`, sin QR ni firma, con
+    marca de agua **dentro de cada PDF** y sufijo `_BORRADOR` en archivo y ZIP. **Sin
+    guard de bimestre cerrado**: existe para el bimestre abierto. Su destino es el
+    **Drive institucional**, para recoger el visto bueno de los docentes antes de
+    cerrar. Verificado en servidor (3 boletas → 3 marcas, 0 QR, ZIP correcto) y que el
+    modo Archivar sigue intacto. **Falta probar la descarga real en el navegador.**
+    Ver `docs/modulos/boletas.md`.
   - **BANNER DE BORRADOR ELIMINADO (05/08).** En la vista previa de RA las firmas se
     fueron a una segunda hoja (visto en Secundaria 4.º A): el banner costaba **~6 mm**,
     dos filas de tabla. Queda como única señal la **marca de agua diagonal**, reforzada

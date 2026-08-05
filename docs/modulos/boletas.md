@@ -830,6 +830,43 @@ crece con el tracking, que se aplica a cada letra.
 
 `$vistaPrevia` sigue gobernando lo demás (sin QR, sin imagen de firma del director).
 
+### Descargar los BORRADORES en ZIP (05/08/2026)
+
+`GET /admin/boletas-publicas/{periodo_id}/archivar-borrador[?seccion_id=N]` →
+`archivarBorrador()`. Botón **📄 Borradores** en la tarjeta de cada sección.
+
+Mismo mecanismo que **Archivar** (html2pdf + JSZip, un PDF por alumno en carpetas
+`NIVEL/GRADO_SECCION`) pero con el documento de la **vista previa**. Nació para subir las
+boletas al **Drive institucional y recoger el visto bueno de los docentes antes de cerrar
+el bimestre**. Comparte la vista `admin/boletas-publicas/archivar.php`, que distingue los
+dos modos con `$esBorrador`.
+
+Diferencias con Archivar, y solo estas:
+
+| | Archivar | Borradores |
+|---|---|---|
+| Umbral de datos | `'archivo'` (solo cerrados) | **`'todos'`** (incluye el bimestre en curso) |
+| Guard de bimestre cerrado | **sí** | **no** — existe justamente para el bimestre abierto |
+| QR y firma del director | sí | no (`vistaPrevia = true`) |
+| Marca de agua | no | **sí, dentro de cada PDF** |
+| Nombre | `APELLIDOS_NOMBRES.pdf` | `APELLIDOS_NOMBRES_BORRADOR.pdf` |
+| ZIP | `..._II_BIMESTRE.zip` | `..._II_BIMESTRE_BORRADOR.zip` |
+
+⚠️ **La marca de agua va DENTRO del item, no en el wrapper.** `html2canvas` captura un
+contenedor por boleta (`.boleta-archivo-item`), y un `position: fixed` de fuera **no
+entra en la captura**: los PDFs saldrían sin marca. De ahí la variante
+`.boleta-watermark--inline` (`position: absolute`) y el `position: relative` del item —
+sin ese ancla habría **una sola marca para todo el lote** en vez de una por boleta.
+
+⚠️ **La variante inline conserva los tamaños de PANTALLA (130 pt), no los de impresión
+(90 pt).** `html2canvas` renderiza con los estilos de `screen`, y el contenedor
+`.archivo-items-wrap` mide **297 mm** (ancho A4 horizontal, para que las tablas calculen
+bien). Sobre esos 297 mm los 130 pt quedan proporcionados; los 90 pt de impresión se
+verían pequeños al reescalar el PDF a A4 vertical.
+
+**El sufijo `_BORRADOR` del nombre no es cosmético:** estos PDFs conviven en el Drive con
+los definitivos y el nombre tiene que decir cuál es cuál sin abrir el archivo.
+
 ### Ajuste de página para que las firmas no se partan (05/08/2026)
 
 Con el plan completo de competencias el documento quedó al límite: en Secundaria 4.º A
