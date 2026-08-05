@@ -102,6 +102,16 @@ unset($_e, $_sid);
                             👁 Vista previa
                         </a>
 
+                        <?php // Borradores en PDF: NO lleva el guard de bimestre cerrado
+                              // (ver archivarBorrador). Es el documento que se circula
+                              // para el visto bueno mientras el bimestre sigue abierto. ?>
+                        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/archivar-borrador?seccion_id={$sid}") ?>"
+                           class="btn btn--secondary btn--sm"
+                           target="_blank"
+                           title="Descargar los borradores de esta sección en un ZIP (para revisión de docentes)">
+                            📄 Borradores
+                        </a>
+
                         <?php if ($hayBoletas):
                             // Emitir el documento oficial exige el bimestre CERRADO. Se
                             // dejan visibles pero inertes para que se vea POR QUE no se

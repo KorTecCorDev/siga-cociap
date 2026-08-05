@@ -348,6 +348,72 @@ class BoletaPublicaController extends BaseController
         ]);
     }
 
+    /**
+     * GET /admin/boletas-publicas/{periodo_id}/archivar-borrador[?seccion_id=N]
+     * Descarga en ZIP las boletas EN BORRADOR (el mismo documento de la vista
+     * previa, en PDF). Sirve para subirlas al Drive institucional y pedir el
+     * visto bueno de los docentes ANTES de cerrar el bimestre.
+     *
+     * Se diferencia de archivar() en tres cosas, y solo en esas:
+     *   - umbral 'todos' (no 'archivo'): incluye el bimestre EN CURSO, que es
+     *     justo lo que se manda a revisar. Es la misma excepcion de vistaPrevia().
+     *   - $vistaPrevia = true: sin QR y sin imagen de firma del director, mas la
+     *     MARCA DE AGUA de borrador dentro de cada PDF.
+     *   - SIN el guard de bimestre cerrado: este documento existe precisamente
+     *     para el bimestre abierto. Con el bimestre ya cerrado sigue disponible
+     *     (es util para reconstruir el borrador que se circulo).
+     */
+    public function archivarBorrador($periodoId): void
+    {
+        $periodoId = (int) $periodoId;
+        $periodo   = $this->getPeriodo($periodoId);
+
+        if (!$periodo) {
+            $this->redirectWithError(url('admin/boletas-publicas'), 'Período no encontrado.');
+        }
+
+        $seccionId   = (int) $this->query('seccion_id', 0) ?: null;
+        $matriculas  = $this->model->getMatriculasAprobadasParaBoleta($periodoId, $seccionId);
+        $boletasData = [];
+
+        foreach ($matriculas as $m) {
+            $data = $this->boletaModel->armar((int) $m['matricula_id'], $periodoId, 'todos', true);
+            if (!$data) continue;
+
+            $a = $data['alumno'];
+
+            // Mismo criterio de nombre y carpeta que archivar(), con el sufijo
+            // BORRADOR: estos PDFs conviven en el Drive con los definitivos y
+            // el nombre del archivo tiene que decir cual es cual sin abrirlo.
+            $partes = [
+                mb_strtoupper($a['apellido_paterno']),
+                mb_strtoupper($a['apellido_materno']),
+                mb_strtoupper($a['nombres']),
+            ];
+            $data['nombre_archivo'] = str_replace(' ', '_', implode('_', $partes)) . '_BORRADOR';
+
+            $nivel   = mb_strtoupper(str_replace(' ', '_', trim($a['nivel_nombre'])));
+            $grado   = mb_strtoupper(preg_replace('/[°\s.]+/', '', trim($a['grado_nombre'])));
+            $seccion = mb_strtoupper(trim($a['seccion_nombre']));
+            $data['carpeta'] = "{$nivel}/{$grado}_{$seccion}";
+
+            // Sin url_boleta: en borrador no se emite QR (el token llevaria a la
+            // boleta publicada, que es otro documento y puede no existir aun).
+            $data['vistaPrevia'] = true;
+
+            $boletasData[] = $data;
+        }
+
+        View::setLayout('print');
+        $this->view('admin/boletas-publicas/archivar', [
+            'titulo'         => 'Descargar borradores — ' . $periodo['nombre_display'],
+            'periodo'        => $periodo,
+            'boletasData'    => $boletasData,
+            'seccionFiltro'  => $seccionId,
+            'esBorrador'     => true,
+        ]);
+    }
+
     // ── Helpers privados ────────────────────────────────────────
 
     private function getPeriodo(int $periodoId): ?array

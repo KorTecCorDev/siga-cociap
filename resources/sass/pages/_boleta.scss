@@ -744,6 +744,21 @@ body.boleta-body {
         line-height: 1;
     }
 
+    // ── Variante para los PDF del ZIP de borradores ────────────
+    // En /archivar-borrador cada boleta se convierte a PDF con html2canvas,
+    // que captura UN contenedor (.boleta-archivo-item). Un position:fixed de
+    // fuera del contenedor no entra en la captura, asi que la marca se ancla
+    // al propio item.
+    // Conserva a proposito los tamaños de PANTALLA (130pt/18pt) y no los de
+    // impresion: html2canvas renderiza con los estilos de screen y el item
+    // mide 297mm de ancho (ver .archivo-items-wrap, que usa el ancho A4
+    // horizontal para que las tablas calculen bien). Sobre esos 297mm los
+    // 130pt proyectan ~256mm y quedan proporcionados; los 90pt de impresion
+    // se verian pequeños al reescalar el PDF a A4 vertical.
+    &--inline {
+        position: absolute;
+    }
+
     @media screen {
         .boleta-watermark__palabra { font-size: 130pt; }
         .boleta-watermark__leyenda { font-size: 18pt;  }
