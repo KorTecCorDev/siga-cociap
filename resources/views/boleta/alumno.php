@@ -232,13 +232,28 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
                     $clit = $conducta[$p['id']] ?? null;
                     $clc  = $clit ? strtolower($clit) : 'vacio';
                 ?>
-                    <?php if ($esSecundaria): ?><td class="td-mini td-nota"></td><?php endif; ?>
+                    <?php // La conducta es SIEMPRE literal: la columna numeral y la de
+                          // conclusion no le aplican, asi que van con guion igual que
+                          // una competencia sin dato (nunca en blanco). ?>
+                    <?php if ($esSecundaria): ?>
+                        <td class="td-mini td-nota">
+                            <span class="sin-dato" aria-label="No aplica">&ndash;</span>
+                        </td>
+                    <?php endif; ?>
                     <td class="td-mini td-lit td-lit--<?= $clc ?>">
-                        <?= $clit ? e($clit) : '' ?>
+                        <?php if ($clit): ?>
+                            <?= e($clit) ?>
+                        <?php else: ?>
+                            <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
+                        <?php endif; ?>
                     </td>
-                    <td class="td-concl"></td>
+                    <td class="td-concl">
+                        <span class="sin-dato" aria-label="No aplica">&ndash;</span>
+                    </td>
                 <?php endforeach; ?>
-                <td class="td-final td-lit--vacio"></td>
+                <td class="td-final td-lit--vacio">
+                    <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
+                </td>
             </tr>
         <?php endif; ?>
     </tbody>
