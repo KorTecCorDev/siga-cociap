@@ -157,6 +157,21 @@
     `getProgresoPorSeccion` (filtra `m.estado='aprobada'`); y en local
     `cierres_asistencia` está **vacía**, así que el escenario de prueba hay que
     construirlo. Detalle en el doc del plan.
+- **BOLETA CON TODAS LAS COMPETENCIAS DEL PLAN — PLAN APROBADO, SIN IMPLEMENTAR
+  (05/08/2026).** La boleta oficial impresa debe mostrar **todas** las competencias del
+  plan de la sección, tengan o no nota, con **guion** donde no hay dato (como la tabla de
+  asistencia). Plan completo con fases, evidencia y checklist:
+  **`docs/modulos/boleta-competencias-completas.md`**.
+  - **Decisiones cerradas:** el universo son las **cargas activas de la sección** (NO el
+    catálogo del nivel); un área entera sin calificar **sí aparece** con guiones; los
+    exonerados siguen con `EXO`; en secundaria **no se muestra Educación Religiosa** (sus
+    notas salen por Ética y Valores — ya se cumple: área 14 con 0 cargas).
+  - **Restricción dura: UNA sola hoja A4 vertical.** Medido: el máximo de filas **no
+    sube** (29 hoy → 29), y el peor incremento es **+5** en Primaria 2.º A. Secundaria
+    1.º B/C ya imprimen 29 filas en una hoja. Falta probarlo en impresión real.
+  - **Abierto:** qué plan se muestra en un retorno de grado (¿sección oficial u
+    operativa?), y si la columna de conclusión lleva guion o se deja en blanco.
+  - Sin migración. Toca SASS → requiere `gulp build`.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
