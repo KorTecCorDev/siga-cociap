@@ -185,6 +185,14 @@
     desaparecería del documento en silencio. El bloque 1 de la verificación lo vigila.
   - **La CONDUCTA también lleva guion** en sus celdas vacías (05/08). Numeral y
     conclusión no le aplican —es siempre literal—, así que van con guion permanente.
+  - **SEÑAL DE BORRADOR — PUNTO ÚNICO (05/08).** La marca de agua la pinta el
+    DOCUMENTO (`boleta/_marca-borrador.php`, incluido por `boleta/alumno.php` al recibir
+    `$vistaPrevia`), no los wrappers. **Corrige una regresión del mismo día:** al quitar
+    el banner, la marca quedó en el wrapper de la vista previa de RA y en el del ZIP, y
+    la **boleta impresa del docente** (`/docente/boleta/{id}/imprimir`, botón de la
+    nómina) se quedó **sin ninguna señal**. El texto es único (`BOLETA_LEYENDA_BORRADOR`
+    en `helpers.php`) y lo comparte la digital; cambia la forma, no el mensaje.
+    Verificado en las 5 entradas (3 en borrador → 1 marca cada una; 2 oficiales → 0).
   - **DESCARGA DE BORRADORES EN ZIP (05/08, pedido del usuario).** Botón
     **📄 Borradores** por sección → `/admin/boletas-publicas/{id}/archivar-borrador`.
     Mismo mecanismo que Archivar (un PDF por alumno, carpetas `NIVEL/GRADO_SECCION`)

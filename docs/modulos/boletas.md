@@ -792,7 +792,36 @@ verse en pantalla. Es texto, no un `background`, así que ningún driver lo desc
 más la opacidad empieza a estorbar la lectura de la tabla de notas. Si alguna vez hace
 falta más contraste, el camino es mandarla detrás del contenido, no subir el porcentaje.
 
-#### La marca de agua NO CABÍA en la hoja al imprimir (medido)
+##### PUNTO ÚNICO: la señal la pinta el DOCUMENTO, no quien lo muestra
+
+**La marca de agua vive en `resources/views/boleta/_marca-borrador.php`**, y la incluye
+`boleta/alumno.php` con solo recibir `$vistaPrevia`. Así la obtienen por el mismo camino
+**todas** las entradas que emiten el documento en borrador:
+
+| Entrada | Marca |
+|---|---|
+| `/admin/boletas-publicas/{id}/vista-previa` (RA) | 1 por boleta |
+| `/admin/boletas-publicas/{id}/archivar-borrador` (ZIP) | 1 por PDF |
+| `/docente/boleta/{id}/imprimir` (nómina docente) | 1 |
+| Documento oficial (token, impresión masiva, ZIP de archivo) | **ninguna** |
+
+⚠️ **Regresión que esto corrigió (05/08/2026):** al eliminar el banner, la marca quedó en
+los *wrappers* (el de la vista previa de RA y el del ZIP). La **boleta impresa del
+docente** no pasa por ninguno de los dos, así que se quedó **sin ninguna señal de
+borrador** — justo el documento que un tutor puede imprimir con el bimestre abierto.
+Mientras la señal dependa de quién muestra el documento, cada entrada nueva vuelve a
+poder olvidarla; por eso ahora viaja **con el documento**.
+
+- El documento se envuelve en **`.boleta-doc`** (`position: relative`), que es el ancla de
+  la marca: una por boleta. La marca es `position: absolute`, **nunca `fixed`** — con
+  varias boletas apiladas se superpondrían todas en el mismo punto del viewport, y en el
+  ZIP `html2canvas` (que captura un contenedor por boleta) no la capturaría.
+- **El mensaje es único de verdad:** `BOLETA_LEYENDA_BORRADOR` en `helpers.php`. Lo usan
+  la marca de agua y el aviso de la boleta **digital**. Lo que cambia entre formatos es la
+  FORMA (marca de agua en A4; aviso en el flujo en la digital, que es de pantalla y no
+  compite por el alto de la hoja), nunca el texto.
+
+### La marca de agua NO CABÍA en la hoja al imprimir (medido)
 
 La marca lleva dos líneas — `BORRADOR` + la leyenda *"Vista previa · no constituye
 documento oficial"*— y **en impresión usa tamaños propios**. El motivo es una medición,
