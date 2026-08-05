@@ -737,6 +737,38 @@ salir de datos que ese umbral no debe ver.
   otro documento (alumnos × contadores de UNA sección y UN bimestre), no la asistencia
   anual del alumno.
 
+## La boleta muestra TODAS las competencias del plan (05/08/2026)
+
+> **Regla:** el documento lista **todas las competencias que la sección realmente
+> dicta**, tengan o no calificación, con **guion** donde no hay dato. Antes las filas se
+> construían A PARTIR DE LAS NOTAS: una competencia sin calificar no existía en el papel,
+> y el número de filas **variaba entre alumnos de la misma sección**.
+
+**El universo son las CARGAS ACTIVAS de la sección**, no el catálogo del nivel. De ahí
+salen solas, sin ninguna excepción escrita a mano, las exclusiones del colegio:
+Ed. Religiosa no aparece en secundaria (0 cargas — la evalúa **Ética y Valores** por la
+carga TOE del tutor); 5.º no lleva Arte y Cultura ni EPT; el Taller de Pre-Cálculo solo
+se dicta en 5.º. En **primaria sí** se muestra Ed. Religiosa (12 cargas).
+
+- Punto de entrada: `CalificacionModel::estructuraCompetenciasSeccion()`, sembrado por
+  `BoletaModel::buildAreasConBimestres()` **antes** de las notas — eso fija además el
+  orden de áreas y competencias (`a.orden, comp.orden`).
+- **No filtrar por `a.tipo`** en el esqueleto: Ética vive en un área `tipo='tutoria'` y
+  el filtro del orden de mérito la borraría de toda la secundaria.
+- Las **transversales van en consulta aparte**: su área tiene 0 cargas, así que la vía de
+  las cargas no las traería, y el bloque debe salir aunque el tutor no haya cerrado.
+- **Ninguna nota puede desaparecer:** el loop de notas sigue creando la fila si no está
+  en el plan (carga desactivada tras evaluar, o la otra matrícula de un retorno).
+- En un **retorno de grado** el plan sale de la matrícula **operativa** (se evalúa donde
+  se cursa); la boleta se sigue rotulando con la oficial.
+- ⚠️ Los **exonerados** conservan `EXO`: `ExoneracionModel::inyectarEnAreas()` tuvo que
+  aprender a escribirlo sobre una entrada ya sembrada (antes solo lo hacía al crearla).
+- ⚠️ El bloque transversal se detecta por **`'transv'`**, no `'transversal'`: en
+  secundaria el área se rotula `Comp. Transv.`.
+
+Verificación: `database/verificaciones/verif_plan_completo_boleta.php`. Detalle completo,
+trampas y cifras: `docs/modulos/boleta-competencias-completas.md` §10.
+
 ## Emitir el documento oficial exige el bimestre CERRADO (04/08/2026)
 
 En `/admin/boletas-publicas/{id}` los botones **🖨 Boletas** y **🗂 Archivar** se

@@ -1,7 +1,10 @@
-# PLAN — La boleta muestra TODAS las competencias del plan, con guion donde no hay dato
+# La boleta muestra TODAS las competencias del plan, con guion donde no hay dato
 
-> **Estado: APROBADO, SIN IMPLEMENTAR** (05/08/2026). Escrito para retomarse en frío.
-> Decisiones cerradas por el usuario; lo único abierto está en §7.
+> **Estado: IMPLEMENTADO Y VERIFICADO EN LOCAL (05/08/2026), SIN DESPLEGAR.**
+> Falta el checklist de impresión en navegador (§8.3), que es lo único que prueba
+> el requisito de UNA hoja A4.
+> **Manda la §10** (lo que se construyó y en qué se desvió); §1-§7 son el plan
+> original, útil como registro de por qué se decidió cada cosa.
 > Módulo relacionado: `docs/modulos/boletas.md`.
 
 ## 1. Qué se pide
@@ -159,3 +162,106 @@ recordar que `public/css/app.css` va versionado y minificado en una línea.
 `dev` = `origin/dev` = `ae783ec`, árbol limpio, 12 commits por delante de `origin/main`
 (`de449e2`). Sin migraciones pendientes: la `047` ya está aplicada. Este cambio **no
 lleva migración**.
+
+---
+
+## 10. LO QUE SE IMPLEMENTÓ (05/08/2026) — manda esta sección
+
+### 10.1 Las tres exclusiones salen solas de las cargas (confirmado con datos)
+
+El usuario reformuló el requisito así: la boleta muestra toda la currícula, **salvo**
+Educación Religiosa en secundaria (no se genera su carga; en su lugar va Ética y
+Valores, el área vinculada en el SIAGIE) y, **solo en 5.º**, Arte y Cultura y EPT.
+
+Medido sobre el catálogo del nivel contra las cargas activas, las áreas SIN carga son
+exactamente:
+
+| Grado | Áreas del catálogo sin carga activa |
+|---|---|
+| Secundaria 1.º-4.º | Educación Religiosa · **Taller de Pre-Cálculo** |
+| Secundaria 5.º | Educación Religiosa · Arte y Cultura · Educación para el Trabajo |
+| Primaria (los 6 grados) | *ninguna* |
+
+Es decir: **D1 (universo = cargas activas) produce el resultado pedido sin una sola
+excepción escrita a mano**, y de regalo resuelve un cuarto caso que no se había
+enunciado — el **Taller de Pre-Cálculo solo se dicta en 5.º**, así que no debe salir
+en 1.º-4.º. Con el catálogo del nivel habrían hecho falta tres `if` por grado.
+
+⚠️ **Contrapartida asumida:** si alguien olvida crear una carga, el área desaparece
+del documento en silencio. Por eso el bloque 1 de la verificación imprime esta misma
+tabla y falla si aparece un área inesperada.
+
+### 10.2 Qué se construyó
+
+| Fase | Dónde | Nota |
+|---|---|---|
+| F1 | `CalificacionModel::estructuraCompetenciasSeccion()` | Cargas activas → competencias, resolviendo el área con `COALESCE(ca.area_id, sa.area_id)` igual que `getBoletaAlumno`. **No filtra por `a.tipo`** (ver 10.3). Las transversales se añaden en una 2.ª consulta. |
+| F1b | `CalificacionModel::boletaContexto()` | Clave nueva **`evaluacion`** (aditiva): la matrícula de la que sale el plan. En un retorno es la **operativa** — decisión del usuario, coherente con «se evalúa donde se cursa». |
+| F2 | `BoletaModel::buildAreasConBimestres()` | Nuevo 5.º parámetro `$esqueleto`, sembrado ANTES de las notas. Se extrajeron `nombreAreaBoleta()` y `nuevaEntradaCompetencia()` como punto único, para que la fila de nota y la del esqueleto caigan en la misma clave. |
+| F3 | (resuelto en F1) | Las transversales **no** entran por las cargas: su área tiene **0 cargas** en ambos niveles. El plan afirmaba en §5-F3 que el esqueleto ya las incluía y era falso; van en consulta aparte, por `a.tipo='transversal'` del nivel. No se duplican: `getTransversalesAgregadas` cae en la misma clave y se superpone. |
+| F4 | `resources/views/boleta/alumno.php` | Guion `&ndash;` en numeral, literal, **conclusión descriptiva** y Logro Anual. |
+| F5 | `resources/sass/pages/_boleta.scss` | `.sin-dato` (gris `#bbb`, itálica), mismo lenguaje que `.boleta-asistencia__num--pendiente`. |
+
+**La red de seguridad de F1 no necesitó SQL:** el loop de notas del builder sigue
+creando la entrada si no existe, así que una nota de una carga desactivada —o de la
+otra matrícula en un retorno— nunca desaparece. Verificado sobre 1943 filas de nota.
+
+### 10.3 Trampas encontradas al implementar (no repetir)
+
+1. **Los exonerados perdían el `EXO`.** `ExoneracionModel::inyectarEnAreas()` solo
+   escribía `literal => 'EXO'` **si la competencia aún no existía** en `$areas`. Con
+   el esqueleto sembrado, TODA competencia existe siempre → todo exonerado caía en la
+   rama `else`, que solo marcaba `es_exonerado`, y su boleta salía con guiones. Se
+   añadió `tieneNotasReales()`: si la entrada está vacía se le escribe el EXO igual
+   que en la rama nueva; si ya trae notas, no se toca (comportamiento previo).
+   Es la regresión que vigila el bloque 4 de la verificación.
+2. **No filtrar por `a.tipo`.** Ética y Valores vive en un área `tipo='tutoria'`
+   (artefacto de implementación). Copiar el `NOT IN ('transversal','tutoria')` del
+   orden de mérito la habría borrado de toda la secundaria.
+3. **`Comp. Transv.` ≠ `transversal`.** Las dos vistas separaban el bloque
+   transversal con `stripos($nombre, 'transversal')`, pero el área de **secundaria**
+   se rotula `Comp. Transv.` (la de primaria, `Competencias Transversales`). Defecto
+   **preexistente**: en secundaria el bloque nunca se movía al final ni recibía su
+   estilo. Antes pasaba desapercibido porque sin cierre del tutor el bloque no
+   aparecía; ahora aparece SIEMPRE, así que se corrigió a `'transv'` en
+   `boleta/alumno.php` y `boleta/digital.php`. Ninguna otra área contiene esa cadena.
+   Importa además por el orden: el área transversal de secundaria tiene `orden = 13`
+   y Ética `orden = 90`, así que sin la corrección las transversales quedaban **antes**
+   de Ética en vez de al final.
+4. **Copia dormida divergente.** `App\Controllers\BoletaPublicaController` (consulta
+   pública por código, rutas comentadas) tiene su PROPIO `buildAreasConBimestres`, que
+   NO recibió el esqueleto. Se le dejó una advertencia en el docblock.
+
+### 10.4 Preguntas de §7, ya respondidas
+
+1. **Retorno de grado → plan de la sección OPERATIVA** (+ red de seguridad). Probado
+   con el retorno #1 real (oficial 190 = 2.º B, operativa 692 = 1.º B): boleta rotulada
+   2.º B, 27 competencias, **0 notas perdidas**. Hoy la decisión no cambia el resultado
+   —1.º y 2.º de primaria dictan el mismo plan, 27 competencias ambos—, así que la regla
+   queda fijada para cuando sí difieran.
+2. **Conclusión descriptiva → GUION también ahí** (el usuario eligió la literalidad
+   frente a la propuesta de dejarla en blanco).
+3. **Alcance → las dos boletas**, impresa y digital (opción 1 de §6). La digital no
+   necesitó cambios: ya pintaba `—` en chips y logro anual y omite el bloque de
+   conclusiones cuando no hay ninguna (ahí no existe la «columna», así que el guion
+   de la decisión 2 no aplica).
+
+### 10.5 Verificación
+
+`database/verificaciones/verif_plan_completo_boleta.php` (solo lectura, corre en prod).
+5 bloques: exclusiones curriculares, uniformidad + exclusiones vistas desde el
+documento, equivalencia (ninguna nota perdida), exonerados con EXO, transversales
+presentes. **Resultado en local: OK**, con estas cifras por sección:
+
+```
+Primaria (12 secciones)      27 competencias · 9 areas
+Secundaria 1.º-4.º (9 sec.)  29 competencias · 12 areas
+Secundaria 5.º (2 secciones) 27 competencias · 11 areas
+Equivalencia: 1943 filas de nota revisadas, 0 perdidas
+```
+
+Coincide con la medición de §3 (máximo 29) y confirma el efecto buscado: **el número de
+filas ya no varía entre alumnos de la misma sección**.
+
+🔴 **PENDIENTE: el checklist de impresión de §8.3.** Que quepa en una hoja A4 es lo
+único que estas cifras no prueban.

@@ -157,21 +157,36 @@
     `getProgresoPorSeccion` (filtra `m.estado='aprobada'`); y en local
     `cierres_asistencia` está **vacía**, así que el escenario de prueba hay que
     construirlo. Detalle en el doc del plan.
-- **BOLETA CON TODAS LAS COMPETENCIAS DEL PLAN — PLAN APROBADO, SIN IMPLEMENTAR
-  (05/08/2026).** La boleta oficial impresa debe mostrar **todas** las competencias del
-  plan de la sección, tengan o no nota, con **guion** donde no hay dato (como la tabla de
-  asistencia). Plan completo con fases, evidencia y checklist:
-  **`docs/modulos/boleta-competencias-completas.md`**.
-  - **Decisiones cerradas:** el universo son las **cargas activas de la sección** (NO el
-    catálogo del nivel); un área entera sin calificar **sí aparece** con guiones; los
-    exonerados siguen con `EXO`; en secundaria **no se muestra Educación Religiosa** (sus
-    notas salen por Ética y Valores — ya se cumple: área 14 con 0 cargas).
-  - **Restricción dura: UNA sola hoja A4 vertical.** Medido: el máximo de filas **no
-    sube** (29 hoy → 29), y el peor incremento es **+5** en Primaria 2.º A. Secundaria
-    1.º B/C ya imprimen 29 filas en una hoja. Falta probarlo en impresión real.
-  - **Abierto:** qué plan se muestra en un retorno de grado (¿sección oficial u
-    operativa?), y si la columna de conclusión lleva guion o se deja en blanco.
-  - Sin migración. Toca SASS → requiere `gulp build`.
+- **BOLETA CON TODAS LAS COMPETENCIAS DEL PLAN — IMPLEMENTADO Y VERIFICADO EN LOCAL
+  (05/08/2026), EN `dev`, SIN DESPLEGAR. Sin migración.** La boleta lista **todas** las
+  competencias que la sección dicta, tengan o no nota, con **guion** donde no hay dato.
+  Qué se construyó, trampas y cifras: **`docs/modulos/boleta-competencias-completas.md`
+  §10** (manda esa sección; §1-§7 son el plan original). Regla del módulo en
+  `docs/modulos/boletas.md`.
+  - **El universo son las CARGAS ACTIVAS de la sección**, y eso produce **solas** las
+    tres exclusiones que pidió el usuario, sin ninguna excepción hardcodeada: sin
+    Ed. Religiosa en secundaria (la evalúa Ética y Valores), y 5.º sin Arte y Cultura ni
+    EPT. **Regalo medido:** el Taller de Pre-Cálculo solo se dicta en 5.º, así que
+    tampoco sale en 1.º-4.º. Primaria: 0 huecos, y ahí Ed. Religiosa **sí** se muestra.
+  - **Decisiones del usuario (no re-preguntar):** en un retorno de grado el plan sale de
+    la matrícula **OPERATIVA**; la conclusión descriptiva **también lleva guion**; aplica
+    a la boleta **impresa y digital** (la digital no necesitó cambios).
+  - **Resultado:** primaria 27 competencias/9 áreas · secundaria 1.º-4.º 29/12 · 5.º
+    27/11. El nº de filas ya **no varía entre alumnos de la misma sección**. Equivalencia
+    probada sobre **1943 filas de nota, 0 perdidas**; retorno #1 probado (0 perdidas).
+    Verificación: `verif_plan_completo_boleta.php` (solo lectura, corre en prod).
+  - ⚠️ **Regresión que vigila la verificación:** los **exonerados** perdían el `EXO` (con
+    el esqueleto sembrado, `inyectarEnAreas` caía siempre en su rama `else`). Corregido.
+  - ⚠️ **Defecto preexistente corregido de paso:** las vistas separaban el bloque
+    transversal buscando `'transversal'`, pero el área de **secundaria** se rotula
+    `Comp. Transv.` → en secundaria nunca se movía al final ni recibía su estilo (y
+    quedaba **antes** de Ética, `orden 90`). Ahora se detecta por `'transv'`.
+  - ⚠️ **Contrapartida del universo por cargas:** un área sin carga por olvido
+    desaparecería del documento en silencio. El bloque 1 de la verificación lo vigila.
+  - 🔴 **PENDIENTE ANTES DE DESPLEGAR: checklist de impresión en navegador** (§8.3 del
+    doc). La restricción dura es **UNA hoja A4 vertical**: el máximo de filas no sube
+    (29 → 29) y el peor incremento es +5 (Primaria 2.º A), pero eso **no está probado en
+    papel**. Toca SASS (`gulp` ya lo compiló en local).
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
