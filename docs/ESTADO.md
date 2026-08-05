@@ -535,30 +535,38 @@ WHERE id=25;`).
     un roster, rehacer no basta; hay que barrer las filas huérfanas.**
   - Decisión del usuario: aplica a **todos los periodos, incluidos los bloqueados**, así
     que el imprimible oficial de B1 se recalcula con el roster nuevo. Sin migración.
-- 🔴 **DECISIÓN ABIERTA — ¿ÉTICA Y VALORES vuelve al promedio del orden de mérito en TODA
-  secundaria? (planteada por el usuario el 04/08/2026).** Hoy el código la **EXCLUYE**
-  (cambio del mismo día, ver abajo), pero la decisión **no está cerrada**.
-  - **Argumento a favor de incluirla:** Ética entra al SIAGIE (hoja `035-EREL`) y
-    **participa del cuadro de mérito oficial del MINEDU al finalizar 5.º de secundaria**.
-    Si SIGA la excluye, el orden de mérito interno **no coincidirá con el oficial** de los
-    egresados — con impacto en certificados y en el primer puesto de la promoción.
-  - ⏰ **HAY QUE DECIDIRLO ANTES DE CERRAR B2.** Al cerrar se congela el snapshot: si B2
-    cierra sin Ética y luego se decide incluirla, **B2 y B3/B4 quedarían con reglas
-    distintas dentro del mismo año**, y el promedio anual de 5.º —el que alimenta el
-    cuadro de egresados— se armaría sobre bases mezcladas. Peor si B2 llega a publicarse:
-    el candado 046 vuelve inmutable el oficial y la corrección iría a
-    `orden_merito_rectificado`.
-  - **Dato que condiciona la decisión (medido 04/08):** las **271 notas de Ética del año
-    están TODAS en B2**; en **B1 hay 0** en los cinco grados. Así que B1 no la tendrá
-    nunca, decida lo que se decida, y cualquier promedio anual mezclará un bimestre sin
-    Ética con el resto.
-  - **Impacto de incluirla, ya medido en B2:** 271 alumnos de secundaria cambian de
-    denominador, 257 de promedio y **76 de puesto** (saltos de hasta 3); **ningún primer
-    puesto cambia** y los 2 empates pendientes de 4.º desaparecen. Primaria: 0 cambios.
-  - **Revertir es de una línea** en las dos queries de `OrdenMeritoModel` (volver a
-    `OR a.nombre_boleta = AREA_ETICA_NOMBRE_BOLETA`). La constante sigue viva.
-  - Relacionado: la regla de 5.º (Arte, EPT, Ed. Religiosa, Ética y Transversales fuera)
-    quedaría **parcialmente revisada** si Ética vuelve. Ver `docs/modulos/orden-merito.md`.
+- ✅ **DECISIÓN CERRADA — ÉTICA Y VALORES ENTRA al orden de mérito en TODA secundaria,
+  5.º incluido (05/08/2026). IMPLEMENTADO en `dev`, sin migración.**
+  - **Razón:** Ética **no es tutoría**. Es la nota del área-curso *Educación Religiosa de
+    secundaria*, que no tiene cargas propias (área 14: 0 cargas, 0 notas) y la evalúa el
+    tutor por su carga TOE. Sin la excepción, **el mismo curso pesaba en primaria y no en
+    secundaria** — una asimetría solo técnica.
+  - **Deroga la regla del 04/08 que la sacaba de 5.º.** Aquella listaba «Ética y Valores»
+    y «Educación Religiosa» como áreas distintas, siendo la misma. Además Ética **sí se
+    dicta en 5.º** (50 notas en B2, bloqueadas), así que excluirla solo de ese grado
+    habría exigido una excepción por grado hardcodeada en el SQL.
+  - **Qué se tocó:** las 2 queries de `OrdenMeritoModel` (excepción por `nombre_boleta`);
+    `verif_universo_merito.php` (Ética sale de las prohibidas de 5.º, sus 2 consultas
+    replican la excepción y se añadió un **guard anti-duplicado** de Ed. Religiosa para
+    los 5 grados); comentario de `ControlOperativoModel` (su filtro **ya** incluía Ética
+    → convergió solo). `alerta_evaluacion_incompleta.sql` no necesitó cambios.
+  - **Impacto medido con el MOTOR REAL (no solo promedio):** primaria **0 cambios**;
+    secundaria mueve 29/18/7/9/13 puestos por grado (1.º a 5.º) con salto máximo **3**;
+    **ningún primer puesto cambia** → la media beca no se altera. Tras el cambio:
+    **0 empates pendientes** y **0 alumnos con evaluación incompleta** en B2.
+    - ⚠️ La medición del 04/08 (76 puestos, salto 9, un primer puesto cambiando) era
+      **incorrecta**: ordenaba solo por promedio y resolvía el área con `comp.area_id` en
+      vez de `COALESCE(sa.area_id, comp.area_id)`, descartando las áreas con subáreas.
+  - **B1 intacto por tres vías:** 0 notas de Ética; snapshot publicado e inmutable
+    (candado 046); los lectores usan el snapshot (528 filas), no el cálculo en vivo.
+  - **Alias del área 14 limpiado por el usuario** el 05/08 (`alias_boleta` de
+    «(Ética y Valores)» a NULL): cierra el paso 3 del plan de encendido del 07/07 y
+    elimina la ambigüedad que originó la regla errónea.
+  - ⚠️ **Refuerzo recomendado, no hecho:** desactivar el área *Ed. Religiosa* de
+    secundaria en `/admin/curriculum`. Ahora que Ética cuenta, una carga sobre esa área
+    haría contar el **mismo curso dos veces**; hoy solo lo vigila el guard nuevo.
+  - **Esto NO alinea SIGA con el SIAGIE** y no lo pretende: quedan 3 divergencias (GAMA
+    va al acta y no al mérito; los 2 talleres cuentan en el mérito y no tienen hoja).
 - **FORMATO OFICIAL EN TODAS LAS BOLETAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
   DESPLEGAR.** La regla de formato del 09/07 (las 4 columnas de bimestre siempre) se había
   aplicado solo a `/boleta/ver/{token}` y a la boleta del trasladado: la **impresión masiva**
@@ -893,9 +901,10 @@ WHERE id=25;`).
   columnas— en las 9 entradas de boleta), `ab3966e` (los bimestres `pendiente` no se
   abren desde el índice) y `fae5481` (docs + **la exclusión de Ética del mérito**).
   Sigue sin migración → el deploy sería merge + push.
-  - ⚠️ **PRODUCCIÓN HOY SÍ CUENTA ÉTICA Y VALORES EN EL ORDEN DE MÉRITO.** La reversión
-    decidida el 04/08 vive solo en `dev`. La decisión abierta (ver arriba) determina si
-    ese commit se despliega tal cual o se ajusta — y hay que cerrarla ANTES de cerrar B2.
+  - **Sobre Ética:** el commit `fae5481` la EXCLUÍA del mérito, pero la decisión se cerró
+    al revés el 05/08 y ya está implementada encima. El lote a desplegar deja el
+    comportamiento final: **Ética CUENTA en toda secundaria**. Producción, que nunca
+    recibió la exclusión, converge con el estado correcto al desplegarse el lote.
   - ⚠️ **`main` LOCAL quedó en `0e250d1`, por DETRÁS de `origin/main`.** Es la trampa de
     siempre: actualizar `main` antes de mergear, o el fast-forward no sale.
 

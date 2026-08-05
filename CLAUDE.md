@@ -240,16 +240,20 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   sin traslado oficial (migración 045); reversible vía `tipo_anterior`. NO extender
   a los usos de `trasladado` en boleta (un retirado es desactivado no-trasladado →
   BORRADOR). Ver `docs/modulos/matriculas.md`.
-- **Orden de mérito excluye áreas `tipo IN ('transversal','tutoria')` — SIN EXCEPCIONES**
-  (04/08/2026). Entre el 26/07 y esa fecha, **Ética y Valores** (la tutoría de secundaria)
-  contaba; se revirtió por decisión del usuario. ⚠️ **La decisión sobre Ética NO está
-  cerrada** (podría volver en toda secundaria: entra al SIAGIE y al cuadro de mérito
-  oficial de 5.º) — **decidir antes de cerrar B2**; ver `docs/ESTADO.md`. Ética sigue yendo a **boleta y SIAGIE**
-  (hoja EREL): solo salió del promedio del mérito. La constante
-  `AREA_ETICA_NOMBRE_BOLETA` sigue viva para SIAGIE y para
-  `ControlOperativoModel::alertasEvaluacionIncompleta`, que **sí** la mantiene a propósito
-  (vigila completitud del registro, no el ranking); se identifica por `nombre_boleta`,
-  NUNCA por id (difiere entre entornos).
+- **Orden de mérito excluye áreas `tipo IN ('transversal','tutoria')`, con UNA excepción:
+  ÉTICA Y VALORES cuenta en TODA secundaria, 5.º incluido** (decisión cerrada 05/08/2026).
+  **Ética NO es tutoría**: es la nota del área-curso **Educación Religiosa de secundaria**,
+  que no tiene cargas propias (la evalúa el tutor por su carga TOE). Su `tipo='tutoria'` es
+  un artefacto de implementación. Sin la excepción, el mismo curso pesaba en primaria y no
+  en secundaria. Deroga la regla del 04/08 que la sacaba de 5.º —aquella listaba «Ética y
+  Valores» y «Educación Religiosa» como áreas distintas, siendo la misma—.
+  El **vínculo Ética↔Ed. Religiosa vive en 3 sitios y ninguno es un dato estructural**:
+  excepción de hoja SIAGIE (`035-EREL`), excepción del mérito y `alias_boleta` del área;
+  al tocar uno, revisar los otros dos. Se identifica por `nombre_boleta`
+  (`AREA_ETICA_NOMBRE_BOLETA`), **NUNCA por id** (difiere entre entornos; el id 57 es GAMA
+  y el código C57 es Ética). ⚠️ El área *Ed. Religiosa* de secundaria debe seguir **sin
+  cargas**: si recibiera notas, el mismo curso contaría dos veces (guard en
+  `verif_universo_merito.php`). Ver `docs/modulos/orden-merito.md`.
 - **Mérito EN VIVO = solo competencias BLOQUEADAS** (join a `bloqueos_competencia`, sin
   filtrar `origen`). La cascada ya no desempata por apellido: tras `num_16` es MANUAL y
   el orden lo fija `m.id`.

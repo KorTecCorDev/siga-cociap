@@ -31,11 +31,12 @@ en documento oficial inmutable por snapshot.
 - **Empates resueltos ANTES de cerrar; bimestres se abren en orden cronológico.**
 - **"Vigente"** (buscador, columna puesto de nómina) = snapshot del cerrado de
   mayor número < bimestre activo (`EstudianteModel::ultimoBimestreCerrado`).
-- **Excluye áreas `tipo IN ('transversal','tutoria')` — SIN EXCEPCIONES (04/08/2026).**
-  ~~Entre el 26/07 y el 04/08 el área **Ética y Valores** (tutoría de secundaria, C57)
-  contaba, por reemplazar a Ed. Religiosa (P5 del rediseño 2).~~ **Revertido por decisión
-  del usuario.** Ética sigue yendo a boleta y a SIAGIE (hoja EREL): solo salió del
-  promedio del mérito. Detalle e impacto medido: ver la sección de auditoría más abajo.
+- **Excluye áreas `tipo IN ('transversal','tutoria')`, con UNA excepción: ÉTICA Y
+  VALORES cuenta en TODA secundaria, 5.º incluido (05/08/2026).** Ética **no es
+  tutoría**: es la Educación Religiosa de secundaria, servida por la carga TOE porque
+  el área homónima de ese nivel es un cascarón (0 cargas, 0 notas). Su `tipo='tutoria'`
+  es un artefacto de implementación. Se ancla por `nombre_boleta`, **nunca por id**.
+  Detalle, historia e impacto medido: ver la sección de auditoría más abajo.
 - **El cálculo EN VIVO solo cuenta competencias BLOQUEADAS** (rediseño 2): join a
   `bloqueos_competencia`, sin filtrar `origen` (cuenta `docente` y `cierre`). En un
   bimestre cerrado no cambia nada (todo está bloqueado); en uno activo el ranking
@@ -241,49 +242,98 @@ es humana. *(En B1 esa rama no llegó a dispararse: 0 grupos con N desigual.)*
 ### El motor NO distingue primaria de secundaria
 No hay una sola condición por `nivel_id` en el cálculo. Las diferencias entre niveles las
 producen los DATOS, no el código: primaria aporta 25 competencias evaluables al mérito y
-secundaria 28 (29 menos Ética, ver abajo).
+secundaria 29 (28 más Ética, ver abajo).
 
-### Ética y Valores SALE del mérito (04/08/2026) — ⚠️ DECISIÓN NO CERRADA
-Revierte P5 del rediseño 2. El filtro vuelve a ser `a.tipo NOT IN ('transversal',
-'tutoria')` **sin excepción**, en las dos queries del cálculo en vivo.
+### Ética y Valores ENTRA al mérito en toda secundaria (05/08/2026) — DECISIÓN CERRADA
 
-> 🔴 **PENDIENTE ABIERTO (usuario, 04/08/2026): puede volver a entrar en TODA secundaria.**
-> Razón: Ética va al SIAGIE (hoja `035-EREL`) y **participa del cuadro de mérito oficial
-> del MINEDU al terminar 5.º**. Si SIGA la excluye, el mérito interno **diverge del
-> oficial de los egresados**.
-> **Decidirlo ANTES de cerrar B2:** el cierre congela el snapshot, y si B3/B4 se calculan
-> con otra regla, el promedio anual de 5.º mezclaría criterios. Detalle, impacto medido y
-> disparador en `docs/ESTADO.md`. Revertir = una línea en cada una de las dos queries
-> (`OR a.nombre_boleta = AREA_ETICA_NOMBRE_BOLETA`); la constante sigue viva.
-> **Dato que condiciona:** las 271 notas de Ética del año están **todas en B2**; B1 tiene
-> 0 en los cinco grados, así que B1 no la tendrá nunca.
+Filtro vigente en las dos queries del cálculo en vivo:
 
-**Impacto medido en B2 comparando el ranking real antes/después** (las 271 notas de Ética
-del año están TODAS en B2; B1 no tiene ninguna, así que su snapshot oficial no se ve
-afectado):
+```sql
+AND (a.tipo NOT IN ('transversal', 'tutoria')
+     OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
+```
 
-| | Primaria | Secundaria |
+**Por qué.** Ética y Valores **no es tutoría**: es la nota que corresponde al área-curso
+**Educación Religiosa de secundaria**, que no tiene cargas propias (el tutor la evalúa a
+través de su carga TOE). Sin la excepción, **el mismo curso pesaba en el promedio en
+primaria** —donde Ed. Religiosa es un área-curso normal— **y no pesaba en secundaria**.
+Esa asimetría no tenía justificación pedagógica, solo técnica.
+
+**El vínculo Ética ↔ Ed. Religiosa vive en TRES sitios y ninguno es un dato estructural.**
+No existe columna, FK ni configuración que diga "el área 24 reemplaza a la 14":
+
+| Dónde | Cómo |
+|---|---|
+| SIAGIE | `LlenadorSiagie::EXCEPCIONES_HOJA` → hoja `035-EREL`, `buscar` por `nombre_boleta` |
+| Orden de mérito | la excepción de arriba, en las 2 queries |
+| Boleta | `areas.alias_boleta` del área 24 = `(Educación Religiosa)` |
+
+Al tocar cualquiera de los tres, revisar los otros dos.
+
+#### Deroga la regla de 5.º del 04/08 — y por qué aquella era errónea
+
+La decisión anterior sacaba a Ética del mérito de 5.º. Se apoyaba en una lista que
+enumeraba **«Ética y Valores» y «Educación Religiosa» como áreas distintas**, siendo la
+misma. Además, Arte y EPT están fuera de 5.º **por dato** (0 cargas), mientras que Ética
+**sí se dicta en 5.º** (50 notas en B2, todas bloqueadas): excluirla solo de ese grado
+habría exigido una excepción por grado hardcodeada en el SQL, justo lo que este módulo
+evita para no duplicar el plan de estudios.
+
+#### Impacto medido en B2 con el MOTOR REAL (cascada completa, no solo promedio)
+
+| Grado | Alumnos | Cambian N | Cambian puesto | Salto máx |
+|---|---|---|---|---|
+| Primaria (los 6) | 252 | **0** | **0** | — |
+| Secundaria 1° | 72 | 72 | 29 | 3 |
+| Secundaria 2° | 52 | 52 | 18 | 3 |
+| Secundaria 3° | 45 | 45 | 7 | 2 |
+| Secundaria 4° | 53 | 52 | 9 | 2 |
+| Secundaria 5° | 50 | 50 | 13 | 2 |
+
+- **Ningún primer puesto cambia** en ningún grado → la media beca no se ve afectada.
+- **Primaria: 0 cambios**, confirmación de que la excepción no se filtra de nivel (su TOE
+  tiene 0 competencias y su `nombre_boleta` es «Tutoría (TOE)»).
+- Condiciones duras del cierre tras el cambio: **0 empates pendientes** y **0 alumnos con
+  evaluación incompleta** en B2.
+
+> ⚠️ Una medición anterior (04/08) reportaba 76 puestos movidos, salto 9 y un primer
+> puesto cambiando en 1.º. Estaba hecha ordenando **solo por promedio** y resolviendo el
+> área con `comp.area_id` en vez de `COALESCE(sa.area_id, comp.area_id)`, lo que
+> descartaba las áreas con subáreas. Las cifras de la tabla son las buenas.
+
+**B1 no se ve afectado, por tres vías independientes:** tiene **0 notas de Ética**; su
+snapshot está publicado y es inmutable (candado 046); y los lectores usan el snapshot
+(528 filas), no el cálculo en vivo.
+
+**Lo que se tocó en el mismo cambio:**
+- `ControlOperativoModel::alertasEvaluacionIncompleta` ya incluía Ética, así que su
+  filtro **convergió solo**; se reescribió el comentario, que afirmaba lo contrario.
+- `database/verificaciones/verif_universo_merito.php`: Ética sale de la lista de
+  prohibidas de 5.º y sus dos consultas replican ahora la excepción — antes reportaban
+  «correctamente fuera» de un área que ya aportaba, o sea **mentían en vez de fallar**.
+  «Educación Religiosa» se queda en la lista con otro significado: **guard
+  anti-duplicado**, extendido a los 5 grados por un chequeo dedicado.
+- `database/reconstruir_snapshot_b1.php` conserva su propia excepción: reproduce el
+  documento oficial de B1 tal como se generó. Inocuo (B1 tiene 0 notas de Ética).
+
+⚠️ **Refuerzo recomendado:** desactivar el área *Educación Religiosa* de secundaria desde
+`/admin/curriculum`. Ahora que Ética cuenta, una carga creada sobre esa área haría que el
+**mismo curso contara dos veces**. No añadir `AND a.activa = 1` al mérito (ver más abajo).
+
+#### Este cambio NO alinea SIGA con el SIAGIE — y no pretende hacerlo
+
+Corrige una inconsistencia **interna**. Las divergencias con el acta siguen, en ambas
+direcciones (medido en 5.º, B2):
+
+| | Cuenta en el mérito | Llega al SIAGIE |
 |---|---|---|
-| Alumnos | 245 | 272 |
-| Cambian de denominador (N) | **0** | 271 |
-| Cambian de promedio | **0** | 257 |
-| **Cambian de puesto** | **0** | **76** |
-| Salto máximo | — | 3 puestos |
-| **Primeros puestos que cambian** | **0** | **0** |
-| Empates pendientes antes → después | 0 → 0 | 2 → **0** |
+| Ética y Valores (50) | ✅ | ✅ `035-EREL` |
+| GAMA, transversal (50) | ❌ | ✅ `032-ETRA` |
+| Taller de Pre-Cálculo (50) | ✅ | ❌ sin hoja |
+| Taller de Raz. Matemático (50) | ✅ | ❌ sin hoja |
 
-Primaria no se mueve porque su área de tutoría tiene 0 competencias. **Ningún grado cambia
-de primer puesto**, así que la media beca no se ve afectada, y los 2 empates pendientes de
-Secundaria 4° se resolvieron solos al separarse los promedios.
-
-**Lo que NO se tocó, a propósito:**
-- `ControlOperativoModel::alertasEvaluacionIncompleta` **mantiene** Ética en su universo:
-  vigila la completitud del registro, no el ranking, y a Ética le falta una nota que va a
-  boleta y a SIAGIE. Su comentario ya no dice "mismo universo del mérito".
-- `database/reconstruir_snapshot_b1.php` conserva la excepción: reproduce el documento
-  oficial de B1 tal como se generó. Es inocuo (B1 tiene 0 notas de Ética).
-- La constante `AREA_ETICA_NOMBRE_BOLETA` sigue viva: la usan SIAGIE (hoja EREL) y la
-  alerta.
+Si alguna vez se decide que el mérito reproduzca el promedio del SIAGIE, son tres
+decisiones más, no una.
 
 ### Qué entra y qué no en el promedio — tabla de referencia (04/08/2026)
 
@@ -312,7 +362,7 @@ Secundaria 4° se resolvieron solos al separarse los promedios.
 | Secundaria | con subáreas | Comunicación | Raz. Verbal · Literatura · Lenguaje | 3 | **Sí** |
 | Secundaria | con subáreas | Matemática | Aritmética · Álgebra · Geometría · Trigonometría | 4 | **Sí** |
 | Secundaria | transversal | Competencias Transversales | — | 2 | No |
-| Secundaria | tutoría | **Ética y Valores** | — | 1 | **No** (desde 04/08) |
+| Secundaria | tutoría | **Ética y Valores** | — | 1 | **Sí** (desde 05/08 — es Ed. Religiosa) |
 
 **Totales que entran: Primaria 25 competencias · Secundaria 28.**
 
@@ -327,28 +377,37 @@ Notas de lectura:
 - Ese universo aún se filtra por: nota **bloqueada**, `extraordinaria = 0` y el roster
   (`tipo NOT IN ('trasladado','retirado')` + anclaje de retorno).
 
-### 5.º de secundaria lleva OTRO plan — regla del colegio (04/08/2026)
+### 5.º de secundaria lleva OTRO plan — regla del colegio (revisada el 05/08/2026)
 
-**En 5.º de secundaria jamás entran al mérito:** Arte y Cultura, Educación para el
-Trabajo, Ética y Valores, Educación Religiosa y las Competencias Transversales.
-**Las cinco ya se cumplen**, por dos vías distintas:
+**En 5.º de secundaria no entran al mérito:** Arte y Cultura, Educación para el Trabajo
+y las Competencias Transversales.
 
-| Área | Por qué está fuera de 5.º |
+> ⚠️ **La regla del 04/08 incluía además «Ética y Valores» y «Educación Religiosa», y se
+> DEROGÓ el 05/08.** Las enumeraba como dos áreas distintas siendo **la misma**: en
+> secundaria Ed. Religiosa es un cascarón sin cargas y su nota la produce la carga de
+> Ética. Al aclararse, el usuario decidió que **Ética cuenta en los 5 grados**. Es el
+> caso testigo de que una regla registrada puede apoyarse en una premisa falsa sobre
+> cómo están modelados los datos: contrastarlas con la BD antes de codificar excepciones.
+
+| Área | Situación en 5.º |
 |---|---|
-| Arte y Cultura | 5.º **no la lleva**: 0 cargas y 0 notas (sí en 1.º-4.º) |
-| Educación para el Trabajo | 5.º **no la lleva**: 0 cargas y 0 notas (sí en 1.º-4.º) |
-| Educación Religiosa (secundaria) | **0 cargas en cualquier estado y 0 notas** en todo el nivel: es un cascarón del catálogo, reemplazado por Ética |
-| Ética y Valores | excluida por `tipo='tutoria'` (desde el 04/08) — ⚠️ **decisión abierta**, puede volver: ver el aviso de arriba |
-| Competencias Transversales | excluida por `tipo='transversal'` |
+| Arte y Cultura | **fuera**: 5.º no la lleva (0 cargas y 0 notas; sí en 1.º-4.º) |
+| Educación para el Trabajo | **fuera**: 5.º no la lleva (0 cargas y 0 notas; sí en 1.º-4.º) |
+| Competencias Transversales | **fuera** por `tipo='transversal'` |
+| **Ética y Valores** | **ENTRA** (50 notas en B2, todas bloqueadas) — es la Ed. Religiosa del nivel |
+| Educación Religiosa (secundaria) | 0 cargas y 0 notas: cascarón del catálogo. Vigilada como **guard anti-duplicado**, no como veto curricular |
 
 **Plan de 5.º frente a 1.º-4.º:** no lleva Arte y Cultura ni EPT, y sí lleva **Taller de
-Pre-Cálculo** (exclusivo del grado). Competencias que entran: **1.º-4.º = 26 · 5.º = 24**.
+Pre-Cálculo** (exclusivo del grado). Competencias que entran: **1.º-4.º = 27 · 5.º = 25**
+(una más que antes en cada tramo, por Ética).
 
-> **Ojo al leer el acta SIAGIE de 5.º:** dos de sus hojas se nutren de áreas que NO
-> cuentan para el mérito — `035-EREL` ← **Ética y Valores** (todos los grados) y
-> `032-EPT` ← **GAMA**, una competencia transversal (`LlenadorSiagie:77`, solo 5.º,
-> precisamente porque el grado no lleva el curso de EPT). El acta y el ranking no tienen
-> por qué cuadrar área por área.
+> **Ojo al leer el acta SIAGIE de 5.º:** `032-EPT` se nutre de **GAMA**, una competencia
+> transversal que **no** cuenta para el mérito (`LlenadorSiagie:77`, solo 5.º,
+> precisamente porque el grado no lleva el curso de EPT). Y en sentido contrario, los dos
+> **talleres** (Raz. Matemático y Pre-Cálculo) **sí** cuentan para el mérito y **no**
+> llegan al acta, porque no tienen hoja en el SIAGIE. `035-EREL` ← Ética ya no es una
+> discrepancia: desde el 05/08 cuenta en ambos. El acta y el ranking **no tienen por qué
+> cuadrar área por área**.
 
 **Por qué esto NO se codificó como excepción en el SQL del mérito:** el plan de estudios
 se deriva de las **cargas académicas**; hardcodear "5.º no lleva Arte" en la query
