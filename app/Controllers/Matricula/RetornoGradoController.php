@@ -38,6 +38,14 @@ class RetornoGradoController extends BaseController
                 'Esta matrícula ya tiene un retorno de grado activo.');
         }
 
+        // CANDADO DEL BIMESTRE EN CURSO (ver el detalle en store()): se avisa ya
+        // en el GET para no hacer llenar un formulario que el POST va a rechazar.
+        $bloqueo = $this->evaluacionEnBimestreActivo((int) $matriculaId);
+        if ($bloqueo) {
+            $this->redirectWithError(url('matriculas/' . $matriculaId),
+                $this->mensajeBimestreEnCurso($bloqueo));
+        }
+
         // Secciones de grados INFERIORES al actual, del mismo año y nivel.
         $secciones = $this->model->query("
             SELECT s.id, s.nombre, g.numero AS grado_numero, g.nombre_display AS grado_nombre
@@ -95,6 +103,32 @@ class RetornoGradoController extends BaseController
                 'Esta matrícula ya tiene un retorno de grado activo.');
         }
 
+        // ── CANDADO: no se puede retornar a mitad de un bimestre YA EVALUADO ──
+        // REGLA A (05/08/2026): las notas viven donde se registraron —antes del
+        // retorno en la oficial, desde el retorno en la operativa— y NO se copian
+        // ni se mueven. Eso solo es coherente si el bimestre en curso todavia no
+        // tiene evaluacion en la oficial; si la tiene, el retorno la parte en dos:
+        //
+        //   1. El corte del roster es INSTANTANEO: los 9 rosters de evaluacion
+        //      dejan de ver la oficial, asi que el docente de la seccion de origen
+        //      pierde al estudiante a mitad de bimestre y sus criterios ya
+        //      cargados quedan inalcanzables desde la grilla.
+        //   2. Los CRITERIOS son de la seccion, no del alumno: los de la seccion
+        //      destino estan vacios para el y los de origen no existen alla. No
+        //      hay convalidacion automatica (eso es el plan de cambio de seccion).
+        //   3. La operativa quedaria con promedios sin criterios que los respalden
+        //      -> la alerta de evaluacion incompleta la marca y el guard P4 ABORTA
+        //      EL CIERRE del bimestre.
+        //
+        // OJO: no se ancla en FECHAS porque los bimestres SE SOLAPAN (B1 termina
+        // el 16/06 y B2 empieza el 01/06), asi que "entre bimestres" no existe
+        // como ventana. Se ancla en el DATO: que no haya evaluacion registrada.
+        $bloqueo = $this->evaluacionEnBimestreActivo((int) $matriculaId);
+        if ($bloqueo) {
+            $this->redirectWithError(url('matriculas/' . $matriculaId . '/retorno'),
+                $this->mensajeBimestreEnCurso($bloqueo));
+        }
+
         $this->model->beginTransaction();
         try {
             // 1) Matrícula operativa en el grado inferior (estado 'aprobada' para
@@ -118,19 +152,42 @@ class RetornoGradoController extends BaseController
                 VALUES (?, ?, ?, ?, CURDATE(), 'activo')
             ", [(int) $matriculaId, $operativaId, $motivo, $usuarioId]);
 
-            // 3) Transferir notas existentes respetando competencias: se copian
-            //    las calificaciones de la matrícula oficial a la operativa
-            //    (preservando competencia y periodo). Best-effort: no pisa notas
-            //    ya existentes en la operativa.
-            $this->model->execute("
-                INSERT IGNORE INTO calificaciones
-                    (matricula_id, carga_id, periodo_id, competencia_id,
-                     nota_numerica, conclusion_descriptiva, registrado_por)
-                SELECT ?, cal.carga_id, cal.periodo_id, cal.competencia_id,
-                       cal.nota_numerica, cal.conclusion_descriptiva, ?
-                FROM calificaciones cal
-                WHERE cal.matricula_id = ?
-            ", [$operativaId, $usuarioId, (int) $matriculaId]);
+            // 3) Trasladar ASISTENCIA y CONDUCTA del/los bimestre(s) ACTIVO(s).
+            //
+            //    Las CALIFICACIONES ya NO se copian (hasta el 05/08/2026 este paso
+            //    era un INSERT IGNORE que duplicaba TODAS las notas de la oficial en
+            //    la operativa, sin filtrar periodo). Bajo la REGLA A cada bimestre
+            //    queda en la matricula donde se curso, y la boleta las une por
+            //    bimestre — duplicarlas creaba una segunda fuente de verdad que
+            //    ademas hacia aparecer al estudiante DOS VECES en el lote de boletas.
+            //
+            //    Asistencia y conducta si se MUEVEN (UPDATE, no INSERT) porque son
+            //    contadores por bimestre, no datos por criterio: no hay nada que
+            //    convalidar, y el bimestre en curso se termina de cursar en la
+            //    seccion destino. Moverlos —en vez de copiarlos— evita que ambas
+            //    matriculas tengan fila del mismo bimestre: la union de asistencia
+            //    de la boleta SUMA campo a campo, asi que un solape inflaria las
+            //    faltas en silencio.
+            //
+            //    Los bimestres CERRADOS no se tocan: son el registro historico de
+            //    la seccion de origen. Sin conflicto de UNIQUE: la operativa acaba
+            //    de nacer y no tiene ninguna fila.
+            $activos = array_column($this->model->query("
+                SELECT id FROM periodos
+                WHERE estado = 'activo' AND anio_id = ?
+            ", [(int) $oficial['anio_id']]), 'id');
+
+            if ($activos) {
+                $marcas = implode(',', array_fill(0, count($activos), '?'));
+                foreach (['inasistencias', 'conducta_respuestas', 'calificaciones_conducta'] as $tabla) {
+                    $this->model->execute("
+                        UPDATE {$tabla}
+                        SET matricula_id = ?
+                        WHERE matricula_id = ?
+                          AND periodo_id IN ({$marcas})
+                    ", array_merge([$operativaId, (int) $matriculaId], $activos));
+                }
+            }
 
             $this->model->commit();
         } catch (\Exception $e) {
@@ -240,6 +297,61 @@ class RetornoGradoController extends BaseController
             WHERE r.matricula_oficial_id = ? AND r.estado = 'activo'
             LIMIT 1
         ", [$oficialId]);
+    }
+
+    /**
+     * Bimestres ACTIVOS en los que la matrícula ya tiene evaluación registrada.
+     * Es el candado del retorno (ver store()): si devuelve algo, no se puede
+     * retornar hasta cerrar ese bimestre o resolverlo a mano.
+     *
+     * Mira las TRES tablas donde vive la evaluación de un estudiante, porque
+     * cualquiera de ellas basta para que el corte deje trabajo partido:
+     *   - `calificaciones`          promedio por competencia,
+     *   - `calificaciones_criterio` nota por criterio,
+     *   - `omisiones_criterio`      blanco motivado (evaluación registrada
+     *                               aunque no haya nota).
+     * Los criterios eliminados no cuentan.
+     */
+    private function evaluacionEnBimestreActivo(int $matriculaId): array
+    {
+        return $this->model->query("
+            SELECT
+                p.id,
+                p.nombre_display,
+                (SELECT COUNT(*) FROM calificaciones c
+                  WHERE c.matricula_id = ? AND c.periodo_id = p.id)          AS notas,
+                (SELECT COUNT(*) FROM calificaciones_criterio cc
+                  INNER JOIN criterios k ON k.id = cc.criterio_id
+                  WHERE cc.matricula_id = ? AND k.periodo_id = p.id
+                    AND k.eliminado_en IS NULL)                              AS criterios,
+                (SELECT COUNT(*) FROM omisiones_criterio oc
+                  INNER JOIN criterios k2 ON k2.id = oc.criterio_id
+                  WHERE oc.matricula_id = ? AND k2.periodo_id = p.id
+                    AND k2.eliminado_en IS NULL)                             AS omisiones
+            FROM periodos p
+            WHERE p.estado = 'activo'
+              AND p.anio_id = (SELECT id FROM anios_academicos WHERE estado = 'activo' LIMIT 1)
+            HAVING notas > 0 OR criterios > 0 OR omisiones > 0
+            ORDER BY p.numero
+        ", [$matriculaId, $matriculaId, $matriculaId]);
+    }
+
+    /** Mensaje del candado: qué bimestre bloquea, con qué y qué hacer. */
+    private function mensajeBimestreEnCurso(array $bloqueo): string
+    {
+        $partes = [];
+        foreach ($bloqueo as $b) {
+            $detalle = [];
+            if ((int) $b['notas'] > 0)     { $detalle[] = "{$b['notas']} nota(s)"; }
+            if ((int) $b['criterios'] > 0) { $detalle[] = "{$b['criterios']} criterio(s)"; }
+            if ((int) $b['omisiones'] > 0) { $detalle[] = "{$b['omisiones']} omision(es)"; }
+            $partes[] = $b['nombre_display'] . ' (' . implode(', ', $detalle) . ')';
+        }
+
+        return 'No se puede registrar el retorno: el estudiante ya tiene evaluación '
+             . 'en un bimestre en curso — ' . implode('; ', $partes) . '. '
+             . 'El retorno debe hacerse antes de que se le califique en el bimestre, '
+             . 'o esperar a que el bimestre cierre.';
     }
 
     /**
