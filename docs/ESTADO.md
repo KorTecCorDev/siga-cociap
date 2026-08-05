@@ -250,9 +250,23 @@
     los que **26 son promedios, umbrales o desempates** que un NULL altera EN SILENCIO.
     De ahí que el plan proponga tabla aparte unida al leer (patrón ya probado en el
     retorno de grado y en `notas_autorizadas_siagie`).
-  - **Abierto:** si van al SIAGIE; si la extraordinaria y el registro retroactivo conviven
-    o se unifican; qué se hace con `notas_externas` (vacía y que la boleta no lee); si se
-    convalidan conducta, asistencia y transversales.
+  - **Decisiones del 05/08 (D6-D9):** la **extraordinaria y el registro retroactivo SE
+    UNIFICAN** (un solo punto de entrada; el flujo de la extraordinaria se retira);
+    **`notas_externas` se elimina** (su función la absorbe el proceso nuevo); las
+    **transversales se registran OBLIGATORIAMENTE**; conducta y asistencia **opcionales**.
+    - **La unificación no arrastra datos:** medido en local, los 5 mecanismos están en
+      **0 filas** (extraordinarias, criterios extraordinarios, rectificaciones
+      extraordinarias, `notas_externas`, `notas_autorizadas_siagie`). 🔴 **Verificar esas
+      5 cifras en PROD antes de tocar nada**: si allí hay extraordinarias, se migran en la
+      misma migración.
+    - **Modelo unificado:** `nota_literal` SIEMPRE + `nota_numerica` **NULL** cuando viene
+      de otro colegio (boleta: `— / A`) y con número cuando es evaluación real nuestra.
+    - **Transversales:** hoy quedan fuera del insertable porque se muestran AGREGADAS
+      desde el cierre del tutor y una fila cruda no llega a boleta. La tabla aparte lo
+      resuelve sola (se une al leer, sin pasar por la agregación) — pero hay que evitar
+      que se dupliquen cuando el alumno sí tiene agregación.
+  - **Abierto (diferido por el usuario):** si van al SIAGIE. No bloquea F1 ni F2; conviene
+    resolverlo antes de F4.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.

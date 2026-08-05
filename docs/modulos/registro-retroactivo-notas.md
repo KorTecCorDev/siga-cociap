@@ -83,6 +83,25 @@ está implementado y desplegado.** Lo que falta es lo demás:
 | D3 | **Captura en GRILLA por alumno y bimestre**: una pantalla con todas las competencias del plan de su sección, se llenan solo las que correspondan y el resto quedan vacías. Un motivo común para toda la carga. |
 | D4 | **La boleta lo declara**: nota al pie del tipo "I Bimestre: calificaciones convalidadas del colegio de origen". Sin eso, el guion no distingue "no estaba" de "no le calificaron". |
 | D5 | Se pide **motivo**, y el universo es **cualquier alumno sin calificaciones en el bimestre cerrado** (no solo nuevos/trasladados). |
+| D6 | **La calificación EXTRAORDINARIA y el registro retroactivo SE UNIFICAN** en un solo mecanismo y un solo punto de entrada. No pueden convivir dos caminos para "alumno sin nota en bimestre cerrado". |
+| D7 | **`notas_externas` desaparece**: su función la absorbe este proceso. Está vacía y su UI nunca llegó a la boleta, así que no hay datos que migrar. |
+| D8 | **Las competencias TRANSVERSALES se registran OBLIGATORIAMENTE** en la grilla, igual que las demás. |
+| D9 | **Conducta y asistencia del bimestre convalidado: OPCIONALES.** Se pueden registrar, pero no se exigen para dar por completa la carga. ⚠️ Confirmar al implementar esa fase si "opcional" significa *campo no obligatorio en la grilla* (lectura asumida) o *funcionalidad diferida*. |
+
+### Estado de partida de la unificación (medido el 05/08/2026, LOCAL)
+
+```
+calificaciones extraordinarias ....... 0
+criterios extraordinarios ............ 0
+rectificaciones tipo extraordinaria .. 0
+notas_externas ....................... 0
+notas_autorizadas_siagie ............. 0
+```
+
+**Ningún mecanismo tiene datos**, así que la unificación no arrastra migración de
+información. 🔴 **VERIFICAR ESTAS CINCO CIFRAS EN PRODUCCIÓN antes de tocar nada**: si en
+prod hubiera extraordinarias registradas, habría que migrarlas al modelo nuevo en la misma
+migración, no después.
 
 ## 5. Arquitectura: dónde viven estas notas
 
@@ -99,14 +118,25 @@ comparaciones con NULL dan falso sin avisar. Contaminaría orden de mérito, pro
 tabla paralela para notas que **no** deben tocar `calificaciones`. Y el **retorno de
 grado** ya probó el patrón de "varias fuentes unidas al leer" (`boletaContexto`).
 
-⚠️ **Hay que delimitar los tres mecanismos o se pisarán.** Al terminar este plan deben
-quedar así:
+### El modelo unificado (D6)
 
-| Mecanismo | Qué es | Dónde sale |
-|---|---|---|
-| Calificación **extraordinaria** (042) | nota **numérica** REAL de NUESTRO colegio, a alumno no evaluado | boleta + SIAGIE, no mérito |
-| **Notas autorizadas SIAGIE** (040) | literal autorizado por dirección para un no evaluado | **solo** el acta SIAGIE |
-| **Registro retroactivo** (este plan) | literal de OTRO colegio o de un bimestre no cursado | boleta (+ SIAGIE, ver §7) |
+Una sola tabla y un solo punto de entrada, con la nota **literal siempre** y el **numeral
+opcional**. Así los dos casos caben sin `NULL` en `calificaciones`:
+
+| Caso | `nota_literal` | `nota_numerica` | En la boleta |
+|---|---|---|---|
+| Viene de otro colegio (o bimestre no cursado) | AD/A/B/C | **NULL** | `— / A` (D2) |
+| Evaluación real de NUESTRO colegio que no se registró (lo que hoy hace la extraordinaria) | derivado | 00-20 | `16 / A` |
+
+El flujo actual de la extraordinaria (criterio `extraordinario` + fila en `calificaciones`)
+**se retira como punto de entrada**: la grilla pasa a ser el único. Lo que hoy vive en
+`CriterioModel::obtenerOCrearExtraordinario`, `RectificacionController@extraordinaria` y
+sus guardas queda obsoleto — retirarlo o dejarlo dormido es parte de F2.
+
+⚠️ **Queda un tercer mecanismo fuera de esta unificación, a propósito:**
+`notas_autorizadas_siagie` (migración `040`), que existe **solo para el acta SIAGIE** y no
+toca la boleta. Se decide junto con la pregunta del SIAGIE (§7.1, diferida por el
+usuario). Si esa respuesta es "sí van al acta", los tres mecanismos deberían quedar en uno.
 
 ## 6. Fases propuestas
 
@@ -117,18 +147,29 @@ fila de asistencia en ese periodo**. Hoy solo mira el umbral del bimestre y el e
 ⚠️ Efecto colateral a validar: también afectaría a un alumno cuya sección nadie registró
 —que hoy también imprime ceros falsos—, lo cual es deseable pero conviene medirlo antes.
 
-### F2 · Modelo de datos (migración)
-Tabla nueva (propuesta: `calificaciones_convalidadas`) anclada por **ids**, no por texto:
-`matricula_id`, `periodo_id`, `competencia_id`, `nota_literal` ENUM(AD,A,B,C), `motivo`,
-`colegio_origen`, auditoría (`registrado_por`, `registrado_en`), UNIQUE
-(matricula, periodo, competencia).
-Decidir en esta fase la suerte de `notas_externas` (§7.3).
+### F2 · Modelo de datos unificado (migración)
+Tabla nueva (propuesta: `calificaciones_retroactivas`) anclada por **ids**, no por texto:
+`matricula_id`, `periodo_id`, `competencia_id`, `nota_literal` ENUM(AD,A,B,C) NOT NULL,
+`nota_numerica` TINYINT **NULL**, `motivo`, `colegio_origen` NULL, auditoría
+(`registrado_por`, `registrado_en`), UNIQUE (matricula, periodo, competencia).
+En la misma migración: **`DROP TABLE notas_externas`** (D7, está vacía) y decidir el
+retiro del flujo de la extraordinaria (D6).
 
 ### F3 · Captura en grilla (admin/RA)
 Pantalla por alumno + bimestre cerrado: competencias del plan de su sección agrupadas por
-área —reusando `estructuraCompetenciasSeccion`, que ya existe—, selector AD/A/B/C por
-fila, campo de motivo y de colegio de origen. Guard: solo periodos **cerrados** y solo
-competencias **sin nota** en `calificaciones`.
+área —reusando `estructuraCompetenciasSeccion`, que ya existe y **sí incluye las
+transversales** (D8)—, selector AD/A/B/C por fila, campo de motivo y de colegio de origen.
+Guard: solo periodos **cerrados** y solo competencias **sin nota** en `calificaciones`.
+
+⚠️ **Las transversales exigen camino propio.** Hoy `getCompetenciasInsertables` las
+excluye a propósito, porque una fila cruda en `calificaciones` no llega a la boleta: las
+transversales se muestran **agregadas** desde el cierre del tutor
+(`getTransversalesAgregadas`, que promedia las cargas bloqueadas y exige
+`cierres_transversales` vigente). Un alumno convalidado no tiene nada que promediar, así
+que por esa vía nunca aparecería. **El modelo de F2 lo resuelve solo**: al vivir en tabla
+aparte y unirse al leer, la nota transversal convalidada entra directa a la boleta sin
+pasar por la agregación. Es la razón por la que D8 es viable — pero hay que asegurar que
+las dos fuentes **no se dupliquen** cuando el alumno sí tiene agregación.
 
 ### F4 · Lectura en la boleta
 `BoletaModel` une la fuente nueva a las notas reales, como ya hace con las fuentes del
@@ -141,19 +182,17 @@ snapshot de un bimestre publicado es inmutable por el candado `046`) ni alteran
 
 ## 7. Preguntas abiertas
 
-1. **¿Estas notas van al SIAGIE?** El alumno no estaba matriculado aquí en ese bimestre,
-   así que el acta del colegio probablemente no debe llevarlas. Afecta a
-   `SiagieExportModel` y se cruza con `notas_autorizadas_siagie`.
-2. **¿Conviven la extraordinaria y el registro retroactivo, o se unifican?** Hoy la
-   extraordinaria ya cubre "alumno sin nota en bimestre cerrado" con numeral. Si conviven,
-   hay que explicar a RA cuándo usar cada una; si se unifican, la grilla tendría que
-   admitir numeral y literal en la misma pantalla.
-3. **¿Qué pasa con `notas_externas`?** Está vacía y no se lee en la boleta. O se rediseña
-   como la tabla de F2 (aprovechando su UI), o se declara obsoleta y se documenta.
-4. **¿Y la conducta y la asistencia del bimestre convalidado?** Hoy quedan en guion. ¿Se
-   registran también o se dejan explícitamente fuera?
-5. **¿Las transversales?** Quedan fuera del insertable actual porque se agregan desde el
-   cierre del tutor. ¿Se convalidan o no?
+**Cerradas el 05/08/2026** (ver D6-D9): unificar extraordinaria + retroactivo; eliminar
+`notas_externas`; transversales obligatorias; conducta y asistencia opcionales.
+
+1. 🔶 **¿Estas notas van al SIAGIE? — DIFERIDA por el usuario ("lo analizamos después").**
+   El alumno no estaba matriculado aquí en ese bimestre, así que el acta probablemente no
+   debe llevarlas. Afecta a `SiagieExportModel` y decide de paso si
+   `notas_autorizadas_siagie` se absorbe en la unificación o sobrevive aparte.
+   **No bloquea F1 ni F2**: la tabla nace sin exportarse y añadir el export después es
+   aditivo. Sí conviene resolverla **antes de F4**, para no rehacer la lectura.
+2. **¿"Opcional" en conducta y asistencia (D9) es campo no obligatorio o fase diferida?**
+   Se asume lo primero; confirmar al llegar a esa fase.
 
 ## 8. Riesgos e invariantes en juego
 
