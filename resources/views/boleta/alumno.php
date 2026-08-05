@@ -49,14 +49,26 @@ unset($_n, $_c);
 ?>
 
 <?php
-// SIN BANNER DE BORRADOR (05/08/2026). Ocupaba ~6mm de alto —dos filas de tabla—
-// y con el plan completo de competencias eso empujaba las firmas a una segunda
-// hoja. La vista previa se señaliza con la MARCA DE AGUA diagonal de
-// admin/boletas-publicas/vista-previa.php, que no consume alto y se repite en
-// cada página impresa: el documento puede imprimirse con el bimestre aún
-// abierto, así que la señal tiene que sobrevivir en el PAPEL, no solo en
-// pantalla. $vistaPrevia sigue gobernando el QR y la firma del director.
+// EL DOCUMENTO SE ENVUELVE (05/08/2026) para dar ancla a la marca de agua de
+// borrador: es `position: absolute` y necesita un contenedor `relative` propio
+// para que haya UNA marca por boleta. Todo lo que se imprime va aquí dentro.
 ?>
+<div class="boleta-doc">
+
+<?php
+// SEÑAL DE BORRADOR — PUNTO ÚNICO. La pinta el DOCUMENTO, no quien lo muestra:
+// vista previa de RA, ZIP de borradores y boleta del docente la reciben por el
+// mismo camino con solo pasar $vistaPrevia. Antes vivía en los wrappers y la
+// boleta del docente quedaba sin ninguna señal.
+// No hay banner: ocupaba ~6mm de alto (dos filas de tabla) y empujaba las
+// firmas a una segunda hoja. La marca de agua no consume alto y sobrevive en el
+// PAPEL, que es donde importa: este documento se imprime con el bimestre aún
+// abierto. $vistaPrevia gobierna además el QR y la firma del director.
+if ($vistaPrevia) {
+    include VIEW_PATH . '/boleta/_marca-borrador.php';
+}
+?>
+
 <!-- ── Cabecera institucional ───────────────────────────────── -->
 <header class="boleta-header">
     <div class="boleta-header__logo-wrap">
@@ -394,3 +406,5 @@ $mostrarQr         = !$vistaPrevia && !empty($url_boleta);
     </div>
 
 </footer>
+
+</div><!-- /.boleta-doc -->

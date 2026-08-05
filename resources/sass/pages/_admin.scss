@@ -1517,10 +1517,8 @@ $cond-teal: #2a7a6e;
     overflow: hidden;
 }
 
-// Ancla de la marca de agua de los PDF en borrador (.boleta-watermark--inline,
-// que es position:absolute). Sin esto se posicionaria respecto al wrap y saldria
-// UNA sola marca para todo el lote en vez de una por boleta.
-.boleta-archivo-item { position: relative; }
+// El ancla de la marca de agua de borrador es .boleta-doc (dentro de la propia
+// boleta), no este item. Ver _boleta.scss.
 
 @media print {
     .archivo-progreso { display: none; }

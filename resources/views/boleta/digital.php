@@ -78,10 +78,14 @@ $vistaPrevia = $vistaPrevia ?? false;
          id="boleta-documento"
          data-nivel="<?= e($alumno['nivel_codigo'] ?? '') ?>">
 
+    <?php // Misma SEÑAL de borrador que la boleta impresa y el MISMO MENSAJE
+          // (BOLETA_LEYENDA_BORRADOR, punto único). Cambia solo la FORMA: aquí
+          // un aviso en el flujo, porque la digital es de pantalla y no compite
+          // por el alto de una hoja A4; en la impresa, marca de agua. ?>
     <?php if ($vistaPrevia): ?>
     <div class="bd-borrador" role="note">
         <span class="bd-borrador__tag">BORRADOR</span>
-        <span class="bd-borrador__msg">Vista previa · No es documento oficial hasta que Registro Académico cierre el bimestre.</span>
+        <span class="bd-borrador__msg"><?= e(BOLETA_LEYENDA_BORRADOR) ?></span>
     </div>
     <?php endif; ?>
 

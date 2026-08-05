@@ -240,6 +240,16 @@ function orden_alfabetico(string $alias = 'p', int $campos = 3): string
  */
 const AREA_ETICA_NOMBRE_BOLETA = 'Ética y Valores';
 
+/**
+ * Leyenda del documento EN BORRADOR — PUNTO ÚNICO del texto.
+ * La usan la marca de agua de la boleta impresa (`boleta/_marca-borrador.php`,
+ * que la reciben por igual la vista previa de RA, el ZIP de borradores y la
+ * boleta del docente) y el aviso de la boleta digital. La FORMA cambia según el
+ * formato —marca de agua en A4, aviso en la digital, que es de pantalla y no
+ * cuesta alto de hoja—, pero el MENSAJE tiene que ser el mismo en todas.
+ */
+const BOLETA_LEYENDA_BORRADOR = 'Vista previa · no constituye documento oficial';
+
 /** Convierte nota numérica (0-20) a literal. Misma escala en ambos niveles. */
 function nota_a_literal(int $nota, string $nivel = 'secundaria'): string
 {

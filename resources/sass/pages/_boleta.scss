@@ -681,25 +681,44 @@ body.boleta-body {
 }
 
 // ════════════════════════════════════════════════════════════
-// VISTA PREVIA — marca de agua (UNICA señal de BORRADOR)
-// Vive en el wrapper vista-previa.php, position:fixed para repetirse
-// por página. print-color-adjust:exact obliga al driver a respetar
-// tonos traslúcidos.
+// BORRADOR — marca de agua (UNICA señal, en UN SOLO sitio)
 //
-// El BANNER de borrador que iba arriba de cada boleta se ELIMINO el
-// 05/08/2026: ocupaba ~6mm de alto (dos filas de tabla) y con el plan
-// completo de competencias empujaba las firmas a una segunda hoja. La
-// restricción del documento es UNA hoja A4 y la señalización no puede
-// costar alto, porque este documento SI se imprime en papel con el
-// bimestre todavia abierto.
+// La pinta el DOCUMENTO (boleta/alumno.php al recibir $vistaPrevia, via el
+// parcial boleta/_marca-borrador.php), no quien lo muestra. Asi la reciben por
+// el mismo camino la vista previa de RA, el ZIP de borradores y la boleta del
+// docente. Antes vivia en los wrappers y la boleta del DOCENTE se quedaba sin
+// ninguna señal, siendo el documento que un tutor puede imprimir con el
+// bimestre abierto.
+//
+// El BANNER que iba arriba de cada boleta se ELIMINO el 05/08/2026: ocupaba
+// ~6mm de alto (dos filas de tabla) y con el plan completo de competencias
+// empujaba las firmas a una segunda hoja. La restriccion del documento es UNA
+// hoja A4 y la señalizacion no puede costar alto, porque este documento SI se
+// imprime en papel con el bimestre todavia abierto.
 // ════════════════════════════════════════════════════════════
 
+// Envoltorio del documento: ancla de la marca (una por boleta).
+.boleta-doc { position: relative; }
+
 // ── Marca de agua diagonal BORRADOR ────────────────────────
-// Dos lineas: la palabra + la leyenda que dice QUE es el documento. Sin el
-// banner, este es el unico sitio donde el papel lo explica, y el papel puede
-// salir de la impresora con el bimestre todavia abierto.
+// Dos lineas: la palabra + la leyenda que dice QUE es el documento.
+//
+// TAMAÑOS: los manda el ANCHO DEL CONTENEDOR, no el medio, porque el texto va
+// rotado -30 grados y lo que tiene que caber es su PROYECCION (largo x cos30).
+// Medido con la fuente real (Arial Bold, imagettfbbox) sobre los 194mm utiles
+// de la hoja:
+//     140pt/12pt -> 317mm de largo -> proyecta 275mm  ***se cortaba***
+//      90pt/6pt  -> 200mm          -> proyecta 173mm  (+21mm de holgura)
+//     leyenda 16pt -> 174mm        -> proyecta 151mm
+// Los 140pt originales imprimian "ORRAD": se perdian dos o tres letras por
+// lado. En pantalla no se notaba porque la marca era position:fixed y se
+// centraba en el VIEWPORT, mas ancho que un A4.
+// Si se cambia el texto o el tamaño, RECALCULAR. El metodo esta en
+// docs/modulos/boletas.md.
 .boleta-watermark {
-    position: fixed;
+    position: absolute;   // NUNCA fixed: con varias boletas apiladas se
+                          // superpondrian todas en el mismo punto, y en el ZIP
+                          // html2canvas no la capturaria (ver el parcial).
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) rotate(-30deg);
@@ -709,98 +728,55 @@ body.boleta-body {
     align-items: center;
     gap: 2mm;
     font-family: Arial, Helvetica, sans-serif;
-    // REFORZADA al quedar como unica señal (antes #555 al 8%, que en una
-    // impresora en modo ahorro podia salir casi invisible). El techo es la
-    // legibilidad de las notas que quedan DEBAJO: la marca va con z-index
-    // por encima del contenido, asi que subir mas empieza a ensuciar la
-    // lectura de la tabla. Es TEXTO, no un background, de modo que ningun
-    // driver lo descarta por "no imprimir fondos".
-    color: #3f3f3f;
-    opacity: 0.16;
     text-transform: uppercase;
     pointer-events: none;
     user-select: none;
     white-space: nowrap;
     z-index: 9999;
 
+    // COLOR OSCURO + OPACIDAD BAJA, no un gris claro a secas: el color define
+    // el trazo de las letras y la opacidad gobierna cuanta tinta cae encima de
+    // la tabla. El gris EFECTIVO sobre papel es 255 - (255 - color) x opacidad:
+    //   0.22 -> ~#CE (19% de tinta): se leia bien pero competia con las notas
+    //           al imprimir en blanco y negro;
+    //   0.15 -> ~#DD (13%): ajustado el 05/08/2026 tras verlo impreso.
+    // Es el suelo razonable: por debajo vuelve el riesgo de que una impresora
+    // en modo ahorro se coma la señal. El techo es la legibilidad de las notas
+    // que quedan DEBAJO (la marca va por encima del contenido); si hiciera
+    // falta mas contraste, mandarla detras en vez de subir el porcentaje.
+    // Es TEXTO, no un background, asi que ningun driver la descarta por "no
+    // imprimir fondos"; print-color-adjust ademas fuerza el tono traslucido.
+    color:   #1f1f1f;
+    opacity: 0.15;
+
     -webkit-print-color-adjust: exact;
     print-color-adjust:         exact;
 
     &__palabra {
-        font-size: 140pt;
+        font-size: 90pt;
         font-weight: 900;
-        letter-spacing: 12pt;
+        letter-spacing: 6pt;
         // El letter-spacing empuja el ultimo caracter y descentra el bloque;
         // se compensa restando esa sangria por la derecha.
-        margin-right: -12pt;
+        margin-right: -6pt;
         line-height: 1;
     }
 
     &__leyenda {
-        font-size: 20pt;
+        font-size: 16pt;
         font-weight: 700;
         letter-spacing: 1.5pt;
         margin-right: -1.5pt;
         line-height: 1;
     }
+}
 
-    // ── Variante para los PDF del ZIP de borradores ────────────
-    // En /archivar-borrador cada boleta se convierte a PDF con html2canvas,
-    // que captura UN contenedor (.boleta-archivo-item). Un position:fixed de
-    // fuera del contenedor no entra en la captura, asi que la marca se ancla
-    // al propio item.
-    // Conserva a proposito los tamaños de PANTALLA (130pt/18pt) y no los de
-    // impresion: html2canvas renderiza con los estilos de screen y el item
-    // mide 297mm de ancho (ver .archivo-items-wrap, que usa el ancho A4
-    // horizontal para que las tablas calculen bien). Sobre esos 297mm los
-    // 130pt proyectan ~256mm y quedan proporcionados; los 90pt de impresion
-    // se verian pequeños al reescalar el PDF a A4 vertical.
-    &--inline {
-        position: absolute;
-    }
-
-    @media screen {
-        .boleta-watermark__palabra { font-size: 130pt; }
-        .boleta-watermark__leyenda { font-size: 18pt;  }
-    }
-
-    // ── AL IMPRIMIR ────────────────────────────────────────────
-    // La vista EN PANTALLA no se toca: ahi el viewport es mas ancho que un A4
-    // y la marca se lee entera. En PAPEL pasaban dos cosas:
-    //
-    // 1. NO CABIA. Medido con la fuente real (Arial Bold, imagettfbbox): a
-    //    140pt con 12pt de tracking la palabra mide 317mm de largo y, rotada
-    //    -30 grados, proyecta 275mm sobre los 190mm utiles de la hoja -> se
-    //    perdian ~85mm, dos o tres letras por lado. Se imprimia "ORRAD".
-    //    A 90pt/6pt proyecta 173mm y entra con 17mm de holgura, suficiente
-    //    para absorber la diferencia entre el motor del navegador y la
-    //    medicion. La leyenda a 16pt proyecta 151mm (39mm de holgura).
-    // 2. PERDIA PRESENCIA: la tinta clara sobre papel blanco se lee mucho
-    //    peor que un gris en una pantalla retroiluminada, y es justo cuando
-    //    la señal MAS importa, porque el papel circula fuera del sistema.
-    //
-    // Si se cambia el texto o el tamaño, RECALCULAR: el limite es la
-    // PROYECCION (largo x cos30), no el largo. La cuenta y el metodo de
-    // medicion estan en docs/modulos/boletas.md.
-    @media print {
-        // COLOR OSCURO + OPACIDAD BAJA, no un gris claro a secas: mantener el
-        // color casi negro define mejor el trazo de las letras, y la opacidad
-        // gobierna cuanta tinta cae encima de la tabla. El gris EFECTIVO sobre
-        // papel es 255 - (255 - color) x opacidad:
-        //   0.22 -> ~#CE (19% de tinta): se leia bien pero competia con las
-        //           notas al imprimir en blanco y negro;
-        //   0.15 -> ~#DD (13%): ajustado el 05/08/2026 tras verlo impreso.
-        // Es el suelo razonable: por debajo vuelve el riesgo de que una
-        // impresora en modo ahorro se coma la señal, que es lo que motivo
-        // reforzarla.
-        color: #1f1f1f;
-        opacity: 0.15;
-
-        .boleta-watermark__palabra {
-            font-size: 90pt;
-            letter-spacing: 6pt;
-            margin-right: -6pt;
-        }
-        .boleta-watermark__leyenda { font-size: 16pt; }
-    }
+// UNICA excepcion de tamaño: los PDF del ZIP de borradores. html2canvas
+// renderiza con los estilos de PANTALLA y su contenedor mide 297mm (ancho A4
+// horizontal, para que las tablas calculen bien: ver .archivo-items-wrap).
+// Sobre esos 297mm los 90pt se verian pequeños al reescalar el PDF a A4
+// vertical, asi que la marca crece en la misma proporcion.
+.boleta-archivo-item {
+    .boleta-watermark__palabra { font-size: 130pt; letter-spacing: 12pt; margin-right: -12pt; }
+    .boleta-watermark__leyenda { font-size: 20pt; }
 }

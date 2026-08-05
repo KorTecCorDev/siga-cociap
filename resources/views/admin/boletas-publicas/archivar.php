@@ -78,16 +78,8 @@ unset($_bim);
 <div class="boleta-archivo-item"
      data-nombre-archivo="<?= e($boletaData['nombre_archivo']) ?>"
      data-carpeta="<?= e($boletaData['carpeta']) ?>">
-    <?php if ($esBorrador): ?>
-    <!-- Marca de agua DENTRO del item: html2canvas captura el contenedor de
-         cada boleta, y un elemento position:fixed de fuera no entraria en el
-         PDF. Por eso aqui va la variante --inline (absolute), no la del
-         wrapper de vista-previa.php. -->
-    <div class="boleta-watermark boleta-watermark--inline" aria-hidden="true">
-        <span class="boleta-watermark__palabra">BORRADOR</span>
-        <span class="boleta-watermark__leyenda">Vista previa &middot; no constituye documento oficial</span>
-    </div>
-    <?php endif; ?>
+    <?php // La marca de agua la trae la propia boleta al recibir $vistaPrevia
+          // (punto único, ver boleta/_marca-borrador.php). ?>
     <?php include VIEW_PATH . '/boleta/alumno.php'; ?>
 </div>
 <div class="boleta-salto-pagina"></div>
