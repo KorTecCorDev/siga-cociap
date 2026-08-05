@@ -269,10 +269,16 @@ $mostrarQr         = !$vistaPrevia && !empty($url_boleta);
                 <tr>
                     <td><?= $etiqueta ?></td>
                     <?php foreach ($asistencia['bimestres'] as $bim):
-                        $esActivo = ((int) $bim['id'] === (int) $periodo_activo_id);
+                        $esActivo    = ((int) $bim['id'] === (int) $periodo_activo_id);
+                        $sinRegistro = !empty($bim['sin_registro']);
+                        // Sin registro posible aun: guion apagado. Un 0 se leeria
+                        // como "no falto ningun dia", que seria un dato inventado.
+                        $clases = 'boleta-asistencia__num';
+                        if ($sinRegistro)    { $clases .= ' boleta-asistencia__num--pendiente'; }
+                        elseif ($esActivo)   { $clases .= ' boleta-asistencia__num--activo'; }
                     ?>
-                        <td class="boleta-asistencia__num <?= $esActivo ? 'boleta-asistencia__num--activo' : '' ?>">
-                            <?= (int) $bim['datos'][$clave] ?>
+                        <td class="<?= $clases ?>">
+                            <?= $sinRegistro ? '&ndash;' : (int) $bim['datos'][$clave] ?>
                         </td>
                     <?php endforeach; ?>
                     <td class="boleta-asistencia__num boleta-asistencia__num--anual"><?= (int) $asisTotal[$clave] ?></td>

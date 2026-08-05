@@ -56,6 +56,17 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
   - El bloque 4 cuenta las filas de matrículas fuera del roster: **dato histórico, no se
     borra** — siguen sumando en la boleta, que va por matrícula y no por roster.
 
+- **`verif_asistencia_boleta.php`** — Transacción + ROLLBACK. Comprueba que el bloque de
+  ASISTENCIA de la boleta usa el mismo umbral que las notas (`periodoAportaNotas`) **sin
+  alterar lo que ven las familias**: `'oficial'` sigue siendo cerrados+publicados y
+  `'archivo'` cerrados, mientras `'borrador'` y `'todos'` suman el bimestre en curso.
+  - Su **paso 4 SIMULA el Hito A** del bimestre activo: sin él, `'borrador'` daría lo
+    mismo que `'archivo'` y la aserción no probaría nada. El mismo paso verifica que
+    `'oficial'` y `'archivo'` **no** se contagian del bimestre en curso, y el cierre
+    comprueba que el ROLLBACK devolvió `boletas_aprobadas_en` a su valor original.
+  - Existe porque la asistencia era el único de los tres bloques por periodo (notas,
+    conducta, asistencia) que no honraba la excepción de la vista previa de RA.
+
 ## Consultas operativas (phpMyAdmin)
 
 - **`alerta_evaluacion_incompleta.sql`** — SOLO LECTURA. Replica

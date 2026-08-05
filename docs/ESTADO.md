@@ -455,6 +455,21 @@ WHERE id=25;`).
     se repite el problema en pequeño.
   - Decisión del usuario: aplica a **todos los periodos, incluidos los bloqueados**, así
     que el imprimible oficial de B1 se recalcula con el roster nuevo. Sin migración.
+- **ASISTENCIA EN LA VISTA PREVIA DE BOLETAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
+  DESPLEGAR (posterior al deploy `de449e2`).** En
+  `/admin/boletas-publicas/{id}/vista-previa` no aparecía la asistencia del bimestre en
+  curso pese a tener las secciones bloqueadas: el cuadro se filtraba por
+  `periodos.estado='cerrado'`, y **bloquear el registro de una sección
+  (`cierres_asistencia`) NO cierra el bimestre**. La asistencia era además el único de
+  los tres bloques por periodo que no honraba la excepción de la vista previa (notas y
+  conducta sí). Ahora usa `periodoAportaNotas`, el mismo umbral de las notas.
+  - Decisiones del usuario: alcance `'todos'` **y `'borrador'`**; los bimestres
+    `pendiente` se pintan apagados (`--pendiente`, guion) en vez de con ceros; el total
+    **suma el bimestre en curso**.
+  - **`'oficial'` y `'archivo'` NO cambian** (equivalencia exacta verificada): las
+    familias y el impreso siguen viendo solo bimestres cerrados —y publicados, en
+    `'oficial'`—. Verificado con `verif_asistencia_boleta.php`, que simula el Hito A en
+    transacción con ROLLBACK. Sin migración, sin Gulp (la clase CSS ya existía).
 - **ORDEN ALFABÉTICO: LA Ñ IBA ANTES QUE LA N — CORREGIDO EN LOCAL EL 04/08/2026, SIN
   DESPLEGAR.** Detectado por el usuario en la grilla de 4° A primaria (ÑIQUEN PAJUELO
   salía antes que NOLASCO REYES). Causa: las columnas de `personas` son

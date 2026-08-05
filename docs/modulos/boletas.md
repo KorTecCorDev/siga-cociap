@@ -337,6 +337,64 @@ aparecía columna cuando había datos.
   `BoletaPublicaController` dormido NO arma asistencia → no se toca. Los métodos
   `AsistenciaModel::getAcumuladoAnual*` quedan sin uso desde la boleta (se conservan).
 
+## Asistencia: mismo umbral que las notas (04/08/2026) — deroga la regla 2 de arriba
+
+> **Síntoma:** en `/admin/boletas-publicas/{id}/vista-previa` no aparecía la asistencia
+> del bimestre en curso, pese a tener las secciones aprobadas y bloqueadas en
+> `/admin/asistencia`. **No era un problema de datos:** la asistencia se filtraba por
+> `periodos.estado = 'cerrado'`, y bloquear el registro de una sección
+> (`cierres_asistencia`) **no cierra el bimestre**. Son dos actos distintos.
+
+### La asimetría de fondo
+`armar()` aplicaba la excepción de la vista previa (`$datos === 'todos'`) en dos de los
+tres bloques que dependen del periodo, y la asistencia era el único que no:
+
+| Bloque | Antes, con `'todos'` |
+|---|---|
+| Notas | aporta siempre (`periodoAportaNotas` → `true`) |
+| Conducta | no se filtra |
+| **Asistencia** | **`estado = 'cerrado'`, sin excepción** |
+
+Resultado: la misma hoja mostraba las notas y la conducta de B2 pero no su asistencia,
+justo en la herramienta con la que RA decide el Hito A.
+
+### Regla nueva (decisiones del usuario, 04/08/2026)
+1. La asistencia usa **el mismo umbral que las notas**: `periodoAportaNotas($p, $datos,
+   $publicados)`. Se acabó el criterio propio. **Deroga la regla 2 de la sección
+   anterior** ("solo cerrados en TODAS las boletas").
+2. Alcance: `'todos'` **y `'borrador'`**. Si una boleta de docente ya muestra las notas
+   del bimestre con Hito A, debe mostrar también su asistencia.
+3. Los bimestres `'pendiente'` se pintan **apagados** (`--pendiente`, guion) en lugar de
+   ceros: un `0` se lee como "no faltó ningún día", y ahí no hay dato que mostrar.
+4. El **total suma el bimestre en curso** (solo los que tienen registro). En vista previa
+   es, por tanto, provisional.
+
+### Lo que NO cambió — verificado modo por modo
+| Modo | Quién lo usa | Regla | ¿Cambia? |
+|---|---|---|---|
+| `oficial` | familias (token, digital, /padre/notas) | cerrado **+ publicado** (044) | **no** |
+| `archivo` | impresión masiva de staff | cerrado | **no** |
+| `borrador` | boleta de docente/admin (`requireRole(['docente','admin'])`) | cerrado **o** activo con Hito A | sí |
+| `todos` | **solo** `Admin\BoletaPublicaController@vistaPrevia` | todos los bimestres | sí |
+
+La equivalencia en `oficial`/`archivo` es exacta porque `boleta_estado_bimestre()`
+devuelve `'oficial'` **si y solo si** el periodo está `cerrado` — el mismo conjunto que
+daba el filtro viejo.
+
+### Implementación
+- `BoletaModel::armar()`: itera `getPeriodosDelAnio($anioId)` (todos) y descarta con
+  `periodoAportaNotas`. Cada columna suma `sin_registro` (bool) al array; el total solo
+  acumula las que tienen registro.
+- `boleta/alumno.php`: la celda usa `--pendiente` + `&ndash;` cuando `sin_registro`.
+  **`boleta/digital.php` NO se tocó**: se arma con `'oficial'` o `'borrador'`, umbrales
+  que nunca dejan pasar un bimestre `pendiente`.
+- El SASS ya tenía `.boleta-asistencia__num--pendiente` ("Bimestres sin datos aún") sin
+  ningún consumidor desde su creación; este cambio lo conecta. Sin Gulp: ya estaba
+  compilado en `public/css/app.css`.
+- Verificación: `database/verificaciones/verif_asistencia_boleta.php` (transacción +
+  ROLLBACK; **simula el Hito A** del bimestre activo, porque sin él el caso `'borrador'`
+  daría lo mismo que `'archivo'` y la aserción no probaría nada).
+
 ## Boletas de matrículas desactivadas — vías internas (09/07/2026)
 
 > Antes NINGUNA vía mostraba la boleta de una matrícula `desactivado` (traslado,

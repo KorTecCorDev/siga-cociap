@@ -146,27 +146,47 @@ class BoletaModel extends BaseModel
         $exoData = $this->exoModel->getConCompetenciasParaBoletaUnion($fuentes, $anioId);
         $areas   = ExoneracionModel::inyectarEnAreas($areas, $exoData, $periodos);
 
-        // Asistencia: una columna por bimestre CERRADO (todos los registrados) +
-        // total. Solo cerrados (misma regla en la boleta de familias y la interna,
-        // independiente del modo $datos). El total SUMA los bimestres mostrados
-        // (no un acumulado por numero<=, que podria incluir uno no mostrado).
-        // COMPUERTA DE PUBLICACION: cuando aplica ('oficial'), un bimestre cerrado
-        // pero no publicado tampoco aporta ASISTENCIA. Si no, la familia veria la
-        // columna de asistencia de un bimestre cuyas notas siguen ocultas, lo que
-        // delataria que ya cerro y expondria medio bimestre. Hasta la migracion 044
-        // ambos conjuntos coincidian (cerrado == visible) y el filtro no hacia falta.
-        $periodosCerrados = $this->getPeriodosDelAnio($anioId, true);
+        // Asistencia: una columna por bimestre que APORTA, con el MISMO umbral que
+        // las notas (`periodoAportaNotas`) + total. Hasta el 04/08/2026 tenia su
+        // propio criterio ("solo cerrados", independiente de $datos), y por eso la
+        // vista previa de RA mostraba las notas y la conducta del bimestre en curso
+        // pero NO su asistencia. Unificado: el umbral vive en un solo sitio.
+        //   - 'oficial' / 'archivo': sin cambio — `periodoAportaNotas` exige bimestre
+        //     CERRADO, y en 'oficial' ademas PUBLICADO (compuerta 044). Si no, la
+        //     familia veria la columna de asistencia de un bimestre cuyas notas
+        //     siguen ocultas, lo que delataria que ya cerro.
+        //   - 'borrador' y 'todos': suman el bimestre en curso, que es el dato que
+        //     RA necesita ver para decidir.
+        // El total SUMA los bimestres CON REGISTRO mostrados (no un acumulado por
+        // numero<=, que podria incluir uno no mostrado); incluye el bimestre en
+        // curso a proposito, asi que en vista previa es provisional.
         $asisBimestres = [];
         $asisTotal = ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0];
-        foreach ($periodosCerrados as $pc) {
-            if ($publicados !== null && !isset($publicados[(int) $pc['id']])) {
+        foreach ($this->getPeriodosDelAnio($anioId) as $pa) {
+            if (!$this->periodoAportaNotas($pa, $datos, $publicados)) {
                 continue;
             }
+            // Un bimestre 'pendiente' aun no puede tener registro: se marca para que
+            // la vista lo pinte apagado en vez de con ceros — un cero se lee como
+            // dato real ("no falto ningun dia") y aqui no hay dato. Solo ocurre en
+            // 'todos': los demas umbrales ya lo descartan via periodoAportaNotas.
+            $sinRegistro = ($pa['estado'] ?? '') === 'pendiente';
+
             // OJO: variable propia, NO reusar el nombre $datos (parametro del metodo,
             // leido mas abajo por el filtro de conducta).
-            $asisDatos = $this->asistenciaModel->getDelBimestreUnion($fuentes, (int) $pc['id']);
-            $asisBimestres[] = ['id' => (int) $pc['id'], 'numero' => (int) $pc['numero'], 'datos' => $asisDatos];
-            foreach ($asisTotal as $k => $_) { $asisTotal[$k] += (int) $asisDatos[$k]; }
+            $asisDatos = $sinRegistro
+                ? ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0]
+                : $this->asistenciaModel->getDelBimestreUnion($fuentes, (int) $pa['id']);
+
+            $asisBimestres[] = [
+                'id'           => (int) $pa['id'],
+                'numero'       => (int) $pa['numero'],
+                'datos'        => $asisDatos,
+                'sin_registro' => $sinRegistro,
+            ];
+            if (!$sinRegistro) {
+                foreach ($asisTotal as $k => $_) { $asisTotal[$k] += (int) $asisDatos[$k]; }
+            }
         }
 
         // Conducta [periodo_id => literal]: mismo umbral del Hito A que las notas.
