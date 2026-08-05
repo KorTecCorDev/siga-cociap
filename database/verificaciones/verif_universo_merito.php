@@ -47,19 +47,35 @@ require_once APP_PATH . '/Helpers/helpers.php';
 $pdo    = Core\Database::connect();
 $fallos = 0;
 
-/** Áreas PROHIBIDAS por (nivel, grado). Se comparan por `nombre_boleta` y por `nombre`. */
+/**
+ * Áreas PROHIBIDAS por (nivel, grado). Se comparan por `nombre_boleta` y por `nombre`.
+ *
+ * ÉTICA Y VALORES SALIÓ DE ESTA LISTA EL 05/08/2026: por decisión del usuario cuenta
+ * en el mérito en TODA secundaria, 5.º incluido. La regla del 04/08 que la prohibía en
+ * 5.º listaba «Ética y Valores» y «Educación Religiosa» como áreas distintas, siendo la
+ * misma (en secundaria Ed. Religiosa es un cascarón sin cargas y su nota la produce la
+ * carga de Ética). Ver `docs/modulos/orden-merito.md`.
+ *
+ * «Educación Religiosa» SE QUEDA, y cambia de significado: ya no es un veto curricular
+ * sino un GUARD ANTI-DUPLICADO. Si esa área llegara a tener cargas, el mismo curso
+ * contaría DOS VECES (por Ética y por ella). El chequeo dedicado de más abajo lo
+ * extiende a los 5 grados.
+ */
 $prohibidas = [
     'Secundaria' => [
-        5 => ['Arte y Cultura', 'Educación para el Trabajo', 'Ética y Valores',
+        5 => ['Arte y Cultura', 'Educación para el Trabajo',
               'Educación Religiosa', 'Competencias Transversales', 'Comp. Transv.'],
     ],
 ];
 
-// Universo REAL: replica el filtro de OrdenMeritoModel::rankingGradoLive.
+// Universo REAL: replica el filtro de OrdenMeritoModel::rankingGradoLive, INCLUIDA la
+// excepción de Ética. Si aquí no se replica, el script informa «correctamente fuera»
+// de un área que en realidad ya aporta — miente en vez de fallar.
 $sql = "
     SELECT n.nombre AS nivel, g.numero AS grado, a.tipo, a.nombre, a.nombre_boleta,
            COUNT(*) AS notas, COUNT(DISTINCT cal.matricula_id) AS alumnos,
-           (a.tipo NOT IN ('transversal','tutoria')) AS aporta
+           (a.tipo NOT IN ('transversal','tutoria')
+            OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "') AS aporta
     FROM calificaciones cal
     INNER JOIN matriculas m       ON m.id = cal.matricula_id
     INNER JOIN secciones s        ON s.id = m.seccion_id
@@ -132,7 +148,8 @@ foreach ($prohibidas as $nivel => $porGrado) {
         foreach (array_unique($nombres) as $nombre) {
             $st = $pdo->prepare("
                 SELECT COUNT(*) AS notas,
-                       MAX(a.tipo NOT IN ('transversal','tutoria')) AS aporta,
+                       MAX(a.tipo NOT IN ('transversal','tutoria')
+                           OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "') AS aporta,
                        MAX(a.tipo) AS tipo
                 FROM calificaciones cal
                 INNER JOIN matriculas m ON m.id = cal.matricula_id
@@ -158,6 +175,40 @@ foreach ($prohibidas as $nivel => $porGrado) {
             }
             printf("  %-12s %d° · %-30s %s\n", $nivel, $grado, $nombre, $estado);
         }
+    }
+}
+
+// ── Guard anti-duplicado: Ed. Religiosa de SECUNDARIA no debe tener notas ──────
+// Desde el 05/08/2026 Ética y Valores aporta al mérito en los 5 grados. Ética ES la
+// Ed. Religiosa de secundaria: si el área homónima (un cascarón sin cargas) llegara a
+// tener notas propias, el MISMO curso contaría dos veces en el promedio. No hay
+// filtro que lo impida —es un área-curso normal—, así que se vigila aquí, y en TODOS
+// los grados, no solo en 5.º.
+echo "\n=== Guard anti-duplicado — Ed. Religiosa de secundaria (cascarón) ===\n";
+// OJO: COUNT(cal.id), no COUNT(*) — con LEFT JOIN, COUNT(*) cuenta las filas de
+// competencias aunque no tengan ninguna calificación y da un falso positivo.
+$dup = $pdo->query("
+    SELECT g.numero AS grado, COUNT(cal.id) AS notas,
+           (SELECT COUNT(*) FROM cargas_academicas ca WHERE ca.area_id = a.id) AS cargas
+    FROM areas a
+    INNER JOIN niveles n ON n.id = a.nivel_id AND n.nombre = 'Secundaria'
+    LEFT  JOIN competencias comp ON comp.area_id = a.id
+    LEFT  JOIN calificaciones cal ON cal.competencia_id = comp.id
+    LEFT  JOIN matriculas m ON m.id = cal.matricula_id
+    LEFT  JOIN secciones s  ON s.id = m.seccion_id
+    LEFT  JOIN grados g     ON g.id = s.grado_id
+    WHERE a.nombre = 'Educación Religiosa'
+    GROUP BY a.id, g.numero
+    HAVING notas > 0
+")->fetchAll(PDO::FETCH_ASSOC);
+
+if (!$dup) {
+    echo "  OK   sin notas propias en ningún grado (su nota la produce Ética y Valores)\n";
+} else {
+    foreach ($dup as $d) {
+        $fallos++;
+        printf("  FALLA %d° · %d nota(s) propias y %d carga(s) — DOBLE CONTEO con Ética\n",
+            (int) $d['grado'], (int) $d['notas'], (int) $d['cargas']);
     }
 }
 
