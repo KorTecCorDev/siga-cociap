@@ -913,11 +913,23 @@ entra en la captura**: los PDFs saldrían sin marca. De ahí la variante
 `.boleta-watermark--inline` (`position: absolute`) y el `position: relative` del item —
 sin ese ancla habría **una sola marca para todo el lote** en vez de una por boleta.
 
-⚠️ **La variante inline conserva los tamaños de PANTALLA (130 pt), no los de impresión
-(90 pt).** `html2canvas` renderiza con los estilos de `screen`, y el contenedor
-`.archivo-items-wrap` mide **297 mm** (ancho A4 horizontal, para que las tablas calculen
-bien). Sobre esos 297 mm los 130 pt quedan proporcionados; los 90 pt de impresión se
-verían pequeños al reescalar el PDF a A4 vertical.
+⚠️ **El ZIP usa el MISMO tamaño que el papel (90 pt), sin excepción.** Hubo una —130 pt,
+para "compensar" que `.archivo-items-wrap` mide 297 mm— y era justo la que **rompía la
+marca: salía cortada en los PDF**.
+
+Lo que recorta **no es la proyección del texto rotado sino su largo SIN rotar**: lleva
+`white-space: nowrap`, así que si el div es más ancho que su contenedor se sale del
+bounding box que captura `html2canvas`, y el wrap además tiene `overflow: hidden`.
+
+| Tamaño | Largo sin rotar | % del contenedor (297 mm) |
+|---|---|---|
+| 130 pt / 12 pt (la excepción) | 296 mm | **100 % → se cortaba** |
+| **90 pt / 6 pt (actual)** | 200 mm | **67 %** (33 % de margen) |
+
+Medio milímetro de holgura por lado no sobrevive a la diferencia entre el motor del
+navegador y la medición. Con el tamaño único la marca ocupa ~58 % del ancho del PDF, algo
+menos que en la impresión directa (~89 %) porque el contenedor es más ancho que la hoja:
+es el precio de tener **un solo modelo**, y sale completa siempre.
 
 **El sufijo `_BORRADOR` del nombre no es cosmético:** estos PDFs conviven en el Drive con
 los definitivos y el nombre tiene que decir cuál es cuál sin abrir el archivo.

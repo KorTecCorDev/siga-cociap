@@ -771,15 +771,22 @@ body.boleta-body {
     }
 }
 
-// UNICA excepcion de tamaño: los PDF del ZIP de borradores. html2canvas
-// renderiza con los estilos de PANTALLA y su contenedor mide 297mm (ancho A4
-// horizontal, para que las tablas calculen bien: ver .archivo-items-wrap).
-// Sobre esos 297mm los 90pt se verian pequeños al reescalar el PDF a A4
-// vertical, asi que la marca crece en la misma proporcion.
-.boleta-archivo-item {
-    .boleta-watermark__palabra { font-size: 130pt; letter-spacing: 12pt; margin-right: -12pt; }
-    .boleta-watermark__leyenda { font-size: 20pt; }
-}
+// SIN EXCEPCION DE TAMAÑO PARA EL ZIP (05/08/2026). Hubo una —130pt, para
+// "compensar" que .archivo-items-wrap mide 297mm— y era justo la que ROMPIA la
+// marca: salia cortada en los PDF.
+//
+// Lo que recorta NO es la proyeccion del texto rotado sino su LARGO SIN ROTAR.
+// El texto lleva white-space: nowrap, asi que si el div es mas ancho que su
+// contenedor se sale del bounding box que html2canvas captura, y el wrap
+// ademas tiene overflow: hidden. Medido sobre los 297mm del contenedor:
+//     130pt/12pt -> 296mm de largo = 100% del contenedor  ***se cortaba***
+//      90pt/6pt  -> 200mm          =  67%  (33% de margen)
+// Medio milimetro de holgura por lado no sobrevive a la diferencia entre el
+// motor del navegador y la medicion.
+//
+// Con el tamaño unico la marca ocupa ~58% del ancho del PDF, algo menos que en
+// la impresion directa (~89%), porque el contenedor es mas ancho que la hoja.
+// Es el precio de tener UN SOLO modelo, y sale completa siempre.
 
 // ── Variante PANTALLA (boleta digital) ─────────────────────────
 // La digital es un documento largo que se recorre con scroll, y aqui la marca
