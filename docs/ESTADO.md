@@ -192,7 +192,15 @@
     la **boleta impresa del docente** (`/docente/boleta/{id}/imprimir`, botón de la
     nómina) se quedó **sin ninguna señal**. El texto es único (`BOLETA_LEYENDA_BORRADOR`
     en `helpers.php`) y lo comparte la digital; cambia la forma, no el mensaje.
-    Verificado en las 5 entradas (3 en borrador → 1 marca cada una; 2 oficiales → 0).
+    Verificado en las **7 entradas** (4 en borrador → 1 marca cada una; 3 oficiales → 0).
+    - **La boleta DIGITAL también lleva marca (05/08), y es control de fuga:** una captura
+      de pantalla o una foto al monitor sacaba notas de un bimestre sin cerrar **sin nada
+      que dijera que son provisionales**. Variante `--pantalla`: **fija en el viewport**
+      (la digital se recorre con scroll; anclada al contenido dejaría sin marcar justo las
+      capturas de la zona de notas) y **dimensionada en `vw` con `clamp()`**, porque los
+      `pt` de A4 desbordarían ~3× en un móvil y darían scroll horizontal. Medido: a `12vw`
+      proyecta 205 px en una pantalla de 320 px (+115 de margen). Opacidad 0.10.
+      `pointer-events: none` es crítico en táctil. **No impide la captura: la etiqueta.**
   - **DESCARGA DE BORRADORES EN ZIP (05/08, pedido del usuario).** Botón
     **📄 Borradores** por sección → `/admin/boletas-publicas/{id}/archivar-borrador`.
     Mismo mecanismo que Archivar (un PDF por alumno, carpetas `NIVEL/GRADO_SECCION`)

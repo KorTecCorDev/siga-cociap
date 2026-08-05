@@ -803,7 +803,8 @@ falta más contraste, el camino es mandarla detrás del contenido, no subir el p
 | `/admin/boletas-publicas/{id}/vista-previa` (RA) | 1 por boleta |
 | `/admin/boletas-publicas/{id}/archivar-borrador` (ZIP) | 1 por PDF |
 | `/docente/boleta/{id}/imprimir` (nómina docente) | 1 |
-| Documento oficial (token, impresión masiva, ZIP de archivo) | **ninguna** |
+| `/docente/boleta/{id}` (**digital**, nómina docente) | 1 fija en pantalla |
+| Documento oficial (token, impresión masiva, ZIP de archivo, digital publicada) | **ninguna** |
 
 ⚠️ **Regresión que esto corrigió (05/08/2026):** al eliminar el banner, la marca quedó en
 los *wrappers* (el de la vista previa de RA y el del ZIP). La **boleta impresa del
@@ -817,9 +818,34 @@ poder olvidarla; por eso ahora viaja **con el documento**.
   varias boletas apiladas se superpondrían todas en el mismo punto del viewport, y en el
   ZIP `html2canvas` (que captura un contenedor por boleta) no la capturaría.
 - **El mensaje es único de verdad:** `BOLETA_LEYENDA_BORRADOR` en `helpers.php`. Lo usan
-  la marca de agua y el aviso de la boleta **digital**. Lo que cambia entre formatos es la
-  FORMA (marca de agua en A4; aviso en el flujo en la digital, que es de pantalla y no
-  compite por el alto de la hoja), nunca el texto.
+  la marca de agua y el aviso de la boleta **digital**. Lo que cambia entre formatos es el
+  ANCLAJE, nunca el texto.
+
+##### La digital también lleva marca (05/08/2026): es control de fuga, no decoración
+
+**Motivo:** una captura de pantalla o una foto al monitor sacaba **notas de un bimestre
+sin cerrar sin nada que dijera que son provisionales**, y esa imagen podía circular como
+si fuera un resultado oficial. La marca **no impide la captura: la etiqueta.**
+
+Variante `boleta-watermark--pantalla`, con dos diferencias respecto a la de papel:
+
+- **`position: fixed`, no anclada al contenido.** La digital es un documento largo que se
+  recorre con scroll: si la marca se moviera con él, las capturas de la zona de notas
+  —justo las que importan— saldrían sin marcar. Fija en el viewport, **cualquier captura
+  la incluye**.
+- **Tamaños en `vw` con `clamp()`, no en `pt`.** Los `pt` están calibrados para A4
+  (200 mm de largo) y en un móvil de 360 px desbordarían unas 3 veces, provocando
+  **scroll horizontal**. Medido con la fuente real, la palabra a `12vw` proyecta 205 px en
+  320 px de ancho (+115 de margen), 255 px en 390 px y 496 px en tablet; la leyenda a
+  `3vw` entra incluso en 320 px (+53 px). El `clamp` corta el crecimiento en monitores
+  grandes para no desbordar el documento (`.bd`, `max-width: 800px`).
+- Opacidad **0.10** (frente a 0.15 en papel): una pantalla retroiluminada hace pesar más
+  el mismo gris, y aquí se lee sobre tarjetas blancas.
+
+⚠️ `pointer-events: none` (en la clase base) es **crítico en táctil**: sin él la marca
+interceptaría los toques y el scroll en el centro de la pantalla. Queda por encima de los
+botones flotantes (`z-index` 100), inevitable si ha de verse sobre las tarjetas, que
+tienen fondo blanco opaco; al 10 % no los estorba.
 
 ### La marca de agua NO CABÍA en la hoja al imprimir (medido)
 
