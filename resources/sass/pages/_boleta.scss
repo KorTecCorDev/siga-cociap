@@ -400,6 +400,16 @@ body.boleta-body {
         font-size:      0.72rem;
         letter-spacing: 0.04em;
     }
+
+    // Competencia del plan sin calificacion: guion APAGADO, nunca un valor.
+    // Mismo lenguaje visual que la tabla de asistencia
+    // (.boleta-asistencia__num--pendiente): el guion informa "sin registro" y
+    // no debe competir con las notas reales al recorrer la columna.
+    .sin-dato {
+        color:       #bbb;
+        font-weight: normal;
+        font-style:  italic;
+    }
 }
 
 // ════════════════════════════════════════════════════════════

@@ -377,12 +377,38 @@ class ExoneracionModel extends BaseModel
                     'es_exonerado' => true,
                 ];
             } else {
-                // Si ya existe con notas (raro pero posible en datos inconsistentes),
-                // no sobreescribir el literal_final calculado.
                 $areas[$nombreArea][$compId]['es_exonerado'] = true;
+
+                // La entrada YA EXISTE por dos motivos muy distintos:
+                //  a) tiene notas reales (raro, datos inconsistentes) -> no se
+                //     sobreescribe el literal_final calculado;
+                //  b) la sembro el ESQUELETO DEL PLAN (05/08/2026) y esta vacia
+                //     -> hay que escribirle el EXO igual que en la rama de
+                //     arriba. Sin esto, desde que el esqueleto existe TODO
+                //     exonerado caia aqui y su boleta mostraba guiones en vez
+                //     de EXO.
+                if (!self::tieneNotasReales($areas[$nombreArea][$compId])) {
+                    $areas[$nombreArea][$compId]['bimestres']     = $bimestresVacios;
+                    $areas[$nombreArea][$compId]['literal_final'] = 'EXO';
+                }
             }
         }
 
         return $areas;
+    }
+
+    /**
+     * ¿La entrada de competencia trae alguna calificación de verdad? Distingue
+     * la fila sembrada por el esqueleto del plan (bimestres vacíos, o con las
+     * claves puestas y todo en null) de una con notas registradas.
+     */
+    private static function tieneNotasReales(array $entrada): bool
+    {
+        foreach ($entrada['bimestres'] ?? [] as $b) {
+            if (($b['nota'] ?? null) !== null || ($b['literal'] ?? null) !== null) {
+                return true;
+            }
+        }
+        return false;
     }
 }

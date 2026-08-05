@@ -32,9 +32,9 @@ $romanos = ['I', 'II', 'III', 'IV'];
 // OJO al criterio: se busca "transv", no "transversal", porque el area
 // transversal de SECUNDARIA se rotula "Comp. Transv." (la de primaria,
 // "Competencias Transversales"). Con la cadena larga, en secundaria el bloque
-// no se movia al final ni recibia su estilo, y quedaba ANTES de Etica y
-// Valores (orden 90 contra el orden 13 del area transversal). Ninguna otra
-// area de ningun nivel contiene "transv".
+// no se movia al final ni recibia su estilo — y desde que el documento muestra
+// el plan completo aparece SIEMPRE, asi que el defecto se veria en todas las
+// boletas. Ninguna otra area de ningun nivel contiene "transv".
 $areasRegulares     = [];
 $areasTransversales = [];
 foreach ($areas as $_n => $_c) {
@@ -185,24 +185,38 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
                     ?>
                         <?php if ($esSecundaria): ?>
                             <td class="td-mini td-nota">
-                                <?= ($b && $b['nota'] !== null) ? fmt_nota($b['nota']) : '' ?>
+                                <?php if ($b && $b['nota'] !== null): ?>
+                                    <?= fmt_nota($b['nota']) ?>
+                                <?php else: ?>
+                                    <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
+                                <?php endif; ?>
                             </td>
                         <?php endif; ?>
 
                         <td class="td-mini td-lit td-lit--<?= $lc ?>">
-                            <?= $lit ? e($lit) : '' ?>
+                            <?php if ($lit): ?>
+                                <?= e($lit) ?>
+                            <?php else: ?>
+                                <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
+                            <?php endif; ?>
                         </td>
 
                         <td class="td-concl">
                             <?php if (!$esExonerado && $b && !empty($b['conclusion'])): ?>
                                 <div class="conclusion-clip"><?= e($b['conclusion']) ?></div>
+                            <?php elseif (!$esExonerado): ?>
+                                <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
                             <?php endif; ?>
                         </td>
                     <?php endforeach; ?>
 
                     <?php $lf = $comp['literal_final']; ?>
                     <td class="td-final td-lit--<?= $lf ? strtolower($lf) : 'vacio' ?>">
-                        <?= $lf ? e($lf) : '' ?>
+                        <?php if ($lf): ?>
+                            <?= e($lf) ?>
+                        <?php else: ?>
+                            <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
