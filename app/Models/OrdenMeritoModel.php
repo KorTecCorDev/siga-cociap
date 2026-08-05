@@ -121,12 +121,26 @@ class OrdenMeritoModel extends BaseModel
                      AND c2.periodo_id   = ?
                   WHERE r.estado = 'revertido'
               )
-              -- El mérito excluye TODA área 'transversal' y 'tutoria', sin excepciones
-              -- (decisión del usuario, 04/08/2026). Entre el 26/07 y esa fecha, Ética y
-              -- Valores (la tutoría de secundaria, area_id 24 en local) SÍ contaba —P5 del
-              -- rediseño 2, por reemplazar a Ed. Religiosa—; se revirtió. Ética sigue
-              -- yendo a BOLETA y a SIAGIE (hoja EREL): solo sale del promedio del mérito.
-              AND a.tipo NOT IN ('transversal', 'tutoria')
+              -- El mérito excluye las áreas 'transversal' y 'tutoria', con UNA
+              -- excepción: ÉTICA Y VALORES cuenta en TODA secundaria, 5.º incluido
+              -- (decisión del usuario, 05/08/2026).
+              --
+              -- POR QUÉ: Ética NO es tutoría. Es la Educación Religiosa de secundaria,
+              -- servida por la carga TOE porque el área Ed. Religiosa de ese nivel es un
+              -- cascarón (0 cargas, 0 notas). Su `tipo='tutoria'` es un artefacto de
+              -- implementación, no una afirmación curricular. Sin la excepción, el MISMO
+              -- curso pesaba en el promedio en primaria (área-curso normal) y no pesaba
+              -- en secundaria.
+              --
+              -- Deroga la regla del 04/08 que la sacaba de 5.º: aquella listaba Etica y
+              -- Valores y Educacion Religiosa como areas distintas, siendo la misma.
+              --
+              -- SE ANCLA POR `nombre_boleta`, NUNCA POR ID (difiere entre entornos, y el
+              -- id 57 es GAMA mientras que el código C57 es la competencia de Ética).
+              -- El ancla es precisa: solo el área 24 lleva ese nombre_boleta, y la TOE de
+              -- primaria no tiene competencias, así que no puede colarse.
+              AND (a.tipo NOT IN ('transversal', 'tutoria')
+                   OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, p.dni, s.nombre
             ORDER BY promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,
@@ -204,12 +218,26 @@ class OrdenMeritoModel extends BaseModel
                      AND c2.periodo_id   = ?
                   WHERE r.estado = 'revertido'
               )
-              -- El mérito excluye TODA área 'transversal' y 'tutoria', sin excepciones
-              -- (decisión del usuario, 04/08/2026). Entre el 26/07 y esa fecha, Ética y
-              -- Valores (la tutoría de secundaria, area_id 24 en local) SÍ contaba —P5 del
-              -- rediseño 2, por reemplazar a Ed. Religiosa—; se revirtió. Ética sigue
-              -- yendo a BOLETA y a SIAGIE (hoja EREL): solo sale del promedio del mérito.
-              AND a.tipo NOT IN ('transversal', 'tutoria')
+              -- El mérito excluye las áreas 'transversal' y 'tutoria', con UNA
+              -- excepción: ÉTICA Y VALORES cuenta en TODA secundaria, 5.º incluido
+              -- (decisión del usuario, 05/08/2026).
+              --
+              -- POR QUÉ: Ética NO es tutoría. Es la Educación Religiosa de secundaria,
+              -- servida por la carga TOE porque el área Ed. Religiosa de ese nivel es un
+              -- cascarón (0 cargas, 0 notas). Su `tipo='tutoria'` es un artefacto de
+              -- implementación, no una afirmación curricular. Sin la excepción, el MISMO
+              -- curso pesaba en el promedio en primaria (área-curso normal) y no pesaba
+              -- en secundaria.
+              --
+              -- Deroga la regla del 04/08 que la sacaba de 5.º: aquella listaba Etica y
+              -- Valores y Educacion Religiosa como areas distintas, siendo la misma.
+              --
+              -- SE ANCLA POR `nombre_boleta`, NUNCA POR ID (difiere entre entornos, y el
+              -- id 57 es GAMA mientras que el código C57 es la competencia de Ética).
+              -- El ancla es precisa: solo el área 24 lleva ese nombre_boleta, y la TOE de
+              -- primaria no tiene competencias, así que no puede colarse.
+              AND (a.tipo NOT IN ('transversal', 'tutoria')
+                   OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, s.id, s.nombre
             ORDER BY s.nombre, promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,
