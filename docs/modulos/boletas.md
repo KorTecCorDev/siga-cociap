@@ -772,3 +772,22 @@ Criterio en un punto único: `BoletaPublicaController::periodoEsOficial()`, que 
 > ⚠️ **El Hito A tampoco habilita la emisión.** `boleta_estado_bimestre` devuelve
 > `'borrador'` con Hito A y solo `'oficial'` (= cerrado) abre la puerta. Verificado: con
 > el Hito A simulado sobre el bimestre activo, `periodoEsOficial()` sigue dando `false`.
+
+### Extensión al índice: los bimestres `pendiente` no se abren (04/08/2026)
+Mismo patrón de dos capas en `/admin/boletas-publicas`. Un bimestre que aún no ha
+iniciado no tiene nada que gestionar —ni siquiera vista previa—, así que su tarjeta se
+ve pero **no navega** (`is-disabled` + `aria-disabled` + `tabindex="-1"`, flecha oculta,
+badge `--espera` "No iniciado"), y `porPeriodo()` aborta con `redirectWithError` si se
+llega por URL. El bimestre **activo** sigue accesible: ahí vive la vista previa.
+
+Dos cosas que **no** se pudieron reutilizar y hubo que añadir:
+- `.btn.is-disabled` exige la clase `.btn` en el selector y la tarjeta no lo es → se
+  añadió `.bp-periodo-card.is-disabled` en `_boleta-publica.scss`.
+- `.badge` sin modificador queda **sin color** (la clase base solo aporta la forma) → se
+  usa `badge--espera`, que ya existía para el estado "todavía no te toca".
+
+También hubo que sumar `p.estado` a la query de `index()`, que no lo traía.
+
+> 🐛 **Preexistente, sin corregir:** la vista usa `badge badge--success` para el conteo de
+> boletas y ese modificador **no existe** en el SASS (el equivalente se llama `--activo`),
+> así que ese badge sale sin fondo. Fuera del alcance de este cambio.

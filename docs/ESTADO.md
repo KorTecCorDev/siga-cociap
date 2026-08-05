@@ -486,6 +486,10 @@ WHERE id=25;`).
     enlace por token de cada alumno. Criterio en `periodoEsOficial()`, vía
     `boleta_estado_bimestre()`. ⚠️ Es **cerrado, no publicado** (`'archivo'` ignora la
     044 a propósito), y el **Hito A tampoco habilita** (da `'borrador'`, no `'oficial'`).
+  - **En el índice `/admin/boletas-publicas`, los bimestres `pendiente` no se abren:**
+    tarjeta inerte con badge "No iniciado" + guard en `porPeriodo()`. El **activo** sigue
+    accesible (ahí vive la vista previa). Hubo que añadir `.bp-periodo-card.is-disabled`
+    (el `.btn.is-disabled` existente exige la clase `.btn`) y `p.estado` a la query.
 - **ASISTENCIA EN LA VISTA PREVIA DE BOLETAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
   DESPLEGAR (posterior al deploy `de449e2`).** En
   `/admin/boletas-publicas/{id}/vista-previa` no aparecía la asistencia del bimestre en

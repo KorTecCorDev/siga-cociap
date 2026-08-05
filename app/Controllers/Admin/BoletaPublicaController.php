@@ -39,7 +39,7 @@ class BoletaPublicaController extends BaseController
         // Conteo de boletas OFICIALES disponibles (matrículas con ≥1 competencia
         // bloqueada), no de códigos generados (el código quedó dormido).
         $periodos = $this->model->query("
-            SELECT p.id, p.numero, p.nombre_display, a.anio,
+            SELECT p.id, p.numero, p.nombre_display, p.estado, a.anio,
                    COUNT(DISTINCT CASE WHEN bc.id IS NOT NULL THEN cal.matricula_id END) AS total_boletas
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id
@@ -67,6 +67,16 @@ class BoletaPublicaController extends BaseController
 
         if (!$periodo) {
             $this->redirectWithError(url('admin/boletas-publicas'), 'Período no encontrado.');
+        }
+
+        // Un bimestre 'pendiente' aun no empezo: no hay nada que gestionar y ni
+        // siquiera la vista previa tendria sentido. La tarjeta del indice ya no
+        // navega; esto cubre la URL escrita a mano o guardada.
+        if (($periodo['estado'] ?? '') === 'pendiente') {
+            $this->redirectWithError(
+                url('admin/boletas-publicas'),
+                'El ' . $periodo['nombre_display'] . ' todavía no ha iniciado: no tiene boletas que gestionar.'
+            );
         }
 
         $estudiantes = $this->model->getEstudiantesParaPeriodo($periodoId);

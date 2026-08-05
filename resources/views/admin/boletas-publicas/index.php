@@ -1,6 +1,8 @@
 <?php
 /**
- * @var array  $periodos  [{ id, numero, nombre_display, anio, total_boletas }]
+ * @var array  $periodos  [{ id, numero, nombre_display, estado, anio, total_boletas }]
+ *                        `estado = 'pendiente'` → tarjeta inerte: el bimestre no ha
+ *                        iniciado y no hay nada que gestionar.
  * @var string $titulo
  */
 ?>
@@ -49,15 +51,23 @@
         <p class="text-sm text-muted">Selecciona un período para gestionar sus boletas públicas</p>
     </div>
     <div class="bp-periodos-grid">
-        <?php foreach ($periodos as $p): ?>
-        <a href="<?= url("admin/boletas-publicas/{$p['id']}") ?>" class="bp-periodo-card">
+        <?php foreach ($periodos as $p):
+            // Bimestre que aun no empieza: la tarjeta se ve pero no navega. Se deja
+            // a la vista para que el calendario del ano se lea completo.
+            $noIniciado = ($p['estado'] ?? '') === 'pendiente';
+        ?>
+        <a href="<?= url("admin/boletas-publicas/{$p['id']}") ?>"
+           class="bp-periodo-card<?= $noIniciado ? ' is-disabled' : '' ?>"
+           <?= $noIniciado ? 'aria-disabled="true" tabindex="-1" title="El bimestre todavía no ha iniciado"' : '' ?>>
             <div class="bp-periodo-card__num">B<?= (int) $p['numero'] ?></div>
             <div class="bp-periodo-card__info">
                 <strong class="bp-periodo-card__nombre"><?= e($p['nombre_display']) ?></strong>
                 <span class="bp-periodo-card__anio"><?= e($p['anio']) ?></span>
             </div>
             <div class="bp-periodo-card__badge">
-                <?php if ($p['total_boletas'] > 0): ?>
+                <?php if ($noIniciado): ?>
+                <span class="badge badge--espera">No iniciado</span>
+                <?php elseif ($p['total_boletas'] > 0): ?>
                 <span class="badge badge--success"><?= (int) $p['total_boletas'] ?> boleta<?= $p['total_boletas'] != 1 ? 's' : '' ?></span>
                 <?php else: ?>
                 <span class="badge badge--warning">Sin boletas</span>

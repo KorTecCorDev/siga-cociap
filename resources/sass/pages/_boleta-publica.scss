@@ -168,6 +168,19 @@
         border-color: $brand-mid;
     }
 
+    // Bimestre que aun no empieza ('pendiente'): la tarjeta se ve pero no navega.
+    // NO se reutiliza `.btn.is-disabled` porque este selector exige `.btn`, y la
+    // tarjeta no lo es. Se deja visible para que se entienda que el bimestre
+    // existe y todavia no toca, en vez de que desaparezca de la grilla.
+    &.is-disabled {
+        opacity: 0.55;
+        pointer-events: none;
+        cursor: default;
+        background: $bg-secondary;
+
+        .bp-periodo-card__arrow { visibility: hidden; }
+    }
+
     &__num {
         font-size: $font-size-xl;
         font-weight: 700;
