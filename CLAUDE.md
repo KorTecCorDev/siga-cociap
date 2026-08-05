@@ -190,6 +190,7 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | **CERRAR un bimestre en producción** (secuencia, consultas, verificación) | `docs/runbooks/cierre-de-bimestre.md` |
 | Compuerta temporal de edición y los 4 registros del bimestre (PLAN, sin implementar) | `docs/modulos/cierre-cuatro-registros.md` |
 | Boleta con TODAS las competencias del plan + guion (PLAN, sin implementar) | `docs/modulos/boleta-competencias-completas.md` |
+| **Notas de bimestres cerrados para quien llegó después** (PLAN, sin implementar) | `docs/modulos/registro-retroactivo-notas.md` |
 | **Estado vivo: pendientes, migraciones, planes con fecha** | `docs/ESTADO.md` |
 
 ### Reglas de mantenimiento de la red

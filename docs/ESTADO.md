@@ -226,6 +226,33 @@
       Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
       (ROSALES STEPHANO), **6 filas con conclusión**, hasta 233 caracteres. Es la boleta
       que hay que mirar para dar por buena esa sección.
+- **NOTAS DE BIMESTRES CERRADOS PARA QUIEN LLEGÓ DESPUÉS — EN DISEÑO, SIN IMPLEMENTAR
+  (05/08/2026).** Plan completo: **`docs/modulos/registro-retroactivo-notas.md`**.
+  - **El caso existe: 6 estudiantes** con notas de B2 y ninguna de B1 (690, 691, 693,
+    694, 695, 696; llegaron entre el 08/06 y el 13/07). ⚠️ **`matriculas.tipo` no sirve
+    para detectarlos** —la mitad son `continuador`—; el anclaje es la ausencia de notas.
+    No confundir con el lote `traslado_entrada` del 19/05 (~180 matrículas con B1
+    completo, flag mal puesto).
+  - **Buena parte ya está resuelta:** la **calificación extraordinaria** (migración 042,
+    EN PROD desde el 16/07) ya permite registrar nota en competencia de bimestre cerrado
+    a cualquier alumno sin nota, con motivo, y ofrece 26-28 de las ~27-29 competencias
+    del plan (faltan solo las transversales). Falta: **literal** (pide numeral),
+    **captura en lote** (hoy es de una en una, 26-28 pasadas) y **trazabilidad del origen**.
+  - **Decisiones cerradas:** literal puro con **numeral en guion** (no se inventa el
+    número); captura en **grilla** por alumno y bimestre; la boleta **declara** el origen
+    con una nota al pie; asistencia del bimestre no cursado en **guion**.
+  - 🔴 **Hallazgo con impacto HOY: la boleta imprime `0 faltas` en un bimestre que el
+    alumno no cursó** (medido en la 694). `sin_registro` solo mira el umbral del bimestre
+    y el estado `pendiente`, nunca si esa matrícula tiene filas de asistencia. Es el mismo
+    dato falso del 04/08 con B2 vacío, por otra causa. **Es la fase F1 y es independiente
+    del resto: se puede hacer ya, sin migración.**
+  - ⚠️ **Prohibido `nota_numerica NULL` en `calificaciones`:** 45 usos en 11 archivos, de
+    los que **26 son promedios, umbrales o desempates** que un NULL altera EN SILENCIO.
+    De ahí que el plan proponga tabla aparte unida al leer (patrón ya probado en el
+    retorno de grado y en `notas_autorizadas_siagie`).
+  - **Abierto:** si van al SIAGIE; si la extraordinaria y el registro retroactivo conviven
+    o se unifican; qué se hace con `notas_externas` (vacía y que la boleta no lee); si se
+    convalidan conducta, asistencia y transversales.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
