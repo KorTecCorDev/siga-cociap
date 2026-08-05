@@ -30,6 +30,19 @@ $c-alt-bg: #f8f8f8;
     margin: 1cm;
 }
 
+// ── Página de la BOLETA (05/08/2026) ─────────────────────────
+// Página con nombre, como `paisaje`: acota el margen reducido a la boleta y
+// NO toca al resto de documentos que comparten el layout print (constancias,
+// actas, asistencia). Con el plan completo de competencias el documento quedó
+// al límite y las firmas se partían: bajar el margen de 10mm a 8mm devuelve
+// 4mm de alto útil (2 arriba + 2 abajo) sin alterar ni un elemento del diseño,
+// y de paso 4mm de ancho. 8mm sigue por encima del área no imprimible de
+// cualquier impresora de oficina (~5-6mm).
+@page boleta {
+    size: A4 portrait;
+    margin: 8mm;
+}
+
 // ── Página apaisada (documentos anchos: reporte de orden de mérito) ──
 // Página CSS con nombre: convive con la @page portrait por defecto sin
 // afectar a la boleta. Se activa con la clase `.doc-landscape` que
@@ -49,6 +62,7 @@ body.boleta-body.doc-landscape {
 
 // ── Cuerpo ───────────────────────────────────────────────────
 body.boleta-body {
+    page: boleta;   // margen de 8mm (ver @page boleta)
     font-family: Arial, Helvetica, sans-serif;
     font-size: 7pt;
     color: #111;
@@ -58,7 +72,10 @@ body.boleta-body {
     @media screen {
         max-width: 210mm;
         margin: 8mm auto 24mm;
-        padding: 1cm;
+        // Mismo margen que @page boleta: la hoja simulada en pantalla debe
+        // tener el MISMO ancho util que el papel, o la vista previa miente
+        // sobre donde cae el corte de pagina.
+        padding: 8mm;
         border: 1px solid #ccc;
         box-shadow: 0 3px 14px rgba(0, 0, 0, .13);
     }
@@ -603,19 +620,31 @@ body.boleta-body {
 // ════════════════════════════════════════════════════════════
 // PIE DE PÁGINA — FIRMAS
 // ════════════════════════════════════════════════════════════
+// El bloque NO se puede partir entre dos hojas: una boleta cuya linea de firma
+// queda en una pagina y el nombre del firmante en la siguiente no es un
+// documento firmable. Si de verdad no cabe, es preferible que caiga entero.
 .boleta-footer {
     display: flex;
     justify-content: space-around;
-    margin-top: 2mm;
+    margin-top: 1mm;
     padding-top: 1mm;
     border-top: 0.6pt solid $c-borde;
+    page-break-inside: avoid;
+    break-inside:      avoid;
 
-    &__bloque { text-align: center; }
+    &__bloque {
+        text-align: center;
+        page-break-inside: avoid;
+        break-inside:      avoid;
+    }
 
     // Contenedor de altura fija: firma PNG (Director) o vacío (Tutor).
     // Al ser igual en todos los bloques, la línea queda al mismo nivel.
+    // 12mm (antes 15): con el plan completo de competencias el documento quedo
+    // al limite y este es el espacio mas facil de ceder sin tocar datos. Sigue
+    // dando ~1.2cm de alto para firmar a mano sobre la linea.
     &__espacio-firma {
-        height: 15mm;
+        height: 12mm;
         display: flex;
         align-items: flex-end;
         justify-content: center;
@@ -624,9 +653,11 @@ body.boleta-body {
         & + .boleta-footer__linea { margin-top: 0; }
     }
 
+    // La imagen NO puede pasar del contenedor (antes 16mm dentro de 15mm: se
+    // salia 1mm hacia arriba, sobre la tabla).
     &__firma-img {
         max-width: 36mm;
-        max-height: 16mm;
+        max-height: 12mm;
         width: auto;
         height: auto;
         object-fit: contain;
