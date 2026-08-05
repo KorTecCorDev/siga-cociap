@@ -16,8 +16,14 @@ if (empty($boletasData)): ?>
 </p>
 <?php return; endif; ?>
 
-<!-- Marca de agua "BORRADOR". position:fixed se repite por página al imprimir. -->
-<div class="boleta-watermark" aria-hidden="true">BORRADOR</div>
+<!-- Marca de agua "BORRADOR". position:fixed se repite por página al imprimir.
+     Es la UNICA señal del documento (no hay banner: consumía alto de la hoja),
+     así que lleva la leyenda que explica qué es: el papel puede salir de la
+     impresora con el bimestre todavía abierto. -->
+<div class="boleta-watermark" aria-hidden="true">
+    <span class="boleta-watermark__palabra">BORRADOR</span>
+    <span class="boleta-watermark__leyenda">Vista previa &middot; no constituye documento oficial</span>
+</div>
 
 <?php foreach ($boletasData as $i => $boletaData):
     extract($boletaData, EXTR_OVERWRITE);
