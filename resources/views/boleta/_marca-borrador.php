@@ -2,22 +2,33 @@
 /**
  * PUNTO ÚNICO de la señal de BORRADOR del documento de boleta.
  *
- * Lo incluye `boleta/alumno.php` cuando $vistaPrevia es true, así que la señal
- * viaja CON EL DOCUMENTO y no con quien lo muestra: la vista previa de RA, el
- * ZIP de borradores y la boleta del docente la reciben por el mismo camino, sin
- * que cada entrada tenga que acordarse de pintarla.
+ * La señal viaja CON EL DOCUMENTO, no con quien lo muestra: la vista previa de
+ * RA, el ZIP de borradores, la boleta impresa del docente y la boleta DIGITAL
+ * la reciben por el mismo camino, sin que cada entrada tenga que acordarse de
+ * pintarla. Antes vivía en dos wrappers distintos y la boleta del docente se
+ * quedaba SIN NINGUNA señal, que es justamente el documento que un tutor puede
+ * imprimir con el bimestre abierto.
  *
- * Antes vivía en dos sitios distintos (el wrapper de la vista previa y el item
- * del ZIP) y la boleta del docente se quedaba SIN NINGUNA señal, que es
- * justamente el documento que un tutor puede imprimir con el bimestre abierto.
+ * DOS ANCLAJES, según el formato ($marcaModificador):
  *
- * Va dentro de `.boleta-doc` (position: relative), de modo que se ancla a la
- * hoja y hay UNA marca por boleta. No usar position:fixed: con varias boletas
- * apiladas se superpondrían todas en el mismo punto del viewport, y en el ZIP
- * html2canvas —que captura un contenedor por boleta— no la capturaría.
+ *  - HOJA A4 (por defecto, `boleta/alumno.php`): `position: absolute` dentro de
+ *    `.boleta-doc`. Una marca por boleta. NO usar fixed: con varias boletas
+ *    apiladas se superpondrían todas en el mismo punto del viewport, y en el
+ *    ZIP html2canvas —que captura un contenedor por boleta— no la capturaría.
+ *
+ *  - PANTALLA (`boleta-watermark--pantalla`, boleta digital): `position: fixed`
+ *    y tamaños en `vw`. La digital es un documento largo que se recorre con
+ *    scroll, así que una marca anclada al contenido dejaría SIN MARCAR las
+ *    capturas de pantalla de la zona de notas. Fija en el viewport, cualquier
+ *    captura la incluye — que es el motivo de ponerla ahí: no impide la
+ *    captura, la ETIQUETA, para que no circule como resultado oficial.
  */
+$marcaModificador = $marcaModificador ?? '';
 ?>
-<div class="boleta-watermark" aria-hidden="true">
+<div class="<?= e(trim('boleta-watermark ' . $marcaModificador)) ?>" aria-hidden="true">
     <span class="boleta-watermark__palabra">BORRADOR</span>
     <span class="boleta-watermark__leyenda"><?= e(BOLETA_LEYENDA_BORRADOR) ?></span>
 </div>
+<?php
+// No contaminar includes posteriores (una vista puede incluir varias boletas).
+unset($marcaModificador);

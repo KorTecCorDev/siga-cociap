@@ -780,3 +780,44 @@ body.boleta-body {
     .boleta-watermark__palabra { font-size: 130pt; letter-spacing: 12pt; margin-right: -12pt; }
     .boleta-watermark__leyenda { font-size: 20pt; }
 }
+
+// ── Variante PANTALLA (boleta digital) ─────────────────────────
+// La digital es un documento largo que se recorre con scroll, y aqui la marca
+// tiene una funcion concreta: una captura de pantalla o una foto al monitor
+// sacaba notas de un bimestre sin cerrar SIN NADA que dijera que son
+// provisionales. No impide la captura: la ETIQUETA.
+//
+// FIJA EN EL VIEWPORT, no anclada al contenido: si se moviera con el scroll,
+// las capturas de la zona de notas —justo las que importan— saldrian sin marca.
+//
+// TAMAÑOS EN vw, no en pt: los pt estan calibrados para A4 (200mm de largo) y
+// en un movil de 360px desbordarian ~3x, provocando SCROLL HORIZONTAL, que es
+// el defecto responsive clasico. Medido con la fuente real (Arial Bold) la
+// palabra a 12vw proyecta:
+//     320px -> 205px (+115 de margen) · 390px -> 255px (+135) · 768px -> 496px
+// y la leyenda a 3vw entra hasta en 320px (+53px). El clamp corta el crecimiento
+// en monitores grandes para que no desborde el documento (.bd, max-width 800px).
+.boleta-watermark--pantalla {
+    position: fixed;
+
+    // Mas clara que en papel: una pantalla retroiluminada hace pesar mas el
+    // mismo porcentaje de gris, y aqui la marca se lee sobre tarjetas blancas.
+    opacity: 0.10;
+
+    .boleta-watermark__palabra {
+        font-size: clamp(2.5rem, 12vw, 7rem);
+        letter-spacing: 0.06em;
+        margin-right: -0.06em;
+    }
+
+    .boleta-watermark__leyenda {
+        font-size: clamp(0.7rem, 3vw, 1.5rem);
+        letter-spacing: 0.08em;
+        margin-right: -0.08em;
+    }
+
+    // Queda por encima de los botones flotantes (z-index 100), inevitable si ha
+    // de verse sobre las tarjetas, que tienen fondo blanco opaco. Con un 10% no
+    // los estorba, y `pointer-events: none` (en la clase base) garantiza que no
+    // intercepta ni los toques ni el scroll: critico en tactil.
+}

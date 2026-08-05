@@ -78,15 +78,22 @@ $vistaPrevia = $vistaPrevia ?? false;
          id="boleta-documento"
          data-nivel="<?= e($alumno['nivel_codigo'] ?? '') ?>">
 
-    <?php // Misma SEÑAL de borrador que la boleta impresa y el MISMO MENSAJE
-          // (BOLETA_LEYENDA_BORRADOR, punto único). Cambia solo la FORMA: aquí
-          // un aviso en el flujo, porque la digital es de pantalla y no compite
-          // por el alto de una hoja A4; en la impresa, marca de agua. ?>
     <?php if ($vistaPrevia): ?>
+    <?php // Aviso en el flujo: explica en texto que esto no es oficial. ?>
     <div class="bd-borrador" role="note">
         <span class="bd-borrador__tag">BORRADOR</span>
         <span class="bd-borrador__msg"><?= e(BOLETA_LEYENDA_BORRADOR) ?></span>
     </div>
+    <?php
+    // MARCA DE AGUA, mismo parcial que la boleta impresa (punto único). Aquí
+    // NO es decorativa: sin ella, una captura de pantalla o una foto al monitor
+    // sacaba notas de un bimestre sin cerrar sin nada que dijera que son
+    // provisionales. Variante `--pantalla`: fija en el viewport, porque este
+    // documento se recorre con scroll y una marca anclada al contenido dejaría
+    // sin marcar justo las capturas de la zona de notas.
+    $marcaModificador = 'boleta-watermark--pantalla';
+    include VIEW_PATH . '/boleta/_marca-borrador.php';
+    ?>
     <?php endif; ?>
 
     <!-- ── HEADER INSTITUCIONAL ─────────────────────────────── -->
