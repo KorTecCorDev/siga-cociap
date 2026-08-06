@@ -14,23 +14,33 @@
   🔴 **IRREVERSIBLE y NO probable con rollback**: `DROP TABLE` es DDL y MySQL hace commit
   implícito. Por eso el archivo insiste en exportar antes (phpMyAdmin → Exportar las 2
   tablas; `mysqldump` solo si hay shell).
-  ✅ **APLICADA EN PROD el 06/08/2026, confirmada por el usuario.** El PASO 1 devolvió en
-  producción **exactamente** lo previsto: 1 fila, `PUEDE_BORRARSE`, matrícula 541 / DNI
-  63361405 (RODRIGUEZ MENDEZ, GUSTAVO CHRISTIAN), sección 18, `trasladado`, cierre id 33,
-  `ra_bloqueado_en` 2026-07-24 16:14:04 y `tutor_cerrado_en` 2026-07-31 12:32:54, sin
-  anular; y la constancia, 10 y 0 filas. Prod y la copia local coincidían al segundo.
-  ✅ **APLICADA TAMBIÉN EN LOCAL el 06/08/2026** (medido después, no al aplicarla): el
-  PASO 3 devuelve **0 filas**, el esquema queda en 51 tablas y **ninguna empieza por `_`**.
-  Sin daño colateral: la conducta de la 541 conserva su calificación de **B1 (`AD`)**, sus
-  respuestas siguen en 0 (lo esperado desde la limpieza del 24/07), el cierre 33 está
-  intacto y el volumen global no se movió (5240 respuestas · 1052 calificaciones · 46
-  cierres, todos vivos). El PASO 1 del archivo commiteado se ejecutó tal cual y siguió
-  devolviendo `PUEDE_BORRARSE`; la 2.ª consulta falla con `Table doesn't exist`, que es
-  **la señal esperada de que el PASO 2 ya corrió**.
-  - ⚠️ **LECCIÓN DE TRAZABILIDAD:** la salida del PASO 1 es **idéntica en local y en prod**
-    (local es copia de prod: mismos ids y mismas fechas al segundo), así que **NO sirve
-    para saber contra qué entorno se ejecutó**. Para dar una migración por aplicada en un
-    entorno hay que capturar su **PASO 3 en ese entorno**, no el veredicto previo.
+  ✅ **APLICADA EN LOS DOS ENTORNOS el 06/08/2026, con evidencia del PASO 3 en cada uno.**
+  Se aplicó **primero en LOCAL y después en PROD** (ver la lección de trazabilidad, abajo).
+  - **LOCAL** — PASO 3 en **0 filas**; esquema en 51 tablas y **ninguna empieza por `_`**.
+    Sin daño colateral: la conducta de la 541 conserva su calificación de **B1 (`AD`)**,
+    sus respuestas siguen en 0 (lo esperado desde la limpieza del 24/07), el cierre 33
+    intacto y el volumen global sin moverse (5240 respuestas · 1052 calificaciones · 46
+    cierres, todos vivos). Al re-ejecutar el PASO 1 sigue dando `PUEDE_BORRARSE` y la 2.ª
+    consulta falla con `Table doesn't exist`: **la señal esperada de que el PASO 2 corrió**.
+  - **PROD** — el PASO 1 devolvió 1 fila, `PUEDE_BORRARSE`, matrícula 541 / DNI 63361405
+    (RODRIGUEZ MENDEZ, GUSTAVO CHRISTIAN), sección 18, `trasladado`, cierre id 33,
+    `ra_bloqueado_en` 2026-07-24 16:14:04 y `tutor_cerrado_en` 2026-07-31 12:32:54, sin
+    anular. **La constancia dio 10 y 0 filas**, o sea que allí los respaldos seguían vivos
+    hasta ese momento; los dos `DROP` se ejecutaron sin error y el **PASO 3 devolvió 0
+    filas**.
+  - ⚠️ **LECCIÓN DE TRAZABILIDAD — SE MATERIALIZÓ, no es hipotética.** La salida del PASO 1
+    es **idéntica en local y en prod** (local es copia de prod: mismos ids y mismas fechas
+    al segundo), así que **no sirve para saber contra qué entorno se ejecutó**. Por eso la
+    primera corrida se dio por hecha en prod cuando en realidad había caído en **local**, y
+    se detectó por un camino indirecto: local ya no tenía las tablas y la constancia de la
+    corrida siguiente devolvió 10 y 0 —prueba de que ESE entorno aún las tenía—.
+    **Regla: una migración solo se da por aplicada en un entorno cuando se captura su
+    PASO 3 ALLÍ**; el veredicto previo no identifica el entorno. Aplica a la `049` y a
+    todas las que vengan.
+  - ⚠️ **El archivo se ejecutó ENTERO de una pasada** en phpMyAdmin (PASO 1 + 2 + 3 en la
+    misma corrida), que es exactamente lo que su propia cabecera advierte que no hay que
+    hacer. Salió bien **porque el veredicto era verde**; con un `NO_BORRAR` el `DROP` se
+    habría ejecutado igual. La advertencia sigue en pie para la próxima.
   - **Endurecimiento del PASO 1 (06/08, commits `221440f` y `df186f2`), hecho ANTES de
     aplicarla:** juzgaba por `matriculas.id = 541`, contra la regla de anclar por DNI. Un
     id que apuntara a otro estudiante habría devuelto un veredicto **válido sobre la
@@ -90,9 +100,8 @@
   **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
   código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
 - **LOCAL y PROD: AL DÍA HASTA LA `048`** (la 047 el 05/08/2026, la **048 el 06/08/2026**
-  en ambos entornos; el estado de local está verificado por medición, el de prod por
-  confirmación del usuario). La **`049`** será la del registro retroactivo de notas, aún
-  sin implementar.
+  en ambos entornos, cada uno con la salida de su PASO 3 en 0 filas). La **`049`** será la
+  del registro retroactivo de notas, aún sin implementar.
 - **LOCAL y PROD: al día hasta la `045`.** En prod: 038-043 el 20/07/2026, 044 y
   045 el 22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
   había saltado al aplicarse suelta; se corrió el **22/07/2026** (estructura
