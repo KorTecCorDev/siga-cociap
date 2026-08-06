@@ -168,8 +168,21 @@ echo "\n=== 4. 'borrador' con Hito A SIMULADO (transaccion + ROLLBACK) ===\n";
 if (!$activo) {
     echo "  (omitido: no hay bimestre activo en este entorno)\n";
 } else {
-    $check("'borrador' SIN Hito A = igual que 'archivo'",
-        $espera('archivo', $publicados, $periodos), $firma($boletas->armar($matriculaId, $verPeriodo, 'borrador')));
+    // El PUNTO DE PARTIDA depende del estado REAL del bimestre activo, no de
+    // suponer que aun no tiene Hito A: RA puede aprobarlo en cualquier momento
+    // (paso el 05/08/2026 a media sesion, y este bloque empezo a fallar sin que
+    // hubiera ningun defecto). Con Hito A ya aprobado, 'borrador' SUMA el
+    // bimestre en curso; sin el, se comporta como 'archivo'.
+    $hitoAYaAprobado = !empty($activo['boletas_aprobadas_en']);
+    $check(
+        $hitoAYaAprobado
+            ? "'borrador' con Hito A YA aprobado = suma el bimestre en curso"
+            : "'borrador' SIN Hito A = igual que 'archivo'",
+        $hitoAYaAprobado
+            ? $espera('borrador', $publicados, $periodos, [(int) $activo['id']])
+            : $espera('archivo', $publicados, $periodos),
+        $firma($boletas->armar($matriculaId, $verPeriodo, 'borrador'))
+    );
 
     $pdo->beginTransaction();
     $pdo->prepare("UPDATE periodos SET boletas_aprobadas_en = NOW() WHERE id = ?")
