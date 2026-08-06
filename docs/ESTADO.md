@@ -4,6 +4,51 @@
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **06/08/2026**.
 
 ## Migraciones
+- **`050_etica_b1_extraordinaria`** (06/08): registra **15 (literal A) como CALIFICACIÓN
+  EXTRAORDINARIA** de Ética y Valores en el **I Bimestre** a los **275** estudiantes de
+  secundaria **que cursaron B1**. **ESCRITA Y ENSAYADA EN LOCAL, SIN APLICAR EN NINGÚN
+  ENTORNO.**
+  - **Por qué existe:** en B1 nadie evaluó Ética —los tutores no remitieron a tiempo— y por
+    acuerdo de dirección se consignó 15 (A) uniforme, **ya cargado a mano en el SIAGIE** en
+    las dos competencias de Ed. Religiosa (vínculo `035-EREL`). Esto alinea SIGA con el acta.
+  - 🔴 **HALLAZGO GRAVE — B1 SE CERRÓ CON ÉTICA BLOQUEADA Y VACÍA.** El **20/07/2026 entre
+    la 01:44:33 y la 01:45:33** se bloqueó la competencia en las **11 secciones** de
+    secundaria (`origen='docente'`, 11 filas en 60 segundos) **con CERO notas**, y horas
+    después se cerró B1. El sistema quedó afirmando que Ética estaba evaluada y terminada.
+    **Ningún indicador del cierre podía detectarlo:** el **termómetro** cuenta pares *con
+    notas y sin bloqueo*, así que un par **sin notas** nunca aparece (por eso B1 daba 0); y
+    la **alerta de evaluación incompleta** solo aflora un criterio cuando algún compañero de
+    sección ya tiene nota en él, así que si **nadie** la tiene no hay con qué comparar.
+    Es un punto ciego real del contrato del cierre → refuerza el plan de los 4 registros.
+  - **Universo = 275, anclado en "tiene ≥1 nota en B1"**, no en `tipo` ni en ids. Coincide
+    **exactamente** con los 275 de secundaria del snapshot oficial de B1, o sea reproduce el
+    roster que se congeló. Desglose: 1.º 72 · 2.º 52 · 3.º 47 · 4.º 55 · 5.º 49. Deja fuera
+    a **693, 694, 695 y 696** (llegaron entre junio y julio, 0 notas en B1): darles nota
+    sería inventarles un bimestre. 0 exonerados en secundaria.
+  - **EL SNAPSHOT DE B1 NO SE MUEVE**, por tres vías: `OrdenMeritoModel` filtra
+    `extraordinaria = 0` en sus 2 queries; el oficial es inmutable (candado 046); y los
+    lectores usan el snapshot, no el vivo. **Verificado en el ensayo: 528 filas, puestos
+    1-72, 11 grados, 23 secciones, y 0 notas nuevas entrarían al mérito.**
+  - **Replica el flujo real** de `guardarExtraordinaria` (leído línea por línea): criterio
+    único por carga (11) → nota de criterio → calificación con `extraordinaria=1` → fila de
+    auditoría con el **motivo**, que es el único registro permanente de por qué existen.
+    Firma **Registro Académico**, resuelto por rol.
+  - ✅ **ENSAYADA ENTERA EN LOCAL con `START TRANSACTION … ROLLBACK`** (no hay DDL, a
+    diferencia de la 048): **11 criterios · 275 notas de criterio · 275 calificaciones,
+    todas marcadas y ninguna distinta de 15 · 275 filas de auditoría**, y local quedó en 0
+    tras el rollback. **Reversible** con el DELETE acotado del PASO 4.
+  - 🔴 **EFECTO VISIBLE INMEDIATO:** B1 está **publicado**, así que al aplicarla la boleta
+    digital por token de B1 muestra el 15 a las familias. **No existe forma de registrar el
+    dato y diferir su visibilidad.** Decisión del usuario: no hace falta reimprimir el papel
+    de B1; basta con que salga en la boleta que se entregue en B2 (documento anual).
+  - ⚠️ **Dos trampas encontradas AL ENSAYARLA**, ambas corregidas y anotadas en el archivo:
+    - **Anclar el rol por `= 'Registro Académico'` falla si el cliente no envía la tilde en
+      UTF-8** → el anclaje resuelve NULL y la migración inserta 0 filas sin decir por qué.
+      Pasó de verdad en el primer ensayo. Ahora usa `LIKE 'Registro Acad%'` (ASCII).
+    - **El detector de mojibake del motivo daba FALSO POSITIVO:** `motivo` es
+      `utf8mb4_unicode_ci`, la colación que equipara **Ã con A** —la misma que hacía Ñ ≡ N
+      en el orden alfabético—, así que `INSTR` encontraba la primera 'a'. La comparación va
+      ahora **sobre bytes** (`CONVERT(... USING binary)`). Probado en ambos sentidos.
 - **`048_limpieza_backups_conducta_541`** (05/08): retira las dos tablas de respaldo que
   dejó la limpieza quirúrgica de conducta del 24/07 (`_bkp_conducta_resp_541` con 10 filas
   y `_bkp_calif_conducta_541` con 0). **La condición acordada se cumplió**: la conducta de
@@ -100,8 +145,11 @@
   **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
   código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
 - **LOCAL y PROD: AL DÍA HASTA LA `048`** (la 047 el 05/08/2026, la **048 el 06/08/2026**
-  en ambos entornos, cada uno con la salida de su PASO 3 en 0 filas). La **`049`** será la
-  del registro retroactivo de notas, aún sin implementar.
+  en ambos entornos, cada uno con la salida de su PASO 3 en 0 filas). La **`050`** (Ética
+  de B1) está escrita y ensayada, **sin aplicar**. La **`049`** será la del registro
+  retroactivo de notas, aún sin implementar — ⚠️ **la 050 se numeró antes que la 049 a
+  propósito**: son independientes y esta corría primero. Al aplicarlas, el orden lo manda
+  la dependencia, no el número.
 - **LOCAL y PROD: al día hasta la `045`.** En prod: 038-043 el 20/07/2026, 044 y
   045 el 22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
   había saltado al aplicarse suelta; se corrió el **22/07/2026** (estructura

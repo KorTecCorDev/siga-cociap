@@ -112,6 +112,62 @@ está en 0. (Referencia: el 28/07/2026 en prod daba B1 = 0 —no aparecía— y 
 **Es un PISO:** no ve lo que aún no se ha calificado. Que dé 0 significa "nada de lo
 calificado quedó sin bloquear", no "todo el mundo calificó".
 
+🔴 **PUNTO CIEGO CONFIRMADO (hallazgo del 06/08/2026): una competencia BLOQUEADA Y VACÍA
+es invisible para las dos herramientas de esta fase.** Pasó en B1 con **Ética y Valores**:
+el 20/07 a la 01:44 se bloquearon las **11 secciones** de secundaria en 60 segundos **con
+cero notas**, y horas después se cerró el bimestre.
+
+- El **termómetro** cuenta pares *con notas y sin bloqueo* → un par **sin notas** nunca
+  aparece. Por eso B1 daba 0 con Ética completamente sin evaluar.
+- La **alerta de evaluación incompleta** solo aflora un criterio cuando algún compañero de
+  sección ya tiene nota en él → si **nadie** la tiene, no hay con qué comparar.
+
+### 1.1-bis Competencias bloqueadas y VACÍAS (lista de REVISIÓN, no de aborto)
+
+```sql
+SELECT n.nombre AS nivel, COALESCE(a.nombre, a2.nombre) AS area, bc.origen,
+       COUNT(*) AS pares, COUNT(DISTINCT ca.seccion_id) AS secciones
+FROM bloqueos_competencia bc
+INNER JOIN cargas_academicas ca ON ca.id = bc.carga_id
+INNER JOIN competencias c ON c.id = bc.competencia_id
+INNER JOIN secciones s  ON s.id  = ca.seccion_id
+INNER JOIN grados   gg  ON gg.id = s.grado_id
+INNER JOIN niveles  n   ON n.id  = gg.nivel_id
+LEFT  JOIN areas    a   ON a.id  = ca.area_id
+LEFT  JOIN subareas sa  ON sa.id = ca.subarea_id
+LEFT  JOIN areas    a2  ON a2.id = sa.area_id
+WHERE bc.periodo_id = 2
+  -- SOLO la competencia PROPIA del área de la carga. Sin este filtro entran las
+  -- TRANSVERSALES que cada docente bloquea en su carga y que agrega el tutor:
+  -- son ruido y multiplican el resultado por ~3 (medido: 191 → 61 en B2).
+  AND (c.area_id = ca.area_id OR c.subarea_id = ca.subarea_id)
+  AND NOT EXISTS (SELECT 1 FROM calificaciones cal
+                   WHERE cal.carga_id       = bc.carga_id
+                     AND cal.competencia_id = bc.competencia_id
+                     AND cal.periodo_id     = bc.periodo_id)
+GROUP BY n.nombre, COALESCE(a.nombre, a2.nombre), bc.origen
+ORDER BY pares DESC;
+```
+
+⚠️ **Interpretación — esto NO es una lista de errores.** Desde el cambio del 05/08 una
+competencia sin notas en un bimestre es **legítima**: la boleta la muestra con guion. Cada
+fila puede ser:
+
+- **normal** — esa competencia no se trabajó ese bimestre; o
+- **un olvido como el de Ética** — el área entera sin evaluar y bloqueada igual.
+
+La señal de alarma es **el área COMPLETA vacía en TODAS sus secciones**, que es la forma
+que tuvo Ética (11 secciones, 11 bloqueos, 60 segundos, 0 notas).
+
+**Referencia medida el 06/08/2026** (copia local de prod del 05/08 — repetir en prod):
+**B2 = 61 pares** (Personal Social primaria 26 en 8 secciones · Inglés primaria 16 en 12 ·
+Taller Raz. Mat. 9 en 9 · CyT primaria 5 · resto 5), todos `origen='docente'`.
+**B1 = 116**, incluidos los 11 de Ética.
+
+**Consecuencia de dejar una fila sin revisar:** todos los alumnos de esa sección salen con
+**guion** en esa competencia en la boleta, y con la **celda en blanco** en el acta SIAGIE.
+Revisarlo ANTES de cerrar: después, el arreglo cuesta una migración (ver la `050`).
+
 ### 1.2 A quién apurar (desglose del termómetro)
 
 ```sql
