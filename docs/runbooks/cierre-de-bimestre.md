@@ -4,6 +4,13 @@
 > Escrito el **29/07/2026** para el **cierre del II Bimestre (periodo_id = 2)**, pero
 > redactado para reutilizarse en B3 y B4: donde dice `@periodo := 2`, cambiar el número.
 >
+> **REVISADO EL 06/08/2026** contra el código y los datos reales. Cambios: el deploy ya
+> ocurrió, así que la **Fase 2 pasa a ser una comprobación, no un paso**; se añadió el
+> **plazo de edición** (`limite_notas`), que es el bloqueador operativo que faltaba; la
+> Fase 4 describe **las seis cosas** que hace `cerrar()`, no dos; hay un paso nuevo para
+> **conducta y asistencia** (el cierre NO las valida) y otro para la **prueba de papel**
+> de la boleta antes de publicar.
+>
 > **Ejecuta:** el usuario (admin / Dirección). Las consultas van en **phpMyAdmin de
 > producción** y son **todas de solo lectura**. El cierre en sí se hace por la UI.
 > Estado vivo y pendientes: `docs/ESTADO.md`. Reglas del módulo:
@@ -44,9 +51,40 @@ termómetro en 0, ese universo coincide y el hueco desaparece.
 
 ---
 
-## Fase 0 — Precondición
+## Fase 0 — Precondiciones
 
 - [ ] Pasó la fecha límite de calificación de los docentes (**para B2: 31/07/2026**).
+- [ ] Sabes en qué estado está el **plazo de edición** (`limite_notas`) del bimestre.
+      No es un requisito para cerrar: es lo que decide **si puedes CORREGIR algo antes**.
+
+### 0.1 El plazo de edición (`limite_notas`) — el bloqueador que no se ve
+
+`CalificacionModel::periodoEstaBloqueado` y `AsistenciaModel::periodoEditable` exigen que
+el bimestre esté `activo` **Y** dentro de `limite_notas`. **El mismo plazo corta notas,
+conducta y asistencia a la vez.** `limite_notas = NULL` significa *sin límite*.
+
+```sql
+SELECT id, nombre_display, estado, limite_notas, NOW() AS ahora,
+       (estado = 'activo'
+        AND (limite_notas IS NULL OR NOW() <= limite_notas)) AS editable
+FROM periodos WHERE id = 2;
+```
+
+- **`editable = 1`** → las Fases 1.3 y 3 se ejecutan tal cual.
+- **`editable = 0`** → **nadie puede registrar nada**. Si las Fases 1 o 3 arrojan algo que
+  resolver, primero hay que **ampliar `limite_notas`** desde `/director/anios/{anio_id}`,
+  y eso abre un bucle que hay que cerrar antes de pulsar Cerrar:
+
+  > ampliar el plazo → **se reabre la calificación docente** (cualquiera puede volver a
+  > calificar) → **RE-MEDIR el termómetro (1.1)**, porque la regla 2 exige que dé 0 en el
+  > instante del cierre, no la semana pasada.
+
+⚠️ **Un plazo vencido congela también el termómetro**: si nadie puede calificar, el número
+no puede moverse. Es una ayuda para razonar, **no una excusa para no repetir la medición**.
+
+> **Estado de B2 al 06/08/2026:** `limite_notas = 2026-08-04 23:59`, **vencido**. Con la
+> alerta y los empates en 0 no hace falta ampliarlo; si al re-medir apareciera algo, este
+> es el primer paso y arrastra todo el bucle.
 
 ## Fase 1 — Medir (en prod, solo lectura)
 
@@ -120,30 +158,54 @@ Son **4 bloques autocontenidos** — en phpMyAdmin **ejecutar de a uno**:
 Resolver cada caso desde el módulo del docente: **registrar la nota** o **registrar la
 omisión**. Esta alerta es estable: el trabajo vale igual antes o después del deploy.
 
-### 1.4 Caso nominal a vigilar (B2)
+### 1.4 Patrón a vigilar: evaluación registrada en la matrícula equivocada
 
-**BALTAZAR SHALOM CRISTEL** — matrícula oficial **190** (Primaria 2° B, la del SIAGIE) y
-operativa **692** (1° B, donde CURSA); retorno activo desde el 21/06/2026. La evaluó la
-docente de 1° B, pero esa evaluación se registró en las cargas de **2° B**, repitiendo la
-misma nota en cada criterio. Resultado: la alerta le marca en blanco los criterios de
-1° B y **aborta el cierre**.
+✅ **Resuelto para B2** (verificado el 04/08/2026: la alerta de B2 da **0** y la matrícula
+692 ya no aparece en el detalle). Se conserva porque **el patrón puede repetirse en B3/B4**
+en cualquier retorno de grado.
 
-- Buscarla en el **bloque C** de la alerta (matrícula 692).
-- Registrarle la nota o la omisión en las cargas de 1° B antes de cerrar.
-- ⚠️ **NO es un duplicado de matrícula: no borrar la 692.**
+**El caso:** BALTAZAR SHALOM CRISTEL — matrícula oficial **190** (Primaria 2° B, la del
+SIAGIE) y operativa **692** (1° B, donde CURSA); retorno activo desde el 21/06/2026. La
+evaluó la docente de 1° B, pero esa evaluación se registró en las cargas de **2° B**,
+repitiendo la misma nota en cada criterio. La alerta marcaba en blanco los criterios de
+1° B, y con el guard P4 eso **aborta el cierre**.
 
-## Fase 2 — Deploy
+- Buscar el caso en el **bloque C** de la alerta (por matrícula).
+- Registrar la nota o la omisión **en las cargas del grado donde CURSA** (el operativo).
+- ⚠️ **NO es un duplicado de matrícula: no borrar la operativa.**
+- Regla vigente desde el 05/08: **se evalúa en la operativa, se documenta con la oficial**
+  (`docs/modulos/retorno-grado.md`). Un retorno registrado hoy ya no puede caer a mitad de
+  bimestre evaluado: hay candado.
+- ⚠️ **En B1 sigue abierto**: 12 alumnos con blancos sin motivo. Mientras B1 esté cerrado
+  la alerta ahí solo informa, pero **si alguna vez se REABRE B1 no se podrá volver a
+  cerrar** hasta resolverlos (guard P4, en producción desde el 04/08).
 
-Solo cuando el termómetro dé **0**.
+## Fase 2 — Deploy (COMPROBACIÓN, no un paso)
 
-- [ ] Autorización explícita del usuario para mergear `dev` → `main`.
-- [ ] **No hay migración pendiente** en este lote → el deploy es solo código.
-      (Si en el futuro la hubiera: **aplicarla a mano en phpMyAdmin ANTES del merge**,
-      nunca después.)
+> **Para B2 esto ya está hecho** (deploys del 04 y 05/08/2026). Lo que queda sin desplegar
+> son commits de **SQL y documentación**, que no cambian nada del cierre. La fase se
+> conserva para B3/B4 y como comprobación previa.
+
+**Primero, comprobar si de verdad hay algo que desplegar:**
+
+```bash
+git fetch origin
+git diff --stat origin/main..origin/dev   # ¿toca app/, resources/, routes/, core/?
+```
+
+- Si solo salen `docs/` y `database/` → **no hay deploy que hacer**, sigue a la Fase 3.
+- Si sale código → hay deploy, y solo se hace **con el termómetro en 0**.
+
+- [ ] Autorización **explícita** del usuario para mergear `dev` → `main`.
+- [ ] ¿Hay migración en el lote? Si la hay, **aplicarla a mano en phpMyAdmin ANTES del
+      merge**, nunca después. Y darla por aplicada solo con la salida de su verificación
+      **posterior** ejecutada en PROD: el veredicto previo no distingue local de prod.
 
 ```bash
 git checkout main
-git merge dev          # debería ser fast-forward
+git pull origin main   # ← IMPRESCINDIBLE: main local suele estar por detrás
+git merge dev          # NO esperes fast-forward: desde el deploy del 05/08 main tiene
+                       # un commit de merge que dev no contiene
 git push               # Hostinger auto-despliega
 git checkout dev
 ```
@@ -151,6 +213,8 @@ git checkout dev
 - [ ] Tras el push, abrir el sistema y confirmar que responde (el auto-deploy borra todo
       lo no versionado; los secretos viven en `~/siga_secrets/`, fuera del repo).
 - [ ] Si algo falla: primer paso, `tail ~/siga_logs/siga.log`.
+- ⚠️ **Nunca traigas `main` a `dev` para "sincronizar"**: no aporta contenido y deja un
+      merge a medias. Estando en `dev`, `git pull` a secas.
 
 ## Fase 3 — Resolver empates
 
@@ -162,16 +226,77 @@ Con el deploy arriba y el termómetro en 0.
 Si aquí aparecen empates que no estaban antes del deploy, es lo esperado: el cálculo en
 vivo ahora solo considera competencias bloqueadas.
 
+## Fase 3.5 — Conducta y asistencia (el cierre NO las valida)
+
+🔴 **El código no exige ninguno de los dos registros para cerrar** — eso es lo que quiere
+cambiar la decisión D1 de `docs/modulos/cierre-cuatro-registros.md`, aún sin implementar.
+Pero **la boleta SÍ los imprime** en cuanto el bimestre queda cerrado: una sección sin
+conducta cerrada o sin asistencia bloqueada sale al papel con guiones y nadie avisa.
+Mientras no exista el guard, **este paso es la única defensa**.
+
+```sql
+-- 3.5.a Secciones SIN conducta cerrada en sus DOS etapas → debe dar 0 filas
+SELECT s.id, g.nombre_display AS grado, s.nombre AS seccion,
+       cc.ra_bloqueado_en, cc.tutor_cerrado_en
+FROM secciones s
+JOIN grados g ON g.id = s.grado_id
+LEFT JOIN cierres_conducta cc
+       ON cc.seccion_id = s.id AND cc.periodo_id = 2 AND cc.anulado_en IS NULL
+WHERE cc.id IS NULL OR cc.ra_bloqueado_en IS NULL OR cc.tutor_cerrado_en IS NULL;
+
+-- 3.5.b Secciones SIN cierre de asistencia VIVO → debe dar 0 filas
+SELECT s.id, g.nombre_display AS grado, s.nombre AS seccion
+FROM secciones s
+JOIN grados g ON g.id = s.grado_id
+LEFT JOIN cierres_asistencia ca
+       ON ca.seccion_id = s.id AND ca.periodo_id = 2 AND ca.anulado_en IS NULL
+WHERE ca.id IS NULL;
+
+-- 3.5.c Ninguna sección con DOS cierres vivos → debe dar 0 filas
+SELECT seccion_id, COUNT(*) AS vivos FROM cierres_asistencia
+WHERE periodo_id = 2 AND anulado_en IS NULL GROUP BY seccion_id HAVING COUNT(*) > 1;
+```
+
+⚠️ **Filtrar `anulado_en IS NULL` no es opcional.** Sin ese filtro, una sección cuyo único
+cierre fue **anulado** parece cerrada. En B2 hay 7 anulaciones legítimas (el rehacer de las
+secciones 1-6 tras el fix del roster del 04/08): 30 filas totales, **23 vivas**.
+
+- **La conducta tiene DOS etapas** (`ra_bloqueado_en` del RA y `tutor_cerrado_en` del
+  tutor). Una sola no basta: es la decisión D6.
+- Si falta algo y el plazo está vencido → **volver a la Fase 0.1** (ampliar `limite_notas`
+  arrastra el bucle completo).
+
+> **Medido para B2 el 06/08/2026:** conducta **23/23 secciones con las dos etapas**, 0
+> anuladas; asistencia **23 cierres vivos**, uno por sección, sin duplicados. Las tres
+> consultas dan 0 filas.
+
 ## Fase 4 — Cerrar
 
 - [ ] Termómetro = 0 (repetir 1.1: es la última comprobación antes de pulsar).
 - [ ] Alerta de evaluación incompleta = 0.
 - [ ] 0 empates pendientes.
+- [ ] Conducta y asistencia completas (Fase 3.5).
+- [ ] *(Opcional, barato)* Exportar `orden_merito_snapshot` del periodo desde phpMyAdmin.
 - [ ] Cerrar el bimestre desde la UI de Dirección.
 
-El cierre, en una transacción: fuerza los bloqueos pendientes
-(`bloquearCompetenciasPendientes`, origen `'cierre'` — es la válvula de escape para el
-docente que nunca bloqueó) y registra el ranking (`registrarRanking`).
+**Qué hace `cerrar()` — SEIS operaciones en una sola transacción** (`PeriodoController`):
+
+| # | Operación | Efecto |
+|---|---|---|
+| 1 | `bloquearCompetenciasPendientes` | Fuerza los bloqueos que falten, con `origen='cierre'` — válvula de escape para el docente que nunca bloqueó (y son distinguibles después) |
+| 2 | `crearCierresTransversalesPendientes` | **Cierra las transversales por sección**, respetando lo que el tutor ya hizo |
+| 3 | `setEstadoPeriodo` | El periodo pasa a `cerrado` |
+| 4 | `marcarBoletasAprobadas` | **Las boletas pasan a OFICIAL** (si luego se reabre, vuelven a BORRADOR) |
+| 5 | `restaurarPorCierre` | Restaura una publicación que una reapertura hubiera suspendido. **Nunca crea publicaciones nuevas** |
+| 6 | `registrarRanking` | Congela el orden de mérito |
+
+Si algo falla, la transacción hace rollback completo y el error queda en `~/siga_logs/`.
+
+⚠️ **Leer el mensaje de éxito.** Si dice que *"el orden de mérito oficial NO cambió
+(bimestre ya publicado); se registró una versión rectificada"*, significa que
+`registrarRanking` devolvió `'rectificado'`: el candado 046 se activó porque **ese periodo
+ya estuvo publicado**. En un cierre normal de un bimestre nunca publicado **eso no debe
+aparecer** — si aparece, para y revisa `periodos_publicacion` antes de seguir.
 
 ## Fase 5 — Verificar (prod, solo lectura)
 
@@ -196,13 +321,38 @@ FROM orden_merito_snapshot WHERE periodo_id = 2 AND puesto_seccion IS NULL;
 -- 5.5 El termómetro ahora sí debe dar 0 para este periodo (el cierre forzó los bloqueos)
 --     → repetir la consulta 1.1
 
--- 5.6 Cerrar NO publicó nada: debe devolver 0 filas (o solo publicaciones previas)
+-- 5.6 Cerrar NO publicó nada. Para un bimestre que NUNCA se publicó (el caso de B2)
+--     la respuesta correcta es EXACTAMENTE 0 filas. Si el periodo ya tuvo una
+--     publicación previa (reapertura), lo que debe cumplirse es que no haya filas
+--     NUEVAS: compara `primera_publicacion_en` con la fecha de hoy.
 SELECT * FROM periodos_publicacion WHERE periodo_id = 2;
 ```
 
 **5.3 es la verificación clave**: si devuelve filas, se petrificaron empates (el hueco
 del guard). Mientras el bimestre no esté publicado se corrige reabriendo → resolviendo →
 re-cerrando.
+
+## Fase 5.5 — Probar la boleta EN PAPEL (antes de publicar)
+
+🔴 **Pendiente vivo al 06/08/2026: la boleta cambió el 05/08 y se desplegó SIN probarse en
+papel.** Ahora lista **todas las competencias del plan** con guion donde no hay dato, y la
+restricción dura es **UNA hoja A4 vertical**. El máximo de filas no sube (29 → 29) y el
+peor incremento medido es +5, pero eso no está comprobado impreso.
+
+Este es el momento natural: **emitir el documento oficial exige el bimestre CERRADO**, así
+que la Fase 4 es la primera vez que se puede sacar el lote de verdad.
+
+- [ ] **Primaria 2.º A** — el mayor incremento de filas.
+- [ ] **Secundaria 1.º B o 1.º C** — las que llegan al máximo de 29.
+- [ ] **Un 5.º** — confirmar que NO sale Ed. Religiosa (la evalúa Ética y Valores).
+- [ ] **Un exonerado** — debe conservar `EXO` (fue una regresión, ya corregida).
+- [ ] **Matrícula 556 (ROSALES STEPHANO), Secundaria 4.º A** — el peor caso medido: 6 filas
+      con conclusión descriptiva, hasta 233 caracteres. ⚠️ **El alto ya no lo fijan las
+      filas sino las conclusiones**, así que esta es la boleta que decide.
+- [ ] Comprobar que el **ZIP de borradores** descarga bien en el navegador (verificado en
+      servidor, no en navegador).
+
+Detalle y cifras: `docs/modulos/boleta-competencias-completas.md` §8.3.
 
 ## Fase 6 — Publicar (acto SEPARADO)
 
@@ -227,6 +377,8 @@ Parar y no cerrar si:
   el riesgo de petrificar empates no vistos).
 - La alerta de evaluación incompleta devuelve casos sin resolver.
 - Quedan empates pendientes en `/director/orden-merito/{periodo}`.
+- **Alguna sección sin conducta cerrada en sus dos etapas o sin asistencia bloqueada**
+  (Fase 3.5). El sistema te dejará cerrar igual: el criterio es humano.
 - El deploy dejó el sistema con errores.
 
 ## Prohibiciones
