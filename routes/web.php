@@ -270,6 +270,9 @@ $router->get( '/admin/boletas-publicas/{periodo_id}',                'Admin\Bole
 $router->get( '/admin/boletas-publicas/{periodo_id}/vista-previa',   'Admin\BoletaPublicaController@vistaPrevia');
 $router->get( '/admin/boletas-publicas/{periodo_id}/boletas-alumno', 'Admin\BoletaPublicaController@boletasAlumno');
 $router->get( '/admin/boletas-publicas/{periodo_id}/archivar',       'Admin\BoletaPublicaController@archivar');
+// Mismo ZIP de PDFs que 'archivar', pero con el documento EN BORRADOR (el de la
+// vista previa) — para circularlo por Drive antes de cerrar el bimestre.
+$router->get( '/admin/boletas-publicas/{periodo_id}/archivar-borrador', 'Admin\BoletaPublicaController@archivarBorrador');
 // CÓDIGO dormido (se conserva para reactivar — métodos generar/actualizar/imprimir intactos):
 //   $router->post('/admin/boletas-publicas/{periodo_id}/generar',    'Admin\BoletaPublicaController@generar');
 //   $router->post('/admin/boletas-publicas/{periodo_id}/actualizar', 'Admin\BoletaPublicaController@actualizar');

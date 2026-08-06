@@ -12,6 +12,59 @@ class BoletaPublicaModel extends BaseModel
     private const ALFAS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
     /**
+     * RETORNO DE GRADO — la matricula OPERATIVA nunca genera boleta ni token
+     * propios: el documento SIEMPRE se emite con la OFICIAL (regla A, 05/08/2026).
+     *
+     * OJO: es la exclusion INVERSA a la de los rosters de evaluacion, que
+     * excluyen la OFICIAL para que el estudiante se califique en su grado
+     * operativo. No confundirlas — aqui se lista quien RECIBE documento, alla
+     * quien SE EVALUA. Se excluye la operativa de CUALQUIER retorno (activo o
+     * revertido): en ambos casos la boleta sale por la oficial.
+     *
+     * Requiere que la tabla de matriculas este aliasada como `m`.
+     */
+    private const SQL_EXCLUIR_OPERATIVA = "
+              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)";
+
+    /**
+     * Candidata a boleta = tiene al menos UNA competencia BLOQUEADA en el
+     * periodo, mirando la propia matricula Y —si tiene un retorno activo— la
+     * operativa vinculada.
+     *
+     * POR QUE LA UNION: el retorno reparte las notas por bimestre entre dos
+     * matriculas de SECCIONES DISTINTAS (antes del retorno, la oficial; desde
+     * el retorno, la operativa). Anclando solo en la oficial, el estudiante
+     * DESAPARECE del lote en los bimestres cursados en el grado operativo —
+     * que es justo lo que pasaba con el II Bimestre (medido el 05/08/2026:
+     * 2° B mostraba 18 aprobables en vez de 19).
+     *
+     * Reemplaza al INNER JOIN calificaciones+bloqueos que habia antes; el
+     * EXISTS no multiplica filas, asi que tampoco depende del DISTINCT.
+     * Lleva UN parametro posicional: el periodo.
+     *
+     * Requiere que la tabla de matriculas este aliasada como `m`.
+     */
+    private const SQL_TIENE_BLOQUEOS = "
+              EXISTS (
+                  SELECT 1
+                  FROM calificaciones cal
+                  INNER JOIN bloqueos_competencia bc
+                          ON bc.carga_id       = cal.carga_id
+                         AND bc.competencia_id = cal.competencia_id
+                         AND bc.periodo_id     = cal.periodo_id
+                  WHERE cal.periodo_id = ?
+                    AND (
+                          cal.matricula_id = m.id
+                       OR cal.matricula_id IN (
+                              SELECT r.matricula_operativa_id
+                              FROM retornos_grado r
+                              WHERE r.matricula_oficial_id = m.id
+                                AND r.estado = 'activo'
+                          )
+                    )
+              )";
+
+    /**
      * Genera un código único con formato COCIAP-{anio}-B{bimestre}-XXXXXX.
      */
     public function generarCodigo(int $anio, int $numBimestre): string
@@ -83,6 +136,10 @@ class BoletaPublicaModel extends BaseModel
      * el que alimenta la vista previa antes de la aprobación del registro
      * académico. Si se pasa $seccionId, filtra a esa sección (loteo por sección
      * para evitar timeouts al renderizar todas las boletas a la vez).
+     *
+     * RETORNO DE GRADO: lista SIEMPRE la matrícula oficial (y en su sección
+     * oficial), nunca la operativa. Ver SQL_EXCLUIR_OPERATIVA y
+     * SQL_TIENE_BLOQUEOS.
      */
     public function getMatriculasAprobadasParaBoleta(int $periodoId, ?int $seccionId = null): array
     {
@@ -105,13 +162,9 @@ class BoletaPublicaModel extends BaseModel
             INNER JOIN personas per  ON per.id = e.persona_id
             INNER JOIN secciones s   ON s.id   = m.seccion_id
             INNER JOIN grados g      ON g.id   = s.grado_id
-            INNER JOIN calificaciones cal
-                ON cal.matricula_id = m.id AND cal.periodo_id = ?
-            INNER JOIN bloqueos_competencia bc
-                ON bc.carga_id       = cal.carga_id
-               AND bc.competencia_id = cal.competencia_id
-               AND bc.periodo_id     = cal.periodo_id
-            WHERE m.estado = 'aprobada'
+            WHERE m.estado = 'aprobada'"
+              . self::SQL_EXCLUIR_OPERATIVA . "
+              AND " . self::SQL_TIENE_BLOQUEOS . "
               {$whereSeccion}
             ORDER BY g.id, s.nombre, " . orden_alfabetico('per') . "
         ", $params);
@@ -122,6 +175,10 @@ class BoletaPublicaModel extends BaseModel
      * con su token permanente y el contador de visitas. Reemplaza a
      * getPorPeriodo (basado en código) para el hub del admin, ahora centrado
      * en el token. Si se pasa $seccionId, filtra a esa sección (loteo).
+     *
+     * RETORNO DE GRADO: expone SOLO el token de la matrícula oficial. El de la
+     * operativa no se entrega ni se lista (decisión del 05/08/2026); la ruta
+     * pública además lo rechaza.
      */
     public function getEstudiantesParaPeriodo(int $periodoId, ?int $seccionId = null): array
     {
@@ -149,13 +206,9 @@ class BoletaPublicaModel extends BaseModel
             INNER JOIN secciones s   ON s.id   = m.seccion_id
             INNER JOIN grados g      ON g.id   = s.grado_id
             INNER JOIN niveles n     ON n.id   = g.nivel_id
-            INNER JOIN calificaciones cal
-                ON cal.matricula_id = m.id AND cal.periodo_id = ?
-            INNER JOIN bloqueos_competencia bc
-                ON bc.carga_id       = cal.carga_id
-               AND bc.competencia_id = cal.competencia_id
-               AND bc.periodo_id     = cal.periodo_id
-            WHERE m.estado = 'aprobada'
+            WHERE m.estado = 'aprobada'"
+              . self::SQL_EXCLUIR_OPERATIVA . "
+              AND " . self::SQL_TIENE_BLOQUEOS . "
               {$whereSeccion}
             ORDER BY n.id, g.numero, s.nombre,
                      " . orden_alfabetico('per') . "
@@ -168,6 +221,11 @@ class BoletaPublicaModel extends BaseModel
      * boletas ya generadas. Solo devuelve secciones con al menos una
      * matrícula aprobable — las demás no aportan nada al loteo.
      * Una sola query con LEFT JOINs condicionales para evitar N+1.
+     *
+     * RETORNO DE GRADO: el contador tiene que cuadrar con lo que devuelve
+     * getMatriculasAprobadasParaBoleta, así que aplica el MISMO criterio
+     * (operativa fuera, bloqueos por unión). Si divergieran, RA vería "19
+     * aprobables" y le saldrían 18 boletas.
      */
     public function getSeccionesParaPeriodo(int $periodoId): array
     {
@@ -179,18 +237,15 @@ class BoletaPublicaModel extends BaseModel
                 g.numero                                                    AS grado_numero,
                 n.id                                                        AS nivel_id,
                 n.nombre                                                    AS nivel_nombre,
-                COUNT(DISTINCT CASE WHEN bc.id IS NOT NULL THEN m.id END)   AS total_aprobables,
+                COUNT(DISTINCT CASE WHEN " . self::SQL_TIENE_BLOQUEOS . "
+                                    THEN m.id END)                          AS total_aprobables,
                 COUNT(DISTINCT bp.matricula_id)                             AS total_generadas
             FROM secciones s
             INNER JOIN grados            g ON g.id = s.grado_id
             INNER JOIN niveles           n ON n.id = g.nivel_id
             INNER JOIN anios_academicos  a ON a.id = s.anio_id AND a.estado = 'activo'
-            INNER JOIN matriculas        m ON m.seccion_id = s.id AND m.estado = 'aprobada'
-            LEFT JOIN calificaciones    cal ON cal.matricula_id = m.id AND cal.periodo_id = ?
-            LEFT JOIN bloqueos_competencia bc
-                   ON bc.carga_id       = cal.carga_id
-                  AND bc.competencia_id = cal.competencia_id
-                  AND bc.periodo_id     = cal.periodo_id
+            INNER JOIN matriculas        m ON m.seccion_id = s.id AND m.estado = 'aprobada'"
+                                          . self::SQL_EXCLUIR_OPERATIVA . "
             LEFT JOIN boletas_publicas   bp ON bp.matricula_id = m.id AND bp.periodo_id = ?
             WHERE s.estado_nomina = 'aprobada'
             GROUP BY s.id

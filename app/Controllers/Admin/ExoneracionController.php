@@ -127,14 +127,15 @@ class ExoneracionController extends BaseController
             );
         }
 
-        // Candado (07/07/2026): no se exonera a un alumno con notas VIVAS del
-        // año en esa área/subárea — primero deben eliminarse. Evita estados
-        // mixtos nota+EXO en la grilla del docente y en la boleta.
-        if ($this->exoModel->tieneNotasVivas($matriculaId, (int) $anio['id'], $areaId, $subareaId)) {
+        // Notas vivas: ya NO bloquea, pide CONFIRMACION EXPLICITA (05/08/2026).
+        // Ver la nota extensa en registrarDesdeMatricula().
+        if (!$this->confirmacionDeNotasVivas($matriculaId, (int) $anio['id'], $areaId, $subareaId)) {
             $this->redirectWithError(
                 url("admin/exoneraciones/$seccionId"),
-                'El alumno ya tiene notas registradas este año en esa área/subárea. '
-                . 'Coordina con el docente la eliminación de esas notas antes de exonerar.'
+                'El alumno YA TIENE notas registradas este año en esa área. Si continúas, '
+                . 'esas calificaciones dejarán de mostrarse en su boleta —incluidas las de '
+                . 'bimestres ya cerrados y entregados— y en su lugar aparecerá EXO. '
+                . 'Marca la casilla de confirmación para registrar la exoneración.'
             );
         }
 
@@ -161,9 +162,42 @@ class ExoneracionController extends BaseController
     }
 
     /**
+     * ¿Se puede seguir adelante con la exoneración, habiendo notas del año?
+     *
+     * HISTORIA (importa para no reintroducir el candado viejo). Hasta el
+     * 05/08/2026 tener notas vivas BLOQUEABA la exoneración: había que pedir al
+     * docente que las eliminara primero. Eso dejaba sin salida el caso real —una
+     * estudiante con notas en un bimestre CERRADO y otro abierto— porque:
+     *   - `tieneNotasVivas` mira TODO EL AÑO, así que limpiar el bimestre
+     *     abierto no bastaba mientras el cerrado conservara una sola nota; y
+     *   - las del bimestre cerrado NO se pueden borrar: `periodoEstaBloqueado`
+     *     bloquea todo periodo cerrado, y reabrirlo lo dejaría sin poder
+     *     re-cerrarse (guard de evaluación incompleta).
+     *
+     * Ahora el aviso se mantiene pero es FRANQUEABLE con una confirmación
+     * explícita del formulario. La protección contra el clic accidental sigue
+     * (sin marcar la casilla no pasa), y la decisión queda en manos de quien
+     * registra, que es quien tiene la solicitud de la familia delante.
+     *
+     * Sin notas vivas no se pide nada: devuelve true directamente.
+     */
+    private function confirmacionDeNotasVivas(
+        int  $matriculaId,
+        int  $anioId,
+        ?int $areaId,
+        ?int $subareaId
+    ): bool {
+        if (!$this->exoModel->tieneNotasVivas($matriculaId, $anioId, $areaId, $subareaId)) {
+            return true;
+        }
+        return !empty($_POST['confirmar_notas']);
+    }
+
+    /**
      * POST /matriculas/{id}/exonerar — registro desde el detalle de matrícula.
-     * Mismo flujo (parseo + candado de notas vivas + registrar) que registrar(),
-     * pero anclado a la matrícula: usa SU anio_id y vuelve a /matriculas/{id}.
+     * Mismo flujo (parseo + confirmación de notas vivas + registrar) que
+     * registrar(), pero anclado a la matrícula: usa SU anio_id y vuelve a
+     * /matriculas/{id}.
      */
     public function registrarDesdeMatricula(string $matriculaId): void
     {
@@ -193,13 +227,14 @@ class ExoneracionController extends BaseController
             $this->redirectWithError($volver, 'Selecciona el área o subárea a exonerar.');
         }
 
-        // Candado (07/07/2026): no se exonera con notas vivas del año en esa
-        // área/subárea — primero deben eliminarse.
-        if ($this->exoModel->tieneNotasVivas($matriculaId, (int) $mat['anio_id'], $areaId, $subareaId)) {
+        // Notas vivas: ya NO bloquea, pide CONFIRMACION EXPLICITA (05/08/2026).
+        if (!$this->confirmacionDeNotasVivas($matriculaId, (int) $mat['anio_id'], $areaId, $subareaId)) {
             $this->redirectWithError(
                 $volver,
-                'El alumno ya tiene notas registradas este año en esa área/subárea. '
-                . 'Coordina con el docente la eliminación de esas notas antes de exonerar.'
+                'El alumno YA TIENE notas registradas este año en esa área. Si continúas, '
+                . 'esas calificaciones dejarán de mostrarse en su boleta —incluidas las de '
+                . 'bimestres ya cerrados y entregados— y en su lugar aparecerá EXO. '
+                . 'Marca la casilla de confirmación para registrar la exoneración.'
             );
         }
 

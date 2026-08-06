@@ -9,6 +9,9 @@
  *                                  total_aprobables, total_generadas }]
  * @var int    $totalBoletas     matrículas con boleta oficial (≥1 competencia bloqueada)
  * @var int    $totalConsultadas boletas con al menos una visita por token
+ * @var bool   $periodoOficial   el bimestre ya CERRO: condición para emitir el
+ *                               documento oficial (imprimir / archivar). La vista
+ *                               previa no depende de esto.
  * @var string $titulo
  */
 
@@ -61,6 +64,13 @@ unset($_e, $_sid);
             Procesa las boletas en lotes más pequeños para evitar tiempos de espera largos.
             Cada boleta lleva su QR permanente; el padre lo escanea para ver la versión digital.
         </p>
+        <?php if (!$periodoOficial): ?>
+        <p class="bp-secciones__aviso" role="status">
+            <strong>Bimestre abierto.</strong> Las boletas oficiales se imprimen y archivan
+            cuando el bimestre está cerrado: mientras tanto su columna saldría vacía.
+            La <strong>vista previa</strong> sí está disponible.
+        </p>
+        <?php endif; ?>
     </header>
 
     <?php foreach ($seccionesPorNivel as $nivel => $secs): ?>
@@ -92,17 +102,35 @@ unset($_e, $_sid);
                             👁 Vista previa
                         </a>
 
-                        <?php if ($hayBoletas): ?>
-                        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/boletas-alumno?seccion_id={$sid}") ?>"
-                           class="btn btn--primary btn--sm"
+                        <?php // Borradores en PDF: NO lleva el guard de bimestre cerrado
+                              // (ver archivarBorrador). Es el documento que se circula
+                              // para el visto bueno mientras el bimestre sigue abierto. ?>
+                        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/archivar-borrador?seccion_id={$sid}") ?>"
+                           class="btn btn--secondary btn--sm"
                            target="_blank"
-                           title="Imprimir boletas de esta sección">
+                           title="Descargar los borradores de esta sección en un ZIP (para revisión de docentes)">
+                            📄 Borradores
+                        </a>
+
+                        <?php if ($hayBoletas):
+                            // Emitir el documento oficial exige el bimestre CERRADO. Se
+                            // dejan visibles pero inertes para que se vea POR QUE no se
+                            // puede, en vez de que el boton desaparezca sin explicacion.
+                            $bloq      = !$periodoOficial;
+                            $claseBloq = $bloq ? ' is-disabled' : '';
+                            $attrBloq  = $bloq ? ' aria-disabled="true" tabindex="-1"' : '';
+                            $motivo    = 'El bimestre debe estar cerrado';
+                        ?>
+                        <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/boletas-alumno?seccion_id={$sid}") ?>"
+                           class="btn btn--primary btn--sm<?= $claseBloq ?>"
+                           target="_blank"<?= $attrBloq ?>
+                           title="<?= $bloq ? $motivo : 'Imprimir boletas de esta sección' ?>">
                             🖨 Boletas
                         </a>
                         <a href="<?= url("admin/boletas-publicas/{$periodo['id']}/archivar?seccion_id={$sid}") ?>"
-                           class="btn btn--secondary btn--sm"
-                           target="_blank"
-                           title="Descargar PDFs de esta sección en un ZIP">
+                           class="btn btn--secondary btn--sm<?= $claseBloq ?>"
+                           target="_blank"<?= $attrBloq ?>
+                           title="<?= $bloq ? $motivo : 'Descargar PDFs de esta sección en un ZIP' ?>">
                             🗂 Archivar
                         </a>
                         <?php endif; ?>

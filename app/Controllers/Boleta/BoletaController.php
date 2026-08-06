@@ -83,6 +83,12 @@ class BoletaController extends BaseController
         ['matricula_id' => $matriculaId, 'periodo_id' => $periodoId] = $this->resolveToken($token);
         $this->render($matriculaId, $periodoId, 'digital', [
             'datos'           => 'oficial',
+            // Misma REGLA DE FORMATO que la imprimible por token: estructura anual
+            // completa. La vista ya pinta los bimestres sin nota como chip vacio
+            // ('--vacio' / '--empty'), y con las 4 columnas fijas una vacia no
+            // revela si el bimestre ya cerro. Los DATOS los sigue filtrando el
+            // guard de armar() (solo cerrados y publicados).
+            'estructuraCompleta' => true,
             'registrarVisita' => true,
         ]);
     }
@@ -100,7 +106,10 @@ class BoletaController extends BaseController
         $periodoId   = $res['periodo_id'];
 
         $this->render($matriculaId, $periodoId, 'digital', [
-            'datos'       => 'borrador',
+            'datos'              => 'borrador',
+            // Explicito aunque 'borrador' hoy no colapse columnas: la estructura
+            // anual es del DOCUMENTO, no del umbral de datos.
+            'estructuraCompleta' => true,
             'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
                           || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
         ]);
@@ -118,7 +127,8 @@ class BoletaController extends BaseController
         $periodoId   = $res['periodo_id'];
 
         $this->render($matriculaId, $periodoId, 'print', [
-            'datos'       => 'borrador',
+            'datos'              => 'borrador',
+            'estructuraCompleta' => true,   // ver verDigitalDocente
             'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
                           || $this->estadoBoletaDePeriodo($periodoId) !== 'oficial',
         ]);
@@ -279,7 +289,8 @@ class BoletaController extends BaseController
         }
 
         return [
-            'datos'       => 'borrador',
+            'datos'              => 'borrador',
+            'estructuraCompleta' => true,   // ver verDigitalDocente
             'vistaPrevia' => $res['estado_matricula'] === 'desactivado'
                           || $this->estadoBoletaDePeriodo($res['periodo_id']) !== 'oficial',
         ];
@@ -392,13 +403,25 @@ class BoletaController extends BaseController
         // Una matrícula 'desactivado' (baja o traslado) no expone su boleta por
         // token aunque el QR impreso siga circulando: se trata como inexistente.
         // El NIVEL se necesita para la compuerta de publicación (es por nivel).
+        //
+        // RETORNO DE GRADO (05/08/2026): la matrícula OPERATIVA tampoco expone
+        // boleta. El documento se emite SIEMPRE con la OFICIAL, así que cada
+        // estudiante tiene UNA sola URL pública; si la operativa respondiera,
+        // habría dos direcciones distintas sirviendo el mismo documento. Se trata
+        // como inexistente (404), sin revelar que el token existe.
+        // No rompe nada emitido: el QR se ancla a la matrícula IDENTIDAD, que en
+        // un retorno es siempre la oficial (ver renderBoleta), y ninguna boleta
+        // pública se llegó a generar con el token de una operativa.
         $matricula = $this->calModel->queryOne(
             "SELECT m.id, m.anio_id, n.id AS nivel_id
              FROM matriculas m
              INNER JOIN secciones s ON s.id = m.seccion_id
              INNER JOIN grados    g ON g.id = s.grado_id
              INNER JOIN niveles   n ON n.id = g.nivel_id
-             WHERE m.token_acceso = ? AND m.estado <> 'desactivado' LIMIT 1",
+             WHERE m.token_acceso = ?
+               AND m.estado <> 'desactivado'
+               AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
+             LIMIT 1",
             [$token]
         );
 

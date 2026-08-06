@@ -30,6 +30,19 @@ $c-alt-bg: #f8f8f8;
     margin: 1cm;
 }
 
+// ── Página de la BOLETA (05/08/2026) ─────────────────────────
+// Página con nombre, como `paisaje`: acota el margen reducido a la boleta y
+// NO toca al resto de documentos que comparten el layout print (constancias,
+// actas, asistencia). Con el plan completo de competencias el documento quedó
+// al límite y las firmas se partían: bajar el margen de 10mm a 8mm devuelve
+// 4mm de alto útil (2 arriba + 2 abajo) sin alterar ni un elemento del diseño,
+// y de paso 4mm de ancho. 8mm sigue por encima del área no imprimible de
+// cualquier impresora de oficina (~5-6mm).
+@page boleta {
+    size: A4 portrait;
+    margin: 8mm;
+}
+
 // ── Página apaisada (documentos anchos: reporte de orden de mérito) ──
 // Página CSS con nombre: convive con la @page portrait por defecto sin
 // afectar a la boleta. Se activa con la clase `.doc-landscape` que
@@ -49,6 +62,7 @@ body.boleta-body.doc-landscape {
 
 // ── Cuerpo ───────────────────────────────────────────────────
 body.boleta-body {
+    page: boleta;   // margen de 8mm (ver @page boleta)
     font-family: Arial, Helvetica, sans-serif;
     font-size: 7pt;
     color: #111;
@@ -58,7 +72,10 @@ body.boleta-body {
     @media screen {
         max-width: 210mm;
         margin: 8mm auto 24mm;
-        padding: 1cm;
+        // Mismo margen que @page boleta: la hoja simulada en pantalla debe
+        // tener el MISMO ancho util que el papel, o la vista previa miente
+        // sobre donde cae el corte de pagina.
+        padding: 8mm;
         border: 1px solid #ccc;
         box-shadow: 0 3px 14px rgba(0, 0, 0, .13);
     }
@@ -400,6 +417,16 @@ body.boleta-body {
         font-size:      0.72rem;
         letter-spacing: 0.04em;
     }
+
+    // Competencia del plan sin calificacion: guion APAGADO, nunca un valor.
+    // Mismo lenguaje visual que la tabla de asistencia
+    // (.boleta-asistencia__num--pendiente): el guion informa "sin registro" y
+    // no debe competir con las notas reales al recorrer la columna.
+    .sin-dato {
+        color:       #bbb;
+        font-weight: normal;
+        font-style:  italic;
+    }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -593,19 +620,31 @@ body.boleta-body {
 // ════════════════════════════════════════════════════════════
 // PIE DE PÁGINA — FIRMAS
 // ════════════════════════════════════════════════════════════
+// El bloque NO se puede partir entre dos hojas: una boleta cuya linea de firma
+// queda en una pagina y el nombre del firmante en la siguiente no es un
+// documento firmable. Si de verdad no cabe, es preferible que caiga entero.
 .boleta-footer {
     display: flex;
     justify-content: space-around;
-    margin-top: 2mm;
+    margin-top: 1mm;
     padding-top: 1mm;
     border-top: 0.6pt solid $c-borde;
+    page-break-inside: avoid;
+    break-inside:      avoid;
 
-    &__bloque { text-align: center; }
+    &__bloque {
+        text-align: center;
+        page-break-inside: avoid;
+        break-inside:      avoid;
+    }
 
     // Contenedor de altura fija: firma PNG (Director) o vacío (Tutor).
     // Al ser igual en todos los bloques, la línea queda al mismo nivel.
+    // 12mm (antes 15): con el plan completo de competencias el documento quedo
+    // al limite y este es el espacio mas facil de ceder sin tocar datos. Sigue
+    // dando ~1.2cm de alto para firmar a mano sobre la linea.
     &__espacio-firma {
-        height: 15mm;
+        height: 12mm;
         display: flex;
         align-items: flex-end;
         justify-content: center;
@@ -614,9 +653,11 @@ body.boleta-body {
         & + .boleta-footer__linea { margin-top: 0; }
     }
 
+    // La imagen NO puede pasar del contenedor (antes 16mm dentro de 15mm: se
+    // salia 1mm hacia arriba, sobre la tabla).
     &__firma-img {
         max-width: 36mm;
-        max-height: 16mm;
+        max-height: 12mm;
         width: auto;
         height: auto;
         object-fit: contain;
@@ -640,75 +681,150 @@ body.boleta-body {
 }
 
 // ════════════════════════════════════════════════════════════
-// VISTA PREVIA — banner institucional + marca de agua
-// El banner vive dentro de boleta/alumno.php (una vez por boleta =
-// una por página al imprimir, sin necesidad de position:fixed).
-// La marca de agua vive en el wrapper vista-previa.php, position:fixed
-// para repetirse por página. print-color-adjust:exact obliga al driver
-// a respetar tonos traslúcidos.
+// BORRADOR — marca de agua (UNICA señal, en UN SOLO sitio)
+//
+// La pinta el DOCUMENTO (boleta/alumno.php al recibir $vistaPrevia, via el
+// parcial boleta/_marca-borrador.php), no quien lo muestra. Asi la reciben por
+// el mismo camino la vista previa de RA, el ZIP de borradores y la boleta del
+// docente. Antes vivia en los wrappers y la boleta del DOCENTE se quedaba sin
+// ninguna señal, siendo el documento que un tutor puede imprimir con el
+// bimestre abierto.
+//
+// El BANNER que iba arriba de cada boleta se ELIMINO el 05/08/2026: ocupaba
+// ~6mm de alto (dos filas de tabla) y con el plan completo de competencias
+// empujaba las firmas a una segunda hoja. La restriccion del documento es UNA
+// hoja A4 y la señalizacion no puede costar alto, porque este documento SI se
+// imprime en papel con el bimestre todavia abierto.
 // ════════════════════════════════════════════════════════════
 
-// ── Banner BORRADOR (ámbar institucional) ──────────────────
-.boleta-borrador-banner {
-    display: flex;
-    align-items: center;
-    gap: 2.5mm;
-    margin: 0 0 1.2mm;
-    padding: 1mm 2.5mm;
-    background: #fff7e6;
-    border: 0.6pt solid #d97706;
-    border-left-width: 2pt;
-    border-radius: 1mm;
-    color: #7a4a00;
-    page-break-inside: avoid;
-    page-break-after:  avoid;
+// Envoltorio del documento: ancla de la marca (una por boleta).
+.boleta-doc { position: relative; }
 
-    -webkit-print-color-adjust: exact;
-    print-color-adjust:         exact;
-
-    &__tag {
-        flex-shrink: 0;
-        background: #d97706;
-        color: #fff;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 7pt;
-        font-weight: 800;
-        letter-spacing: 0.4pt;
-        padding: 0.4mm 2mm;
-        border-radius: 0.8mm;
-
-        -webkit-print-color-adjust: exact;
-        print-color-adjust:         exact;
-    }
-
-    &__msg {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 6pt;
-        line-height: 1.2;
-    }
-}
-
-// ── Marca de agua diagonal BORRADOR (gris suave) ───────────
+// ── Marca de agua diagonal BORRADOR ────────────────────────
+// Dos lineas: la palabra + la leyenda que dice QUE es el documento.
+//
+// TAMAÑOS: los manda el ANCHO DEL CONTENEDOR, no el medio, porque el texto va
+// rotado -30 grados y lo que tiene que caber es su PROYECCION (largo x cos30).
+// Medido con la fuente real (Arial Bold, imagettfbbox) sobre los 194mm utiles
+// de la hoja:
+//     140pt/12pt -> 317mm de largo -> proyecta 275mm  ***se cortaba***
+//      90pt/6pt  -> 200mm          -> proyecta 173mm  (+21mm de holgura)
+//     leyenda 16pt -> 174mm        -> proyecta 151mm
+// Los 140pt originales imprimian "ORRAD": se perdian dos o tres letras por
+// lado. En pantalla no se notaba porque la marca era position:fixed y se
+// centraba en el VIEWPORT, mas ancho que un A4.
+// Si se cambia el texto o el tamaño, RECALCULAR. El metodo esta en
+// docs/modulos/boletas.md.
 .boleta-watermark {
-    position: fixed;
+    position: absolute;   // NUNCA fixed: con varias boletas apiladas se
+                          // superpondrian todas en el mismo punto, y en el ZIP
+                          // html2canvas no la capturaria (ver el parcial).
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) rotate(-30deg);
     transform-origin: center center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2mm;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 140pt;
-    font-weight: 900;
-    letter-spacing: 12pt;
-    color: #555;
-    opacity: 0.08;
     text-transform: uppercase;
     pointer-events: none;
     user-select: none;
     white-space: nowrap;
     z-index: 9999;
 
+    // COLOR OSCURO + OPACIDAD BAJA, no un gris claro a secas: el color define
+    // el trazo de las letras y la opacidad gobierna cuanta tinta cae encima de
+    // la tabla. El gris EFECTIVO sobre papel es 255 - (255 - color) x opacidad:
+    //   0.22 -> ~#CE (19% de tinta): se leia bien pero competia con las notas
+    //           al imprimir en blanco y negro;
+    //   0.15 -> ~#DD (13%): ajustado el 05/08/2026 tras verlo impreso.
+    // Es el suelo razonable: por debajo vuelve el riesgo de que una impresora
+    // en modo ahorro se coma la señal. El techo es la legibilidad de las notas
+    // que quedan DEBAJO (la marca va por encima del contenido); si hiciera
+    // falta mas contraste, mandarla detras en vez de subir el porcentaje.
+    // Es TEXTO, no un background, asi que ningun driver la descarta por "no
+    // imprimir fondos"; print-color-adjust ademas fuerza el tono traslucido.
+    color:   #1f1f1f;
+    opacity: 0.15;
+
     -webkit-print-color-adjust: exact;
     print-color-adjust:         exact;
 
-    @media screen { font-size: 130pt; }
+    &__palabra {
+        font-size: 90pt;
+        font-weight: 900;
+        letter-spacing: 6pt;
+        // El letter-spacing empuja el ultimo caracter y descentra el bloque;
+        // se compensa restando esa sangria por la derecha.
+        margin-right: -6pt;
+        line-height: 1;
+    }
+
+    &__leyenda {
+        font-size: 16pt;
+        font-weight: 700;
+        letter-spacing: 1.5pt;
+        margin-right: -1.5pt;
+        line-height: 1;
+    }
+}
+
+// SIN EXCEPCION DE TAMAÑO PARA EL ZIP (05/08/2026). Hubo una —130pt, para
+// "compensar" que .archivo-items-wrap mide 297mm— y era justo la que ROMPIA la
+// marca: salia cortada en los PDF.
+//
+// Lo que recorta NO es la proyeccion del texto rotado sino su LARGO SIN ROTAR.
+// El texto lleva white-space: nowrap, asi que si el div es mas ancho que su
+// contenedor se sale del bounding box que html2canvas captura, y el wrap
+// ademas tiene overflow: hidden. Medido sobre los 297mm del contenedor:
+//     130pt/12pt -> 296mm de largo = 100% del contenedor  ***se cortaba***
+//      90pt/6pt  -> 200mm          =  67%  (33% de margen)
+// Medio milimetro de holgura por lado no sobrevive a la diferencia entre el
+// motor del navegador y la medicion.
+//
+// Con el tamaño unico la marca ocupa ~58% del ancho del PDF, algo menos que en
+// la impresion directa (~89%), porque el contenedor es mas ancho que la hoja.
+// Es el precio de tener UN SOLO modelo, y sale completa siempre.
+
+// ── Variante PANTALLA (boleta digital) ─────────────────────────
+// La digital es un documento largo que se recorre con scroll, y aqui la marca
+// tiene una funcion concreta: una captura de pantalla o una foto al monitor
+// sacaba notas de un bimestre sin cerrar SIN NADA que dijera que son
+// provisionales. No impide la captura: la ETIQUETA.
+//
+// FIJA EN EL VIEWPORT, no anclada al contenido: si se moviera con el scroll,
+// las capturas de la zona de notas —justo las que importan— saldrian sin marca.
+//
+// TAMAÑOS EN vw, no en pt: los pt estan calibrados para A4 (200mm de largo) y
+// en un movil de 360px desbordarian ~3x, provocando SCROLL HORIZONTAL, que es
+// el defecto responsive clasico. Medido con la fuente real (Arial Bold) la
+// palabra a 12vw proyecta:
+//     320px -> 205px (+115 de margen) · 390px -> 255px (+135) · 768px -> 496px
+// y la leyenda a 3vw entra hasta en 320px (+53px). El clamp corta el crecimiento
+// en monitores grandes para que no desborde el documento (.bd, max-width 800px).
+.boleta-watermark--pantalla {
+    position: fixed;
+
+    // Mas clara que en papel: una pantalla retroiluminada hace pesar mas el
+    // mismo porcentaje de gris, y aqui la marca se lee sobre tarjetas blancas.
+    opacity: 0.10;
+
+    .boleta-watermark__palabra {
+        font-size: clamp(2.5rem, 12vw, 7rem);
+        letter-spacing: 0.06em;
+        margin-right: -0.06em;
+    }
+
+    .boleta-watermark__leyenda {
+        font-size: clamp(0.7rem, 3vw, 1.5rem);
+        letter-spacing: 0.08em;
+        margin-right: -0.08em;
+    }
+
+    // Queda por encima de los botones flotantes (z-index 100), inevitable si ha
+    // de verse sobre las tarjetas, que tienen fondo blanco opaco. Con un 10% no
+    // los estorba, y `pointer-events: none` (en la clase base) garantiza que no
+    // intercepta ni los toques ni el scroll: critico en tactil.
 }

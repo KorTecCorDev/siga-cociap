@@ -337,6 +337,68 @@ aparecía columna cuando había datos.
   `BoletaPublicaController` dormido NO arma asistencia → no se toca. Los métodos
   `AsistenciaModel::getAcumuladoAnual*` quedan sin uso desde la boleta (se conservan).
 
+## Asistencia: mismo umbral que las notas (04/08/2026) — deroga la regla 2 de arriba
+
+> **Síntoma:** en `/admin/boletas-publicas/{id}/vista-previa` no aparecía la asistencia
+> del bimestre en curso, pese a tener las secciones aprobadas y bloqueadas en
+> `/admin/asistencia`. **No era un problema de datos:** la asistencia se filtraba por
+> `periodos.estado = 'cerrado'`, y bloquear el registro de una sección
+> (`cierres_asistencia`) **no cierra el bimestre**. Son dos actos distintos.
+
+### La asimetría de fondo
+`armar()` aplicaba la excepción de la vista previa (`$datos === 'todos'`) en dos de los
+tres bloques que dependen del periodo, y la asistencia era el único que no:
+
+| Bloque | Antes, con `'todos'` |
+|---|---|
+| Notas | aporta siempre (`periodoAportaNotas` → `true`) |
+| Conducta | no se filtra |
+| **Asistencia** | **`estado = 'cerrado'`, sin excepción** |
+
+Resultado: la misma hoja mostraba las notas y la conducta de B2 pero no su asistencia,
+justo en la herramienta con la que RA decide el Hito A.
+
+### Regla nueva (decisiones del usuario, 04/08/2026)
+1. La asistencia usa **el mismo umbral que las notas**: `periodoAportaNotas($p, $datos,
+   $publicados)`. Se acabó el criterio propio. **Deroga la regla 2 de la sección
+   anterior** ("solo cerrados en TODAS las boletas").
+2. Alcance: `'todos'` **y `'borrador'`**. Si una boleta de docente ya muestra las notas
+   del bimestre con Hito A, debe mostrar también su asistencia.
+3. Los bimestres sin dato se pintan **apagados** (`--pendiente`, guion) en lugar de
+   ceros: un `0` se lee como "no faltó ningún día", y ahí no hay dato que mostrar.
+4. El **total suma el bimestre en curso** (solo los que tienen registro). En vista previa
+   es, por tanto, provisional.
+
+> ⚠️ Esta sección describe **qué bimestres APORTAN datos**. La **estructura** (cuántas
+> columnas se dibujan) se corrigió después, el mismo día: son **siempre las 4**. Ver
+> "La tabla de asistencia también es estructura anual" más abajo.
+
+### Lo que NO cambió — verificado modo por modo
+| Modo | Quién lo usa | Regla | ¿Cambia? |
+|---|---|---|---|
+| `oficial` | familias (token, digital, /padre/notas) | cerrado **+ publicado** (044) | **no** |
+| `archivo` | impresión masiva de staff | cerrado | **no** |
+| `borrador` | boleta de docente/admin (`requireRole(['docente','admin'])`) | cerrado **o** activo con Hito A | sí |
+| `todos` | **solo** `Admin\BoletaPublicaController@vistaPrevia` | todos los bimestres | sí |
+
+La equivalencia en `oficial`/`archivo` es exacta porque `boleta_estado_bimestre()`
+devuelve `'oficial'` **si y solo si** el periodo está `cerrado` — el mismo conjunto que
+daba el filtro viejo.
+
+### Implementación
+- `BoletaModel::armar()`: itera `getPeriodosDelAnio($anioId)` (todos) y descarta con
+  `periodoAportaNotas`. Cada columna suma `sin_registro` (bool) al array; el total solo
+  acumula las que tienen registro.
+- `boleta/alumno.php`: la celda usa `--pendiente` + `&ndash;` cuando `sin_registro`.
+  **`boleta/digital.php` NO se tocó**: se arma con `'oficial'` o `'borrador'`, umbrales
+  que nunca dejan pasar un bimestre `pendiente`.
+- El SASS ya tenía `.boleta-asistencia__num--pendiente` ("Bimestres sin datos aún") sin
+  ningún consumidor desde su creación; este cambio lo conecta. Sin Gulp: ya estaba
+  compilado en `public/css/app.css`.
+- Verificación: `database/verificaciones/verif_asistencia_boleta.php` (transacción +
+  ROLLBACK; **simula el Hito A** del bimestre activo, porque sin él el caso `'borrador'`
+  daría lo mismo que `'archivo'` y la aserción no probaría nada).
+
 ## Boletas de matrículas desactivadas — vías internas (09/07/2026)
 
 > Antes NINGUNA vía mostraba la boleta de una matrícula `desactivado` (traslado,
@@ -596,3 +658,358 @@ explicará antes la situación del cierre de fin de año.
 - Eliminado `003_bloqueos_competencia.sql.sql` (nombre con extensión duplicada).
 - Orden de rutas en `routes/web.php`: `/boleta/digital/{id}/{id}` debe ir ANTES
   de `/boleta/{id}/{id}` para que el router no capture "digital" como parámetro.
+
+## Formato oficial en TODAS las vistas de boleta (04/08/2026)
+
+> **Síntoma:** `/admin/boletas-publicas/{id}/boletas-alumno?seccion_id={id}` —la impresión
+> masiva, o sea el papel que RA firma, sella y entrega— salía con **una sola columna** de
+> bimestre, mientras la misma boleta abierta por QR (`/boleta/ver/{token}`) salía con las
+> **cuatro** del formato oficial. Mismo documento, dos formatos.
+
+### Causa
+La **regla de formato del 09/07/2026** (estructura anual completa) se aplicó al token y a
+la boleta del trasladado, pero **no se propagó** a la impresión masiva ni al ZIP de
+archivo: llamaban a `armar($mat, $per, 'archivo')` **sin el 4.º parámetro**, así que caían
+en `estructuraCompleta = false` y `colapsarColumnas` (`BoletaModel:106`) recortaba las
+columnas a los bimestres cerrados. No hay plantilla propia: `boletas-alumno.php:20` hace
+`include boleta/alumno.php`, el mismo componente que el token.
+
+Medido antes del arreglo (solo B1 cerrado): token **4** columnas · impresión masiva **1** ·
+ZIP **1** · trasladado **4** · vista previa y boleta docente **4** (por su umbral, no por
+el flag) · digital de familias **1**.
+
+### Regla nueva
+**Las 9 entradas de boleta pasan `estructuraCompleta = true`.** La estructura anual es una
+propiedad del DOCUMENTO, no del umbral de datos, así que se pide explícitamente incluso
+donde el umbral (`'todos'`, `'borrador'`) ya no colapsaba — si mañana cambia el umbral, el
+formato no se mueve.
+
+| Entrada | Umbral | Antes | Ahora |
+|---|---|---|---|
+| `/boleta/ver/{token}` | oficial | 4 | 4 |
+| `/boleta/digital/{token}` | oficial | **1** | **4** |
+| `/docente/boleta/{id}` y `/imprimir` | borrador | 4 | 4 (explícito) |
+| Boleta de gestión — trasladado | archivo | 4 | 4 |
+| Boleta de gestión — resto | borrador | 4 | 4 (explícito) |
+| **Impresión masiva** | archivo | **1** | **4** |
+| **ZIP de archivo** | archivo | **1** | **4** |
+| Vista previa de RA | todos | 4 | 4 (explícito) |
+
+### Por qué abrir columnas NO es una fuga
+`colapsarColumnas` gobierna la ESTRUCTURA; los DATOS los sigue filtrando
+`periodoAportaNotas` por periodo. Verificado en `verif_estructura_boleta.php`: con
+`'oficial'` la boleta muestra 4 columnas y **solo aporta notas del bimestre cerrado y
+publicado**, aunque el bimestre en curso ya tenga notas en la BD. Su paso 3 es el control:
+compara los bimestres con datos **con y sin** el flag y exige que sean los mismos — si
+difirieran, el flag estaría filtrando datos y no solo formato.
+
+Es además el argumento original de la regla del 09/07 (`BoletaController:68-70`): con la
+estructura anual fija, una columna vacía **no revela** si el bimestre cerró. *Colapsarlas
+era justo lo que lo delataba* — y la digital de familias, que es el destino del QR, era la
+que seguía colapsando.
+
+### La tabla de asistencia también es estructura anual (04/08/2026)
+La primera versión de este cambio dejó la asistencia fuera: la boleta salía con 4 columnas
+de notas y 1 de asistencia. **Corregido el mismo día** — la tabla de asistencia es parte
+del modelo oficial igual que la de notas, así que **siempre dibuja una columna por bimestre
+del año**, en las cuatro vistas y en los cuatro umbrales.
+
+Cada columna lleva `sin_registro` (bool). Es `true` por dos motivos distintos que se pintan
+igual, con **guion apagado**:
+
+| Motivo | Ejemplo |
+|---|---|
+| El bimestre aún no puede tener registro | B3/B4 `pendiente` |
+| No corresponde a este umbral | bimestre cerrado **no publicado**, o el bimestre en curso bajo `'oficial'` |
+
+**Nunca un `0`**: un cero se lee como "no faltó ningún día" y sería un dato inventado.
+Además, con guiones el lector no intenta cuadrar la suma de las columnas con el **Total**,
+que solo acumula las que sí tienen registro.
+
+Cuando `sin_registro` es `true` **no se consulta la asistencia**: la columna vacía no puede
+salir de datos que ese umbral no debe ver.
+
+- `boleta/alumno.php` → `.boleta-asistencia__num--pendiente` (ya existía en el SASS).
+- `boleta/digital.php` → `.bd-asistencia__num--pendiente`, **añadido** en
+  `_boleta-digital.scss`: la digital no tenía ningún estado para "sin dato" y habría
+  pintado ceros.
+- **No se tocan** `admin/asistencia/imprimir.php` ni `admin/asistencia/seccion.php`: son
+  otro documento (alumnos × contadores de UNA sección y UN bimestre), no la asistencia
+  anual del alumno.
+
+## La boleta muestra TODAS las competencias del plan (05/08/2026)
+
+> **Regla:** el documento lista **todas las competencias que la sección realmente
+> dicta**, tengan o no calificación, con **guion** donde no hay dato. Antes las filas se
+> construían A PARTIR DE LAS NOTAS: una competencia sin calificar no existía en el papel,
+> y el número de filas **variaba entre alumnos de la misma sección**.
+
+**El universo son las CARGAS ACTIVAS de la sección**, no el catálogo del nivel. De ahí
+salen solas, sin ninguna excepción escrita a mano, las exclusiones del colegio:
+Ed. Religiosa no aparece en secundaria (0 cargas — la evalúa **Ética y Valores** por la
+carga TOE del tutor); 5.º no lleva Arte y Cultura ni EPT; el Taller de Pre-Cálculo solo
+se dicta en 5.º. En **primaria sí** se muestra Ed. Religiosa (12 cargas).
+
+- Punto de entrada: `CalificacionModel::estructuraCompetenciasSeccion()`, sembrado por
+  `BoletaModel::buildAreasConBimestres()` **antes** de las notas — eso fija además el
+  orden de áreas y competencias (`a.orden, comp.orden`).
+- **No filtrar por `a.tipo`** en el esqueleto: Ética vive en un área `tipo='tutoria'` y
+  el filtro del orden de mérito la borraría de toda la secundaria.
+- Las **transversales van en consulta aparte**: su área tiene 0 cargas, así que la vía de
+  las cargas no las traería, y el bloque debe salir aunque el tutor no haya cerrado.
+- **Ninguna nota puede desaparecer:** el loop de notas sigue creando la fila si no está
+  en el plan (carga desactivada tras evaluar, o la otra matrícula de un retorno).
+- En un **retorno de grado** el plan sale de la matrícula **operativa** (se evalúa donde
+  se cursa); la boleta se sigue rotulando con la oficial.
+- ⚠️ Los **exonerados** conservan `EXO`: `ExoneracionModel::inyectarEnAreas()` tuvo que
+  aprender a escribirlo sobre una entrada ya sembrada (antes solo lo hacía al crearla).
+- ⚠️ El bloque transversal se detecta por **`'transv'`**, no `'transversal'`: en
+  secundaria el área se rotula `Comp. Transv.`.
+
+**La CONDUCTA sigue la misma regla:** sus celdas vacías llevan guion. Las columnas de
+numeral y de conclusión no le aplican (la conducta es siempre literal), así que van con
+guion permanente en vez de en blanco.
+
+Verificación: `database/verificaciones/verif_plan_completo_boleta.php`. Detalle completo,
+trampas y cifras: `docs/modulos/boleta-competencias-completas.md` §10.
+
+### El banner de BORRADOR se eliminó — la señal es la marca de agua (05/08/2026)
+
+La vista previa de RA (`/admin/boletas-publicas/{id}/vista-previa`) llevaba un banner
+ámbar encima de cada boleta. Ocupaba **~6 mm de alto, dos filas de tabla**, y con el plan
+completo de competencias eso empujó **las firmas a una segunda hoja** (visto en
+Secundaria 4.º A). La restricción del documento es UNA hoja A4, así que la señalización
+no puede costar alto.
+
+Queda como única señal la **marca de agua diagonal** de `vista-previa.php`
+(`position: fixed`, se repite en cada página impresa), **reforzada** de `#555` al 8% a
+`#3f3f3f` al 16%. El refuerzo importa porque este documento **sí se imprime en papel con
+el bimestre todavía abierto**: la señal tiene que sobrevivir a la impresora, no solo
+verse en pantalla. Es texto, no un `background`, así que ningún driver lo descarta por
+"no imprimir fondos".
+
+⚠️ **Techo del refuerzo:** la marca va con `z-index` **por encima** del contenido; subir
+más la opacidad empieza a estorbar la lectura de la tabla de notas. Si alguna vez hace
+falta más contraste, el camino es mandarla detrás del contenido, no subir el porcentaje.
+
+##### PUNTO ÚNICO: la señal la pinta el DOCUMENTO, no quien lo muestra
+
+**La marca de agua vive en `resources/views/boleta/_marca-borrador.php`**, y la incluye
+`boleta/alumno.php` con solo recibir `$vistaPrevia`. Así la obtienen por el mismo camino
+**todas** las entradas que emiten el documento en borrador:
+
+| Entrada | Marca |
+|---|---|
+| `/admin/boletas-publicas/{id}/vista-previa` (RA) | 1 por boleta |
+| `/admin/boletas-publicas/{id}/archivar-borrador` (ZIP) | 1 por PDF |
+| `/docente/boleta/{id}/imprimir` (nómina docente) | 1 |
+| `/docente/boleta/{id}` (**digital**, nómina docente) | 1 fija en pantalla |
+| Documento oficial (token, impresión masiva, ZIP de archivo, digital publicada) | **ninguna** |
+
+⚠️ **Regresión que esto corrigió (05/08/2026):** al eliminar el banner, la marca quedó en
+los *wrappers* (el de la vista previa de RA y el del ZIP). La **boleta impresa del
+docente** no pasa por ninguno de los dos, así que se quedó **sin ninguna señal de
+borrador** — justo el documento que un tutor puede imprimir con el bimestre abierto.
+Mientras la señal dependa de quién muestra el documento, cada entrada nueva vuelve a
+poder olvidarla; por eso ahora viaja **con el documento**.
+
+- El documento se envuelve en **`.boleta-doc`** (`position: relative`), que es el ancla de
+  la marca: una por boleta. La marca es `position: absolute`, **nunca `fixed`** — con
+  varias boletas apiladas se superpondrían todas en el mismo punto del viewport, y en el
+  ZIP `html2canvas` (que captura un contenedor por boleta) no la capturaría.
+- **El mensaje es único de verdad:** `BOLETA_LEYENDA_BORRADOR` en `helpers.php`. Lo usan
+  la marca de agua y el aviso de la boleta **digital**. Lo que cambia entre formatos es el
+  ANCLAJE, nunca el texto.
+
+##### La digital también lleva marca (05/08/2026): es control de fuga, no decoración
+
+**Motivo:** una captura de pantalla o una foto al monitor sacaba **notas de un bimestre
+sin cerrar sin nada que dijera que son provisionales**, y esa imagen podía circular como
+si fuera un resultado oficial. La marca **no impide la captura: la etiqueta.**
+
+Variante `boleta-watermark--pantalla`, con dos diferencias respecto a la de papel:
+
+- **`position: fixed`, no anclada al contenido.** La digital es un documento largo que se
+  recorre con scroll: si la marca se moviera con él, las capturas de la zona de notas
+  —justo las que importan— saldrían sin marcar. Fija en el viewport, **cualquier captura
+  la incluye**.
+- **Tamaños en `vw` con `clamp()`, no en `pt`.** Los `pt` están calibrados para A4
+  (200 mm de largo) y en un móvil de 360 px desbordarían unas 3 veces, provocando
+  **scroll horizontal**. Medido con la fuente real, la palabra a `12vw` proyecta 205 px en
+  320 px de ancho (+115 de margen), 255 px en 390 px y 496 px en tablet; la leyenda a
+  `3vw` entra incluso en 320 px (+53 px). El `clamp` corta el crecimiento en monitores
+  grandes para no desbordar el documento (`.bd`, `max-width: 800px`).
+- Opacidad **0.10** (frente a 0.15 en papel): una pantalla retroiluminada hace pesar más
+  el mismo gris, y aquí se lee sobre tarjetas blancas.
+
+⚠️ `pointer-events: none` (en la clase base) es **crítico en táctil**: sin él la marca
+interceptaría los toques y el scroll en el centro de la pantalla. Queda por encima de los
+botones flotantes (`z-index` 100), inevitable si ha de verse sobre las tarjetas, que
+tienen fondo blanco opaco; al 10 % no los estorba.
+
+### La marca de agua NO CABÍA en la hoja al imprimir (medido)
+
+La marca lleva dos líneas — `BORRADOR` + la leyenda *"Vista previa · no constituye
+documento oficial"*— y **en impresión usa tamaños propios**. El motivo es una medición,
+no una preferencia: con la fuente real (Arial Bold, vía `imagettfbbox`), a **140 pt con
+12 pt de tracking** la palabra mide **317 mm de largo**, y rotada −30° proyecta **275 mm**
+sobre los **190 mm útiles** del A4. Se perdían ~85 mm: **el papel salía con la palabra
+cortada** (dos o tres letras por lado). En pantalla no se notaba porque el viewport es
+más ancho que una hoja.
+
+| Tamaño | Largo | Proyección (×cos 30°) | vs 190 mm útiles |
+|---|---|---|---|
+| 140 pt / 12 pt (antes, impresión) | 317 mm | 275 mm | **−85 mm, se corta** |
+| 110 pt / 8 pt | 246 mm | 213 mm | −23 mm, se corta |
+| **90 pt / 6 pt (actual, impresión)** | 200 mm | **173 mm** | **+17 mm** ✓ |
+| Leyenda 16 pt | 174 mm | 151 mm | +39 mm ✓ |
+
+> Los 190 mm eran los útiles con el margen de 1 cm. Desde el ajuste de `@page boleta`
+> (8 mm) son **194 mm**, así que la holgura real es mayor (+21 mm). La tabla se conserva
+> con el número conservador.
+
+La holgura de 17 mm existe para absorber la diferencia entre el motor del navegador y la
+medición de GD. **En pantalla no se tocó nada** (130 pt / 18 pt): ahí se lee entera.
+
+**Intensidad en papel (ajustada el 05/08/2026 tras verla impresa):** `#1f1f1f` al **15 %**.
+Se usa color casi negro con opacidad baja, no un gris claro a secas: el color define el
+trazo y la opacidad gobierna cuánta tinta cae sobre la tabla. El gris efectivo es
+`255 − (255 − color) × opacidad` → ~`#DD`, un 13 % de tinta. Venía del 22 % (~19 %), que
+se leía bien pero **competía con las notas al imprimir en blanco y negro**. El 15 % es el
+suelo razonable: por debajo vuelve el riesgo de que una impresora en modo ahorro se coma
+la señal, que es justo lo que motivó reforzarla.
+
+🔁 **Si se cambia el texto de la leyenda o el tamaño, hay que recalcular** — el límite es
+la **proyección**, no el largo: `proyección = largo × cos 30°`, y el ancho de la palabra
+crece con el tracking, que se aplica a cada letra.
+
+`$vistaPrevia` sigue gobernando lo demás (sin QR, sin imagen de firma del director).
+
+### Descargar los BORRADORES en ZIP (05/08/2026)
+
+`GET /admin/boletas-publicas/{periodo_id}/archivar-borrador[?seccion_id=N]` →
+`archivarBorrador()`. Botón **📄 Borradores** en la tarjeta de cada sección.
+
+Mismo mecanismo que **Archivar** (html2pdf + JSZip, un PDF por alumno en carpetas
+`NIVEL/GRADO_SECCION`) pero con el documento de la **vista previa**. Nació para subir las
+boletas al **Drive institucional y recoger el visto bueno de los docentes antes de cerrar
+el bimestre**. Comparte la vista `admin/boletas-publicas/archivar.php`, que distingue los
+dos modos con `$esBorrador`.
+
+Diferencias con Archivar, y solo estas:
+
+| | Archivar | Borradores |
+|---|---|---|
+| Umbral de datos | `'archivo'` (solo cerrados) | **`'todos'`** (incluye el bimestre en curso) |
+| Guard de bimestre cerrado | **sí** | **no** — existe justamente para el bimestre abierto |
+| QR y firma del director | sí | no (`vistaPrevia = true`) |
+| Marca de agua | no | **sí, dentro de cada PDF** |
+| Nombre | `APELLIDOS_NOMBRES.pdf` | `APELLIDOS_NOMBRES_BORRADOR.pdf` |
+| ZIP | `..._II_BIMESTRE.zip` | `..._II_BIMESTRE_BORRADOR.zip` |
+
+⚠️ **La marca de agua va DENTRO del item, no en el wrapper.** `html2canvas` captura un
+contenedor por boleta (`.boleta-archivo-item`), y un `position: fixed` de fuera **no
+entra en la captura**: los PDFs saldrían sin marca. De ahí la variante
+`.boleta-watermark--inline` (`position: absolute`) y el `position: relative` del item —
+sin ese ancla habría **una sola marca para todo el lote** en vez de una por boleta.
+
+⚠️ **El ZIP usa el MISMO tamaño que el papel (90 pt), sin excepción.** Hubo una —130 pt,
+para "compensar" que `.archivo-items-wrap` mide 297 mm— y era justo la que **rompía la
+marca: salía cortada en los PDF**.
+
+Lo que recorta **no es la proyección del texto rotado sino su largo SIN rotar**: lleva
+`white-space: nowrap`, así que si el div es más ancho que su contenedor se sale del
+bounding box que captura `html2canvas`, y el wrap además tiene `overflow: hidden`.
+
+| Tamaño | Largo sin rotar | % del contenedor (297 mm) |
+|---|---|---|
+| 130 pt / 12 pt (la excepción) | 296 mm | **100 % → se cortaba** |
+| **90 pt / 6 pt (actual)** | 200 mm | **67 %** (33 % de margen) |
+
+Medio milímetro de holgura por lado no sobrevive a la diferencia entre el motor del
+navegador y la medición. Con el tamaño único la marca ocupa ~58 % del ancho del PDF, algo
+menos que en la impresión directa (~89 %) porque el contenedor es más ancho que la hoja:
+es el precio de tener **un solo modelo**, y sale completa siempre.
+
+**El sufijo `_BORRADOR` del nombre no es cosmético:** estos PDFs conviven en el Drive con
+los definitivos y el nombre tiene que decir cuál es cuál sin abrir el archivo.
+
+### Ajuste de página para que las firmas no se partan (05/08/2026)
+
+Con el plan completo de competencias el documento quedó al límite: en Secundaria 4.º A
+**el nombre y el cargo de los firmantes caían en una segunda hoja**. Se recuperaron 8 mm
+sin tocar ni un dato del contenido:
+
+| Ajuste | Gana |
+|---|---|
+| `@page boleta { margin: 8mm }` (era 1 cm) | **4 mm** de alto (y 4 de ancho) |
+| `.boleta-footer__espacio-firma` 15 mm → 12 mm | 3 mm |
+| `.boleta-footer` `margin-top` 2 mm → 1 mm | 1 mm |
+
+- **Página con nombre**, igual que `@page paisaje`: el margen reducido se aplica **solo a
+  la boleta** (`body.boleta-body { page: boleta }`) y no toca a los demás documentos que
+  comparten el layout print (constancias, actas, asistencia). 8 mm sigue por encima del
+  área no imprimible de una impresora de oficina (~5-6 mm).
+- El `padding` de la hoja simulada **en pantalla** bajó a 8 mm también: si no, la vista
+  previa mentiría sobre dónde cae el corte de página.
+- `.boleta-footer` lleva ahora **`page-break-inside: avoid`**: una boleta con la línea de
+  firma en una hoja y el nombre del firmante en la siguiente no es un documento firmable.
+  Si algún día no cupiera, el bloque caerá entero a la hoja siguiente — que es la señal
+  visible de que hay que recortar más.
+- `__firma-img` pasa a `max-height: 12mm`. Antes eran **16 mm dentro de un contenedor de
+  15 mm**: la firma del director se salía 1 mm hacia arriba, sobre la tabla.
+
+## Emitir el documento oficial exige el bimestre CERRADO (04/08/2026)
+
+En `/admin/boletas-publicas/{id}` los botones **🖨 Boletas** y **🗂 Archivar** se
+condicionaban solo a `total_aprobables > 0` ("hay ≥1 competencia bloqueada"). Pero tener
+competencias bloqueadas **no** significa que el bimestre haya cerrado, y el umbral
+`'archivo'` solo deja pasar bimestres cerrados: se podía imprimir un lote entero de
+boletas oficiales **con la columna del bimestre vacía**. Fallo silencioso — el papel sale
+bien formado y está vacío justo donde importa.
+
+### Regla
+Emitir el documento oficial (impresión masiva y ZIP) exige `periodos.estado = 'cerrado'`.
+La **vista previa NO** se bloquea: es la herramienta con la que RA decide el Hito A, y
+para eso existe. El enlace *Ver boleta ↗* de cada alumno tampoco: va al token, que
+respeta la compuerta por su cuenta y no produce papel.
+
+### Dos capas
+- **Vista** (`admin/boletas-publicas/periodo.php`): botones visibles pero inertes
+  (`is-disabled` + `aria-disabled` + `tabindex="-1"`, patrón ya usado en
+  `docente/nomina.php`) y aviso ámbar explicando el motivo. Se dejan a la vista, no se
+  ocultan, para que se entienda **por qué** no se puede.
+- **Servidor**: `boletasAlumno()` y `archivar()` abortan con `redirectWithError`. Son
+  rutas `GET` que se abren en pestaña nueva, así que la URL queda en historial y
+  marcadores; sin guard bastaba reabrirla para generar el lote vacío.
+
+Criterio en un punto único: `BoletaPublicaController::periodoEsOficial()`, que delega en
+`boleta_estado_bimestre()` en vez de comparar el string a mano. Obligó a ampliar
+`getPeriodo()`, que no traía `estado` ni `boletas_aprobadas_en`.
+
+> ⚠️ **La condición es CERRADO, no publicado.** `'archivo'` ignora la compuerta 044 a
+> propósito porque RA imprime **antes** de la reunión de entrega; exigir publicación
+> rompería ese flujo.
+>
+> ⚠️ **El Hito A tampoco habilita la emisión.** `boleta_estado_bimestre` devuelve
+> `'borrador'` con Hito A y solo `'oficial'` (= cerrado) abre la puerta. Verificado: con
+> el Hito A simulado sobre el bimestre activo, `periodoEsOficial()` sigue dando `false`.
+
+### Extensión al índice: los bimestres `pendiente` no se abren (04/08/2026)
+Mismo patrón de dos capas en `/admin/boletas-publicas`. Un bimestre que aún no ha
+iniciado no tiene nada que gestionar —ni siquiera vista previa—, así que su tarjeta se
+ve pero **no navega** (`is-disabled` + `aria-disabled` + `tabindex="-1"`, flecha oculta,
+badge `--espera` "No iniciado"), y `porPeriodo()` aborta con `redirectWithError` si se
+llega por URL. El bimestre **activo** sigue accesible: ahí vive la vista previa.
+
+Dos cosas que **no** se pudieron reutilizar y hubo que añadir:
+- `.btn.is-disabled` exige la clase `.btn` en el selector y la tarjeta no lo es → se
+  añadió `.bp-periodo-card.is-disabled` en `_boleta-publica.scss`.
+- `.badge` sin modificador queda **sin color** (la clase base solo aporta la forma) → se
+  usa `badge--espera`, que ya existía para el estado "todavía no te toca".
+
+También hubo que sumar `p.estado` a la query de `index()`, que no lo traía.
+
+> 🐛 **Preexistente, sin corregir:** la vista usa `badge badge--success` para el conteo de
+> boletas y ese modificador **no existe** en el SASS (el equivalente se llama `--activo`),
+> así que ese badge sale sin fondo. Fuera del alcance de este cambio.

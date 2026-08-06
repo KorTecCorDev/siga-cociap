@@ -3,11 +3,21 @@
  * Archivado de boletas en PDF — layout print.
  * html2pdf.js convierte cada boleta a PDF; JSZip las empaqueta por sección.
  *
+ * Sirve a DOS documentos con la misma mecánica ($esBorrador los separa):
+ *   - ARCHIVO (por defecto): boleta oficial, con QR y firma. Exige bimestre
+ *     cerrado (el guard vive en el controlador).
+ *   - BORRADOR: el documento de la vista previa, para circularlo por Drive y
+ *     recoger el visto bueno de los docentes antes de cerrar. Sin QR ni firma,
+ *     con marca de agua en cada PDF.
+ *
  * @var array  $periodo     { id, numero, nombre_display, anio }
  * @var array  $boletasData [{ alumno, periodos, areas, conducta, institucion,
  *                             url_boleta, nombre_archivo, carpeta }]
  * @var string $titulo
+ * @var bool   $esBorrador
  */
+
+$esBorrador = $esBorrador ?? false;
 
 if (empty($boletasData)): ?>
 <p style="text-align:center;padding:20mm;font-family:Arial,sans-serif">
@@ -21,6 +31,7 @@ sort($carpetas);
 
 // Nombre del ZIP según si hay filtro de sección o es descarga de todo el período
 $_bim = mb_strtoupper(str_replace(' ', '_', trim($periodo['nombre_display'])));
+if ($esBorrador) { $_bim .= '_BORRADOR'; }
 if ($seccionFiltro) {
     // Por sección: NIVEL_GRADO_SECCION_BIMESTRE.zip
     $_a       = $boletasData[0]['alumno'];
@@ -41,7 +52,7 @@ unset($_bim);
     <div class="archivo-progreso__header">
         <span class="archivo-progreso__icono" id="archivo-icono"><span class="btn-icon btn-icon--wait" aria-hidden="true"></span></span>
         <div class="archivo-progreso__textos">
-            <strong id="archivo-status">Iniciando archivado...</strong>
+            <strong id="archivo-status"><?= $esBorrador ? 'Preparando borradores...' : 'Iniciando archivado...' ?></strong>
             <span id="archivo-detalle" class="archivo-progreso__detalle"></span>
         </div>
         <span id="archivo-contador" class="archivo-progreso__contador">
@@ -62,11 +73,13 @@ unset($_bim);
 <div id="archivo-items" class="archivo-items-wrap" aria-hidden="true">
 <?php foreach ($boletasData as $boletaData):
     extract($boletaData, EXTR_OVERWRITE);
-    $vistaPrevia = false;
+    $vistaPrevia = $esBorrador;
 ?>
 <div class="boleta-archivo-item"
      data-nombre-archivo="<?= e($boletaData['nombre_archivo']) ?>"
      data-carpeta="<?= e($boletaData['carpeta']) ?>">
+    <?php // La marca de agua la trae la propia boleta al recibir $vistaPrevia
+          // (punto único, ver boleta/_marca-borrador.php). ?>
     <?php include VIEW_PATH . '/boleta/alumno.php'; ?>
 </div>
 <div class="boleta-salto-pagina"></div>

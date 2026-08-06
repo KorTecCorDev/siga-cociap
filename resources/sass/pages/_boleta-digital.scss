@@ -1230,6 +1230,15 @@ $bd-asis-border: #cbd5e1;
         color: $bd-asis-color;
     }
 
+    // Bimestre sin dato aun (futuro, o que no corresponde a este umbral): se
+    // imprime un guion apagado, NUNCA un 0 — un 0 se leeria como "no falto
+    // ningun dia". Espejo de .boleta-asistencia__num--pendiente del imprimible.
+    &__num--pendiente {
+        color: $text-muted;
+        font-weight: 400;
+        font-style: italic;
+    }
+
     @media print {
         background: #fff;
         border: 1.5pt solid $bd-asis-color;

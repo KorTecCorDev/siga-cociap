@@ -330,7 +330,19 @@ class ControlOperativoModel extends BaseModel
             LEFT  JOIN subareas sa          ON sa.id   = comp.subarea_id
             INNER JOIN areas a              ON a.id    = COALESCE(sa.area_id, comp.area_id)
             WHERE m.tipo NOT IN ('trasladado', 'retirado')
-              -- Mismo universo del mérito: incluye Ética, excluye transversal/tutoría.
+              -- MISMO universo que el mérito (`OrdenMeritoModel::rankingGradoLive`):
+              -- Ética y Valores entra; el resto de la tutoría y las transversales, no.
+              --
+              -- Historia, porque este filtro ya divergió una vez: entre el 04/08 y el
+              -- 05/08/2026 el mérito excluyó a Ética y esta alerta la mantuvo A
+              -- PROPÓSITO (vigila la COMPLETITUD del registro, no el ranking: a Ética le
+              -- falta una nota que va a boleta y a SIAGIE igual). Al decidirse que Ética
+              -- SÍ cuenta en el mérito de toda secundaria, los dos universos volvieron a
+              -- coincidir y la excepción dejó de ser una divergencia deliberada.
+              --
+              -- ⚠️ Si el mérito vuelve a cambiar, revisar ESTE filtro y también
+              -- `database/verificaciones/alerta_evaluacion_incompleta.sql`, que es una
+              -- tercera copia de la misma regla.
               AND (a.tipo NOT IN ('transversal', 'tutoria')
                    OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
               -- El criterio SÍ se evaluó en la sección (algún alumno tiene nota).

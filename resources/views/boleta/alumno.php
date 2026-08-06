@@ -28,11 +28,17 @@ $totalCols = 1 + count($periodos) * $subCols + 1;
 // Etiquetas de bimestre abreviadas para el encabezado de columna
 $romanos = ['I', 'II', 'III', 'IV'];
 
-// Separa las competencias transversales para ubicarlas al final
+// Separa las competencias transversales para ubicarlas al final.
+// OJO al criterio: se busca "transv", no "transversal", porque el area
+// transversal de SECUNDARIA se rotula "Comp. Transv." (la de primaria,
+// "Competencias Transversales"). Con la cadena larga, en secundaria el bloque
+// no se movia al final ni recibia su estilo — y desde que el documento muestra
+// el plan completo aparece SIEMPRE, asi que el defecto se veria en todas las
+// boletas. Ninguna otra area de ningun nivel contiene "transv".
 $areasRegulares     = [];
 $areasTransversales = [];
 foreach ($areas as $_n => $_c) {
-    if (stripos($_n, 'transversal') !== false) {
+    if (stripos($_n, 'transv') !== false) {
         $areasTransversales[$_n] = $_c;
     } else {
         $areasRegulares[$_n] = $_c;
@@ -42,16 +48,26 @@ $areasOrdenadas = array_merge($areasRegulares, $areasTransversales);
 unset($_n, $_c);
 ?>
 
-<?php if ($vistaPrevia): ?>
-<!-- ── Banner BORRADOR (vista previa, una vez por boleta = una por página) ── -->
-<div class="boleta-borrador-banner" role="note">
-    <span class="boleta-borrador-banner__tag">BORRADOR</span>
-    <span class="boleta-borrador-banner__msg">
-        Vista previa para revisión &middot;
-        No constituye documento oficial mientras no sea aprobado por Registro Académico
-    </span>
-</div>
-<?php endif; ?>
+<?php
+// EL DOCUMENTO SE ENVUELVE (05/08/2026) para dar ancla a la marca de agua de
+// borrador: es `position: absolute` y necesita un contenedor `relative` propio
+// para que haya UNA marca por boleta. Todo lo que se imprime va aquí dentro.
+?>
+<div class="boleta-doc">
+
+<?php
+// SEÑAL DE BORRADOR — PUNTO ÚNICO. La pinta el DOCUMENTO, no quien lo muestra:
+// vista previa de RA, ZIP de borradores y boleta del docente la reciben por el
+// mismo camino con solo pasar $vistaPrevia. Antes vivía en los wrappers y la
+// boleta del docente quedaba sin ninguna señal.
+// No hay banner: ocupaba ~6mm de alto (dos filas de tabla) y empujaba las
+// firmas a una segunda hoja. La marca de agua no consume alto y sobrevive en el
+// PAPEL, que es donde importa: este documento se imprime con el bimestre aún
+// abierto. $vistaPrevia gobierna además el QR y la firma del director.
+if ($vistaPrevia) {
+    include VIEW_PATH . '/boleta/_marca-borrador.php';
+}
+?>
 
 <!-- ── Cabecera institucional ───────────────────────────────── -->
 <header class="boleta-header">
@@ -157,7 +173,7 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
     </thead>
     <tbody>
         <?php foreach ($areasOrdenadas as $areaNombre => $competencias):
-            $esTransversal = stripos($areaNombre, 'transversal') !== false;
+            $esTransversal = stripos($areaNombre, 'transv') !== false;   // ver nota arriba
         ?>
 
             <tr class="fila-area <?= $esTransversal ? 'fila-area--transversal' : '' ?>">
@@ -179,24 +195,38 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
                     ?>
                         <?php if ($esSecundaria): ?>
                             <td class="td-mini td-nota">
-                                <?= ($b && $b['nota'] !== null) ? fmt_nota($b['nota']) : '' ?>
+                                <?php if ($b && $b['nota'] !== null): ?>
+                                    <?= fmt_nota($b['nota']) ?>
+                                <?php else: ?>
+                                    <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
+                                <?php endif; ?>
                             </td>
                         <?php endif; ?>
 
                         <td class="td-mini td-lit td-lit--<?= $lc ?>">
-                            <?= $lit ? e($lit) : '' ?>
+                            <?php if ($lit): ?>
+                                <?= e($lit) ?>
+                            <?php else: ?>
+                                <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
+                            <?php endif; ?>
                         </td>
 
                         <td class="td-concl">
                             <?php if (!$esExonerado && $b && !empty($b['conclusion'])): ?>
                                 <div class="conclusion-clip"><?= e($b['conclusion']) ?></div>
+                            <?php elseif (!$esExonerado): ?>
+                                <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
                             <?php endif; ?>
                         </td>
                     <?php endforeach; ?>
 
                     <?php $lf = $comp['literal_final']; ?>
                     <td class="td-final td-lit--<?= $lf ? strtolower($lf) : 'vacio' ?>">
-                        <?= $lf ? e($lf) : '' ?>
+                        <?php if ($lf): ?>
+                            <?= e($lf) ?>
+                        <?php else: ?>
+                            <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -212,13 +242,28 @@ $cargoDirector = match($directorEbr['sexo'] ?? null) {
                     $clit = $conducta[$p['id']] ?? null;
                     $clc  = $clit ? strtolower($clit) : 'vacio';
                 ?>
-                    <?php if ($esSecundaria): ?><td class="td-mini td-nota"></td><?php endif; ?>
+                    <?php // La conducta es SIEMPRE literal: la columna numeral y la de
+                          // conclusion no le aplican, asi que van con guion igual que
+                          // una competencia sin dato (nunca en blanco). ?>
+                    <?php if ($esSecundaria): ?>
+                        <td class="td-mini td-nota">
+                            <span class="sin-dato" aria-label="No aplica">&ndash;</span>
+                        </td>
+                    <?php endif; ?>
                     <td class="td-mini td-lit td-lit--<?= $clc ?>">
-                        <?= $clit ? e($clit) : '' ?>
+                        <?php if ($clit): ?>
+                            <?= e($clit) ?>
+                        <?php else: ?>
+                            <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
+                        <?php endif; ?>
                     </td>
-                    <td class="td-concl"></td>
+                    <td class="td-concl">
+                        <span class="sin-dato" aria-label="No aplica">&ndash;</span>
+                    </td>
                 <?php endforeach; ?>
-                <td class="td-final td-lit--vacio"></td>
+                <td class="td-final td-lit--vacio">
+                    <span class="sin-dato" aria-label="Sin registro">&ndash;</span>
+                </td>
             </tr>
         <?php endif; ?>
     </tbody>
@@ -269,10 +314,16 @@ $mostrarQr         = !$vistaPrevia && !empty($url_boleta);
                 <tr>
                     <td><?= $etiqueta ?></td>
                     <?php foreach ($asistencia['bimestres'] as $bim):
-                        $esActivo = ((int) $bim['id'] === (int) $periodo_activo_id);
+                        $esActivo    = ((int) $bim['id'] === (int) $periodo_activo_id);
+                        $sinRegistro = !empty($bim['sin_registro']);
+                        // Sin registro posible aun: guion apagado. Un 0 se leeria
+                        // como "no falto ningun dia", que seria un dato inventado.
+                        $clases = 'boleta-asistencia__num';
+                        if ($sinRegistro)    { $clases .= ' boleta-asistencia__num--pendiente'; }
+                        elseif ($esActivo)   { $clases .= ' boleta-asistencia__num--activo'; }
                     ?>
-                        <td class="boleta-asistencia__num <?= $esActivo ? 'boleta-asistencia__num--activo' : '' ?>">
-                            <?= (int) $bim['datos'][$clave] ?>
+                        <td class="<?= $clases ?>">
+                            <?= $sinRegistro ? '&ndash;' : (int) $bim['datos'][$clave] ?>
                         </td>
                     <?php endforeach; ?>
                     <td class="boleta-asistencia__num boleta-asistencia__num--anual"><?= (int) $asisTotal[$clave] ?></td>
@@ -355,3 +406,5 @@ $mostrarQr         = !$vistaPrevia && !empty($url_boleta);
     </div>
 
 </footer>
+
+</div><!-- /.boleta-doc -->

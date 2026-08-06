@@ -179,6 +179,7 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | Boletas (imprimible, digital, token, pública dormida, firmas) | `docs/modulos/boletas.md` |
 | Calificaciones, criterios, bloqueos, transversales, consulta de notas | `docs/modulos/calificaciones.md` |
 | Matrículas, apoderados, estados, alta provisional, retorno/traslado | `docs/modulos/matriculas.md` |
+| **Retorno de grado** (matrícula oficial vs operativa, candado, uniones) | `docs/modulos/retorno-grado.md` |
 | Horarios, cargas académicas, solapes, Tutoría TOE | `docs/modulos/horarios.md` |
 | Orden de mérito, snapshot, desempates, rectificaciones | `docs/modulos/orden-merito.md` |
 | Usuarios, secciones/tutores, Director EBR, panel de bloqueos, conducta | `docs/modulos/admin.md` |
@@ -188,6 +189,8 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | Decisiones diferidas (suspensiones, compuerta de publicación, capacitación) | `docs/decisiones-diferidas.md` |
 | **CERRAR un bimestre en producción** (secuencia, consultas, verificación) | `docs/runbooks/cierre-de-bimestre.md` |
 | Compuerta temporal de edición y los 4 registros del bimestre (PLAN, sin implementar) | `docs/modulos/cierre-cuatro-registros.md` |
+| Boleta con TODAS las competencias del plan + guion (PLAN, sin implementar) | `docs/modulos/boleta-competencias-completas.md` |
+| **Notas de bimestres cerrados para quien llegó después** (PLAN, sin implementar) | `docs/modulos/registro-retroactivo-notas.md` |
 | **Estado vivo: pendientes, migraciones, planes con fecha** | `docs/ESTADO.md` |
 
 ### Reglas de mantenimiento de la red
@@ -209,9 +212,12 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   acto separado, por NIVEL y con fecha/hora (`periodos_publicacion`, migración 044).
   Punto único: `PublicacionBoletaModel`. El umbral `'oficial'` de `BoletaModel::armar()`
   respeta la compuerta (acceso en línea de familias); `'archivo'` la ignora a propósito
-  (documento impreso por staff: salida masiva y trasladado). La boleta por token se
-  arma con `estructuraCompleta = true`: **siempre las 4 columnas de bimestre**, aunque
-  estén vacías (formato oficial); el guard de datos es el que respeta la compuerta.
+  (documento impreso por staff: salida masiva y trasladado). **TODAS las vistas de
+  boleta se arman con `estructuraCompleta = true`** (9 entradas, desde el 04/08/2026):
+  **siempre las 4 columnas de bimestre**, aunque estén vacías (formato oficial); el
+  guard de datos es el que respeta la compuerta — abrir columnas NO filtra notas.
+  Si nace una entrada nueva, pasa el flag: la estructura anual es del DOCUMENTO, no
+  del umbral de datos.
 - **Escala de notas: punto único de verdad en `app/Helpers/helpers.php`**
   (`NOTA_MIN_AD/A/B`, `nota_a_literal()`, `escala_rangos()`). NUNCA hardcodear umbrales.
 - **Rutas literales ANTES que patrones `{param}`** en `routes/web.php` (el router
@@ -222,19 +228,44 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   huérfanos mira `eliminado_en`, NO `confirmado_en`).
 - **Estados de matrícula: SOLO `pendiente`/`aprobada`/`desactivado`** (`'activo'` se
   eliminó del enum; otras columnas `estado` de otras tablas son independientes).
+- **Retorno de grado: se EVALÚA en la operativa, se DOCUMENTA con la oficial**
+  (Regla A, 05/08/2026). Los datos NO se copian ni se mueven entre matrículas:
+  cada bimestre queda donde se cursó y la boleta une las fuentes al leer
+  (`boletaContexto`). ⚠️ Las dos exclusiones son **INVERSAS**: los 9 rosters de
+  evaluación excluyen la **oficial**; el lote de boletas y el token público
+  excluyen la **operativa**. Un retorno NO se registra a mitad de bimestre ya
+  evaluado (candado en `RetornoGradoController`), y se ancla en el DATO, no en la
+  fecha: **los bimestres se solapan**. Ver `docs/modulos/retorno-grado.md`.
 - **Rosters de evaluación (calificaciones, conducta, transversales, tutoría)
   excluyen matrículas `tipo IN ('trasladado','retirado')`** — el resto (incl.
   `desactivado` por deuda y `pendiente`) SÍ se califica. `retirado` = ya no asiste
   sin traslado oficial (migración 045); reversible vía `tipo_anterior`. NO extender
   a los usos de `trasladado` en boleta (un retirado es desactivado no-trasladado →
   BORRADOR). Ver `docs/modulos/matriculas.md`.
-- **Orden de mérito excluye áreas `tipo IN ('transversal','tutoria')`** — permanente,
-  con UNA excepción: **Ética y Valores** (tutoría de secundaria, C57) SÍ cuenta.
-  Punto único `AREA_ETICA_NOMBRE_BOLETA` en `helpers.php`; se identifica por
-  `nombre_boleta`, NUNCA por id (difiere entre entornos).
+- **Orden de mérito excluye áreas `tipo IN ('transversal','tutoria')`, con UNA excepción:
+  ÉTICA Y VALORES cuenta en TODA secundaria, 5.º incluido** (decisión cerrada 05/08/2026).
+  **Ética NO es tutoría**: es la nota del área-curso **Educación Religiosa de secundaria**,
+  que no tiene cargas propias (la evalúa el tutor por su carga TOE). Su `tipo='tutoria'` es
+  un artefacto de implementación. Sin la excepción, el mismo curso pesaba en primaria y no
+  en secundaria. Deroga la regla del 04/08 que la sacaba de 5.º —aquella listaba «Ética y
+  Valores» y «Educación Religiosa» como áreas distintas, siendo la misma—.
+  El **vínculo Ética↔Ed. Religiosa vive en 3 sitios y ninguno es un dato estructural**:
+  excepción de hoja SIAGIE (`035-EREL`), excepción del mérito y `alias_boleta` del área;
+  al tocar uno, revisar los otros dos. Se identifica por `nombre_boleta`
+  (`AREA_ETICA_NOMBRE_BOLETA`), **NUNCA por id** (difiere entre entornos; el id 57 es GAMA
+  y el código C57 es Ética). ⚠️ El área *Ed. Religiosa* de secundaria debe seguir **sin
+  cargas**: si recibiera notas, el mismo curso contaría dos veces (guard en
+  `verif_universo_merito.php`). Ver `docs/modulos/orden-merito.md`.
 - **Mérito EN VIVO = solo competencias BLOQUEADAS** (join a `bloqueos_competencia`, sin
   filtrar `origen`). La cascada ya no desempata por apellido: tras `num_16` es MANUAL y
   el orden lo fija `m.id`.
+- **Las ÁREAS EXONERADAS no entran al promedio del mérito** (`NOT EXISTS` sobre
+  `exoneraciones` en las 2 queries que calculan promedio; cubre exoneración por área y por
+  subárea). Es el cálculo EN VIVO: los snapshots guardados NO se tocan. Nació porque
+  **se puede exonerar a un alumno que YA TIENE notas** (con confirmación explícita) y esas
+  notas **no se borran** —dejan de mostrarse, para que la exoneración sea reversible—, así
+  que sin el filtro la boleta decía EXO y el ranking seguía promediando la nota.
+  Ver `docs/modulos/matriculas.md` y `docs/modulos/orden-merito.md`.
 - **PUBLICAR libera boletas Y orden de mérito juntos**, por nivel, bajo la compuerta 044.
   Cerrar oficializa el mérito pero no lo muestra: claustro y familias lo ven solo cuando
   su nivel está publicado. **CERRAR EXIGE MÉRITO ÍNTEGRO**: 0 empates sin resolver y 0
@@ -337,6 +368,11 @@ y `docs/ESTADO.md`.
   - Conversión PHP: SIEMPRE via `nota_a_literal()` (los modelos delegan, no duplican el match).
   - Queries SQL: interpolan las constantes (`OrdenMeritoModel` x2, `ControlOperativoModel`,
     `AnioAcademicoModel`). NUNCA hardcodear el umbral en una query nueva.
+    - ⚠️ **EXCEPCIÓN CONOCIDA (auditada el 04/08/2026, se mantiene por decisión):** en las
+      dos queries de `OrdenMeritoModel` solo `num_ad` usa la constante; `num_c` (`<= 10`)
+      y `num_b` (`BETWEEN 11 AND 13`) están **hardcodeados**. Hoy coinciden con la escala,
+      pero **si se mueve `NOTA_MIN_B` o `NOTA_MIN_A` hay que actualizarlos a mano** o el
+      desempate se desincroniza en silencio. Ver `docs/modulos/orden-merito.md`.
   - Leyendas de boletas: `escala_rangos()` genera los rangos de texto.
   - El cambio es retroactivo automático: la BD solo guarda `nota_numerica`; el literal
     se calcula al vuelo (B1: 717 notas de 17 pasaron de AD a A).

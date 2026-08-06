@@ -56,6 +56,41 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
   - El bloque 4 cuenta las filas de matrículas fuera del roster: **dato histórico, no se
     borra** — siguen sumando en la boleta, que va por matrícula y no por roster.
 
+- **`verif_asistencia_boleta.php`** — Transacción + ROLLBACK. Comprueba que el bloque de
+  ASISTENCIA de la boleta usa el mismo umbral que las notas (`periodoAportaNotas`) **sin
+  alterar lo que ven las familias**: `'oficial'` sigue siendo cerrados+publicados y
+  `'archivo'` cerrados, mientras `'borrador'` y `'todos'` suman el bimestre en curso.
+  - Su **paso 4 SIMULA el Hito A** del bimestre activo: sin él, `'borrador'` daría lo
+    mismo que `'archivo'` y la aserción no probaría nada. El mismo paso verifica que
+    `'oficial'` y `'archivo'` **no** se contagian del bimestre en curso, y el cierre
+    comprueba que el ROLLBACK devolvió `boletas_aprobadas_en` a su valor original.
+  - Existe porque la asistencia era el único de los tres bloques por periodo (notas,
+    conducta, asistencia) que no honraba la excepción de la vista previa de RA.
+
+- **`verif_estructura_boleta.php`** — **SOLO LECTURA**, apto para producción. Comprueba que
+  las boletas se arman con la **estructura anual completa** (las 4 columnas de bimestre) en
+  los cuatro umbrales, y —lo importante— que abrir esas columnas **NO relaja el guard de
+  datos**: con `'oficial'` se ven 4 columnas pero solo aportan notas los bimestres cerrados
+  Y publicados, aunque el bimestre en curso ya tenga notas en la BD.
+  - Su **paso 3 es el control**: compara los bimestres con datos **con y sin**
+    `estructuraCompleta` y exige que sean los mismos. Si difirieran, el flag estaría
+    filtrando datos y no solo formato.
+  - Existe porque la regla de formato del 09/07/2026 se había aplicado solo al token y al
+    trasladado: la impresión masiva y el ZIP de archivo colapsaban columnas, y el papel que
+    se firma salía con otro formato que el que la familia abre por QR.
+
+- **`verif_universo_merito.php`** — **SOLO LECTURA**, apto para producción. Lista, grado por
+  grado y periodo por periodo, **qué áreas aportan al promedio del orden de mérito** y
+  cuáles quedan excluidas, con el conteo de notas de cada una.
+  - **Falla (exit 1)** si un área PROHIBIDA en un grado empieza a aportar. La lista vive
+    en el array `$prohibidas` del propio script: hoy solo cubre **5.º de secundaria**
+    (Arte y Cultura, EPT, Ética y Valores, Ed. Religiosa y Transversales), que es la regla
+    del colegio del 04/08/2026.
+  - Existe porque el universo del mérito **no está declarado en ninguna tabla**: se deriva
+    de las notas que existan, así que un área entra al promedio en cuanto alguien le crea
+    una carga y registra notas. Esta verificación es la red de seguridad — a propósito NO
+    se hardcodeó la exclusión en el SQL del mérito, que duplicaría el plan de estudios.
+
 ## Consultas operativas (phpMyAdmin)
 
 - **`alerta_evaluacion_incompleta.sql`** — SOLO LECTURA. Replica

@@ -367,7 +367,23 @@ class ExoneracionModel extends BaseModel
                 $areas[$nombreArea] = [];
             }
 
-            // Solo inyectar si no hay ya una entrada con notas reales
+            // LA EXONERACION MANDA SOBRE LAS NOTAS, EN TODOS LOS BIMESTRES
+            // (decision del usuario, 05/08/2026). Un alumno exonerado a mitad
+            // de año muestra EXO en los CUATRO bimestres, incluidos los que
+            // curso y aprobo antes de solicitarla.
+            //
+            // Las notas NO se borran de `calificaciones`: solo dejan de
+            // mostrarse. Es lo que hace REVERSIBLE la exoneracion —al revocarla
+            // reaparecen solas— y evita tener que reabrir un bimestre cerrado
+            // para borrarlas, cosa que hoy ni siquiera es posible
+            // (`periodoEstaBloqueado` bloquea todo periodo cerrado).
+            //
+            // ⚠️ Consecuencia asumida: la boleta de un bimestre YA ENTREGADO
+            // cambia hacia atras (decia la nota, pasa a decir EXO), y el acta
+            // que ya se subio al SIAGIE conserva la nota. La divergencia con el
+            // SIAGIE se gestiona fuera de SIGA.
+            // El snapshot de orden de merito NO se toca (es inmutable): el
+            // puesto de ese bimestre sigue calculado con la nota que hubo.
             if (!isset($areas[$nombreArea][$compId])) {
                 $areas[$nombreArea][$compId] = [
                     'nombre'       => $nombreComp,
@@ -376,13 +392,15 @@ class ExoneracionModel extends BaseModel
                     'literal_final'=> 'EXO',
                     'es_exonerado' => true,
                 ];
-            } else {
-                // Si ya existe con notas (raro pero posible en datos inconsistentes),
-                // no sobreescribir el literal_final calculado.
-                $areas[$nombreArea][$compId]['es_exonerado'] = true;
+                continue;
             }
+
+            $areas[$nombreArea][$compId]['es_exonerado']  = true;
+            $areas[$nombreArea][$compId]['bimestres']     = $bimestresVacios;
+            $areas[$nombreArea][$compId]['literal_final'] = 'EXO';
         }
 
         return $areas;
     }
+
 }

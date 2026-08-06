@@ -142,31 +142,67 @@ class BoletaModel extends BaseModel
             $datosPorPeriodo[$p['id']] = $rows;
         }
 
-        $areas   = $this->buildAreasConBimestres($datosPorPeriodo, $periodos, $ultimoBimestreId, $ultimoCerrado);
+        // ESQUELETO DEL PLAN (05/08/2026): el documento muestra TODAS las
+        // competencias que la seccion dicta, con guion donde no hay dato. Sale de
+        // la matricula de EVALUACION (la operativa en un retorno de grado: se
+        // evalua donde se cursa, Regla A), no de la de identidad con la que se
+        // rotula la boleta. Las notas de la otra matricula no se pierden: el
+        // builder crea su fila al superponerlas.
+        $esqueleto = $this->calModel->estructuraCompetenciasSeccion((int) $ctx['evaluacion']);
+
+        $areas   = $this->buildAreasConBimestres($datosPorPeriodo, $periodos, $ultimoBimestreId, $ultimoCerrado, $esqueleto);
         $exoData = $this->exoModel->getConCompetenciasParaBoletaUnion($fuentes, $anioId);
         $areas   = ExoneracionModel::inyectarEnAreas($areas, $exoData, $periodos);
 
-        // Asistencia: una columna por bimestre CERRADO (todos los registrados) +
-        // total. Solo cerrados (misma regla en la boleta de familias y la interna,
-        // independiente del modo $datos). El total SUMA los bimestres mostrados
-        // (no un acumulado por numero<=, que podria incluir uno no mostrado).
-        // COMPUERTA DE PUBLICACION: cuando aplica ('oficial'), un bimestre cerrado
-        // pero no publicado tampoco aporta ASISTENCIA. Si no, la familia veria la
-        // columna de asistencia de un bimestre cuyas notas siguen ocultas, lo que
-        // delataria que ya cerro y expondria medio bimestre. Hasta la migracion 044
-        // ambos conjuntos coincidian (cerrado == visible) y el filtro no hacia falta.
-        $periodosCerrados = $this->getPeriodosDelAnio($anioId, true);
+        // Asistencia: una columna por bimestre que APORTA, con el MISMO umbral que
+        // las notas (`periodoAportaNotas`) + total. Hasta el 04/08/2026 tenia su
+        // propio criterio ("solo cerrados", independiente de $datos), y por eso la
+        // vista previa de RA mostraba las notas y la conducta del bimestre en curso
+        // pero NO su asistencia. Unificado: el umbral vive en un solo sitio.
+        //   - 'oficial' / 'archivo': sin cambio — `periodoAportaNotas` exige bimestre
+        //     CERRADO, y en 'oficial' ademas PUBLICADO (compuerta 044). Si no, la
+        //     familia veria la columna de asistencia de un bimestre cuyas notas
+        //     siguen ocultas, lo que delataria que ya cerro.
+        //   - 'borrador' y 'todos': suman el bimestre en curso, que es el dato que
+        //     RA necesita ver para decidir.
+        // El total SUMA los bimestres CON REGISTRO mostrados (no un acumulado por
+        // numero<=, que podria incluir uno no mostrado); incluye el bimestre en
+        // curso a proposito, asi que en vista previa es provisional.
+        // ESTRUCTURA ANUAL COMPLETA tambien aqui (04/08/2026): SIEMPRE una columna por
+        // bimestre del anio, aunque no tenga dato. La tabla de asistencia es parte del
+        // MODELO OFICIAL igual que la de notas, asi que su forma no puede depender de
+        // cuantos bimestres cerraron. Mismo argumento que las notas: con las columnas
+        // fijas, una vacia no revela si el bimestre cerro.
         $asisBimestres = [];
         $asisTotal = ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0];
-        foreach ($periodosCerrados as $pc) {
-            if ($publicados !== null && !isset($publicados[(int) $pc['id']])) {
-                continue;
-            }
+        $ceros = ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0];
+
+        foreach ($this->getPeriodosDelAnio($anioId) as $pa) {
+            // SIN DATO que mostrar, por dos motivos distintos que se pintan igual (guion):
+            //   - el bimestre aun no puede tener registro ('pendiente'), o
+            //   - no corresponde a este umbral (no publicado, o en curso bajo 'oficial').
+            // Se marca para que la vista lo pinte apagado en vez de con ceros: un cero
+            // se lee como dato real ("no falto ningun dia") y aqui no hay dato. Ademas,
+            // con guiones el lector no intenta cuadrar la suma con el Total.
+            $sinRegistro = !$this->periodoAportaNotas($pa, $datos, $publicados)
+                        || ($pa['estado'] ?? '') === 'pendiente';
+
             // OJO: variable propia, NO reusar el nombre $datos (parametro del metodo,
-            // leido mas abajo por el filtro de conducta).
-            $asisDatos = $this->asistenciaModel->getDelBimestreUnion($fuentes, (int) $pc['id']);
-            $asisBimestres[] = ['id' => (int) $pc['id'], 'numero' => (int) $pc['numero'], 'datos' => $asisDatos];
-            foreach ($asisTotal as $k => $_) { $asisTotal[$k] += (int) $asisDatos[$k]; }
+            // leido mas abajo por el filtro de conducta). Si no aporta NO se consulta:
+            // la columna vacia no puede salir de datos que este umbral no debe ver.
+            $asisDatos = $sinRegistro
+                ? $ceros
+                : $this->asistenciaModel->getDelBimestreUnion($fuentes, (int) $pa['id']);
+
+            $asisBimestres[] = [
+                'id'           => (int) $pa['id'],
+                'numero'       => (int) $pa['numero'],
+                'datos'        => $asisDatos,
+                'sin_registro' => $sinRegistro,
+            ];
+            if (!$sinRegistro) {
+                foreach ($asisTotal as $k => $_) { $asisTotal[$k] += (int) $asisDatos[$k]; }
+            }
         }
 
         // Conducta [periodo_id => literal]: mismo umbral del Hito A que las notas.
@@ -319,39 +355,35 @@ class BoletaModel extends BaseModel
         array $datosPorPeriodo,
         array $periodos,
         int $ultimoBimestreId,
-        bool $ultimoCerrado
+        bool $ultimoCerrado,
+        array $esqueleto = []
     ): array {
         $areas = [];
 
+        // ESQUELETO PRIMERO (05/08/2026): todas las competencias del plan de la
+        // seccion existen en el documento aunque no tengan ninguna nota; la vista
+        // las pinta con guion. Sembrarlo antes fija ademas el ORDEN de areas y
+        // competencias (a.orden, comp.orden), que hasta ahora dependia de que se
+        // habia calificado y variaba entre alumnos de la misma seccion.
+        // Las notas se superponen despues: una competencia con nota que ya NO
+        // este en el plan activo (carga desactivada tras evaluar) sigue creando
+        // su entrada en el loop de abajo. Esa es la red de seguridad — ninguna
+        // nota registrada puede desaparecer del documento.
+        foreach ($esqueleto as $fila) {
+            $nombreArea = $this->nombreAreaBoleta($fila);
+            $compId     = $fila['competencia_id'];
+            if (!isset($areas[$nombreArea][$compId])) {
+                $areas[$nombreArea][$compId] = $this->nuevaEntradaCompetencia($fila);
+            }
+        }
+
         foreach ($datosPorPeriodo as $periodoId => $notas) {
             foreach ($notas as $nota) {
-                $nombreArea = $nota['nombre_boleta'] ?? $nota['area_nombre'];
-                if (!empty($nota['alias_boleta'])) {
-                    $nombreArea .= ' ' . $nota['alias_boleta'];
-                }
-                $compId = $nota['competencia_id'];
+                $nombreArea = $this->nombreAreaBoleta($nota);
+                $compId     = $nota['competencia_id'];
 
                 if (!isset($areas[$nombreArea][$compId])) {
-                    // En secciones unidocentes (1°-3° primaria) el área se muestra
-                    // como bloque área-curso: cada competencia por su código MINEDU
-                    // + nombre, SIN prefijo ni etiqueta de subárea (afecta boleta
-                    // imprimible y digital). Para especialistas (4°-6° y secundaria)
-                    // se conserva el prefijo/etiqueta "Aritmética — …".
-                    $muestraSubarea = empty($nota['es_unidocente'])
-                        && ($nota['area_tipo'] ?? '') === 'con_subareas'
-                        && !empty($nota['subarea_nombre']);
-                    $prefijoSubarea = $muestraSubarea ? $nota['subarea_nombre'] . ' — ' : '';
-                    $areas[$nombreArea][$compId] = [
-                        'nombre'            => trim(
-                            $prefijoSubarea .
-                            ($nota['codigo_minedu'] ? $nota['codigo_minedu'] . '. ' : '') .
-                            ($nota['nombre_corto'] ?? $nota['competencia_nombre'] ?? '')
-                        ),
-                        'nombre_largo'      => trim($prefijoSubarea . ($nota['competencia_nombre'] ?? '')),
-                        'subarea_nombre'    => $muestraSubarea ? ($nota['subarea_nombre'] ?? '') : '',
-                        'competencia_texto' => $nota['competencia_nombre'] ?? '',
-                        'bimestres'         => [],
-                    ];
+                    $areas[$nombreArea][$compId] = $this->nuevaEntradaCompetencia($nota);
                 }
 
                 $notaNum = isset($nota['nota_numerica']) ? (int) $nota['nota_numerica'] : null;
@@ -378,6 +410,51 @@ class BoletaModel extends BaseModel
         unset($comps, $comp);
 
         return $areas;
+    }
+
+    /**
+     * Nombre del bloque de area tal como se rotula en la boleta. PUNTO UNICO:
+     * lo comparten las filas de nota y las del esqueleto del plan, y de el
+     * depende que ambas caigan en la MISMA clave de $areas (si divergieran, una
+     * competencia con nota saldria duplicada bajo dos titulos).
+     */
+    private function nombreAreaBoleta(array $fila): string
+    {
+        $nombre = $fila['nombre_boleta'] ?? $fila['area_nombre'];
+        if (!empty($fila['alias_boleta'])) {
+            $nombre .= ' ' . $fila['alias_boleta'];
+        }
+        return $nombre;
+    }
+
+    /**
+     * Entrada de competencia SIN valores (los bimestres los llena el loop de
+     * notas). Sirve igual a una fila de nota y a una del esqueleto del plan
+     * porque ambas traen las mismas columnas.
+     */
+    private function nuevaEntradaCompetencia(array $fila): array
+    {
+        // En secciones unidocentes (1°-3° primaria) el área se muestra como
+        // bloque área-curso: cada competencia por su código MINEDU + nombre,
+        // SIN prefijo ni etiqueta de subárea (afecta boleta imprimible y
+        // digital). Para especialistas (4°-6° y secundaria) se conserva el
+        // prefijo/etiqueta "Aritmética — …".
+        $muestraSubarea = empty($fila['es_unidocente'])
+            && ($fila['area_tipo'] ?? '') === 'con_subareas'
+            && !empty($fila['subarea_nombre']);
+        $prefijoSubarea = $muestraSubarea ? $fila['subarea_nombre'] . ' — ' : '';
+
+        return [
+            'nombre'            => trim(
+                $prefijoSubarea .
+                ($fila['codigo_minedu'] ? $fila['codigo_minedu'] . '. ' : '') .
+                ($fila['nombre_corto'] ?? $fila['competencia_nombre'] ?? '')
+            ),
+            'nombre_largo'      => trim($prefijoSubarea . ($fila['competencia_nombre'] ?? '')),
+            'subarea_nombre'    => $muestraSubarea ? ($fila['subarea_nombre'] ?? '') : '',
+            'competencia_texto' => $fila['competencia_nombre'] ?? '',
+            'bimestres'         => [],
+        ];
     }
 
     private function getTutorSeccion(int $matriculaId): ?array

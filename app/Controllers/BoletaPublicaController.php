@@ -264,6 +264,17 @@ class BoletaPublicaController extends BaseController
         ", [$anioId]);
     }
 
+    /**
+     * ⚠️ COPIA DORMIDA, DIVERGENTE DESDE EL 05/08/2026. Este controlador es la
+     * consulta publica por codigo, cuyas rutas estan comentadas en routes/web.php.
+     * `BoletaModel::buildAreasConBimestres` —el que usan las 9 entradas vivas—
+     * ahora siembra el ESQUELETO DEL PLAN: muestra todas las competencias que la
+     * seccion dicta, con guion donde no hay nota. Esta copia sigue construyendo
+     * las filas SOLO a partir de las notas.
+     * Si algun dia se reactivan esas rutas, hay que portar el esqueleto aqui (o,
+     * mejor, hacer que este controlador use BoletaModel) o el mismo alumno vera
+     * dos documentos con distinto numero de filas.
+     */
     private function buildAreasConBimestres(
         array $datosPorPeriodo,
         array $periodos,

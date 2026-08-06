@@ -16,11 +16,14 @@ if (empty($boletasData)): ?>
 </p>
 <?php return; endif; ?>
 
-<!-- Marca de agua "BORRADOR". position:fixed se repite por página al imprimir. -->
-<div class="boleta-watermark" aria-hidden="true">BORRADOR</div>
-
-<?php foreach ($boletasData as $i => $boletaData):
+<?php
+// La marca de agua de BORRADOR ya NO se pinta aquí: la trae cada boleta desde
+// boleta/alumno.php al recibir $vistaPrevia (punto único, ver
+// boleta/_marca-borrador.php). Antes era un position:fixed de este wrapper, y
+// por eso la boleta del docente —que no pasa por aquí— salía sin señal.
+foreach ($boletasData as $i => $boletaData):
     extract($boletaData, EXTR_OVERWRITE);
+    $vistaPrevia = true;
 ?>
 <?php include VIEW_PATH . '/boleta/alumno.php'; ?>
 <?php if ($i < count($boletasData) - 1): ?>

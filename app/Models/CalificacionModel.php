@@ -313,6 +313,11 @@ class CalificacionModel extends BaseModel
      *   - 'fuentes': matrículas de las que se leen las notas, ordenadas
      *      [operativa, oficial] para que, al fusionar por periodo, la oficial
      *      gane ante un eventual choque del mismo periodo.
+     *   - 'evaluacion': matrícula de la que sale el PLAN DE ESTUDIOS del
+     *      documento (estructuraCompetenciasSeccion). Es la OPERATIVA en un
+     *      retorno: se evalúa donde se cursa (Regla A). Las competencias de la
+     *      sección anterior que ya tengan nota no se pierden — el builder de la
+     *      boleta crea su fila al superponer las notas sobre el esqueleto.
      *
      * Si la matrícula no participa de ningún retorno (caso normal) devuelve
      * la propia matrícula como identidad y única fuente. Cubre tanto el retorno
@@ -329,13 +334,118 @@ class CalificacionModel extends BaseModel
         ", [$matriculaId, $matriculaId]);
 
         if (!$r) {
-            return ['identidad' => $matriculaId, 'fuentes' => [$matriculaId]];
+            return [
+                'identidad'  => $matriculaId,
+                'fuentes'    => [$matriculaId],
+                'evaluacion' => $matriculaId,
+            ];
         }
 
         $oficial   = (int) $r['matricula_oficial_id'];
         $operativa = (int) $r['matricula_operativa_id'];
 
-        return ['identidad' => $oficial, 'fuentes' => [$operativa, $oficial]];
+        return [
+            'identidad'  => $oficial,
+            'fuentes'    => [$operativa, $oficial],
+            'evaluacion' => $operativa,
+        ];
+    }
+
+    /**
+     * ESQUELETO DEL DOCUMENTO: todas las competencias del PLAN DE ESTUDIOS que
+     * la sección de la matrícula realmente dicta, tengan o no calificación.
+     *
+     * Devuelve filas con la MISMA FORMA que getBoletaAlumno() pero sin valores,
+     * para que BoletaModel::buildAreasConBimestres() las siembre antes de
+     * superponer las notas. Lo que no tiene nota se pinta con guion.
+     *
+     * EL UNIVERSO SON LAS CARGAS ACTIVAS DE LA SECCIÓN, no el catálogo del
+     * nivel. Es lo que hace que las tres exclusiones del colegio salgan solas,
+     * sin una sola excepción escrita a mano (medido el 05/08/2026):
+     *   - Educación Religiosa de SECUNDARIA no se muestra (área 14: 0 cargas en
+     *     cualquier grado). Sus notas salen por Ética y Valores, que sí tiene
+     *     carga (área 24, TOE del tutor). En PRIMARIA sí se muestra (12 cargas).
+     *   - 5.º de secundaria no lleva Arte y Cultura ni Educación para el
+     *     Trabajo: ninguna de las dos tiene carga en ese grado.
+     *   - El Taller de Pre-Cálculo solo se dicta en 5.º, así que no aparece en
+     *     1.º-4.º. Mismo mecanismo.
+     * Con el catálogo del nivel las tres habrían necesitado un `if` por grado, y
+     * en 5.º habría salido Ed. Religiosa vacía junto a Ética con notas: el mismo
+     * curso dos veces.
+     *
+     * ⚠️ NO filtrar por `a.tipo`: Ética y Valores vive en un área `tipo='tutoria'`
+     * (artefacto de implementación, ver CLAUDE.md) y desaparecería de la boleta
+     * de secundaria. El filtro `NOT IN ('transversal','tutoria')` es del ORDEN DE
+     * MÉRITO y no se puede copiar aquí.
+     *
+     * ⚠️ Una carga apunta O a `area_id` O a `subarea_id`, y el área se resuelve
+     * como en getBoletaAlumno() (`COALESCE(ca.area_id, sa.area_id)`). Un
+     * `JOIN areas ON a.id = comp.area_id` a secas descartaría en silencio las
+     * áreas `con_subareas` (Matemática, Comunicación, CyT, CCSS), que enlazan
+     * por subárea.
+     *
+     * Las TRANSVERSALES se agregan aparte: su área no tiene cargas (0 en ambos
+     * niveles), así que la vía de las cargas nunca las traería, y el bloque debe
+     * aparecer igual aunque el tutor no haya cerrado (ver getTransversalesAgregadas).
+     */
+    public function estructuraCompetenciasSeccion(int $matriculaId): array
+    {
+        $delPlan = $this->query("
+            SELECT DISTINCT
+                comp.id              AS competencia_id,
+                comp.nombre_completo AS competencia_nombre,
+                comp.nombre_corto,
+                comp.codigo_minedu,
+                a.id                 AS area_id,
+                a.nombre             AS area_nombre,
+                a.nombre_boleta,
+                a.alias_boleta,
+                a.tipo               AS area_tipo,
+                sa.nombre            AS subarea_nombre,
+                s.es_unidocente,
+                a.orden              AS area_orden,
+                comp.orden           AS comp_orden
+            FROM matriculas m
+            INNER JOIN cargas_academicas ca ON ca.seccion_id = m.seccion_id
+                                           AND ca.estado     = 'activa'
+            LEFT  JOIN subareas sa          ON sa.id = ca.subarea_id
+            INNER JOIN areas a              ON a.id  = COALESCE(ca.area_id, sa.area_id)
+            INNER JOIN competencias comp
+                    ON (ca.subarea_id IS NOT NULL AND comp.subarea_id = ca.subarea_id)
+                    OR (ca.subarea_id IS NULL AND ca.area_id IS NOT NULL
+                        AND comp.area_id = ca.area_id)
+            LEFT  JOIN secciones s          ON s.id = ca.seccion_id
+            WHERE m.id = ?
+            ORDER BY a.orden, comp.orden
+        ", [$matriculaId]);
+
+        $transversales = $this->query("
+            SELECT
+                comp.id              AS competencia_id,
+                comp.nombre_completo AS competencia_nombre,
+                comp.nombre_corto,
+                comp.codigo_minedu,
+                a.id                 AS area_id,
+                a.nombre             AS area_nombre,
+                a.nombre_boleta,
+                a.alias_boleta,
+                a.tipo               AS area_tipo,
+                NULL                 AS subarea_nombre,
+                s.es_unidocente,
+                a.orden              AS area_orden,
+                comp.orden           AS comp_orden
+            FROM matriculas m
+            INNER JOIN secciones s ON s.id = m.seccion_id
+            INNER JOIN grados g    ON g.id = s.grado_id
+            INNER JOIN areas a     ON a.nivel_id = g.nivel_id
+                                  AND a.tipo     = 'transversal'
+                                  AND a.activa   = 1
+            INNER JOIN competencias comp ON comp.area_id = a.id
+            WHERE m.id = ?
+            ORDER BY a.orden, comp.orden
+        ", [$matriculaId]);
+
+        return array_merge($delPlan, $transversales);
     }
 
     /**

@@ -17,11 +17,13 @@ $esSecundaria = ($alumno['escala_boleta'] === 'ambas');
 $hoy          = (new DateTime())->format('d/m/Y');
 $romanos      = ['I', 'II', 'III', 'IV'];
 
-// Separa las competencias transversales para ubicarlas al final
+// Separa las competencias transversales para ubicarlas al final.
+// "transv", no "transversal": en SECUNDARIA el area se rotula "Comp. Transv."
+// (misma nota que en boleta/alumno.php).
 $areasRegulares     = [];
 $areasTransversales = [];
 foreach ($areas as $_n => $_c) {
-    if (stripos($_n, 'transversal') !== false) {
+    if (stripos($_n, 'transv') !== false) {
         $areasTransversales[$_n] = $_c;
     } else {
         $areasRegulares[$_n] = $_c;
@@ -77,10 +79,21 @@ $vistaPrevia = $vistaPrevia ?? false;
          data-nivel="<?= e($alumno['nivel_codigo'] ?? '') ?>">
 
     <?php if ($vistaPrevia): ?>
+    <?php // Aviso en el flujo: explica en texto que esto no es oficial. ?>
     <div class="bd-borrador" role="note">
         <span class="bd-borrador__tag">BORRADOR</span>
-        <span class="bd-borrador__msg">Vista previa · No es documento oficial hasta que Registro Académico cierre el bimestre.</span>
+        <span class="bd-borrador__msg"><?= e(BOLETA_LEYENDA_BORRADOR) ?></span>
     </div>
+    <?php
+    // MARCA DE AGUA, mismo parcial que la boleta impresa (punto único). Aquí
+    // NO es decorativa: sin ella, una captura de pantalla o una foto al monitor
+    // sacaba notas de un bimestre sin cerrar sin nada que dijera que son
+    // provisionales. Variante `--pantalla`: fija en el viewport, porque este
+    // documento se recorre con scroll y una marca anclada al contenido dejaría
+    // sin marcar justo las capturas de la zona de notas.
+    $marcaModificador = 'boleta-watermark--pantalla';
+    include VIEW_PATH . '/boleta/_marca-borrador.php';
+    ?>
     <?php endif; ?>
 
     <!-- ── HEADER INSTITUCIONAL ─────────────────────────────── -->
@@ -181,7 +194,7 @@ $vistaPrevia = $vistaPrevia ?? false;
             $dividerMostrado = false;
             foreach ($areasOrdenadas as $areaNombre => $competencias):
                 $areaIndex++;
-                $esTransversal = stripos($areaNombre, 'transversal') !== false;
+                $esTransversal = stripos($areaNombre, 'transv') !== false;   // ver nota arriba
                 $areaId        = 'bd-area-' . $areaIndex;
                 $areaBodyId    = $areaId . '-body';
             ?>
@@ -428,8 +441,15 @@ $vistaPrevia = $vistaPrevia ?? false;
                     <?php foreach ($camposAsis as $clave => $etiqueta): ?>
                     <tr>
                         <td><?= $etiqueta ?></td>
-                        <?php foreach ($asistencia['bimestres'] as $bim): ?>
-                            <td class="bd-asistencia__num"><?= (int) $bim['datos'][$clave] ?></td>
+                        <?php foreach ($asistencia['bimestres'] as $bim):
+                            // Sin dato aun (bimestre futuro o que no corresponde a este
+                            // umbral): guion apagado. Un 0 se leeria como "no falto
+                            // ningun dia", que seria un dato inventado.
+                            $sinRegistro = !empty($bim['sin_registro']);
+                        ?>
+                            <td class="bd-asistencia__num<?= $sinRegistro ? ' bd-asistencia__num--pendiente' : '' ?>">
+                                <?= $sinRegistro ? '&ndash;' : (int) $bim['datos'][$clave] ?>
+                            </td>
                         <?php endforeach; ?>
                         <td class="bd-asistencia__num bd-asistencia__num--total"><?= (int) $asisTotal[$clave] ?></td>
                     </tr>
