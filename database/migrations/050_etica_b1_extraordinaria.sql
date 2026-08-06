@@ -55,6 +55,37 @@
 --   id (en este entorno es 127, pero los ids difieren entre entornos; recordar
 --   que el id 57 es GAMA). El área sale de la propia competencia, el periodo del
 --   año activo y el usuario firmante de su ROL.
+--
+-- ⚠️ EL UNIVERSO REPLICA `RectificacionModel::esInsertable`, que es la guarda que
+--   el flujo real evalúa alumno por alumno. Tres exclusiones, ninguna opcional:
+--     · sin nota previa en la competencia (idéntica al código);
+--     · EXONERADO **DEL ÁREA DE ÉTICA** y del año de su matrícula — NO cualquier
+--       exoneración: el código acota por `area_id`/`subarea_id` + `anio_id`. Un
+--       filtro global (el que traía esta migración) sacaba del universo, EN
+--       SILENCIO, a quien estuviera exonerado de cualquier otra área;
+--     · matrícula OFICIAL de un RETORNO DE GRADO ACTIVO: registrar una nota es
+--       EVALUAR, y por la Regla A se evalúa en la OPERATIVA. Es el mismo anclaje
+--       que usan los 9 rosters de evaluación y `alertasEvaluacionIncompleta`.
+--   ✅ Medido en local: las tres variantes dan **275** — los guards NO cambian el
+--   resultado ya ensayado, solo cierran huecos que en PROD sí pueden morder (hoy
+--   local no tiene ni exonerados de secundaria ni retornos en ese nivel).
+--
+-- ⚠️ POR QUÉ EL `uq_nota` NO BASTA COMO RED: la clave única de `calificaciones`
+--   es (matricula, **carga**, periodo, competencia). Si una sección tuviera DOS
+--   cargas activas del área —`cargas_academicas` no tiene UNIQUE KEY—, el mismo
+--   alumno recibiría DOS notas sin violar nada. Por eso el PASO 1 exige 1 carga
+--   por sección, y el PASO 3 verifica que ninguna matrícula quedó con 2 filas.
+--
+-- ⚠️ Y POR QUÉ SE EXIGE EL BLOQUEO: la boleta solo muestra competencias
+--   BLOQUEADAS (`getBoletaAlumno` hace INNER JOIN a `bloqueos_competencia`). Una
+--   carga sin bloqueo recibiría la nota y NO la mostraría: la migración habría
+--   "funcionado" sin cumplir su objetivo. El PASO 1 lo mide.
+--
+-- ✅ NO AGRAVA LA ALERTA DE EVALUACIÓN INCOMPLETA DE B1 (verificado en el código,
+--   no supuesto): `ControlOperativoModel::alertasEvaluacionIncompleta` filtra
+--   `cr.extraordinario = 0`, así que el criterio que crea el PASO 2.a es invisible
+--   para ella. Los 4 alumnos que llegaron después de B1 y quedan sin esta nota NO
+--   se suman a los 12 blancos que hoy impedirían re-cerrar B1 si se reabriera.
 -- ════════════════════════════════════════════════════════════════════
 
 
@@ -75,9 +106,12 @@ SET @area        := (SELECT area_id FROM competencias WHERE id = @competencia);
 -- configurado la manda en latin1 → el anclaje resuelve NULL y la migración
 -- inserta 0 filas sin decir por qué. Medido: pasa de verdad. Solo un rol
 -- empieza por 'Registro Acad', así que el patrón es igual de preciso.
+-- `estado = 'activo'`: sin ese filtro, un RA dado de baja con id menor que el
+-- vigente firmaría las 275 filas — y la firma es lo que hace auditable el acto.
 SET @usuario     := (SELECT u.id FROM usuarios u
                        JOIN roles r ON r.id = u.rol_id
-                      WHERE r.nombre LIKE 'Registro Acad%' ORDER BY u.id LIMIT 1);
+                      WHERE r.nombre LIKE 'Registro Acad%'
+                        AND u.estado = 'activo' ORDER BY u.id LIMIT 1);
 
 -- 1.a Los cuatro anclajes resolvieron. NINGUNO puede ser NULL.
 --     Esperado: periodo = I Bimestre 'cerrado', area = Tutoría (TOE) de
@@ -117,12 +151,23 @@ WHERE EXISTS (SELECT 1 FROM calificaciones c
                      AND c.competencia_id = @competencia
                      AND c.periodo_id     = @periodo)
   AND NOT EXISTS (SELECT 1 FROM exoneraciones e
-                   WHERE e.matricula_id = m.id AND e.revocado_en IS NULL)
+                   WHERE e.matricula_id = m.id
+                     AND e.anio_id      = m.anio_id
+                     AND e.area_id      = @area
+                     AND e.revocado_en  IS NULL)
+  AND NOT EXISTS (SELECT 1 FROM retornos_grado rg
+                   WHERE rg.matricula_oficial_id = m.id AND rg.estado = 'activo')
 GROUP BY g.nombre_display WITH ROLLUP;
 
 -- 1.c Contraste con el snapshot oficial de B1 y estado de partida.
 --     Esperado: universo = 275, snapshot_secundaria = 275, notas_previas = 0,
---     cargas_activas = 11, snapshot_total = 528.
+--     cargas_activas = 11, secciones_con_carga = 11, cargas_sin_bloqueo = 0,
+--     secciones_con_carga_duplicada = 0, snapshot_total = 528.
+--     ⚠️ Las tres cifras estructurales son de ABORTO, no informativas:
+--       · `cargas_sin_bloqueo` > 0  → esas notas no saldrían en la boleta;
+--       · `secciones_con_carga_duplicada` > 0 → doble nota al mismo alumno;
+--       · `notas_previas` > 0 → ya hay algo escrito ahí; el PASO 4 dejaría de
+--         ser equivalente a "deshacer solo lo mío" (borra TODA extraordinaria).
 SELECT
   (SELECT COUNT(*) FROM matriculas m
      JOIN cargas_academicas ca ON ca.seccion_id = m.seccion_id
@@ -133,7 +178,10 @@ SELECT
                        WHERE c.matricula_id = m.id AND c.competencia_id = @competencia
                          AND c.periodo_id = @periodo)
       AND NOT EXISTS (SELECT 1 FROM exoneraciones e
-                       WHERE e.matricula_id = m.id AND e.revocado_en IS NULL)
+                       WHERE e.matricula_id = m.id AND e.anio_id = m.anio_id
+                         AND e.area_id = @area AND e.revocado_en IS NULL)
+      AND NOT EXISTS (SELECT 1 FROM retornos_grado rg
+                       WHERE rg.matricula_oficial_id = m.id AND rg.estado = 'activo')
   ) AS universo,
   (SELECT COUNT(*) FROM orden_merito_snapshot oms
      JOIN matriculas m ON m.id = oms.matricula_id
@@ -145,6 +193,18 @@ SELECT
     WHERE competencia_id = @competencia AND periodo_id = @periodo) AS notas_previas,
   (SELECT COUNT(*) FROM cargas_academicas
     WHERE area_id = @area AND estado = 'activa') AS cargas_activas,
+  (SELECT COUNT(DISTINCT seccion_id) FROM cargas_academicas
+    WHERE area_id = @area AND estado = 'activa') AS secciones_con_carga,
+  (SELECT COUNT(*) FROM cargas_academicas ca
+    WHERE ca.area_id = @area AND ca.estado = 'activa'
+      AND NOT EXISTS (SELECT 1 FROM bloqueos_competencia bc
+                       WHERE bc.carga_id       = ca.id
+                         AND bc.competencia_id = @competencia
+                         AND bc.periodo_id     = @periodo)) AS cargas_sin_bloqueo,
+  (SELECT COUNT(*) FROM (
+      SELECT seccion_id FROM cargas_academicas
+       WHERE area_id = @area AND estado = 'activa'
+       GROUP BY seccion_id HAVING COUNT(*) > 1) d) AS secciones_con_carga_duplicada,
   (SELECT COUNT(*) FROM orden_merito_snapshot WHERE periodo_id = @periodo) AS snapshot_total;
 
 -- 1.d Los que quedan FUERA a propósito: llegaron después de B1 y no tienen
@@ -160,6 +220,38 @@ JOIN estudiantes e ON e.id = m.estudiante_id
 JOIN personas  pe  ON pe.id = e.persona_id
 WHERE NOT EXISTS (SELECT 1 FROM calificaciones c
                    WHERE c.matricula_id = m.id AND c.periodo_id = @periodo);
+
+-- 1.e Los que quedan fuera POR LAS OTRAS DOS GUARDAS, con el motivo. En local
+--     da 0 filas (no hay exonerados de Ética ni retornos en secundaria), pero en
+--     PROD hay que LEERLO: cada fila aquí es un alumno de secundaria que cursó
+--     B1 y NO recibirá la nota, y conviene que sea una decisión, no un descubrimiento.
+--       · 'EXONERADO DE ETICA'  → correcto: un exonerado no lleva nota del área.
+--       · 'OFICIAL DE RETORNO'  → correcto: se evalúa en su matrícula OPERATIVA;
+--         verificar que la operativa SÍ aparece en el universo (si no, ese alumno
+--         se queda sin Ética y hay que resolverlo a mano por Rectificación).
+SELECT m.id AS matricula, g.nombre_display AS grado, s.nombre AS sec,
+       CONCAT(pe.apellido_paterno,' ',pe.apellido_materno,', ',pe.nombres) AS alumno,
+       CASE WHEN EXISTS (SELECT 1 FROM retornos_grado rg
+                          WHERE rg.matricula_oficial_id = m.id AND rg.estado = 'activo')
+            THEN 'OFICIAL DE RETORNO' ELSE 'EXONERADO DE ETICA' END AS motivo
+FROM matriculas m
+JOIN secciones s ON s.id = m.seccion_id
+JOIN grados    g ON g.id = s.grado_id
+JOIN cargas_academicas ca ON ca.seccion_id = m.seccion_id
+                         AND ca.area_id    = @area
+                         AND ca.estado     = 'activa'
+JOIN estudiantes e ON e.id = m.estudiante_id
+JOIN personas  pe  ON pe.id = e.persona_id
+WHERE EXISTS (SELECT 1 FROM calificaciones c
+               WHERE c.matricula_id = m.id AND c.periodo_id = @periodo)
+  AND NOT EXISTS (SELECT 1 FROM calificaciones c
+                   WHERE c.matricula_id = m.id AND c.competencia_id = @competencia
+                     AND c.periodo_id = @periodo)
+  AND (EXISTS (SELECT 1 FROM exoneraciones ex
+                WHERE ex.matricula_id = m.id AND ex.anio_id = m.anio_id
+                  AND ex.area_id = @area AND ex.revocado_en IS NULL)
+       OR EXISTS (SELECT 1 FROM retornos_grado rg
+                   WHERE rg.matricula_oficial_id = m.id AND rg.estado = 'activo'));
 
 
 -- ════════════════════════════════════════════════════════════════════
@@ -183,9 +275,12 @@ SET @area        := (SELECT area_id FROM competencias WHERE id = @competencia);
 -- configurado la manda en latin1 → el anclaje resuelve NULL y la migración
 -- inserta 0 filas sin decir por qué. Medido: pasa de verdad. Solo un rol
 -- empieza por 'Registro Acad', así que el patrón es igual de preciso.
+-- `estado = 'activo'`: sin ese filtro, un RA dado de baja con id menor que el
+-- vigente firmaría las 275 filas — y la firma es lo que hace auditable el acto.
 SET @usuario     := (SELECT u.id FROM usuarios u
                        JOIN roles r ON r.id = u.rol_id
-                      WHERE r.nombre LIKE 'Registro Acad%' ORDER BY u.id LIMIT 1);
+                      WHERE r.nombre LIKE 'Registro Acad%'
+                        AND u.estado = 'activo' ORDER BY u.id LIMIT 1);
 SET @nota   := 15;
 SET @motivo := 'Ética y Valores no fue evaluada en el I Bimestre. Por acuerdo de dirección se ingresará una calificación estándar, se registra 15 (A) uniforme para todos los estudiantes de secundaria que cursaron el I Bimestre, en concordancia con lo ya consignado en el acta SIAGIE bajo Educación Religiosa. Calificación administrativa, no evaluativa: no computa en el orden de mérito.';
 
@@ -241,8 +336,15 @@ WHERE @periodo IS NOT NULL AND @competencia IS NOT NULL
                    WHERE c.matricula_id   = m.id
                      AND c.competencia_id = @competencia
                      AND c.periodo_id     = @periodo)
+  -- Exoneración acotada al ÁREA y al AÑO, como `esInsertable` (ver cabecera).
   AND NOT EXISTS (SELECT 1 FROM exoneraciones e
-                   WHERE e.matricula_id = m.id AND e.revocado_en IS NULL)
+                   WHERE e.matricula_id = m.id
+                     AND e.anio_id      = m.anio_id
+                     AND e.area_id      = @area
+                     AND e.revocado_en  IS NULL)
+  -- Regla A del retorno de grado: se EVALÚA en la operativa.
+  AND NOT EXISTS (SELECT 1 FROM retornos_grado rg
+                   WHERE rg.matricula_oficial_id = m.id AND rg.estado = 'activo')
   AND NOT EXISTS (
       SELECT 1 FROM (SELECT * FROM calificaciones_criterio) cc
       WHERE cc.criterio_id = cr.id AND cc.matricula_id = m.id
@@ -268,8 +370,15 @@ WHERE @periodo IS NOT NULL AND @competencia IS NOT NULL
                    WHERE c.matricula_id   = m.id
                      AND c.competencia_id = @competencia
                      AND c.periodo_id     = @periodo)
+  -- Exoneración acotada al ÁREA y al AÑO, como `esInsertable` (ver cabecera).
   AND NOT EXISTS (SELECT 1 FROM exoneraciones e
-                   WHERE e.matricula_id = m.id AND e.revocado_en IS NULL);
+                   WHERE e.matricula_id = m.id
+                     AND e.anio_id      = m.anio_id
+                     AND e.area_id      = @area
+                     AND e.revocado_en  IS NULL)
+  -- Regla A del retorno de grado: se EVALÚA en la operativa.
+  AND NOT EXISTS (SELECT 1 FROM retornos_grado rg
+                   WHERE rg.matricula_oficial_id = m.id AND rg.estado = 'activo');
 
 -- 2.d Auditoría: una fila por alumno con el MOTIVO (275 filas). Se ancla en las
 --     calificaciones que acaban de marcarse extraordinarias, así que si 2.c
@@ -355,6 +464,29 @@ WHERE competencia_id = @competencia AND periodo_id = @periodo
   AND tipo = 'extraordinaria'
 LIMIT 1;
 
+-- 3.c-ter INTEGRIDAD DE LO ESCRITO. Las tres cifras deben dar 0.
+--     · `matriculas_con_dos_notas`: el `uq_nota` incluye `carga_id`, así que NO
+--       protege de una sección con dos cargas activas del área. Esta es la red.
+--     · `notas_en_carga_ajena`: la nota tiene que colgar de la carga de LA SECCIÓN
+--       del alumno; cualquier otra cosa es un JOIN que se fue de rango.
+--     · `sin_bloqueo`: una nota en carga sin bloqueo no se vería en la boleta.
+SELECT
+  (SELECT COUNT(*) FROM (
+      SELECT matricula_id FROM calificaciones
+       WHERE competencia_id = @competencia AND periodo_id = @periodo
+       GROUP BY matricula_id HAVING COUNT(*) > 1) d) AS matriculas_con_dos_notas,
+  (SELECT COUNT(*) FROM calificaciones c
+     JOIN matriculas m         ON m.id  = c.matricula_id
+     JOIN cargas_academicas ca ON ca.id = c.carga_id
+    WHERE c.competencia_id = @competencia AND c.periodo_id = @periodo
+      AND (ca.seccion_id <> m.seccion_id OR ca.area_id <> @area)) AS notas_en_carga_ajena,
+  (SELECT COUNT(*) FROM calificaciones c
+    WHERE c.competencia_id = @competencia AND c.periodo_id = @periodo
+      AND NOT EXISTS (SELECT 1 FROM bloqueos_competencia bc
+                       WHERE bc.carga_id       = c.carga_id
+                         AND bc.competencia_id = @competencia
+                         AND bc.periodo_id     = @periodo)) AS sin_bloqueo;
+
 -- 3.d Los 4 que llegaron después siguen SIN nota de B1. Debe dar 0 filas.
 SELECT c.matricula_id
 FROM calificaciones c
@@ -370,6 +502,12 @@ WHERE c.competencia_id = @competencia AND c.periodo_id = @periodo
 -- ════════════════════════════════════════════════════════════════════
 -- Acotado a lo que creó esta migración: la competencia C57 del I Bimestre y
 -- solo las filas marcadas como extraordinarias. Ejecutar en este orden.
+--
+-- ⚠️ "Lo que creó esta migración" == "toda extraordinaria de C57 en B1" SOLO
+--   porque el PASO 1.c verificó `notas_previas = 0`. Si ese conteo NO dio 0, este
+--   DELETE se lleva por delante notas que registró otra persona por Rectificación:
+--   en ese caso hay que acotarlo a mano (p. ej. por `rectificado_en`, la marca de
+--   tiempo de la corrida). Verificar antes de ejecutar.
 --
 -- SET @periodo := (SELECT id FROM periodos WHERE numero = 1
 --                   AND anio_id = (SELECT id FROM anios_academicos
