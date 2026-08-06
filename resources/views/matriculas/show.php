@@ -474,7 +474,7 @@ $labelDoc = [
         <div class="mat-accion">
             <div class="mat-accion__info">
                 <span class="mat-accion__titulo">Exonerar de área</span>
-                <span class="mat-accion__desc">Registra una exoneración vigente para este año (ej. Educación Religiosa): el área queda sin evaluación para el estudiante. No procede si ya tiene notas registradas en el área.</span>
+                <span class="mat-accion__desc">Registra una exoneración vigente para este año (ej. Educación Religiosa): el área queda sin evaluación para el estudiante. Si ya tiene notas en el área, se puede registrar igual, pero esas calificaciones dejarán de mostrarse en la boleta y saldrá EXO en los cuatro bimestres.</span>
             </div>
             <div class="mat-accion__control" data-exonerar-control hidden>
                 <button type="button" class="btn btn--secondary" data-exonerar-toggle>Exonerar</button>
@@ -492,6 +492,18 @@ $labelDoc = [
                 <label class="form-label" for="motivo_exo">Motivo</label>
                 <input type="text" id="motivo_exo" name="motivo" class="form-input"
                        placeholder="Ej. Solicitud escrita del apoderado" maxlength="255">
+                <?php // Obligatoria SOLO si el alumno ya tiene notas del año en esa
+                      // area; el servidor lo comprueba y sin ella rechaza el registro. ?>
+                <label class="form-check">
+                    <input type="checkbox" name="confirmar_notas" value="1">
+                    <span>
+                        Si ya tiene calificaciones en esa área, confirmo que
+                        <strong>dejarán de mostrarse</strong> en su boleta —incluidas las
+                        de bimestres cerrados y entregados— y que saldrá <strong>EXO</strong>
+                        en los cuatro bimestres. Las notas no se borran: si se revoca la
+                        exoneración, reaparecen.
+                    </span>
+                </label>
                 <div class="btn-group">
                     <button type="button" class="btn btn--secondary" data-exonerar-cancel hidden>Cancelar</button>
                     <button type="submit" class="btn btn--primary">Registrar exoneración</button>

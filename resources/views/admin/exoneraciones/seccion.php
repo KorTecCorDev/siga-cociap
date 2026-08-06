@@ -121,6 +121,21 @@
                        placeholder="Ej: Razones de salud, creencias religiosas, etc.">
             </div>
 
+            <?php // Solo hace falta si el alumno YA TIENE notas del año en esa área;
+                  // el servidor lo comprueba y sin la casilla rechaza el registro. ?>
+            <div class="form-group form-group--full">
+                <label class="form-check">
+                    <input type="checkbox" name="confirmar_notas" value="1">
+                    <span>
+                        Si el alumno ya tiene calificaciones registradas en esa área,
+                        confirmo que <strong>dejarán de mostrarse en su boleta</strong>
+                        —incluidas las de bimestres ya cerrados y entregados— y que en su
+                        lugar aparecerá <strong>EXO</strong> en los cuatro bimestres.
+                        Las notas no se borran: si la exoneración se revoca, reaparecen.
+                    </span>
+                </label>
+            </div>
+
             <div class="form-actions form-actions--full">
                 <button type="submit" class="btn btn--primary">
                     Registrar exoneración
