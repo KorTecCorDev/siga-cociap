@@ -258,6 +258,43 @@ queda como traza de auditoría histórica. Se muestra junto al badge en `index` 
 - **Revocar** sigue SOLO en `/admin/exoneraciones/{seccion}` (el form desplegable
   enlaza "Revocar en Exoneraciones").
 
+### Exonerar a un alumno QUE YA TIENE NOTAS (05/08/2026) — deroga el candado del 07/07
+
+> **Caso real que lo motivó:** una estudiante con calificaciones en un bimestre
+> **cerrado** y otro **abierto** solicita la exoneración. Hasta hoy no tenía salida.
+
+El candado del 07/07 (`tieneNotasVivas` → rechazo) dejaba el caso sin solución, porque:
+
+- mira **TODO EL AÑO**, así que limpiar el bimestre abierto no bastaba mientras el
+  cerrado conservara una sola nota; y
+- las del bimestre cerrado **no se pueden borrar**: `periodoEstaBloqueado` bloquea todo
+  periodo cerrado, y reabrirlo lo dejaría sin poder re-cerrarse (guard de evaluación
+  incompleta). El "elimina las notas primero" que pedía el mensaje **no era ejecutable**.
+
+**Regla nueva:** el aviso se conserva pero es **franqueable con confirmación explícita**
+(`confirmar_notas`, casilla en los dos formularios; sin ella el POST se rechaza, así que
+el clic accidental sigue protegido). Punto único: `ExoneracionController::confirmacionDeNotasVivas()`.
+
+**Decisión del usuario: la exoneración manda sobre las notas, en LOS CUATRO BIMESTRES**
+—incluidos los ya cursados y aprobados—. `ExoneracionModel::inyectarEnAreas` sobrescribe
+siempre con `EXO`; ya no distingue si había notas.
+
+- **Las notas NO se borran de `calificaciones`**, solo dejan de mostrarse. Eso hace la
+  exoneración **reversible** (al revocarla reaparecen) y evita tener que reabrir un
+  bimestre cerrado, cosa hoy imposible.
+- El **docente** ve `EXO` sin input en su grilla (comportamiento que ya existía).
+- ⚠️ **La boleta de un bimestre YA ENTREGADO cambia hacia atrás** (decía la nota, pasa a
+  decir EXO) y **el acta que ya se subió al SIAGIE conserva la nota**: esa divergencia se
+  gestiona fuera de SIGA.
+- ✅ El **snapshot de orden de mérito NO se toca** (es inmutable): el puesto de ese
+  bimestre sigue calculado con la nota que hubo, y **nadie más se mueve de puesto**.
+- 🔴 **PENDIENTE (medido, sin resolver):** el **orden de mérito EN VIVO sigue promediando
+  las notas del área exonerada**, porque las queries del ranking no miran `exoneraciones`.
+  Medido en un caso de prueba: promedio 17.17 con el área contra 17.19 sin ella (2 notas).
+  Antes no se manifestaba —un exonerado nunca tenía notas—; al permitir esto, se activa.
+  Hoy el impacto es **nulo** (la única exoneración vigente tiene 0 notas), pero **aparece
+  en cuanto se registre la primera exoneración sobre notas existentes**.
+
 ## Notas autorizadas por dirección para SIAGIE (14/07/2026)
 
 > El SIAGIE exige la nota de cada competencia evaluada para TODA la sección y no

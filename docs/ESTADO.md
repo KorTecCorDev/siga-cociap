@@ -275,6 +275,23 @@
       que se dupliquen cuando el alumno sí tiene agregación.
   - **Abierto (diferido por el usuario):** si van al SIAGIE. No bloquea F1 ni F2; conviene
     resolverlo antes de F4.
+- ✅ **EXONERAR A UN ALUMNO QUE YA TIENE NOTAS — IMPLEMENTADO EN LOCAL (05/08/2026), EN
+  `dev`, SIN MIGRACIÓN.** Deroga el candado del 07/07, que dejaba sin salida el caso real
+  (estudiante con notas en un bimestre CERRADO y otro abierto): miraba todo el año y las
+  notas del cerrado no se pueden borrar (`periodoEstaBloqueado`), así que su "elimina las
+  notas primero" **no era ejecutable**. Ahora el aviso es **franqueable con confirmación
+  explícita** (`confirmar_notas`). Regla completa en `docs/modulos/matriculas.md`.
+  - **Decisión del usuario: EXO en los CUATRO bimestres**, incluidos los ya cursados.
+    Las notas **no se borran** (reversible; al revocar reaparecen). Probado en transacción
+    con rollback: `B1=A B2=A` pasa a `EXO EXO EXO EXO`, anual EXO, 4 notas intactas en BD
+    y snapshot de B1 en 528 filas.
+  - ⚠️ Asumido: la boleta de un bimestre ya entregado cambia hacia atrás y el acta del
+    SIAGIE conserva la nota (divergencia a gestionar fuera de SIGA).
+  - 🔴 **PENDIENTE ABIERTO: el orden de mérito EN VIVO sigue promediando las notas del
+    área exonerada** (las queries del ranking no miran `exoneraciones`). Medido: 17.17 con
+    el área vs 17.19 sin ella. Hoy es inocuo (la única exoneración vigente tiene 0 notas);
+    **se activa con la primera exoneración sobre notas existentes**. Decisión pendiente
+    del usuario: excluir del mérito las áreas exoneradas.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
