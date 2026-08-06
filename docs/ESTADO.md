@@ -13,10 +13,10 @@
   `p.fecha_fin >= r.fecha_retorno`, así que **no puede** tocar un bimestre anterior al
   retorno. Idempotente (verificada con 2 corridas: 1 fila y luego 0). Probada
   ejecutando el archivo real en transacción con ROLLBACK.
-  **APLICADA EN LOCAL** (verificado el 05/08: `inasistencias` pasó de 1053 a 1052 y
-  la fila de la matrícula oficial en B2 ya no existe). **PENDIENTE DE CONFIRMAR EN
-  PROD.** Antes de correrla, ejecutar el PREVIEW del propio archivo: debe devolver
-  **exactamente 1 fila** (si devuelve 0, ya está aplicada).
+  **APLICADA EN LOCAL Y PROD** (local verificado el 05/08: `inasistencias` pasó de 1053
+  a 1052 y la fila de la matrícula oficial en B2 ya no existe; **PROD el 05/08/2026,
+  confirmado por el usuario**, antes del merge `dev`→`main` que desplegó el lote de
+  boleta/borradores/exoneraciones).
   Ver `docs/modulos/retorno-grado.md`.
 - **`046_orden_merito_inmutable`** (24/07): Fase B del rediseño del orden de mérito.
   Additiva: `periodos_publicacion.primera_publicacion_en` (marca monotónica de primera
@@ -44,6 +44,8 @@
   **APLICADA EN LOCAL Y PROD.** En prod se importó a mano (phpMyAdmin) el
   **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
   código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
+- **LOCAL y PROD: AL DÍA HASTA LA `047`** (la 047 en prod el 05/08/2026). La siguiente
+  será la **`048`** del registro retroactivo de notas, aún sin implementar.
 - **LOCAL y PROD: al día hasta la `045`.** En prod: 038-043 el 20/07/2026, 044 y
   045 el 22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
   había saltado al aplicarse suelta; se corrió el **22/07/2026** (estructura
