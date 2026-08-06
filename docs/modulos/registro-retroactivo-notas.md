@@ -180,7 +180,7 @@ que saber a cuántas boletas afecta antes de desplegarlo.
 **Verificación:** los 6 casos pasan a guion en B1; un alumno con registro real conserva
 sus cifras; el Total anual no cambia (ya sumaba solo bimestres con registro).
 
-### F2 · Modelo de datos unificado — *migración `048`*
+### F2 · Modelo de datos unificado — *migración `049`*
 
 ```sql
 CREATE TABLE IF NOT EXISTS calificaciones_retroactivas (
@@ -264,7 +264,7 @@ retroactiva **no** debe duplicarla (gana la agregada, que es la evaluación real
 ### Orden de commits previsto
 
 1. `feat(boleta): la asistencia de un bimestre sin registro sale en guion` (F1)
-2. `feat(db): migracion 048 …` (F2, tabla + drop)
+2. `feat(db): migracion 049 …` (F2, tabla + drop)
 3. `feat(notas): registro retroactivo de calificaciones en bimestres cerrados` (F3)
 4. `feat(boleta): la boleta muestra las calificaciones retroactivas` (F4)
 5. `test(verificaciones): …` (F5) + `docs(notas): …`
@@ -321,6 +321,6 @@ Además, en cada fase: `php -l` de lo tocado y `npx gulp build` si toca SASS (F3
 ## 10. Estado del repo al escribir este plan
 
 `dev` = `62d996c`, **21 commits por delante de `origin/main`** (`de449e2`), árbol limpio.
-Ese lote pendiente **no lleva migración**; este plan sí (la `048`), así que al desplegar
+Ese lote pendiente **no lleva migración**; este plan sí (la `049`), así que al desplegar
 habrá que aplicarla a mano en prod **antes** del merge, como se hizo con la `044` y la
 `045`. Última migración aplicada: `047`.

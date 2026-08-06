@@ -4,6 +4,17 @@
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **05/08/2026**.
 
 ## Migraciones
+- **`048_limpieza_backups_conducta_541`** (05/08): retira las dos tablas de respaldo que
+  dejó la limpieza quirúrgica de conducta del 24/07 (`_bkp_conducta_resp_541` con 10 filas
+  y `_bkp_calif_conducta_541` con 0). **La condición acordada se cumplió**: la conducta de
+  B2 de su sección (18) está cerrada en sus DOS etapas — cierre id 33, `ra_bloqueado_en`
+  24/07 16:14 y `tutor_cerrado_en` 31/07 12:32, sin anular.
+  Trae **PASO 1 de verificación (solo lectura) que debe devolver `PUEDE_BORRARSE`**, el
+  `DROP` y una verificación posterior. Idempotente (`IF EXISTS`).
+  🔴 **IRREVERSIBLE y NO probable con rollback**: `DROP TABLE` es DDL y MySQL hace commit
+  implícito. Si se quiere conservar el dato, exportarlo antes con `mysqldump` (el comando
+  está en el propio archivo). **PENDIENTE EN LOCAL Y EN PROD** — el archivo está listo;
+  no se ejecutó en ninguno de los dos entornos por ser irreversible.
 - **`047_retorno_grado_asistencia_solapada`** (05/08): corrección de DATOS (no toca
   esquema). Borra la fila de `inasistencias` que quedó en la matrícula **OFICIAL** de
   un retorno de grado cuando la **OPERATIVA** ya tiene fila del mismo bimestre. Con
@@ -44,8 +55,9 @@
   **APLICADA EN LOCAL Y PROD.** En prod se importó a mano (phpMyAdmin) el
   **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
   código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
-- **LOCAL y PROD: AL DÍA HASTA LA `047`** (la 047 en prod el 05/08/2026). La siguiente
-  será la **`048`** del registro retroactivo de notas, aún sin implementar.
+- **LOCAL y PROD: AL DÍA HASTA LA `047`** (la 047 en prod el 05/08/2026). La **`048`**
+  (limpieza de respaldos) está escrita pero SIN aplicar en ninguno de los dos entornos.
+  La **`049`** será la del registro retroactivo de notas, aún sin implementar.
 - **LOCAL y PROD: al día hasta la `045`.** En prod: 038-043 el 20/07/2026, 044 y
   045 el 22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
   había saltado al aplicarse suelta; se corrió el **22/07/2026** (estructura
@@ -231,7 +243,7 @@
 - **NOTAS DE BIMESTRES CERRADOS PARA QUIEN LLEGÓ DESPUÉS — PLAN DE IMPLEMENTACIÓN LISTO,
   SIN IMPLEMENTAR (05/08/2026).** Plan completo con fases, archivos y SQL:
   **`docs/modulos/registro-retroactivo-notas.md`** (empezar por §6 **F0**).
-  - **Lleva migración `048`** (tabla `calificaciones_retroactivas` + `DROP notas_externas`)
+  - **Lleva migración `049`** (tabla `calificaciones_retroactivas` + `DROP notas_externas`)
     → al desplegar hay que aplicarla a mano en prod ANTES del merge, como la 044 y la 045.
   - 🔴 **F0 es BLOQUEANTE y de solo lectura:** contar en PROD las 5 tablas de los
     mecanismos a unificar. Si alguna trae filas, la migración cambia y el `DROP` deja de
