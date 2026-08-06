@@ -410,9 +410,10 @@
       Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
       (ROSALES STEPHANO), **6 filas con conclusión**, hasta 233 caracteres. Es la boleta
       que hay que mirar para dar por buena esa sección.
-- ✅ **LAS 4 REAPERTURAS DEL PANEL DE BLOQUEOS EXIGEN EL BIMESTRE ACTIVO — HECHO Y
-  PROBADO EN LOCAL (06/08/2026, commits `213abc0` y `2122345`). EN `dev`, SIN DESPLEGAR.**
-  Sin migración y sin SASS (reusa `.btn:disabled`). Detalle en `docs/modulos/admin.md`.
+- ✅ **LAS 4 REAPERTURAS DEL PANEL DE BLOQUEOS EXIGEN EL BIMESTRE ACTIVO — EN PRODUCCIÓN
+  (06/08/2026, commits `213abc0` y `2122345`, desplegados el mismo día en `83c87f5`).**
+  Probado en local por el usuario antes del deploy. Sin migración y sin SASS (reusa
+  `.btn:disabled`). Detalle en `docs/modulos/admin.md`.
   - **El defecto:** con el bimestre **cerrado**, los 4 botones destructivos del panel
     (`desbloquear` competencia, `reabrirTransversal`, `reabrirConducta`,
     `reabrirAsistencia`) funcionaban **sin dar error** y sin validar el estado del
@@ -1351,16 +1352,22 @@ WHERE id=25;`).
     conflictos y árbol idéntico a `dev`, porque `main` no aporta contenido. Se resolvió con
     `git merge --abort`, sin pérdida. **Estando en `dev`, `git pull` a secas**:
     `branch.dev.merge` ya apunta a `refs/heads/dev`.
-- **06/08/2026 (noche) — `dev` acumula el PRIMER CÓDIGO sin desplegar desde el deploy del
-  05/08.** Hasta esta tarde `dev` solo llevaba SQL y documentación; ahora suma el fix de
-  las 4 reaperturas del panel de bloqueos (`213abc0` + `2122345`), **probado en local por
-  el usuario**. `origin/main` sigue en `c8681da`.
-  - **Sin migración**: el deploy sería merge + push. **NO autorizado todavía.**
-  - ⚠️ **Decisión pendiente de calendario:** este fix toca el panel que se usa **durante**
-    el cierre de B2. Desplegarlo antes del cierre lo estrena en el momento de mayor
-    presión; después, deja unos días más el botón que borra datos sin avisar. El fix es
-    defensivo (solo **impide** acciones), lo que juega a favor de desplegarlo ya.
-  - **La migración `051`** (limpieza de los 130 bloqueos fantasma) está **planificada, no
+- **06/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `c8681da` a `83c87f5`** (merge
+  commit, como el del 05/08). **19 commits**, árbol de `main` idéntico al de `dev`.
+  - **Lo único que cambia de comportamiento en prod es el guard de las 4 reaperturas**
+    del panel de bloqueos: de los 11 archivos del lote, solo **2 son código**
+    (`BloqueoController.php` y `bloqueos/index.php`). El resto son las migraciones **048 y
+    050 —ya aplicadas en prod, viajan como archivos inertes—** y documentación (los 3
+    planes nuevos, el runbook y este ESTADO).
+  - **Riesgo bajo por construcción:** el fix es **defensivo**, solo IMPIDE acciones que
+    antes destruían datos en silencio; ninguna acción que ya funcionaba deja de hacerlo.
+    Por eso se desplegó **antes** de cerrar B2 pese a tocar el panel que se usa durante el
+    cierre.
+  - **Verificado antes de mergear:** `main` local **sí** estaba al día con `origin/main`
+    (la trampa recurrente no mordió esta vez), `php -l` en los 2 archivos, 0 archivos
+    sensibles en el diff, **0 cambios en SASS/JS** (no hacía falta `gulp build` ni había
+    riesgo de CSS desincronizado) y **ninguna migración pendiente de aplicar**.
+  - **La migración `051`** (limpieza de los 130 bloqueos fantasma) sigue **planificada, no
     escrita**, y depende de que antes se implemente F1 del plan de transversales.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
