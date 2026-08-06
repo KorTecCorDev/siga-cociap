@@ -4,7 +4,11 @@
 -- CONTEXTO. El 22/07/2026 se marcó como `retirado` a la matrícula 541 (DNI
 --   63361405, 3.º A primaria, sección 18) y el 24/07 se hizo en PRODUCCIÓN una
 --   limpieza quirúrgica de su conducta del II Bimestre: se eliminaron 10 filas
---   de `conducta_respuestas` (no tenía fila en `calificaciones_conducta`).
+--   de `conducta_respuestas` (no tenía fila en `calificaciones_conducta` DEL II
+--   BIMESTRE; por eso `_bkp_calif_conducta_541` quedó en 0 filas).
+--   ⚠️ No confundir: la 541 SÍ tiene una fila viva en `calificaciones_conducta`,
+--   pero es del I BIMESTRE (literal AD, registrada el 23/05) y esta migración no
+--   la toca. Verificado el 06/08/2026.
 --
 --   Esa limpieza dejó DOS TABLAS DE RESPALDO como red de seguridad, con el
 --   acuerdo explícito de borrarlas "tras el cierre de conducta de la sección A":
