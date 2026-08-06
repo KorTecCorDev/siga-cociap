@@ -240,8 +240,10 @@ Parar y no cerrar si:
 
 ## Después del cierre
 
-- [ ] Borrar los backups de conducta de prod `_bkp_conducta_resp_541` y
-      `_bkp_calif_conducta_541`, tras el cierre de conducta de la sección A.
+- [x] ~~Borrar los backups de conducta de prod `_bkp_conducta_resp_541` y
+      `_bkp_calif_conducta_541`, tras el cierre de conducta de la sección A.~~
+      **HECHO el 06/08/2026** con la migración 048, antes de cerrar B2: la condición
+      real era el cierre de conducta de esa sección (31/07), no el del bimestre.
 - [ ] **Opción B del guard de empates** (corrección estructural): mover el guard a
       DESPUÉS del bloqueo forzado, dentro de la transacción y con rollback. Es la
       solución correcta al hueco; se decidió no estrenarla bajo la presión del cierre.

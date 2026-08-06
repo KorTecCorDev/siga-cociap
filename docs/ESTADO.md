@@ -12,9 +12,34 @@
   Trae **PASO 1 de verificación (solo lectura) que debe devolver `PUEDE_BORRARSE`**, el
   `DROP` y una verificación posterior. Idempotente (`IF EXISTS`).
   🔴 **IRREVERSIBLE y NO probable con rollback**: `DROP TABLE` es DDL y MySQL hace commit
-  implícito. Si se quiere conservar el dato, exportarlo antes con `mysqldump` (el comando
-  está en el propio archivo). **PENDIENTE EN LOCAL Y EN PROD** — el archivo está listo;
-  no se ejecutó en ninguno de los dos entornos por ser irreversible.
+  implícito. Por eso el archivo insiste en exportar antes (phpMyAdmin → Exportar las 2
+  tablas; `mysqldump` solo si hay shell).
+  ✅ **APLICADA EN PROD el 06/08/2026, confirmada por el usuario.** El PASO 1 devolvió en
+  producción **exactamente** lo previsto: 1 fila, `PUEDE_BORRARSE`, matrícula 541 / DNI
+  63361405 (RODRIGUEZ MENDEZ, GUSTAVO CHRISTIAN), sección 18, `trasladado`, cierre id 33,
+  `ra_bloqueado_en` 2026-07-24 16:14:04 y `tutor_cerrado_en` 2026-07-31 12:32:54, sin
+  anular; y la constancia, 10 y 0 filas. Prod y la copia local coincidían al segundo.
+  ⚠️ **PENDIENTE EN LOCAL**: las dos tablas siguen ahí (verificado el 06/08). Es una
+  divergencia inocua —son respaldos que ningún código lee— pero local ya no refleja prod
+  en este punto.
+  - **Endurecimiento del PASO 1 (06/08, commits `221440f` y `df186f2`), hecho ANTES de
+    aplicarla:** juzgaba por `matriculas.id = 541`, contra la regla de anclar por DNI. Un
+    id que apuntara a otro estudiante habría devuelto un veredicto **válido sobre la
+    sección equivocada**, y un id inexistente devolvía 0 filas, que se lee como "no aplica"
+    en vez de "detente". Ahora exige `id AND dni`, devuelve la identidad junto al veredicto
+    y define 0 filas como aborto. Además: `ORDER BY anio DESC` en el año activo (`LIMIT 1`
+    era no determinista), `LIKE '\_bkp%'` escapado en el PASO 3 (el guion bajo es comodín)
+    y el aviso de que **el PASO 1 no protege al PASO 2** — son sentencias sueltas y pegar
+    el archivo entero ejecuta el `DROP` igual; no es automatizable porque DDL hace commit
+    implícito.
+  - **Auditoría previa (06/08, solo lectura):** 0 claves foráneas apuntando a los
+    respaldos, **ningún código de la aplicación los lee** (`_bkp` solo aparece en el
+    propio `.sql` y en dos docs) y ninguna otra tabla del esquema empieza con `_`. El
+    borrado no podía romper nada en runtime: 10 filas, 16 KB.
+  - **Aclaración que costó una falsa alarma:** la 541 **sí** tiene una fila viva en
+    `calificaciones_conducta`, pero es del **I Bimestre** (literal AD, 23/05). La limpieza
+    del 24/07 fue de B2, y por eso `_bkp_calif_conducta_541` estaba en 0. Quedó anotado en
+    la cabecera del `.sql` para que nadie repita la investigación.
 - **`047_retorno_grado_asistencia_solapada`** (05/08): corrección de DATOS (no toca
   esquema). Borra la fila de `inasistencias` que quedó en la matrícula **OFICIAL** de
   un retorno de grado cuando la **OPERATIVA** ya tiene fila del mismo bimestre. Con
@@ -55,9 +80,11 @@
   **APLICADA EN LOCAL Y PROD.** En prod se importó a mano (phpMyAdmin) el
   **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
   código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
-- **LOCAL y PROD: AL DÍA HASTA LA `047`** (la 047 en prod el 05/08/2026). La **`048`**
-  (limpieza de respaldos) está escrita pero SIN aplicar en ninguno de los dos entornos.
-  La **`049`** será la del registro retroactivo de notas, aún sin implementar.
+- **PROD: AL DÍA HASTA LA `048`** (la 047 el 05/08/2026, la **048 el 06/08/2026**).
+  **LOCAL: al día hasta la `047`** — la 048 no se corrió ahí y los dos respaldos siguen
+  existiendo en local; divergencia inocua (ningún código los lee), pero conviene saberla
+  antes de comparar esquemas. La **`049`** será la del registro retroactivo de notas, aún
+  sin implementar.
 - **LOCAL y PROD: al día hasta la `045`.** En prod: 038-043 el 20/07/2026, 044 y
   045 el 22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
   había saltado al aplicarse suelta; se corrió el **22/07/2026** (estructura
@@ -588,10 +615,11 @@ WHERE id=25;`).
     - **Sí cambia su BOLETA:** como `trasladado` la 541 pasa a calificar para la
       última boleta **OFICIAL** con estructura anual completa vía gestión, donde como
       `retirado` salía forzada a BORRADOR. Ver `docs/modulos/boletas.md`.
-  - ✅ **Condición de borrado de los backups CUMPLIDA (verificado 04/08/2026):** la
-    conducta de B2 tiene **23 cierres** (todas las secciones) y la sección de la 541
-    —3° A, `seccion_id=18`— está entre ellas. **Ya se pueden hacer los `DROP TABLE`
-    de `_bkp_conducta_resp_541` y `_bkp_calif_conducta_541` en prod** (siguen ahí).
+  - ✅ **CERRADO — los backups YA NO EXISTEN en prod (migración 048, 06/08/2026).** La
+    condición se verificó el 04/08 (conducta de B2 con 23 cierres, la sección 18 entre
+    ellos) y el `DROP` se ejecutó el 06/08 tras un PASO 1 que devolvió `PUEDE_BORRARSE`
+    con la identidad completa. Detalle en la migración 048, arriba. **En LOCAL siguen
+    existiendo**: la 048 no se corrió ahí.
 - ✅ **ASISTENCIA DE B2 — REGISTRADA Y BLOQUEADA EN PROD (05/08/2026). Ya NO bloquea el
   cierre.** El usuario amplió `limite_notas` y capturó las 23 secciones entre el 04/08
   16:29 y el 05/08 00:01. **Verificado el 05/08** sobre la copia local sincronizada:
