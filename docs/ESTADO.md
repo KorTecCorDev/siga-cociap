@@ -287,11 +287,16 @@
     y snapshot de B1 en 528 filas.
   - ⚠️ Asumido: la boleta de un bimestre ya entregado cambia hacia atrás y el acta del
     SIAGIE conserva la nota (divergencia a gestionar fuera de SIGA).
-  - 🔴 **PENDIENTE ABIERTO: el orden de mérito EN VIVO sigue promediando las notas del
-    área exonerada** (las queries del ranking no miran `exoneraciones`). Medido: 17.17 con
-    el área vs 17.19 sin ella. Hoy es inocuo (la única exoneración vigente tiene 0 notas);
-    **se activa con la primera exoneración sobre notas existentes**. Decisión pendiente
-    del usuario: excluir del mérito las áreas exoneradas.
+  - ✅ **RESUELTO el mismo día: el ORDEN DE MÉRITO excluye las áreas exoneradas**
+    (decisión del usuario). `NOT EXISTS` sobre `exoneraciones` en las 2 queries que
+    calculan promedio; cubre exoneración por área y por subárea. **Los snapshots guardados
+    NO se tocan** (el de B1 sigue en 528 filas).
+  - **CASO REAL YA REGISTRADO EN LOCAL POR EL USUARIO (05/08, 19:39):** NOLASCO ALVARADO,
+    YURIANA (matrícula **530**, 5.º B primaria), exonerada de Ed. Religiosa con 3 notas
+    ya puestas — 1 en B1 **cerrado** y 2 en B2. Verificado end-to-end: su boleta muestra
+    **EXO en los 4 bimestres** y anual EXO, las 3 notas siguen vivas en la BD, y en el
+    mérito su promedio de B2 baja de **13.38 a 13.21** sin que **cambie ni un puesto** en
+    su grado (39 alumnos). Su puesto congelado de B1 (34, promedio 12.17) queda intacto.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.

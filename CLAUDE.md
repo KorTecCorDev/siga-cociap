@@ -259,6 +259,13 @@ Versión de una línea; el porqué completo está en el doc del módulo.
 - **Mérito EN VIVO = solo competencias BLOQUEADAS** (join a `bloqueos_competencia`, sin
   filtrar `origen`). La cascada ya no desempata por apellido: tras `num_16` es MANUAL y
   el orden lo fija `m.id`.
+- **Las ÁREAS EXONERADAS no entran al promedio del mérito** (`NOT EXISTS` sobre
+  `exoneraciones` en las 2 queries que calculan promedio; cubre exoneración por área y por
+  subárea). Es el cálculo EN VIVO: los snapshots guardados NO se tocan. Nació porque
+  **se puede exonerar a un alumno que YA TIENE notas** (con confirmación explícita) y esas
+  notas **no se borran** —dejan de mostrarse, para que la exoneración sea reversible—, así
+  que sin el filtro la boleta decía EXO y el ranking seguía promediando la nota.
+  Ver `docs/modulos/matriculas.md` y `docs/modulos/orden-merito.md`.
 - **PUBLICAR libera boletas Y orden de mérito juntos**, por nivel, bajo la compuerta 044.
   Cerrar oficializa el mérito pero no lo muestra: claustro y familias lo ven solo cuando
   su nivel está publicado. **CERRAR EXIGE MÉRITO ÍNTEGRO**: 0 empates sin resolver y 0

@@ -221,6 +221,34 @@ su sección sí tienen con nota y a él le faltan, sin omisión ni exoneración,
 ACTIVAS). NO valida "0 competencias sin bloquear" —el propio cierre las fuerza, y ese
 camino maneja las transversales—, que es una diferencia consciente con el diseño (P3).
 
+## Las ÁREAS EXONERADAS salen del cálculo (05/08/2026)
+
+> **Regla:** una competencia cuya área (o subárea) esté exonerada para ese alumno **no
+> entra en el promedio del orden de mérito**. Filtro en las **dos** queries de
+> `OrdenMeritoModel` que calculan promedio (`rankingGradoLive` y `rankingPorSeccion`).
+
+Nació al permitir **exonerar a un alumno que ya tiene notas** (ver
+`docs/modulos/matriculas.md`). Como esas notas **no se borran** —para que la exoneración
+sea reversible y para no tener que reabrir un bimestre cerrado—, sin este filtro el
+sistema quedaba incoherente: la boleta mostraba `EXO` y el ranking seguía promediando la
+nota.
+
+- Cubre las **dos formas de exonerar**: por **área** (`a.id` llega ya resuelta con
+  `COALESCE(sa.area_id, comp.area_id)`, así que alcanza a todas sus subáreas) y por
+  **subárea** suelta. Los `NULL` no generan falsos positivos: una exoneración de área
+  tiene `subarea_id` NULL y `NULL = x` es NULL.
+- ⚠️ **Es el cálculo EN VIVO. Los snapshots guardados NO se tocan** — el de B1 es
+  inmutable (candado `046`) y sigue en 528 filas.
+- **Impacto medido sobre el caso real** (NOLASCO ALVARADO, 5.º B primaria, exonerada de
+  Ed. Religiosa el 05/08 con 3 notas ya puestas, 1 en B1 cerrado y 2 en B2):
+
+```
+Promedio B2:  13.38  ->  13.21     (baja: sus notas de Religión estaban por encima de su media)
+Su puesto:       30  ->     30
+Puestos que cambian en el grado (39 alumnos):  0
+Snapshot de B1: 528 filas, su puesto congelado 34 (promedio 12.17) — intacto
+```
+
 ## El motor de cálculo, auditado (04/08/2026) — DECISIONES CERRADAS, no re-preguntar
 
 Auditoría de `rankingGradoLive` + `aplicarDesempate` a petición del usuario. **No se

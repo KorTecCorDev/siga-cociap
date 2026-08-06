@@ -288,12 +288,12 @@ siempre con `EXO`; ya no distingue si había notas.
   gestiona fuera de SIGA.
 - ✅ El **snapshot de orden de mérito NO se toca** (es inmutable): el puesto de ese
   bimestre sigue calculado con la nota que hubo, y **nadie más se mueve de puesto**.
-- 🔴 **PENDIENTE (medido, sin resolver):** el **orden de mérito EN VIVO sigue promediando
-  las notas del área exonerada**, porque las queries del ranking no miran `exoneraciones`.
-  Medido en un caso de prueba: promedio 17.17 con el área contra 17.19 sin ella (2 notas).
-  Antes no se manifestaba —un exonerado nunca tenía notas—; al permitir esto, se activa.
-  Hoy el impacto es **nulo** (la única exoneración vigente tiene 0 notas), pero **aparece
-  en cuanto se registre la primera exoneración sobre notas existentes**.
+- ✅ **El ORDEN DE MÉRITO excluye las áreas exoneradas** (decisión del usuario, mismo día).
+  Sin ese filtro el documento decía `EXO` mientras el ranking seguía promediando la nota.
+  Las dos queries de `OrdenMeritoModel` que calculan promedio llevan un `NOT EXISTS` sobre
+  `exoneraciones` que cubre las dos formas de exonerar —por **área** (`a.id` ya viene
+  resuelta con `COALESCE`, así que alcanza a sus subáreas) y por **subárea** suelta—.
+  **NO toca los snapshots guardados: es el cálculo EN VIVO.** Ver `orden-merito.md`.
 
 ## Notas autorizadas por dirección para SIAGIE (14/07/2026)
 
