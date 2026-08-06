@@ -20,10 +20,22 @@ $acTotal = (int) $stats['total'];
 $acBloq  = (int) $stats['bloqueadas'];
 $acPct   = $acTotal > 0 ? round($acBloq / $acTotal * 100) : 0;
 
-// Desbloquear SOLO con el bimestre reabierto: con el bimestre cerrado la
-// competencia saldria de la boleta (que muestra solo las bloqueadas) y el
-// docente seguiria sin poder editarla. El guard real vive en el controlador.
+// Las CUATRO reaperturas del panel (competencia, transversal, conducta,
+// asistencia) exigen el bimestre reabierto. Con el bimestre cerrado nadie puede
+// corregir —`periodoEditable` corta por `estado`— y en tres de ellas el dato
+// ademas DESAPARECE del documento mientras tanto. Los botones quedan inertes
+// con el motivo a la vista; el guard real vive en el controlador
+// (`BloqueoController::abortarSiPeriodoCerrado`).
 $periodoActivo = ($periodo['estado'] ?? '') === 'activo';
+
+// La asistencia es la excepcion: NO sale de la boleta (`getDelBimestre` lee
+// `inasistencias` sin mirar el cierre). Su aviso no debe prometer un dano que
+// no ocurre.
+$avisoConductaCerrada   = 'Con el bimestre cerrado no se puede reabrir: la conducta '
+    . 'desapareceria de la boleta de la seccion y nadie podria corregirla. '
+    . 'Reabre el bimestre primero.';
+$avisoAsistenciaCerrada = 'Con el bimestre cerrado no se puede reabrir: nadie podria '
+    . 'registrar ni corregir asistencia hasta reabrirlo. Reabre el bimestre primero.';
 
 $trTotal = (int) ($transStats['total'] ?? 0);
 $trCerr  = (int) ($transStats['cerradas'] ?? 0);
@@ -614,7 +626,12 @@ $_oS  = round(25 - $_pB - $_pP, 2);
                             ?>
                         </td>
                         <td>
-                            <?php if ($st['cerrada']): ?>
+                            <?php if ($st['cerrada'] && !$periodoActivo): ?>
+                                <button type="button" class="btn btn--danger btn--sm" disabled
+                                        title="Con el bimestre cerrado no se puede reabrir: las transversales (TIC/GAMA) desaparecerian de la boleta de la seccion y el tutor seguiria sin poder editarlas. Reabre el bimestre primero.">
+                                    Desbloquear
+                                </button>
+                            <?php elseif ($st['cerrada']): ?>
                                 <form method="POST"
                                       action="<?= url('director/bloqueos/transversal/' . $st['seccion_id'] . '/reabrir') ?>"
                                       onsubmit="return confirm('Desbloquear las transversales de esta seccion? El tutor debera volver a cerrar.')">
@@ -722,6 +739,10 @@ $_oS  = round(25 - $_pB - $_pP, 2);
                                         <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
                                         <button type="submit" class="btn btn--secondary btn--sm">Cerrar (etapa 2)</button>
                                     </form>
+                                    <?php if (!$periodoActivo): ?>
+                                        <button type="button" class="btn btn--danger btn--sm" disabled
+                                                title="<?= e($avisoConductaCerrada) ?>">Reabrir</button>
+                                    <?php else: ?>
                                     <form method="POST"
                                           action="<?= url('director/bloqueos/conducta/' . $cc['seccion_id'] . '/reabrir') ?>"
                                           onsubmit="return confirm('Reabrir la conducta de esta sección? Se anulará el bloqueo del auxiliar.')">
@@ -729,7 +750,11 @@ $_oS  = round(25 - $_pB - $_pP, 2);
                                         <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
                                         <button type="submit" class="btn btn--danger btn--sm">Reabrir</button>
                                     </form>
+                                    <?php endif; ?>
                                 </div>
+                            <?php elseif (!$periodoActivo): /* cerrada, bimestre cerrado */ ?>
+                                <button type="button" class="btn btn--danger btn--sm" disabled
+                                        title="<?= e($avisoConductaCerrada) ?>">Reabrir</button>
                             <?php else: /* cerrada */ ?>
                                 <form method="POST"
                                       action="<?= url('director/bloqueos/conducta/' . $cc['seccion_id'] . '/reabrir') ?>"
@@ -811,6 +836,9 @@ $_oS  = round(25 - $_pB - $_pP, 2);
                                     <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
                                     <button type="submit" class="btn btn--secondary btn--sm">Bloquear</button>
                                 </form>
+                            <?php elseif (!$periodoActivo): ?>
+                                <button type="button" class="btn btn--danger btn--sm" disabled
+                                        title="<?= e($avisoAsistenciaCerrada) ?>">Reabrir</button>
                             <?php else: ?>
                                 <form method="POST"
                                       action="<?= url('director/bloqueos/asistencia/' . $sa['seccion_id'] . '/reabrir') ?>"

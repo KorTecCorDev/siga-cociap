@@ -230,6 +230,33 @@ class BloqueoController extends BaseController
      * vigente se ANULA con traza de quién/por qué (la nota agregada TIC/GAMA de
      * la boleta depende del cierre, no de cada bloqueo individual).
      */
+    /**
+     * Guard comun de las CUATRO reaperturas del panel (competencia, transversal,
+     * conducta, asistencia): ninguna procede con el bimestre cerrado.
+     *
+     * El motivo es el mismo en las cuatro: `periodoEditable`/`periodoEstaBloqueado`
+     * cortan por `estado='cerrado'` SIN mirar el bloqueo, asi que reabrir no
+     * habilita a nadie a corregir. Y en tres de ellas, ademas, el dato
+     * DESAPARECE del documento mientras tanto: la boleta pinta solo competencias
+     * bloqueadas, `getTransversalesAgregadas` exige cierre vigente y
+     * `ConductaModel::getParaPeriodo` devuelve null sin el. La asistencia es la
+     * excepcion —`getDelBimestre` lee `inasistencias` directo— pero reabrirla
+     * tampoco sirve de nada, por eso el guard es igual. Cada llamada pasa SU
+     * mensaje: el efecto no es identico y el aviso no debe mentir.
+     *
+     * La via correcta siempre es reabrir el bimestre (`PeriodoController::reabrir`).
+     * Mismo criterio que `limpiarBloqueosCierre`, que ya lo exigia.
+     */
+    private function abortarSiPeriodoCerrado(int $periodoId, string $back, string $mensaje): void
+    {
+        $periodo = $this->calModel->queryOne(
+            "SELECT estado FROM periodos WHERE id = ?", [$periodoId]
+        );
+        if (!$periodo || $periodo['estado'] !== 'activo') {
+            $this->redirectWithError($back, $mensaje);
+        }
+    }
+
     public function desbloquear(string $id): void
     {
         $this->validateCsrf();
@@ -254,23 +281,15 @@ class BloqueoController extends BaseController
         $cargaId   = (int) $bloqueo['carga_id'];
         $back      = url("director/bloqueos?periodo_id={$periodoId}");
 
-        // Con el bimestre CERRADO desbloquear no sirve y ademas hace dano: la
-        // boleta muestra SOLO competencias bloqueadas, asi que la nota
-        // desapareceria del documento de todos los alumnos de la carga (y con
-        // la cascada de abajo, tambien sus TIC/GAMA), mientras que el docente
-        // seguiria sin poder editarla — `periodoEstaBloqueado` corta por
-        // `estado='cerrado'` sin mirar el bloqueo. La via correcta es reabrir.
-        // Mismo criterio que `limpiarBloqueosCierre`, que ya lo exigia.
-        $periodo = $this->calModel->queryOne(
-            "SELECT estado FROM periodos WHERE id = ?", [$periodoId]
+        // La boleta muestra SOLO competencias bloqueadas: con el bimestre
+        // cerrado, quitar el bloqueo saca la nota del documento de todos los
+        // alumnos de la carga (y con la cascada de abajo, tambien sus TIC/GAMA).
+        $this->abortarSiPeriodoCerrado(
+            $periodoId,
+            $back,
+            'No se puede desbloquear con el bimestre cerrado: la competencia desapareceria '
+            . 'de la boleta y el docente seguiria sin poder editarla. Reabre el bimestre primero.'
         );
-        if (!$periodo || $periodo['estado'] !== 'activo') {
-            $this->redirectWithError(
-                $back,
-                'No se puede desbloquear con el bimestre cerrado: la competencia desapareceria '
-                . 'de la boleta y el docente seguiria sin poder editarla. Reabre el bimestre primero.'
-            );
-        }
 
         $transLiberadas = 0;
         try {
@@ -489,6 +508,16 @@ class BloqueoController extends BaseController
         }
         $back = url("director/bloqueos?periodo_id={$periodoId}");
 
+        // Sin cierre vigente, `getTransversalesAgregadas` corta y TIC/GAMA salen
+        // de la boleta de toda la seccion.
+        $this->abortarSiPeriodoCerrado(
+            $periodoId,
+            $back,
+            'No se puede reabrir con el bimestre cerrado: las competencias transversales '
+            . '(TIC/GAMA) desaparecerian de la boleta de la seccion y el tutor seguiria sin '
+            . 'poder editarlas. Reabre el bimestre primero.'
+        );
+
         $ok = $this->transModel->anularCierreVigente(
             $seccionId, $periodoId, (int) $user['id'],
             'Reapertura del cierre transversal por el director desde el panel de bloqueos.'
@@ -575,6 +604,15 @@ class BloqueoController extends BaseController
         }
         $back = url("director/bloqueos?periodo_id={$periodoId}");
 
+        // Sin cierre vigente, `ConductaModel::getParaPeriodo` devuelve null (su
+        // campo `visible`) y la conducta sale de la boleta de toda la seccion.
+        $this->abortarSiPeriodoCerrado(
+            $periodoId,
+            $back,
+            'No se puede reabrir con el bimestre cerrado: la conducta desapareceria de la '
+            . 'boleta de la seccion y nadie podria corregirla. Reabre el bimestre primero.'
+        );
+
         $ok = $this->conductaModel->anularCierre(
             $seccionId, $periodoId, (int) $user['id'],
             'Reapertura del cierre de conducta por el director desde el panel de bloqueos.'
@@ -633,6 +671,18 @@ class BloqueoController extends BaseController
             $this->redirectWithError(url('director/bloqueos'), 'Periodo no especificado.');
         }
         $back = url("director/bloqueos?periodo_id={$periodoId}");
+
+        // A diferencia de las otras tres, la asistencia NO sale de la boleta
+        // (`getDelBimestre` lee `inasistencias` sin mirar el cierre). Pero
+        // `AsistenciaModel::periodoEditable` exige el periodo `activo`, asi que
+        // reabrir dejaria la seccion en un estado que nadie puede tocar. El
+        // mensaje lo dice tal cual: aqui no se pierde ningun dato.
+        $this->abortarSiPeriodoCerrado(
+            $periodoId,
+            $back,
+            'No se puede reabrir con el bimestre cerrado: nadie podria registrar ni corregir '
+            . 'asistencia hasta reabrirlo. Reabre el bimestre primero.'
+        );
 
         $ok = $this->asistenciaModel->anularCierre(
             $seccionId, $periodoId, (int) $user['id'],
