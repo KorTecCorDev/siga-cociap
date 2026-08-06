@@ -429,10 +429,18 @@
     en un panel de dirección. Sospecha por verificar: podría explicar parte de las **48
     anulaciones sobre 71 cierres transversales** de B2, vía la cascada de desbloqueo.
   - **B1 no se toca** (774 forzadas allí son del modelo viejo, carga única del tutor).
-  - **Decisiones abiertas:** si se borran los 130 fantasmas ya creados en B2 (recomendado,
-    con verificación previa de que no hay notas colgando) y si el tutor puede **escribir**
-    conclusiones sobre un promedio parcial (recomendado que NO: la conclusión quedaría
-    describiendo un promedio que aún puede cambiar).
+  - ✅ **DECISIONES CERRADAS (06/08/2026, no re-preguntar):** **(1)** los 130 fantasmas de
+    B2 **se borran** con una migración de DATOS **`051`** (la `049` sigue reservada al
+    registro retroactivo) — el PASO 1 aborta si aparece un solo caso de "olvido real" o si
+    alguna de esas cargas tiene notas transversales colgando, y **F1 va antes o en el
+    mismo despliegue**, o el siguiente cierre los recrea. **(2)** El tutor **solo mira**
+    hasta tener el promedio final: nada de conclusiones sobre un parcial, y el guard va
+    **en servidor** (`guardarConclusion` hoy NO comprueba `$listo`, así que ocultar el
+    textarea sería cosmético). **(3)** El resumen del tutor **sí muestra el nombre de la
+    carga y del docente**: esto **DEROGA** la regla de `tutoria.php:55` ("no se expone el
+    detalle por carga ni el nombre de otros docentes"), nacida el **14/06/2026** en
+    `73838d1`. Al implementar hay que **reescribir ese comentario**, o el código afirmará
+    lo contrario de lo que hace. La protección del DNI del mismo lote **no se toca**.
 - **PROPUESTA "BLOQUEAR TRANSVERSALES ANTES QUE LAS ACADÉMICAS" — EVALUADA (06/08/2026):
   ya es posible y no destraba nada por sí sola.** `bloquear()` es por competencia y admite
   transversales, sin guard de orden: **64 cargas de B2 (16%) ya lo hacen**. Lo que frena

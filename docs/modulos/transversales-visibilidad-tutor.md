@@ -1,9 +1,17 @@
 # Transversales: bloqueos fantasma del cierre + visibilidad del tutor (PLAN)
 
-> **Estado: PLAN, SIN IMPLEMENTAR (06/08/2026).** Nace de una observación del usuario
-> sobre `/admin/control` en el II Bimestre y de evaluar la propuesta de "bloquear las
-> transversales antes que las académicas". Sin migración de esquema.
+> **Estado: PLAN COMPLETO Y APROBADO, SIN IMPLEMENTAR (06/08/2026).** Nace de una
+> observación del usuario sobre `/admin/control` en el II Bimestre y de evaluar la
+> propuesta de "bloquear las transversales antes que las académicas".
+> **Sin migración de esquema; sí una migración de DATOS (`051`) en F2.**
 > Contexto del módulo: `docs/modulos/calificaciones.md` §"Transversales por docente".
+>
+> **Decisiones cerradas del usuario (06/08/2026 — no re-preguntar):**
+> **(1)** los 130 bloqueos fantasma de B2 **se borran**;
+> **(2)** el tutor **solo mira** hasta tener el promedio final — nada de escribir
+> conclusiones sobre un parcial, con guard en SERVIDOR;
+> **(3)** el resumen **sí muestra el nombre de la carga y del docente**, derogando la
+> regla de privacidad del 14/06/2026 (`73838d1`).
 
 ---
 
@@ -115,18 +123,32 @@ inserta **130 filas menos** y que el aviso de `/admin/control` baja a **0 compet
 
 ### F2 — Limpieza de los 130 fantasmas ya creados en B2
 
-**🔴 DECISIÓN ABIERTA.** F1 evita los futuros; no borra los existentes. Opciones:
+✅ **DECISIÓN CERRADA (06/08/2026): SE BORRAN.** F1 evita los futuros; esta fase borra los
+existentes para que el panel deje de acusar a 23 docentes por B2.
 
-- **(a) Borrarlos** con un `DELETE` acotado (`periodo_id=2`, `origen='cierre'`, área
-  transversal, cargas TOE o no-dueñas). Deja el panel limpio y quita la acusación.
-  Es una migración de datos con su PASO 1/2/3, como la 047.
-- **(b) Dejarlos** y que el fix rija desde B3. El aviso seguiría mintiendo sobre B2.
+**Migración de datos `051`** (no de esquema), con la estructura de la 047/050:
 
-**Recomendación: (a)**, pero **verificando antes** que ninguna de esas 65 cargas tiene
-calificaciones transversales colgando (si las tuviera, borrar el bloqueo dejaría notas
-huérfanas visibles: el "estado fantasma" que ya persiguió el proyecto). Medido hoy: las
-130 están **sin ningún criterio registrado**, así que el riesgo es bajo — pero se
-comprueba en el PASO 1, no se asume.
+- **PASO 1 (solo lectura, de ABORTO):** la huella del servidor (`DATABASE()`, `USER()`,
+  `@@version_compile_os`) + el recuento clasificado A/B/C. Debe dar **130 filas en A+B y
+  CERO en C**: si aparece una sola en C, hay un olvido real de un docente y **borrarla
+  sería destruir su bloqueo legítimo** → abortar.
+- 🔴 **Guard indispensable:** ninguna de esas 65 cargas puede tener **calificaciones
+  transversales** colgando. Si las tuviera, borrar el bloqueo dejaría notas sin bloqueo
+  —el "estado fantasma" (bloqueo + notas + 0 criterios) que el proyecto ya persiguió— y
+  además cambiaría el promedio agregado. Hoy las 130 están *sin ningún criterio
+  registrado*, así que se espera 0; **se comprueba en el PASO 1, no se asume**.
+- **PASO 2:** `DELETE` acotado por `periodo_id = 2` **AND** `origen = 'cierre'` **AND**
+  área transversal **AND** (carga TOE **OR** no-dueña de unidocente). Envuelto en
+  `START TRANSACTION … COMMIT`, ensayado antes con `ROLLBACK` **en la propia producción**
+  (el procedimiento que funcionó con la 050).
+- **PASO 3:** el aviso de `/admin/control` para B2 debe quedar en **0 competencias / 0
+  cargas / 0 docentes**, y el cierre transversal de las 23 secciones **intacto**.
+- ⚠️ **Numeración:** la `049` sigue **reservada** al registro retroactivo de notas, así
+  que esta es la **`051`**. Al aplicarlas manda la dependencia, no el número (ya pasó con
+  la 050 antes que la 049).
+- ⚠️ **Orden respecto a F1:** si se borran los fantasmas **antes** de arreglar el forzado,
+  el siguiente cierre los vuelve a crear. **F1 va primero, o al menos en el mismo
+  despliegue.**
 
 ### F3 — El tutor ve los promedios parciales y un "Ver resumen"
 
@@ -138,21 +160,30 @@ comprueba en el PASO 1, no se asume.
    - **provisional** — badge "Parcial: N de M cargas aprobadas", fila por alumno con los
      promedios de lo que ya está bloqueado y **guion** donde aún no hay aporte;
    - **definitivo** — el de hoy, cuando `$listo`.
-2. **"Ver resumen" de lo ya aprobado**: bloque desplegable que lista **qué cargas ya
-   bloquearon sus transversales** y cuáles faltan, con el promedio que aporta cada una.
-   ⚠️ **Cuidado con un invariante de privacidad ya decidido:** el comentario de
-   `tutoria.php:55` dice que en estado no-listo **NO se expone el detalle por carga ni el
-   nombre de otros docentes** ("información sensible"). El resumen debe listar **áreas**,
-   no docentes, salvo que el usuario levante esa regla explícitamente.
-3. **Conclusiones con promedio parcial — 🔴 DECISIÓN ABIERTA.** Si el tutor escribe una
-   conclusión sobre un promedio parcial y luego entra otra carga, el promedio puede pasar
-   de B a A y **la conclusión queda describiendo algo que ya no es cierto**. Es la razón
-   probable del gate original. Opciones: (a) parcial = **solo lectura**, se escribe
-   cuando esté completo; (b) permitir escribir con aviso visible de que el promedio puede
-   cambiar. **Recomendación: (a)** — el costo de una conclusión desfasada lo paga la
-   familia en la boleta. El endpoint `guardarConclusion` ya **no** exige `$listo` (solo
-   ausencia de cierre), así que si se elige (a) hay que **añadir el guard en servidor**,
-   no solo en la vista.
+2. **"Ver resumen" de lo ya aprobado**: bloque que lista **qué cargas ya bloquearon sus
+   transversales** y cuáles faltan, con el promedio que aporta cada una.
+   ✅ **DECISIÓN CERRADA (06/08/2026): SE MUESTRAN EL NOMBRE DE LA CARGA Y EL DEL
+   DOCENTE.** Esto **DEROGA** la regla escrita en `tutoria.php:55` —"NO se expone el
+   detalle por carga ni el nombre de otros docentes (información sensible)"—, que nació el
+   **14/06/2026** en el commit `73838d1`, dentro de un lote de protección de datos.
+   - **Al implementar, borrar ese comentario y sustituirlo por la regla nueva con su
+     fecha**, o el código quedará afirmando lo contrario de lo que hace.
+   - `estadoCargasSeccion` **ya devuelve** `nombre_display` y `docente_nombre` por carga:
+     no hace falta tocar el modelo, solo dejar de ocultarlos en la vista.
+   - Alcance de lo que se expone: **área/carga, docente y si sus transversales están
+     aprobadas**. Nada de notas de otras áreas ni datos personales (el mismo lote del
+     14/06 protegía el DNI: **eso no se toca**).
+3. **Conclusiones con promedio parcial:** ✅ **DECISIÓN CERRADA (06/08/2026): el tutor
+   SOLO MIRA hasta tener el promedio final.** Con promedio parcial la tabla es de lectura;
+   escribir conclusiones se habilita cuando todas las cargas aportaron. Razón: una
+   conclusión escrita sobre un parcial puede quedar describiendo un promedio que después
+   cambia (de B a A), y ese error lo paga la familia en la boleta.
+   - 🔴 **El guard va EN SERVIDOR, no solo en la vista.** Hoy `guardarConclusion` solo
+     exige que no haya cierre vigente (`TutoriaController:139`); **no** comprueba
+     `$listo`. Sin ese guard, ocultar el textarea es cosmético: el endpoint sigue
+     aceptando el POST.
+   - El mensaje de estado debe decir **por qué** está en solo lectura ("faltan N cargas
+     por aprobar sus transversales"), no solo que no se puede.
 
 ### F4 — El cierre transversal deja de depender de las académicas
 
