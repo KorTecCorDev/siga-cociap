@@ -254,6 +254,24 @@ class BloqueoController extends BaseController
         $cargaId   = (int) $bloqueo['carga_id'];
         $back      = url("director/bloqueos?periodo_id={$periodoId}");
 
+        // Con el bimestre CERRADO desbloquear no sirve y ademas hace dano: la
+        // boleta muestra SOLO competencias bloqueadas, asi que la nota
+        // desapareceria del documento de todos los alumnos de la carga (y con
+        // la cascada de abajo, tambien sus TIC/GAMA), mientras que el docente
+        // seguiria sin poder editarla — `periodoEstaBloqueado` corta por
+        // `estado='cerrado'` sin mirar el bloqueo. La via correcta es reabrir.
+        // Mismo criterio que `limpiarBloqueosCierre`, que ya lo exigia.
+        $periodo = $this->calModel->queryOne(
+            "SELECT estado FROM periodos WHERE id = ?", [$periodoId]
+        );
+        if (!$periodo || $periodo['estado'] !== 'activo') {
+            $this->redirectWithError(
+                $back,
+                'No se puede desbloquear con el bimestre cerrado: la competencia desapareceria '
+                . 'de la boleta y el docente seguiria sin poder editarla. Reabre el bimestre primero.'
+            );
+        }
+
         $transLiberadas = 0;
         try {
             $this->calModel->beginTransaction();

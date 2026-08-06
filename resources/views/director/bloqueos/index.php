@@ -20,6 +20,11 @@ $acTotal = (int) $stats['total'];
 $acBloq  = (int) $stats['bloqueadas'];
 $acPct   = $acTotal > 0 ? round($acBloq / $acTotal * 100) : 0;
 
+// Desbloquear SOLO con el bimestre reabierto: con el bimestre cerrado la
+// competencia saldria de la boleta (que muestra solo las bloqueadas) y el
+// docente seguiria sin poder editarla. El guard real vive en el controlador.
+$periodoActivo = ($periodo['estado'] ?? '') === 'activo';
+
 $trTotal = (int) ($transStats['total'] ?? 0);
 $trCerr  = (int) ($transStats['cerradas'] ?? 0);
 $trPct   = $trTotal > 0 ? round($trCerr / $trTotal * 100) : 0;
@@ -511,7 +516,16 @@ $_oS  = round(25 - $_pB - $_pP, 2);
                         </td>
 
                         <td>
-                            <?php if ($bloqueada): ?>
+                            <?php if ($bloqueada && !$periodoActivo): ?>
+                                <?php // Inerte y con el motivo a la vista, en vez de
+                                      // desaparecer sin explicacion (mismo patron que los
+                                      // botones de emision de boletas). El guard real esta
+                                      // en el controlador. ?>
+                                <button type="button" class="btn btn--danger btn--sm" disabled
+                                        title="Con el bimestre cerrado no se puede desbloquear: la competencia desapareceria de la boleta y el docente seguiria sin poder editarla. Reabre el bimestre primero.">
+                                    Desbloquear
+                                </button>
+                            <?php elseif ($bloqueada): ?>
                                 <form method="POST"
                                       action="<?= url('director/bloqueos/' . $fila['bloqueo_id'] . '/desbloquear') ?>"
                                       onsubmit="return confirm('Desbloquear esta competencia? El docente podra modificar las notas nuevamente.')">
