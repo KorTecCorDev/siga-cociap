@@ -191,6 +191,7 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | Compuerta temporal de edición y los 4 registros del bimestre (PLAN, sin implementar) | `docs/modulos/cierre-cuatro-registros.md` |
 | Boleta con TODAS las competencias del plan + guion (PLAN, sin implementar) | `docs/modulos/boleta-competencias-completas.md` |
 | **Notas de bimestres cerrados para quien llegó después** (PLAN, sin implementar) | `docs/modulos/registro-retroactivo-notas.md` |
+| **Consulta de notas con transversales y conducta** (PLAN, sin implementar) | `docs/modulos/consulta-notas-ampliada.md` |
 | **Estado vivo: pendientes, migraciones, planes con fecha** | `docs/ESTADO.md` |
 
 ### Reglas de mantenimiento de la red

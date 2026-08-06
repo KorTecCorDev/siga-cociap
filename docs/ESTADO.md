@@ -410,6 +410,28 @@
       Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
       (ROSALES STEPHANO), **6 filas con conclusión**, hasta 233 caracteres. Es la boleta
       que hay que mirar para dar por buena esa sección.
+- **`/consulta-notas` CON TRANSVERSALES Y CONDUCTA — PLAN APROBADO, SIN IMPLEMENTAR
+  (06/08/2026).** Plan completo: **`docs/modulos/consulta-notas-ampliada.md`**.
+  - **Las dos ausencias son estructurales, no un olvido de la vista.** Las transversales
+    no las puede alcanzar `getCompetenciasPorPeriodo`: une competencia↔carga por el área
+    de la CARGA, y las transversales cuelgan de un área propia (`tipo='transversal'`,
+    ids 9 y 21) — **el vínculo transversal↔carga no existe en el esquema**, se resuelve
+    por nivel. La conducta no vive en `calificaciones` (4 tablas propias) y su ciclo es
+    por SECCIÓN en dos etapas. Invisible hoy: **B2 tiene 17 078 notas transversales**.
+  - **Decisiones cerradas (no re-preguntar):** D1 las **dos** caras de las transversales
+    (crudo por carga + agregado por sección); D2 la conducta entra **dentro** de
+    `/consulta-notas` en solo lectura, **sin** ampliar los roles de `/admin/conducta`
+    (tiene escritura); D3 **solo lo oficial** (cierre vigente / las dos etapas).
+  - **Cero métodos de modelo nuevos y sin migración** — verificado con sonda:
+    `getResumenCompetencia` funciona igual sobre una competencia transversal, así que el
+    crudo se pinta con el `_tabla.php` que ya existe.
+  - 🔴 **Dos trampas medidas:** el **bloqueo NO es señal de contenido** en transversales
+    (820 bloqueos / 410 cargas por bimestre, pero solo 23 cargas con notas en B1 → copiar
+    el criterio actual pintaría 410 bloques vacíos); y **B1 y B2 no comparten modelo de
+    conducta** (B1 legado: 528 literales y 0 respuestas). `getEstudiantesParaTutor` ya
+    resuelve las dos, marcando `es_legado`.
+  - **Cierra un hueco de roles real:** `director_general` y `director_ebr` no tienen hoy
+    ninguna forma de ver conducta ni el agregado transversal.
 - **NOTAS DE BIMESTRES CERRADOS PARA QUIEN LLEGÓ DESPUÉS — PLAN DE IMPLEMENTACIÓN LISTO,
   SIN IMPLEMENTAR (05/08/2026).** Plan completo con fases, archivos y SQL:
   **`docs/modulos/registro-retroactivo-notas.md`** (empezar por §6 **F0**).
