@@ -1,7 +1,8 @@
 # PLAN — Registro retroactivo de calificaciones en bimestres cerrados
 
-> **Estado: EN DISEÑO, SIN IMPLEMENTAR** (05/08/2026). Escrito para retomarse en frío.
-> Decisiones cerradas en §4; lo que falta decidir, en §7.
+> **Estado: PLAN DE IMPLEMENTACIÓN LISTO, SIN IMPLEMENTAR** (05/08/2026). Escrito para
+> retomarse en frío. **Empezar por §6 F0**, que es bloqueante y solo lectura.
+> Decisiones cerradas en §4; lo único abierto (SIAGIE) en §7, y no bloquea F1-F3.
 > Módulos relacionados: `calificaciones.md`, `boletas.md`, `matriculas.md`,
 > `orden-merito.md`, `export-siagie.md`.
 
@@ -138,47 +139,141 @@ sus guardas queda obsoleto — retirarlo o dejarlo dormido es parte de F2.
 toca la boleta. Se decide junto con la pregunta del SIAGIE (§7.1, diferida por el
 usuario). Si esa respuesta es "sí van al acta", los tres mecanismos deberían quedar en uno.
 
-## 6. Fases propuestas
+## 6. PLAN DE IMPLEMENTACIÓN
 
-### F1 · Asistencia con guion (independiente, pequeña, sin migración)
-`BoletaModel::armar` marca `sin_registro` también cuando **la matrícula no tiene ninguna
-fila de asistencia en ese periodo**. Hoy solo mira el umbral del bimestre y el estado
-`pendiente`, por eso imprime ceros. **Se puede hacer ya**, sin esperar al resto.
-⚠️ Efecto colateral a validar: también afectaría a un alumno cuya sección nadie registró
-—que hoy también imprime ceros falsos—, lo cual es deseable pero conviene medirlo antes.
+> Orden pensado para que **ningún paso intermedio deje el sistema roto** y para que lo que
+> ya tiene valor se pueda desplegar sin esperar al resto. F1 es independiente: no depende
+> de la migración ni de la grilla.
 
-### F2 · Modelo de datos unificado (migración)
-Tabla nueva (propuesta: `calificaciones_retroactivas`) anclada por **ids**, no por texto:
-`matricula_id`, `periodo_id`, `competencia_id`, `nota_literal` ENUM(AD,A,B,C) NOT NULL,
-`nota_numerica` TINYINT **NULL**, `motivo`, `colegio_origen` NULL, auditoría
-(`registrado_por`, `registrado_en`), UNIQUE (matricula, periodo, competencia).
-En la misma migración: **`DROP TABLE notas_externas`** (D7, está vacía) y decidir el
-retiro del flujo de la extraordinaria (D6).
+### F0 · Verificación previa en PRODUCCIÓN (bloqueante, solo lectura)
+
+Antes de escribir una línea, correr en prod:
+
+```sql
+SELECT 'extraordinarias',    COUNT(*) FROM calificaciones WHERE extraordinaria = 1
+UNION ALL SELECT 'criterios_extra',  COUNT(*) FROM criterios WHERE extraordinario = 1
+UNION ALL SELECT 'rect_extra',       COUNT(*) FROM rectificaciones_calificacion WHERE tipo = 'extraordinaria'
+UNION ALL SELECT 'notas_externas',   COUNT(*) FROM notas_externas
+UNION ALL SELECT 'notas_autoriz',    COUNT(*) FROM notas_autorizadas_siagie;
+```
+
+- **Todo en 0** → el plan procede tal cual.
+- **Alguna > 0** → **PARAR**. Hay que añadir a la migración el traslado de esas filas al
+  modelo nuevo, y `DROP TABLE notas_externas` deja de ser seguro.
+
+### F1 · Asistencia con guion — *independiente, sin migración*
+
+**Problema:** la boleta imprime `0 faltas` en un bimestre que el alumno no cursó.
+`AsistenciaModel::getDelBimestre` devuelve ceros cuando **no hay fila**, y `armar()` no
+distingue ese caso del cero real.
+
+| Archivo | Cambio |
+|---|---|
+| `app/Models/AsistenciaModel.php` | método nuevo `tieneRegistroUnion(array $ids, int $periodoId): bool` (`EXISTS` sobre `inasistencias`) |
+| `app/Models/BoletaModel.php` | en el loop de asistencia, `$sinRegistro` suma `|| !$this->asistenciaModel->tieneRegistroUnion($fuentes, $pa['id'])` |
+
+La vista **no se toca**: ya pinta guion cuando `sin_registro` es `true`.
+
+⚠️ **Medir antes el efecto colateral:** el guion aparecerá también donde una sección
+entera se quedó sin registrar (hoy imprime ceros igual de falsos). Es deseable, pero hay
+que saber a cuántas boletas afecta antes de desplegarlo.
+**Verificación:** los 6 casos pasan a guion en B1; un alumno con registro real conserva
+sus cifras; el Total anual no cambia (ya sumaba solo bimestres con registro).
+
+### F2 · Modelo de datos unificado — *migración `048`*
+
+```sql
+CREATE TABLE IF NOT EXISTS calificaciones_retroactivas (
+    id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    matricula_id   INT UNSIGNED     NOT NULL,
+    periodo_id     SMALLINT UNSIGNED NOT NULL,
+    competencia_id SMALLINT UNSIGNED NOT NULL,
+    nota_literal   ENUM('AD','A','B','C') NOT NULL,   -- SIEMPRE
+    nota_numerica  TINYINT UNSIGNED NULL,             -- NULL = viene de otro colegio
+    motivo         VARCHAR(50)      NOT NULL,
+    colegio_origen VARCHAR(200)     NULL,
+    observacion    TEXT             NULL,
+    registrado_por INT UNSIGNED     NOT NULL,
+    registrado_en  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_retro (matricula_id, periodo_id, competencia_id),
+    KEY idx_periodo (periodo_id)
+);
+DROP TABLE IF EXISTS notas_externas;   -- D7, verificada vacía en F0
+```
+
+- **Idempotente** (`IF NOT EXISTS` / `IF EXISTS`), como las anteriores.
+- **`motivo`**: lista cerrada en PHP (constante tipo `MOTIVOS`, patrón de
+  `OmisionCriterioModel`), no ENUM en BD — así añadir un motivo no exige migración.
+  Arranca con `ingreso_posterior`, `convalidacion_traslado`, `no_registrado_a_tiempo`.
+- **Retirada de la extraordinaria (D6): DORMIR, NO BORRAR.** Se comentan sus 2 rutas en
+  `routes/web.php` (patrón ya usado con las boletas públicas) y se quitan sus enlaces de
+  la UI. El código de `CriterioModel`/`RectificacionController` **se conserva intacto**:
+  borrarlo tocaría el panel del docente, la consulta de notas y el SIAGIE, que hoy
+  funcionan. Se documenta como dormido.
+- Modelo nuevo `app/Models/CalificacionRetroactivaModel.php`.
+- También se retira la UI de `notas_externas`: rutas `/matriculas/{id}/notas-externas`,
+  `MatriculaController::notasExternas`/`storeNotasExternas`, `getNotasExternas`,
+  `registrarNotaExterna` y la vista `matriculas/notas-externas.php`.
 
 ### F3 · Captura en grilla (admin/RA)
-Pantalla por alumno + bimestre cerrado: competencias del plan de su sección agrupadas por
-área —reusando `estructuraCompetenciasSeccion`, que ya existe y **sí incluye las
-transversales** (D8)—, selector AD/A/B/C por fila, campo de motivo y de colegio de origen.
-Guard: solo periodos **cerrados** y solo competencias **sin nota** en `calificaciones`.
+
+- Rutas: `GET|POST /matriculas/{id}/notas-retroactivas` (+ `?periodo=`), junto a las
+  demás de matrícula. `requireRole(['admin','registro_academico'])` + `validateCsrf` en
+  el POST.
+- Entrada desde la **ficha de matrícula** (`matriculas/show.php`), donde hoy está el
+  enlace a notas externas.
+- La grilla se arma con **`CalificacionModel::estructuraCompetenciasSeccion()`** —ya
+  existe, ya agrupa por área y **ya incluye transversales** (D8)—, filtrando las
+  competencias que **sí** tienen nota en `calificaciones`.
+- Un `<select>` AD/A/B/C por competencia (vacío = no se registra), más motivo, colegio de
+  origen y observación para toda la carga. Guardado en **una transacción**.
+- **Guards (re-chequeo en el POST, no solo en la vista):** periodo **cerrado**;
+  competencia **sin nota** en `calificaciones`; competencia **del plan de su sección**;
+  alumno **no exonerado** del área; matrícula del año activo.
 
 ⚠️ **Las transversales exigen camino propio.** Hoy `getCompetenciasInsertables` las
-excluye a propósito, porque una fila cruda en `calificaciones` no llega a la boleta: las
-transversales se muestran **agregadas** desde el cierre del tutor
-(`getTransversalesAgregadas`, que promedia las cargas bloqueadas y exige
-`cierres_transversales` vigente). Un alumno convalidado no tiene nada que promediar, así
-que por esa vía nunca aparecería. **El modelo de F2 lo resuelve solo**: al vivir en tabla
-aparte y unirse al leer, la nota transversal convalidada entra directa a la boleta sin
-pasar por la agregación. Es la razón por la que D8 es viable — pero hay que asegurar que
-las dos fuentes **no se dupliquen** cuando el alumno sí tiene agregación.
+excluye porque una fila cruda en `calificaciones` no llega a la boleta: se muestran
+**agregadas** desde el cierre del tutor (`getTransversalesAgregadas`, que promedia cargas
+bloqueadas y exige `cierres_transversales` vigente). Un alumno que llega no tiene nada que
+promediar. **El modelo de F2 lo resuelve solo**: al unirse en la lectura, la nota
+transversal entra directa sin pasar por la agregación — por eso D8 es viable.
+🔴 **Guarda obligatoria:** si el alumno ya tiene fila agregada de esa transversal, la
+retroactiva **no** debe duplicarla (gana la agregada, que es la evaluación real).
 
 ### F4 · Lectura en la boleta
-`BoletaModel` une la fuente nueva a las notas reales, como ya hace con las fuentes del
-retorno. En la celda: literal sí, **numeral en guion**. Nota al pie de D4.
 
-### F5 · Orden de mérito y guards
-Confirmar por escrito y con verificación que estas notas **no** entran al ranking (el
-snapshot de un bimestre publicado es inmutable por el candado `046`) ni alteran
-`alertasEvaluacionIncompleta`.
+- `BoletaModel::armar` incorpora la fuente nueva **después** de las notas reales y
+  **antes** de las exoneraciones, superponiéndola sobre el esqueleto del plan (mismo
+  mecanismo que ya usan las notas del retorno).
+- Celda: `nota` = `nota_numerica` (puede ser `null` → la vista ya pinta guion, hecho el
+  05/08) y `literal` = `nota_literal`. **No** se deriva el numeral del literal (D2).
+- **Nota al pie (D4)** cuando la boleta contenga alguna retroactiva: texto por bimestre,
+  del tipo *"I Bimestre: calificaciones convalidadas del colegio de origen"*.
+- Se aplica igual a la **boleta digital** (mismo `$areas`).
+- ⚠️ Resolver **§7.1 (SIAGIE) antes de esta fase**: si esas notas no deben ir al acta, el
+  export tiene que ignorar la fuente nueva explícitamente, y eso se decide aquí.
+
+### F5 · Guards, mérito y verificación
+
+- Confirmar con verificación que la fuente nueva **no** entra al orden de mérito (el
+  snapshot de un bimestre publicado es inmutable por el candado `046`) ni mueve
+  `alertasEvaluacionIncompleta` ni el conteo de aprobables del lote de boletas.
+- Script `database/verificaciones/verif_notas_retroactivas.php` (solo lectura, corre en
+  prod) con los bloques de §9.
+
+### Orden de commits previsto
+
+1. `feat(boleta): la asistencia de un bimestre sin registro sale en guion` (F1)
+2. `feat(db): migracion 048 …` (F2, tabla + drop)
+3. `feat(notas): registro retroactivo de calificaciones en bimestres cerrados` (F3)
+4. `feat(boleta): la boleta muestra las calificaciones retroactivas` (F4)
+5. `test(verificaciones): …` (F5) + `docs(notas): …`
+
+### Qué se puede desplegar por separado
+
+**F1 sola es desplegable** y corrige un dato falso que hoy se imprime. F2+F3 sin F4 dejan
+el registro guardado pero invisible: **no desplegar F3 sin F4**, o RA registrará notas que
+no aparecen en ningún documento.
 
 ## 7. Preguntas abiertas
 
@@ -209,7 +304,23 @@ snapshot de un bimestre publicado es inmutable por el candado `046`) ni alteran
 
 ## 9. Verificación prevista
 
-Script en `database/verificaciones/` (solo lectura, corre en prod) que compruebe, sobre
-los 6 casos reales: que la boleta muestra los literales convalidados sin numeral, que la
-asistencia del bimestre no cursado sale en guion, que el ranking del bimestre cerrado
-**no cambia** ni una posición, y que `alertasEvaluacionIncompleta` sigue en 0.
+`database/verificaciones/verif_notas_retroactivas.php` (solo lectura, corre en prod),
+sobre los 6 casos reales:
+
+| # | Comprueba |
+|---|---|
+| 1 | La **asistencia** de un bimestre sin registro sale en **guion**, y un alumno con registro real conserva sus cifras (F1). |
+| 2 | La boleta muestra el **literal** de las retroactivas y el **numeral en guion** cuando no hay número (D2). |
+| 3 | **Ninguna nota real desaparece** ni se duplica al unir la fuente nueva (equivalencia, como en `verif_retorno_grado.php`). |
+| 4 | El **ranking del bimestre cerrado no cambia ni una posición**, y el snapshot oficial sigue intacto (candado `046`). |
+| 5 | `alertasEvaluacionIncompleta` **sigue en 0** y el conteo de aprobables del lote de boletas no se mueve. |
+| 6 | Una transversal con agregación **no** se duplica con la retroactiva (guarda de F3). |
+
+Además, en cada fase: `php -l` de lo tocado y `npx gulp build` si toca SASS (F3/F4).
+
+## 10. Estado del repo al escribir este plan
+
+`dev` = `62d996c`, **21 commits por delante de `origin/main`** (`de449e2`), árbol limpio.
+Ese lote pendiente **no lleva migración**; este plan sí (la `048`), así que al desplegar
+habrá que aplicarla a mano en prod **antes** del merge, como se hizo con la `044` y la
+`045`. Última migración aplicada: `047`.

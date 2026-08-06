@@ -226,8 +226,16 @@
       Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
       (ROSALES STEPHANO), **6 filas con conclusión**, hasta 233 caracteres. Es la boleta
       que hay que mirar para dar por buena esa sección.
-- **NOTAS DE BIMESTRES CERRADOS PARA QUIEN LLEGÓ DESPUÉS — EN DISEÑO, SIN IMPLEMENTAR
-  (05/08/2026).** Plan completo: **`docs/modulos/registro-retroactivo-notas.md`**.
+- **NOTAS DE BIMESTRES CERRADOS PARA QUIEN LLEGÓ DESPUÉS — PLAN DE IMPLEMENTACIÓN LISTO,
+  SIN IMPLEMENTAR (05/08/2026).** Plan completo con fases, archivos y SQL:
+  **`docs/modulos/registro-retroactivo-notas.md`** (empezar por §6 **F0**).
+  - **Lleva migración `048`** (tabla `calificaciones_retroactivas` + `DROP notas_externas`)
+    → al desplegar hay que aplicarla a mano en prod ANTES del merge, como la 044 y la 045.
+  - 🔴 **F0 es BLOQUEANTE y de solo lectura:** contar en PROD las 5 tablas de los
+    mecanismos a unificar. Si alguna trae filas, la migración cambia y el `DROP` deja de
+    ser seguro.
+  - **F1 (asistencia en guion) es independiente y desplegable sola**, sin migración.
+    **No desplegar F3 sin F4**: RA registraría notas que no aparecen en ningún documento.
   - **El caso existe: 6 estudiantes** con notas de B2 y ninguna de B1 (690, 691, 693,
     694, 695, 696; llegaron entre el 08/06 y el 13/07). ⚠️ **`matriculas.tipo` no sirve
     para detectarlos** —la mitad son `continuador`—; el anclaje es la ausencia de notas.
