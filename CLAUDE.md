@@ -192,6 +192,7 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | Boleta con TODAS las competencias del plan + guion (PLAN, sin implementar) | `docs/modulos/boleta-competencias-completas.md` |
 | **Notas de bimestres cerrados para quien llegó después** (PLAN, sin implementar) | `docs/modulos/registro-retroactivo-notas.md` |
 | **Consulta de notas con transversales y conducta** (PLAN, sin implementar) | `docs/modulos/consulta-notas-ampliada.md` |
+| **Bloqueos fantasma del cierre + visibilidad del tutor** (PLAN, sin implementar) | `docs/modulos/transversales-visibilidad-tutor.md` |
 | **Estado vivo: pendientes, migraciones, planes con fecha** | `docs/ESTADO.md` |
 
 ### Reglas de mantenimiento de la red

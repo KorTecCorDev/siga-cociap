@@ -410,6 +410,38 @@
       Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
       (ROSALES STEPHANO), **6 filas con conclusión**, hasta 233 caracteres. Es la boleta
       que hay que mirar para dar por buena esa sección.
+- 🔴 **EL CIERRE FORZADO INVENTA BLOQUEOS TRANSVERSALES — DEFECTO CONFIRMADO, PLAN SIN
+  IMPLEMENTAR (06/08/2026).** Plan: **`docs/modulos/transversales-visibilidad-tutor.md`**.
+  - **El aviso de `/admin/control` en B2 es FALSO.** Dice que 130 competencias en 65
+    cargas de **23 docentes** quedaron sin bloquear "porque el docente no las había
+    bloqueado". Clasificadas las 65: **23 son cargas TOE** (el formulario NO adjunta
+    transversales a la carga de tutoría, decisión del 07/07) y **42 son cargas no-dueñas
+    de secciones unidocentes** (las TIC/GAMA se adjuntan una vez por área, en la dueña).
+    **Olvidos reales: CERO.** 23+42 = 65 cargas × 2 = 130, cuadra exacto.
+  - **Causa raíz:** `AnioAcademicoModel::bloquearCompetenciasPendientes` (bloque 2)
+    recorre **TODAS las cargas activas** sin aplicar las dos exclusiones que sí aplica
+    `CalificacionController:507-514`. **Misma regla, dos implementaciones divergentes.**
+  - ⚠️ **Ya mordió antes y se parcheó del lado equivocado:** el comentario de
+    `estadoCargasSeccion` documenta que las no-dueña inflaban el numerador (53/41) y
+    habilitaban las conclusiones antes de tiempo. Se arregló **el conteo**, no el origen.
+  - **Impacto acotado:** NO contamina el promedio agregado (una carga fantasma no tiene
+    notas) ni infla ya el gate del tutor. El daño es de **confianza**: acusa a 23 docentes
+    en un panel de dirección. Sospecha por verificar: podría explicar parte de las **48
+    anulaciones sobre 71 cierres transversales** de B2, vía la cascada de desbloqueo.
+  - **B1 no se toca** (774 forzadas allí son del modelo viejo, carga única del tutor).
+  - **Decisiones abiertas:** si se borran los 130 fantasmas ya creados en B2 (recomendado,
+    con verificación previa de que no hay notas colgando) y si el tutor puede **escribir**
+    conclusiones sobre un promedio parcial (recomendado que NO: la conclusión quedaría
+    describiendo un promedio que aún puede cambiar).
+- **PROPUESTA "BLOQUEAR TRANSVERSALES ANTES QUE LAS ACADÉMICAS" — EVALUADA (06/08/2026):
+  ya es posible y no destraba nada por sí sola.** `bloquear()` es por competencia y admite
+  transversales, sin guard de orden: **64 cargas de B2 (16%) ya lo hacen**. Lo que frena
+  al tutor es que el gate cuenta académicas + transversales y que `tutoria.php:98`
+  **oculta la tabla de promedios entera** hasta que todo esté bloqueado. Y la ganancia
+  sería nula: en las 23 secciones de B2 la última transversal llegó **40-144 h DESPUÉS**
+  que la última académica. El acoplamiento sí es gratuito (`getPromediosSeccion` filtra
+  `tipo='transversal'`), así que desacoplar el gate es correcto — pero el valor está en
+  **mostrar promedios parciales**, no en el orden de bloqueo.
 - **`/consulta-notas` CON TRANSVERSALES Y CONDUCTA — PLAN APROBADO, SIN IMPLEMENTAR
   (06/08/2026).** Plan completo: **`docs/modulos/consulta-notas-ampliada.md`**.
   - **Las dos ausencias son estructurales, no un olvido de la vista.** Las transversales
