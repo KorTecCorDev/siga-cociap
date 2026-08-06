@@ -410,6 +410,37 @@
       Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
       (ROSALES STEPHANO), **6 filas con conclusión**, hasta 233 caracteres. Es la boleta
       que hay que mirar para dar por buena esa sección.
+- ✅ **LAS 4 REAPERTURAS DEL PANEL DE BLOQUEOS EXIGEN EL BIMESTRE ACTIVO — HECHO Y
+  PROBADO EN LOCAL (06/08/2026, commits `213abc0` y `2122345`). EN `dev`, SIN DESPLEGAR.**
+  Sin migración y sin SASS (reusa `.btn:disabled`). Detalle en `docs/modulos/admin.md`.
+  - **El defecto:** con el bimestre **cerrado**, los 4 botones destructivos del panel
+    (`desbloquear` competencia, `reabrirTransversal`, `reabrirConducta`,
+    `reabrirAsistencia`) funcionaban **sin dar error** y sin validar el estado del
+    periodo. Solo `limpiarBloqueosCierre` lo exigía.
+  - **Por qué importaba:** `periodoEditable`/`periodoEstaBloqueado` cortan por
+    `estado='cerrado'` **sin mirar el bloqueo**, así que reabrir NO habilita a nadie a
+    corregir; y mientras tanto **el dato desaparece del documento** en 3 de los 4 casos
+    (boleta = solo competencias bloqueadas · `getTransversalesAgregadas` exige cierre
+    vigente · `ConductaModel::getParaPeriodo` devuelve `null` sin él). Quedaba una
+    competencia invisible en la boleta que **nadie podía reparar sin reabrir**.
+  - ⚠️ **La ASISTENCIA es la excepción MEDIDA, no supuesta:** `getDelBimestre` lee
+    `inasistencias` sin mirar el cierre → ahí **no se pierde nada de la boleta**. Se
+    bloquea igual (nadie podría registrar), pero **su mensaje no promete un daño que no
+    ocurre**. Cada llamada pasa SU aviso; por eso el guard recibe el texto por parámetro.
+  - **Punto único:** `BloqueoController::abortarSiPeriodoCerrado`. Los botones quedan
+    **inertes con el motivo en el `title`** (no desaparecen: se ve POR QUÉ no se puede).
+    Conducta tenía **DOS** botones "Reabrir" (`pendiente_tutor` y `cerrada`): los dos.
+  - **Los botones de AVANCE se dejan intactos a propósito** (bloquear competencia /
+    transversal / etapa 1 / etapa 2 / asistencia): no destruyen nada y son la vía para
+    recomponer lo que haya quedado sin bloqueo por un desbloqueo anterior al fix.
+  - **Contexto operativo que lo motivó:** el usuario necesita poder desbloquear una
+    competencia si un docente se equivocó. Con B2 **activo** eso funciona, pero ⚠️
+    `limite_notas` sigue **vencido** (04/08 23:59): hay que **ampliarlo** desde
+    `/director/anios/1` o el docente no podrá editar aunque se desbloquee.
+  - **La ventana barata para corregir es entre CERRAR y PUBLICAR:** ahí reabrir → corregir
+    → re-cerrar todavía actualiza el snapshot **oficial** del mérito. Tras publicar, el
+    candado 046 lo congela y la corrección va a `orden_merito_rectificado` (no oficial).
+    Medido: B2 **no tiene ninguna fila** en `periodos_publicacion`.
 - 🔴 **EL CIERRE FORZADO INVENTA BLOQUEOS TRANSVERSALES — DEFECTO CONFIRMADO, PLAN SIN
   IMPLEMENTAR (06/08/2026).** Plan: **`docs/modulos/transversales-visibilidad-tutor.md`**.
   - **El aviso de `/admin/control` en B2 es FALSO.** Dice que 130 competencias en 65
@@ -1320,6 +1351,17 @@ WHERE id=25;`).
     conflictos y árbol idéntico a `dev`, porque `main` no aporta contenido. Se resolvió con
     `git merge --abort`, sin pérdida. **Estando en `dev`, `git pull` a secas**:
     `branch.dev.merge` ya apunta a `refs/heads/dev`.
+- **06/08/2026 (noche) — `dev` acumula el PRIMER CÓDIGO sin desplegar desde el deploy del
+  05/08.** Hasta esta tarde `dev` solo llevaba SQL y documentación; ahora suma el fix de
+  las 4 reaperturas del panel de bloqueos (`213abc0` + `2122345`), **probado en local por
+  el usuario**. `origin/main` sigue en `c8681da`.
+  - **Sin migración**: el deploy sería merge + push. **NO autorizado todavía.**
+  - ⚠️ **Decisión pendiente de calendario:** este fix toca el panel que se usa **durante**
+    el cierre de B2. Desplegarlo antes del cierre lo estrena en el momento de mayor
+    presión; después, deja unos días más el botón que borra datos sin avisar. El fix es
+    defensivo (solo **impide** acciones), lo que juega a favor de desplegarlo ya.
+  - **La migración `051`** (limpieza de los 130 bloqueos fantasma) está **planificada, no
+    escrita**, y depende de que antes se implemente F1 del plan de transversales.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
