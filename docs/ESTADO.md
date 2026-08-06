@@ -33,6 +33,45 @@
     único por carga (11) → nota de criterio → calificación con `extraordinaria=1` → fila de
     auditoría con el **motivo**, que es el único registro permanente de por qué existen.
     Firma **Registro Académico**, resuelto por rol.
+  - ✅ **AUDITADA Y ENDURECIDA EL 06/08/2026, antes de aplicarla en prod.** Se contrastó
+    contra `RectificacionModel::esInsertable` (la guarda que el flujo real evalúa alumno
+    por alumno) y contra el esquema real. **Los 4 arreglos son no-op en local** —las tres
+    variantes del universo dan **275**— así que **no invalidan el ensayo**: solo cierran
+    huecos que en PROD sí pueden morder.
+    - **El filtro de exoneraciones era GLOBAL por matrícula** y sacaba del universo, sin
+      decirlo, a quien estuviera exonerado de **cualquier** área. El código acota por
+      `area_id`/`subarea_id` **+ `anio_id`**; la migración ahora también. En local no mordía
+      (las 2 exoneraciones vivas son de PRIMARIA, área 5), pero una sola exoneración de
+      secundaria en prod habría bajado el universo a 274 sin explicación.
+    - **No excluía la matrícula OFICIAL de un retorno de grado activo.** Registrar una nota
+      es EVALUAR → Regla A: se evalúa en la **operativa**. Es el mismo anclaje de los 9
+      rosters y de `alertasEvaluacionIncompleta`. Hoy el único retorno es de primaria, así
+      que no mordía; con un retorno en secundaria habría escrito la nota en la sección donde
+      la estudiante ya no cursa, y la boleta **suma las dos fuentes**.
+    - **El `uq_nota` NO protege del doble registro**: su clave es (matrícula, **carga**,
+      periodo, competencia), así que una sección con dos cargas activas del área daría dos
+      notas al mismo alumno sin violar nada (`cargas_academicas` no tiene UNIQUE KEY). El
+      PASO 1 exige ahora 1 carga por sección y el PASO 3 lo verifica después.
+    - **No verificaba los bloqueos.** La boleta solo muestra competencias **bloqueadas**;
+      una carga sin bloqueo habría recibido la nota sin mostrarla — la migración
+      "funcionando" sin cumplir su objetivo. Medido en local: 11 cargas, 11 secciones,
+      11 bloqueos, 0 sin bloquear.
+    - **Firmante:** el anclaje del usuario ahora exige `estado = 'activo'` (un RA dado de
+      baja con id menor habría firmado las 275 filas). Y el PASO 1 suma un **1.e** que lista
+      con motivo a los excluidos por las guardas nuevas: en prod hay que **leerlo**, cada
+      fila es un alumno que cursó B1 y no recibirá la nota.
+    - **Re-ensayada entera tras los cambios** (`START TRANSACTION … ROLLBACK`): mismas
+      cifras que el ensayo original —11 criterios · 275 · 275 · 275, `MOTIVO OK`, snapshot
+      en 528/1-72/11/23— más los 3 checks de integridad nuevos en **0**, y local en 0 tras
+      el rollback.
+    - ✅ **DESCARTADO UN EFECTO COLATERAL QUE PARECÍA REAL:** el criterio nuevo NO agrava
+      los **12 blancos sin motivo de B1** (que hoy impedirían re-cerrarlo si se reabriera).
+      `alertasEvaluacionIncompleta` filtra `cr.extraordinario = 0`, así que el criterio
+      extraordinario le es invisible; los 4 alumnos que llegaron después de B1 no se suman.
+      Verificado en el código, no supuesto.
+    - **Efecto medible esperado en el runbook:** los **11 pares bloqueados-y-vacíos de
+      Ética** dejan de serlo → el conteo de B1 baja de **116 a 105**. El termómetro de
+      bloqueos no se mueve (esas cargas ya estaban bloqueadas).
   - ✅ **ENSAYADA ENTERA EN LOCAL con `START TRANSACTION … ROLLBACK`** (no hay DDL, a
     diferencia de la 048): **11 criterios · 275 notas de criterio · 275 calificaciones,
     todas marcadas y ninguna distinta de 15 · 275 filas de auditoría**, y local quedó en 0
