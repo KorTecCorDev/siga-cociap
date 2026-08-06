@@ -1,9 +1,184 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **05/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **06/08/2026**.
 
 ## Migraciones
+- **`050_etica_b1_extraordinaria`** (06/08): registra **15 (literal A) como CALIFICACIÓN
+  EXTRAORDINARIA** de Ética y Valores en el **I Bimestre** a los **275** estudiantes de
+  secundaria **que cursaron B1**.
+  ✅ **APLICADA EN PRODUCCIÓN el 06/08/2026 a las 20:01:10**, con la verificación posterior
+  capturada ALLÍ (la regla que dejó la 048). **NO aplicada en local**, a propósito: local
+  queda como copia del estado previo hasta la próxima sincronización.
+  - **Evidencia en prod:** 11 criterios · 275 notas de criterio · 275 calificaciones · 275
+    marcadas extraordinarias · **0** con nota distinta de 15 · 275 filas de auditoría;
+    `MOTIVO OK` (370 caracteres / 378 bytes, sin mojibake); snapshot oficial de B1 **intacto
+    en 528 / puestos 1-72 / 11 grados / 23 secciones**; **0** notas que entren al mérito; e
+    integridad en **0 · 0 · 0** (ninguna matrícula con dos notas, ninguna nota en carga
+    ajena a su sección, ninguna sin bloqueo).
+  - **Contraste cruzado independiente:** los pares *bloqueados y vacíos* de B1 bajaron
+    **exactamente 11** (890 → 879 con la consulta sin filtrar; equivale a **116 → 105** con
+    la definición correcta del runbook). Los 11 pares de Ética dejaron de estar vacíos.
+  - **PROCEDIMIENTO QUE FUNCIONÓ, y conviene repetir:** PASO 1 en tres envíos de solo
+    lectura → **ENSAYO EN LA PROPIA PRODUCCIÓN** con `START TRANSACTION … ROLLBACK`
+    (mismas cifras, sin escribir) → confirmación de que el rollback limpió (0·0·0) y de que
+    las 4 tablas son **InnoDB** → envío definitivo idéntico terminado en `COMMIT` →
+    verificación **en conexión nueva** (lo único que prueba que el COMMIT persistió; las
+    SELECT de dentro del bloque no lo prueban).
+  - **Por qué existe:** en B1 nadie evaluó Ética —los tutores no remitieron a tiempo— y por
+    acuerdo de dirección se consignó 15 (A) uniforme, **ya cargado a mano en el SIAGIE** en
+    las dos competencias de Ed. Religiosa (vínculo `035-EREL`). Esto alinea SIGA con el acta.
+  - 🔴 **HALLAZGO GRAVE — B1 SE CERRÓ CON ÉTICA BLOQUEADA Y VACÍA.** El **20/07/2026 entre
+    la 01:44:33 y la 01:45:33** se bloqueó la competencia en las **11 secciones** de
+    secundaria (`origen='docente'`, 11 filas en 60 segundos) **con CERO notas**, y horas
+    después se cerró B1. El sistema quedó afirmando que Ética estaba evaluada y terminada.
+    **Ningún indicador del cierre podía detectarlo:** el **termómetro** cuenta pares *con
+    notas y sin bloqueo*, así que un par **sin notas** nunca aparece (por eso B1 daba 0); y
+    la **alerta de evaluación incompleta** solo aflora un criterio cuando algún compañero de
+    sección ya tiene nota en él, así que si **nadie** la tiene no hay con qué comparar.
+    Es un punto ciego real del contrato del cierre → refuerza el plan de los 4 registros.
+  - **Universo = 275, anclado en "tiene ≥1 nota en B1"**, no en `tipo` ni en ids. Coincide
+    **exactamente** con los 275 de secundaria del snapshot oficial de B1, o sea reproduce el
+    roster que se congeló. Desglose: 1.º 72 · 2.º 52 · 3.º 47 · 4.º 55 · 5.º 49. Deja fuera
+    a **693, 694, 695 y 696** (llegaron entre junio y julio, 0 notas en B1): darles nota
+    sería inventarles un bimestre. 0 exonerados en secundaria.
+  - **EL SNAPSHOT DE B1 NO SE MUEVE**, por tres vías: `OrdenMeritoModel` filtra
+    `extraordinaria = 0` en sus 2 queries; el oficial es inmutable (candado 046); y los
+    lectores usan el snapshot, no el vivo. **Verificado en el ensayo: 528 filas, puestos
+    1-72, 11 grados, 23 secciones, y 0 notas nuevas entrarían al mérito.**
+  - **Replica el flujo real** de `guardarExtraordinaria` (leído línea por línea): criterio
+    único por carga (11) → nota de criterio → calificación con `extraordinaria=1` → fila de
+    auditoría con el **motivo**, que es el único registro permanente de por qué existen.
+    Firma **Registro Académico**, resuelto por rol.
+  - ✅ **AUDITADA Y ENDURECIDA EL 06/08/2026, antes de aplicarla en prod.** Se contrastó
+    contra `RectificacionModel::esInsertable` (la guarda que el flujo real evalúa alumno
+    por alumno) y contra el esquema real. **Los 4 arreglos son no-op en local** —las tres
+    variantes del universo dan **275**— así que **no invalidan el ensayo**: solo cierran
+    huecos que en PROD sí pueden morder.
+    - **El filtro de exoneraciones era GLOBAL por matrícula** y sacaba del universo, sin
+      decirlo, a quien estuviera exonerado de **cualquier** área. El código acota por
+      `area_id`/`subarea_id` **+ `anio_id`**; la migración ahora también. En local no mordía
+      (las 2 exoneraciones vivas son de PRIMARIA, área 5), pero una sola exoneración de
+      secundaria en prod habría bajado el universo a 274 sin explicación.
+    - **No excluía la matrícula OFICIAL de un retorno de grado activo.** Registrar una nota
+      es EVALUAR → Regla A: se evalúa en la **operativa**. Es el mismo anclaje de los 9
+      rosters y de `alertasEvaluacionIncompleta`. Hoy el único retorno es de primaria, así
+      que no mordía; con un retorno en secundaria habría escrito la nota en la sección donde
+      la estudiante ya no cursa, y la boleta **suma las dos fuentes**.
+    - **El `uq_nota` NO protege del doble registro**: su clave es (matrícula, **carga**,
+      periodo, competencia), así que una sección con dos cargas activas del área daría dos
+      notas al mismo alumno sin violar nada (`cargas_academicas` no tiene UNIQUE KEY). El
+      PASO 1 exige ahora 1 carga por sección y el PASO 3 lo verifica después.
+    - **No verificaba los bloqueos.** La boleta solo muestra competencias **bloqueadas**;
+      una carga sin bloqueo habría recibido la nota sin mostrarla — la migración
+      "funcionando" sin cumplir su objetivo. Medido en local: 11 cargas, 11 secciones,
+      11 bloqueos, 0 sin bloquear.
+    - **Firmante:** el anclaje del usuario ahora exige `estado = 'activo'` (un RA dado de
+      baja con id menor habría firmado las 275 filas). Y el PASO 1 suma un **1.e** que lista
+      con motivo a los excluidos por las guardas nuevas: en prod hay que **leerlo**, cada
+      fila es un alumno que cursó B1 y no recibirá la nota.
+    - **Re-ensayada entera tras los cambios** (`START TRANSACTION … ROLLBACK`): mismas
+      cifras que el ensayo original —11 criterios · 275 · 275 · 275, `MOTIVO OK`, snapshot
+      en 528/1-72/11/23— más los 3 checks de integridad nuevos en **0**, y local en 0 tras
+      el rollback.
+    - ✅ **DESCARTADO UN EFECTO COLATERAL QUE PARECÍA REAL:** el criterio nuevo NO agrava
+      los **12 blancos sin motivo de B1** (que hoy impedirían re-cerrarlo si se reabriera).
+      `alertasEvaluacionIncompleta` filtra `cr.extraordinario = 0`, así que el criterio
+      extraordinario le es invisible; los 4 alumnos que llegaron después de B1 no se suman.
+      Verificado en el código, no supuesto.
+    - **Efecto medible esperado en el runbook:** los **11 pares bloqueados-y-vacíos de
+      Ética** dejan de serlo → el conteo de B1 baja de **116 a 105**. El termómetro de
+      bloqueos no se mueve (esas cargas ya estaban bloqueadas).
+  - 🔎 **HALLAZGO DEL DÍA DE LA APLICACIÓN — prod y local NO corren la misma MariaDB:**
+    local **10.4.32**, prod **11.8.8** (visto con la huella nueva del PASO 1.0). Un ensayo
+    en local prueba la LÓGICA, no el plan del optimizador. Por eso el PASO 2 pasó a
+    ejecutarse **siempre envuelto en transacción**, también en prod: son 4 INSERT
+    dependientes y un fallo a mitad dejaría criterios y notas de criterio sin calificación.
+    El patrón `NOT EXISTS (SELECT 1 FROM (SELECT * FROM tabla) x)` se comportó igual en
+    11.8 — verificado en el ensayo sobre prod, no supuesto.
+  - 🔎 **LA LECCIÓN DE TRAZABILIDAD DE LA 048, RESUELTA:** ningún conteo de DATOS distingue
+    local de prod (local es copia fiel: mismas 28 270 notas de B2, mismos ids). La huella
+    tiene que ser del **SERVIDOR** — `DATABASE()`, `USER()`, `@@hostname`,
+    `@@version_compile_os`, `@@datadir` — y ahora es el **PASO 1.0** de la migración.
+    Local: `siga_cociap` · `root@localhost` · **Win64**. Prod: `u761410128_siga_cociap` ·
+    Linux · Hostinger.
+  - ⚠️ **phpMyAdmin IGNORA `USE`:** reselecciona la base según el contexto de la página. Si
+    la pestaña SQL cuelga de `information_schema`, todo se ejecuta allí y las consultas
+    fallan con `#1109 Tabla desconocida`. Pasó durante esta aplicación. Se arregla entrando
+    a la base desde el panel izquierdo y se comprueba con `SELECT DATABASE()`. No es un
+    riesgo de escritura: el bloque falla en su primera sentencia y la transacción queda
+    vacía.
+  - ✅ **ENSAYADA ENTERA EN LOCAL con `START TRANSACTION … ROLLBACK`** (no hay DDL, a
+    diferencia de la 048): **11 criterios · 275 notas de criterio · 275 calificaciones,
+    todas marcadas y ninguna distinta de 15 · 275 filas de auditoría**, y local quedó en 0
+    tras el rollback. **Reversible** con el DELETE acotado del PASO 4.
+  - 🔴 **EFECTO VISIBLE INMEDIATO:** B1 está **publicado**, así que al aplicarla la boleta
+    digital por token de B1 muestra el 15 a las familias. **No existe forma de registrar el
+    dato y diferir su visibilidad.** Decisión del usuario: no hace falta reimprimir el papel
+    de B1; basta con que salga en la boleta que se entregue en B2 (documento anual).
+  - ⚠️ **Dos trampas encontradas AL ENSAYARLA**, ambas corregidas y anotadas en el archivo:
+    - **Anclar el rol por `= 'Registro Académico'` falla si el cliente no envía la tilde en
+      UTF-8** → el anclaje resuelve NULL y la migración inserta 0 filas sin decir por qué.
+      Pasó de verdad en el primer ensayo. Ahora usa `LIKE 'Registro Acad%'` (ASCII).
+    - **El detector de mojibake del motivo daba FALSO POSITIVO:** `motivo` es
+      `utf8mb4_unicode_ci`, la colación que equipara **Ã con A** —la misma que hacía Ñ ≡ N
+      en el orden alfabético—, así que `INSTR` encontraba la primera 'a'. La comparación va
+      ahora **sobre bytes** (`CONVERT(... USING binary)`). Probado en ambos sentidos.
+- **`048_limpieza_backups_conducta_541`** (05/08): retira las dos tablas de respaldo que
+  dejó la limpieza quirúrgica de conducta del 24/07 (`_bkp_conducta_resp_541` con 10 filas
+  y `_bkp_calif_conducta_541` con 0). **La condición acordada se cumplió**: la conducta de
+  B2 de su sección (18) está cerrada en sus DOS etapas — cierre id 33, `ra_bloqueado_en`
+  24/07 16:14 y `tutor_cerrado_en` 31/07 12:32, sin anular.
+  Trae **PASO 1 de verificación (solo lectura) que debe devolver `PUEDE_BORRARSE`**, el
+  `DROP` y una verificación posterior. Idempotente (`IF EXISTS`).
+  🔴 **IRREVERSIBLE y NO probable con rollback**: `DROP TABLE` es DDL y MySQL hace commit
+  implícito. Por eso el archivo insiste en exportar antes (phpMyAdmin → Exportar las 2
+  tablas; `mysqldump` solo si hay shell).
+  ✅ **APLICADA EN LOS DOS ENTORNOS el 06/08/2026, con evidencia del PASO 3 en cada uno.**
+  Se aplicó **primero en LOCAL y después en PROD** (ver la lección de trazabilidad, abajo).
+  - **LOCAL** — PASO 3 en **0 filas**; esquema en 51 tablas y **ninguna empieza por `_`**.
+    Sin daño colateral: la conducta de la 541 conserva su calificación de **B1 (`AD`)**,
+    sus respuestas siguen en 0 (lo esperado desde la limpieza del 24/07), el cierre 33
+    intacto y el volumen global sin moverse (5240 respuestas · 1052 calificaciones · 46
+    cierres, todos vivos). Al re-ejecutar el PASO 1 sigue dando `PUEDE_BORRARSE` y la 2.ª
+    consulta falla con `Table doesn't exist`: **la señal esperada de que el PASO 2 corrió**.
+  - **PROD** — el PASO 1 devolvió 1 fila, `PUEDE_BORRARSE`, matrícula 541 / DNI 63361405
+    (RODRIGUEZ MENDEZ, GUSTAVO CHRISTIAN), sección 18, `trasladado`, cierre id 33,
+    `ra_bloqueado_en` 2026-07-24 16:14:04 y `tutor_cerrado_en` 2026-07-31 12:32:54, sin
+    anular. **La constancia dio 10 y 0 filas**, o sea que allí los respaldos seguían vivos
+    hasta ese momento; los dos `DROP` se ejecutaron sin error y el **PASO 3 devolvió 0
+    filas**.
+  - ⚠️ **LECCIÓN DE TRAZABILIDAD — SE MATERIALIZÓ, no es hipotética.** La salida del PASO 1
+    es **idéntica en local y en prod** (local es copia de prod: mismos ids y mismas fechas
+    al segundo), así que **no sirve para saber contra qué entorno se ejecutó**. Por eso la
+    primera corrida se dio por hecha en prod cuando en realidad había caído en **local**, y
+    se detectó por un camino indirecto: local ya no tenía las tablas y la constancia de la
+    corrida siguiente devolvió 10 y 0 —prueba de que ESE entorno aún las tenía—.
+    **Regla: una migración solo se da por aplicada en un entorno cuando se captura su
+    PASO 3 ALLÍ**; el veredicto previo no identifica el entorno. Aplica a la `049` y a
+    todas las que vengan.
+  - ⚠️ **El archivo se ejecutó ENTERO de una pasada** en phpMyAdmin (PASO 1 + 2 + 3 en la
+    misma corrida), que es exactamente lo que su propia cabecera advierte que no hay que
+    hacer. Salió bien **porque el veredicto era verde**; con un `NO_BORRAR` el `DROP` se
+    habría ejecutado igual. La advertencia sigue en pie para la próxima.
+  - **Endurecimiento del PASO 1 (06/08, commits `221440f` y `df186f2`), hecho ANTES de
+    aplicarla:** juzgaba por `matriculas.id = 541`, contra la regla de anclar por DNI. Un
+    id que apuntara a otro estudiante habría devuelto un veredicto **válido sobre la
+    sección equivocada**, y un id inexistente devolvía 0 filas, que se lee como "no aplica"
+    en vez de "detente". Ahora exige `id AND dni`, devuelve la identidad junto al veredicto
+    y define 0 filas como aborto. Además: `ORDER BY anio DESC` en el año activo (`LIMIT 1`
+    era no determinista), `LIKE '\_bkp%'` escapado en el PASO 3 (el guion bajo es comodín)
+    y el aviso de que **el PASO 1 no protege al PASO 2** — son sentencias sueltas y pegar
+    el archivo entero ejecuta el `DROP` igual; no es automatizable porque DDL hace commit
+    implícito.
+  - **Auditoría previa (06/08, solo lectura):** 0 claves foráneas apuntando a los
+    respaldos, **ningún código de la aplicación los lee** (`_bkp` solo aparece en el
+    propio `.sql` y en dos docs) y ninguna otra tabla del esquema empieza con `_`. El
+    borrado no podía romper nada en runtime: 10 filas, 16 KB.
+  - **Aclaración que costó una falsa alarma:** la 541 **sí** tiene una fila viva en
+    `calificaciones_conducta`, pero es del **I Bimestre** (literal AD, 23/05). La limpieza
+    del 24/07 fue de B2, y por eso `_bkp_calif_conducta_541` estaba en 0. Quedó anotado en
+    la cabecera del `.sql` para que nadie repita la investigación.
 - **`047_retorno_grado_asistencia_solapada`** (05/08): corrección de DATOS (no toca
   esquema). Borra la fila de `inasistencias` que quedó en la matrícula **OFICIAL** de
   un retorno de grado cuando la **OPERATIVA** ya tiene fila del mismo bimestre. Con
@@ -44,8 +219,14 @@
   **APLICADA EN LOCAL Y PROD.** En prod se importó a mano (phpMyAdmin) el
   **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
   código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
-- **LOCAL y PROD: AL DÍA HASTA LA `047`** (la 047 en prod el 05/08/2026). La siguiente
-  será la **`048`** del registro retroactivo de notas, aún sin implementar.
+- **PROD AL DÍA HASTA LA `050`; LOCAL, HASTA LA `048`** (la 047 el 05/08/2026, la 048 el
+  06/08/2026 en ambos entornos, cada uno con la salida de su PASO 3 en 0 filas). La
+  **`050`** se aplicó **SOLO EN PROD** (06/08, 20:01:10): local se queda con el estado
+  previo hasta que se vuelva a sincronizar desde prod, así que **una medición local de
+  Ética en B1 dará 0 y no es un error**. La **`049`** será la del registro
+  retroactivo de notas, aún sin implementar — ⚠️ **la 050 se numeró antes que la 049 a
+  propósito**: son independientes y esta corría primero. Al aplicarlas, el orden lo manda
+  la dependencia, no el número.
 - **LOCAL y PROD: al día hasta la `045`.** En prod: 038-043 el 20/07/2026, 044 y
   045 el 22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
   había saltado al aplicarse suelta; se corrió el **22/07/2026** (estructura
@@ -98,25 +279,24 @@
   `duracion_hora_min = 50` por defecto; el año 2026 usa 45.
 
 ## Pendientes de desarrollo
-- **Rediseño 2 del orden de mérito — IMPLEMENTADO Y PROBADO (26/07/2026), EN `dev`,
-  PENDIENTE DE DEPLOY.** Las 6 fases + una fase extra (F5b) y varios fixes; **sin
-  migración nueva**, así que el deploy es merge + push sin tocar la BD de prod.
+- ✅ **Rediseño 2 del orden de mérito — EN PRODUCCIÓN (deploy del 04/08/2026, `de449e2`).**
+  Implementado y probado el 26/07. Las 6 fases + una fase extra (F5b) y varios fixes; **sin
+  migración nueva**, así que el deploy fue merge + push sin tocar la BD de prod.
   Qué hace cada fase, las desviaciones respecto del plan y los efectos colaterales
   aceptados: `docs/modulos/orden-merito-rediseno.md` **§8** (manda esa sección, no las
   §1-5, que son el plan original). Estado vigente del módulo: `orden-merito.md`.
   Diferencia consciente con el diseño: el cierre **no** valida "0 competencias sin
   bloquear" (P3) porque él mismo las fuerza.
-  - **Al 04/08/2026 el lote está LISTO para desplegar** y las dos condiciones duras
-    están en verde (ver "Cierre de B2 — SECUENCIA CORRECTA"). Falta solo la
-    autorización explícita del usuario para mergear `dev` → `main`.
-- **Efecto colateral del guard P4 (llega con el deploy del rediseño 2) — REABRIR UN
-  BIMESTRE YA CERRADO SE VUELVE UNA PUERTA DE UN SOLO SENTIDO.** `cerrar()` exige
+  - Se desplegó el 04/08/2026 con las dos condiciones duras **en verde** (ver "Cierre de
+    B2 — SECUENCIA CORRECTA").
+- **Efecto colateral del guard P4 (VIGENTE EN PRODUCCIÓN desde el 04/08/2026) — REABRIR
+  UN BIMESTRE YA CERRADO ES UNA PUERTA DE UN SOLO SENTIDO.** `cerrar()` exige
   ahora `alertasEvaluacionIncompleta = 0`, y esa alerta se evalúa sobre bimestres
   `activo`. Un bimestre que se cerró ANTES de que existiera el guard puede no
   cumplirlo: **B1 tiene hoy 12 alumnos con blancos sin motivo**, así que reabrirlo lo
   dejaría imposible de re-cerrar hasta resolverlos uno a uno (nota u omisión desde el
   módulo del docente). No es un defecto —es la regla funcionando— pero es una
-  restricción que HOY no existe y que aparece en el instante del merge.
+  restricción que antes no existía y que está activa en producción desde el 04/08.
   Antes de reabrir B1 (p. ej. para una rectificación), medir primero con
   `alerta_evaluacion_incompleta.sql` cambiando a `@periodo := 1`.
 - **La superficie de mérito para familias entra OSCURA (medido el 04/08/2026):** en
@@ -159,8 +339,9 @@
     `getProgresoPorSeccion` (filtra `m.estado='aprobada'`); y en local
     `cierres_asistencia` está **vacía**, así que el escenario de prueba hay que
     construirlo. Detalle en el doc del plan.
-- **BOLETA CON TODAS LAS COMPETENCIAS DEL PLAN — IMPLEMENTADO Y VERIFICADO EN LOCAL
-  (05/08/2026), EN `dev`, SIN DESPLEGAR. Sin migración.** La boleta lista **todas** las
+- ✅ **BOLETA CON TODAS LAS COMPETENCIAS DEL PLAN — EN PRODUCCIÓN (implementada y
+  verificada en local el 05/08/2026, desplegada ese mismo día en `c8681da`). Sin
+  migración.** La boleta lista **todas** las
   competencias que la sección dicta, tengan o no nota, con **guion** donde no hay dato.
   Qué se construyó, trampas y cifras: **`docs/modulos/boleta-competencias-completas.md`
   §10** (manda esa sección; §1-§7 son el plan original). Regla del módulo en
@@ -219,19 +400,113 @@
     de `#555`/8% a `#3f3f3f`/16% — el documento **se imprime en papel con el bimestre
     abierto**, así que la señal debe sobrevivir a la impresora. Decisión del usuario
     sobre 4 alternativas. Ver `docs/modulos/boletas.md`.
-  - 🔴 **PENDIENTE ANTES DE DESPLEGAR: checklist de impresión en navegador** (§8.3 del
-    doc). La restricción dura es **UNA hoja A4 vertical**: el máximo de filas no sube
-    (29 → 29) y el peor incremento es +5 (Primaria 2.º A), pero eso **no está probado en
-    papel**. Toca SASS (`gulp` ya lo compiló en local).
+  - 🔴 **PENDIENTE — checklist de impresión en navegador** (§8.3 del doc). ⚠️ **El
+    disparador CAMBIÓ: el código ya está en producción, así que esto toca hacerlo ANTES
+    DE IMPRIMIR Y ENTREGAR B2**, no antes de desplegar. La restricción dura es **UNA hoja
+    A4 vertical**: el máximo de filas no sube (29 → 29) y el peor incremento es +5
+    (Primaria 2.º A), pero eso **no está probado en papel**.
     - **El alto ya no lo fijan las filas sino las CONCLUSIONES DESCRIPTIVAS** (2 líneas
       por celda, `.conclusion-clip`): el nº de filas es fijo por sección, el alto no.
       Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
       (ROSALES STEPHANO), **6 filas con conclusión**, hasta 233 caracteres. Es la boleta
       que hay que mirar para dar por buena esa sección.
+- ✅ **LAS 4 REAPERTURAS DEL PANEL DE BLOQUEOS EXIGEN EL BIMESTRE ACTIVO — HECHO Y
+  PROBADO EN LOCAL (06/08/2026, commits `213abc0` y `2122345`). EN `dev`, SIN DESPLEGAR.**
+  Sin migración y sin SASS (reusa `.btn:disabled`). Detalle en `docs/modulos/admin.md`.
+  - **El defecto:** con el bimestre **cerrado**, los 4 botones destructivos del panel
+    (`desbloquear` competencia, `reabrirTransversal`, `reabrirConducta`,
+    `reabrirAsistencia`) funcionaban **sin dar error** y sin validar el estado del
+    periodo. Solo `limpiarBloqueosCierre` lo exigía.
+  - **Por qué importaba:** `periodoEditable`/`periodoEstaBloqueado` cortan por
+    `estado='cerrado'` **sin mirar el bloqueo**, así que reabrir NO habilita a nadie a
+    corregir; y mientras tanto **el dato desaparece del documento** en 3 de los 4 casos
+    (boleta = solo competencias bloqueadas · `getTransversalesAgregadas` exige cierre
+    vigente · `ConductaModel::getParaPeriodo` devuelve `null` sin él). Quedaba una
+    competencia invisible en la boleta que **nadie podía reparar sin reabrir**.
+  - ⚠️ **La ASISTENCIA es la excepción MEDIDA, no supuesta:** `getDelBimestre` lee
+    `inasistencias` sin mirar el cierre → ahí **no se pierde nada de la boleta**. Se
+    bloquea igual (nadie podría registrar), pero **su mensaje no promete un daño que no
+    ocurre**. Cada llamada pasa SU aviso; por eso el guard recibe el texto por parámetro.
+  - **Punto único:** `BloqueoController::abortarSiPeriodoCerrado`. Los botones quedan
+    **inertes con el motivo en el `title`** (no desaparecen: se ve POR QUÉ no se puede).
+    Conducta tenía **DOS** botones "Reabrir" (`pendiente_tutor` y `cerrada`): los dos.
+  - **Los botones de AVANCE se dejan intactos a propósito** (bloquear competencia /
+    transversal / etapa 1 / etapa 2 / asistencia): no destruyen nada y son la vía para
+    recomponer lo que haya quedado sin bloqueo por un desbloqueo anterior al fix.
+  - **Contexto operativo que lo motivó:** el usuario necesita poder desbloquear una
+    competencia si un docente se equivocó. Con B2 **activo** eso funciona, pero ⚠️
+    `limite_notas` sigue **vencido** (04/08 23:59): hay que **ampliarlo** desde
+    `/director/anios/1` o el docente no podrá editar aunque se desbloquee.
+  - **La ventana barata para corregir es entre CERRAR y PUBLICAR:** ahí reabrir → corregir
+    → re-cerrar todavía actualiza el snapshot **oficial** del mérito. Tras publicar, el
+    candado 046 lo congela y la corrección va a `orden_merito_rectificado` (no oficial).
+    Medido: B2 **no tiene ninguna fila** en `periodos_publicacion`.
+- 🔴 **EL CIERRE FORZADO INVENTA BLOQUEOS TRANSVERSALES — DEFECTO CONFIRMADO, PLAN SIN
+  IMPLEMENTAR (06/08/2026).** Plan: **`docs/modulos/transversales-visibilidad-tutor.md`**.
+  - **El aviso de `/admin/control` en B2 es FALSO.** Dice que 130 competencias en 65
+    cargas de **23 docentes** quedaron sin bloquear "porque el docente no las había
+    bloqueado". Clasificadas las 65: **23 son cargas TOE** (el formulario NO adjunta
+    transversales a la carga de tutoría, decisión del 07/07) y **42 son cargas no-dueñas
+    de secciones unidocentes** (las TIC/GAMA se adjuntan una vez por área, en la dueña).
+    **Olvidos reales: CERO.** 23+42 = 65 cargas × 2 = 130, cuadra exacto.
+  - **Causa raíz:** `AnioAcademicoModel::bloquearCompetenciasPendientes` (bloque 2)
+    recorre **TODAS las cargas activas** sin aplicar las dos exclusiones que sí aplica
+    `CalificacionController:507-514`. **Misma regla, dos implementaciones divergentes.**
+  - ⚠️ **Ya mordió antes y se parcheó del lado equivocado:** el comentario de
+    `estadoCargasSeccion` documenta que las no-dueña inflaban el numerador (53/41) y
+    habilitaban las conclusiones antes de tiempo. Se arregló **el conteo**, no el origen.
+  - **Impacto acotado:** NO contamina el promedio agregado (una carga fantasma no tiene
+    notas) ni infla ya el gate del tutor. El daño es de **confianza**: acusa a 23 docentes
+    en un panel de dirección. Sospecha por verificar: podría explicar parte de las **48
+    anulaciones sobre 71 cierres transversales** de B2, vía la cascada de desbloqueo.
+  - **B1 no se toca** (774 forzadas allí son del modelo viejo, carga única del tutor).
+  - ✅ **DECISIONES CERRADAS (06/08/2026, no re-preguntar):** **(1)** los 130 fantasmas de
+    B2 **se borran** con una migración de DATOS **`051`** (la `049` sigue reservada al
+    registro retroactivo) — el PASO 1 aborta si aparece un solo caso de "olvido real" o si
+    alguna de esas cargas tiene notas transversales colgando, y **F1 va antes o en el
+    mismo despliegue**, o el siguiente cierre los recrea. **(2)** El tutor **solo mira**
+    hasta tener el promedio final: nada de conclusiones sobre un parcial, y el guard va
+    **en servidor** (`guardarConclusion` hoy NO comprueba `$listo`, así que ocultar el
+    textarea sería cosmético). **(3)** El resumen del tutor **sí muestra el nombre de la
+    carga y del docente**: esto **DEROGA** la regla de `tutoria.php:55` ("no se expone el
+    detalle por carga ni el nombre de otros docentes"), nacida el **14/06/2026** en
+    `73838d1`. Al implementar hay que **reescribir ese comentario**, o el código afirmará
+    lo contrario de lo que hace. La protección del DNI del mismo lote **no se toca**.
+- **PROPUESTA "BLOQUEAR TRANSVERSALES ANTES QUE LAS ACADÉMICAS" — EVALUADA (06/08/2026):
+  ya es posible y no destraba nada por sí sola.** `bloquear()` es por competencia y admite
+  transversales, sin guard de orden: **64 cargas de B2 (16%) ya lo hacen**. Lo que frena
+  al tutor es que el gate cuenta académicas + transversales y que `tutoria.php:98`
+  **oculta la tabla de promedios entera** hasta que todo esté bloqueado. Y la ganancia
+  sería nula: en las 23 secciones de B2 la última transversal llegó **40-144 h DESPUÉS**
+  que la última académica. El acoplamiento sí es gratuito (`getPromediosSeccion` filtra
+  `tipo='transversal'`), así que desacoplar el gate es correcto — pero el valor está en
+  **mostrar promedios parciales**, no en el orden de bloqueo.
+- **`/consulta-notas` CON TRANSVERSALES Y CONDUCTA — PLAN APROBADO, SIN IMPLEMENTAR
+  (06/08/2026).** Plan completo: **`docs/modulos/consulta-notas-ampliada.md`**.
+  - **Las dos ausencias son estructurales, no un olvido de la vista.** Las transversales
+    no las puede alcanzar `getCompetenciasPorPeriodo`: une competencia↔carga por el área
+    de la CARGA, y las transversales cuelgan de un área propia (`tipo='transversal'`,
+    ids 9 y 21) — **el vínculo transversal↔carga no existe en el esquema**, se resuelve
+    por nivel. La conducta no vive en `calificaciones` (4 tablas propias) y su ciclo es
+    por SECCIÓN en dos etapas. Invisible hoy: **B2 tiene 17 078 notas transversales**.
+  - **Decisiones cerradas (no re-preguntar):** D1 las **dos** caras de las transversales
+    (crudo por carga + agregado por sección); D2 la conducta entra **dentro** de
+    `/consulta-notas` en solo lectura, **sin** ampliar los roles de `/admin/conducta`
+    (tiene escritura); D3 **solo lo oficial** (cierre vigente / las dos etapas).
+  - **Cero métodos de modelo nuevos y sin migración** — verificado con sonda:
+    `getResumenCompetencia` funciona igual sobre una competencia transversal, así que el
+    crudo se pinta con el `_tabla.php` que ya existe.
+  - 🔴 **Dos trampas medidas:** el **bloqueo NO es señal de contenido** en transversales
+    (820 bloqueos / 410 cargas por bimestre, pero solo 23 cargas con notas en B1 → copiar
+    el criterio actual pintaría 410 bloques vacíos); y **B1 y B2 no comparten modelo de
+    conducta** (B1 legado: 528 literales y 0 respuestas). `getEstudiantesParaTutor` ya
+    resuelve las dos, marcando `es_legado`.
+  - **Cierra un hueco de roles real:** `director_general` y `director_ebr` no tienen hoy
+    ninguna forma de ver conducta ni el agregado transversal.
 - **NOTAS DE BIMESTRES CERRADOS PARA QUIEN LLEGÓ DESPUÉS — PLAN DE IMPLEMENTACIÓN LISTO,
   SIN IMPLEMENTAR (05/08/2026).** Plan completo con fases, archivos y SQL:
   **`docs/modulos/registro-retroactivo-notas.md`** (empezar por §6 **F0**).
-  - **Lleva migración `048`** (tabla `calificaciones_retroactivas` + `DROP notas_externas`)
+  - **Lleva migración `049`** (tabla `calificaciones_retroactivas` + `DROP notas_externas`)
     → al desplegar hay que aplicarla a mano en prod ANTES del merge, como la 044 y la 045.
   - 🔴 **F0 es BLOQUEANTE y de solo lectura:** contar en PROD las 5 tablas de los
     mecanismos a unificar. Si alguna trae filas, la migración cambia y el `DROP` deja de
@@ -277,8 +552,9 @@
       que se dupliquen cuando el alumno sí tiene agregación.
   - **Abierto (diferido por el usuario):** si van al SIAGIE. No bloquea F1 ni F2; conviene
     resolverlo antes de F4.
-- ✅ **EXONERAR A UN ALUMNO QUE YA TIENE NOTAS — IMPLEMENTADO EN LOCAL (05/08/2026), EN
-  `dev`, SIN MIGRACIÓN.** Deroga el candado del 07/07, que dejaba sin salida el caso real
+- ✅ **EXONERAR A UN ALUMNO QUE YA TIENE NOTAS — EN PRODUCCIÓN (implementado el
+  05/08/2026, desplegado ese mismo día en `c8681da`), SIN MIGRACIÓN.** Deroga el candado
+  del 07/07, que dejaba sin salida el caso real
   (estudiante con notas en un bimestre CERRADO y otro abierto): miraba todo el año y las
   notas del cerrado no se pueden borrar (`periodoEstaBloqueado`), así que su "elimina las
   notas primero" **no era ejecutable**. Ahora el aviso es **franqueable con confirmación
@@ -574,10 +850,11 @@ WHERE id=25;`).
     - **Sí cambia su BOLETA:** como `trasladado` la 541 pasa a calificar para la
       última boleta **OFICIAL** con estructura anual completa vía gestión, donde como
       `retirado` salía forzada a BORRADOR. Ver `docs/modulos/boletas.md`.
-  - ✅ **Condición de borrado de los backups CUMPLIDA (verificado 04/08/2026):** la
-    conducta de B2 tiene **23 cierres** (todas las secciones) y la sección de la 541
-    —3° A, `seccion_id=18`— está entre ellas. **Ya se pueden hacer los `DROP TABLE`
-    de `_bkp_conducta_resp_541` y `_bkp_calif_conducta_541` en prod** (siguen ahí).
+  - ✅ **CERRADO — los backups YA NO EXISTEN en prod (migración 048, 06/08/2026).** La
+    condición se verificó el 04/08 (conducta de B2 con 23 cierres, la sección 18 entre
+    ellos) y el `DROP` se ejecutó el 06/08 tras un PASO 1 que devolvió `PUEDE_BORRARSE`
+    con la identidad completa. **En LOCAL tampoco existen ya** (medido el 06/08). Detalle
+    en la migración 048, arriba.
 - ✅ **ASISTENCIA DE B2 — REGISTRADA Y BLOQUEADA EN PROD (05/08/2026). Ya NO bloquea el
   cierre.** El usuario amplió `limite_notas` y capturó las 23 secciones entre el 04/08
   16:29 y el 05/08 00:01. **Verificado el 05/08** sobre la copia local sincronizada:
@@ -709,8 +986,8 @@ WHERE id=25;`).
     haría contar el **mismo curso dos veces**; hoy solo lo vigila el guard nuevo.
   - **Esto NO alinea SIGA con el SIAGIE** y no lo pretende: quedan 3 divergencias (GAMA
     va al acta y no al mérito; los 2 talleres cuentan en el mérito y no tienen hoja).
-- **FORMATO OFICIAL EN TODAS LAS BOLETAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
-  DESPLEGAR.** La regla de formato del 09/07 (las 4 columnas de bimestre siempre) se había
+- ✅ **FORMATO OFICIAL EN TODAS LAS BOLETAS — EN PRODUCCIÓN (corregido el 04/08/2026,
+  desplegado el 05/08 en `c8681da`).** La regla de formato del 09/07 (las 4 columnas de bimestre siempre) se había
   aplicado solo a `/boleta/ver/{token}` y a la boleta del trasladado: la **impresión masiva**
   (`/admin/boletas-publicas/{id}/boletas-alumno`), el **ZIP de archivo** y la **digital de
   familias** llamaban a `armar()` sin el 4.º parámetro y colapsaban columnas. El papel que
@@ -744,8 +1021,8 @@ WHERE id=25;`).
     tarjeta inerte con badge "No iniciado" + guard en `porPeriodo()`. El **activo** sigue
     accesible (ahí vive la vista previa). Hubo que añadir `.bp-periodo-card.is-disabled`
     (el `.btn.is-disabled` existente exige la clase `.btn`) y `p.estado` a la query.
-- **ASISTENCIA EN LA VISTA PREVIA DE BOLETAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
-  DESPLEGAR (posterior al deploy `de449e2`).** En
+- ✅ **ASISTENCIA EN LA VISTA PREVIA DE BOLETAS — EN PRODUCCIÓN (corregido el 04/08/2026,
+  posterior al deploy `de449e2`; desplegado el 05/08 en `c8681da`).** En
   `/admin/boletas-publicas/{id}/vista-previa` no aparecía la asistencia del bimestre en
   curso pese a tener las secciones bloqueadas: el cuadro se filtraba por
   `periodos.estado='cerrado'`, y **bloquear el registro de una sección
@@ -759,8 +1036,8 @@ WHERE id=25;`).
     familias y el impreso siguen viendo solo bimestres cerrados —y publicados, en
     `'oficial'`—. Verificado con `verif_asistencia_boleta.php`, que simula el Hito A en
     transacción con ROLLBACK. Sin migración, sin Gulp (la clase CSS ya existía).
-- **ORDEN ALFABÉTICO: LA Ñ IBA ANTES QUE LA N — CORREGIDO EN LOCAL EL 04/08/2026, SIN
-  DESPLEGAR.** Detectado por el usuario en la grilla de 4° A primaria (ÑIQUEN PAJUELO
+- ✅ **ORDEN ALFABÉTICO: LA Ñ IBA ANTES QUE LA N — EN PRODUCCIÓN (corregido y desplegado
+  el 04/08/2026, `de449e2`).** Detectado por el usuario en la grilla de 4° A primaria (ÑIQUEN PAJUELO
   salía antes que NOLASCO REYES). Causa: las columnas de `personas` son
   `utf8mb4_unicode_ci`, que equipara Ñ ≡ N. Arreglado con `COLLATE utf8mb4_spanish_ci`
   en los **30 `ORDER BY`** de 19 archivos, con punto único `COLLATE_ES` /
@@ -772,7 +1049,7 @@ WHERE id=25;`).
   - **NO se cambió la colación de las columnas** a propósito: rompería la búsqueda
     tolerante a la ñ (hoy "NUNUVERO" encuentra a NUÑUVERO) y arriesga
     `Illegal mix of collations`. Sin migración.
-  - Va en el **mismo deploy** que el roster de asistencia (decisión del usuario).
+  - Fue en el **mismo deploy** que el roster de asistencia (decisión del usuario).
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
   (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la
   pestaña se cierra y no se acumulan.
@@ -933,7 +1210,7 @@ WHERE id=25;`).
   - ⚠️ **En B1 SIGUE ABIERTO y ahora tiene consecuencia:** B1 arroja **12 alumnos**
     con blancos sin motivo (692 entre ellos, con 69 blancos). Mientras B1 esté
     **cerrado** la alerta ahí es solo informativa (fix `af72ac7`), pero el guard P4
-    llega con este lote → **si alguna vez se REABRE B1, no se podrá volver a cerrar**
+    ya está en producción (04/08) → **si alguna vez se REABRE B1, no se podrá volver a cerrar**
     hasta resolver esos 12. Tenerlo presente antes de reabrir B1 para una
     rectificación. Ver "Efecto colateral del guard P4" en Pendientes de desarrollo.
   - Se conserva el diagnóstico completo porque el patrón (evaluación registrada en las
@@ -1049,6 +1326,42 @@ WHERE id=25;`).
     recibió la exclusión, converge con el estado correcto al desplegarse el lote.
   - ⚠️ **`main` LOCAL quedó en `0e250d1`, por DETRÁS de `origin/main`.** Es la trampa de
     siempre: actualizar `main` antes de mergear, o el fast-forward no sale.
+- **05/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `de449e2` a `c8681da`**
+  (20:02). **41 commits**, 0 conflictos, árbol limpio. Verificado antes de mergear:
+  sintaxis de los PHP del lote, scripts de verificación en verde y sin archivos sensibles
+  en el diff. Entró a producción: la **boleta con todas las competencias del plan** y
+  guion donde no hay dato (conducta incluida), la **Regla A del retorno de grado**
+  (F1-F3), **Ética y Valores en el mérito de toda secundaria**, la **señal de borrador
+  como punto único** + marca de agua en la digital, la **descarga de borradores en ZIP**,
+  **exonerar a un alumno que ya tiene notas** con las áreas exoneradas fuera del mérito,
+  el **formato oficial (4 columnas) en las 9 entradas** de boleta y la **asistencia con el
+  mismo umbral que las notas**. La migración **047 se aplicó en prod ANTES del merge**
+  (confirmada por el usuario).
+  - ⚠️ **Este deploy NO fue fast-forward: se hizo con COMMIT DE MERGE** (`c8681da`, padres
+    `de449e2` + `9eb13b9`). Consecuencia permanente: **`main` tiene un commit que `dev` no
+    contiene**, así que las dos ramas ya no comparten una historia lineal aunque su ÁRBOL
+    coincida. **No hay que "arreglarlo" trayendo `main` de vuelta a `dev`.**
+- **06/08/2026 — foto verificada: `dev` = `origin/dev` = `95877bb`, `origin/main` =
+  `c8681da`.** `dev` va **1 commit por delante** y ese commit es **solo SQL + docs** (la
+  migración 048 y la actualización de estado): **no hay código pendiente de desplegar**.
+  Árbol limpio.
+  - 🐞 **Incidente del `git pull` (06/08):** se ejecutó `git pull origin main` estando en
+    `dev`. Como `pull.rebase = false` (config global de Git for Windows), arrancó un merge
+    de `main` dentro de `dev` que quedó **a medias** — `MERGE_HEAD` presente, índice sin
+    conflictos y árbol idéntico a `dev`, porque `main` no aporta contenido. Se resolvió con
+    `git merge --abort`, sin pérdida. **Estando en `dev`, `git pull` a secas**:
+    `branch.dev.merge` ya apunta a `refs/heads/dev`.
+- **06/08/2026 (noche) — `dev` acumula el PRIMER CÓDIGO sin desplegar desde el deploy del
+  05/08.** Hasta esta tarde `dev` solo llevaba SQL y documentación; ahora suma el fix de
+  las 4 reaperturas del panel de bloqueos (`213abc0` + `2122345`), **probado en local por
+  el usuario**. `origin/main` sigue en `c8681da`.
+  - **Sin migración**: el deploy sería merge + push. **NO autorizado todavía.**
+  - ⚠️ **Decisión pendiente de calendario:** este fix toca el panel que se usa **durante**
+    el cierre de B2. Desplegarlo antes del cierre lo estrena en el momento de mayor
+    presión; después, deja unos días más el botón que borra datos sin avisar. El fix es
+    defensivo (solo **impide** acciones), lo que juega a favor de desplegarlo ya.
+  - **La migración `051`** (limpieza de los 130 bloqueos fantasma) está **planificada, no
+    escrita**, y depende de que antes se implemente F1 del plan de transversales.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial

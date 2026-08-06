@@ -86,7 +86,39 @@
 - **El director tiene control total:** forzar etapa 1, forzar etapa 2, o **reabrir**
   (anula con traza). Forzar etapa 1 RESPETA la regla de negocio (exige todos los
   estudiantes calificados; el botón se deshabilita y `bloquearRA` lo revalida en servidor).
-  Reabrir es libre.
+  ~~Reabrir es libre.~~ **Reabrir exige el bimestre ACTIVO** (06/08/2026, ver abajo).
+
+### Las 4 reaperturas del panel exigen el bimestre reabierto (06/08/2026)
+
+**Punto único: `BloqueoController::abortarSiPeriodoCerrado`**, que consumen las cuatro
+acciones destructivas del panel: `desbloquear` (competencia), `reabrirTransversal`,
+`reabrirConducta` y `reabrirAsistencia`. Antes **ninguna** validaba el estado del periodo
+—solo `limpiarBloqueosCierre` lo hacía—, así que con el bimestre cerrado el botón
+funcionaba y no daba error.
+
+**Por qué importa: con el bimestre cerrado la acción no sirve y en 3 de los 4 casos
+destruye la vista del documento.** `periodoEditable`/`periodoEstaBloqueado` cortan por
+`estado='cerrado'` sin mirar el bloqueo, así que nadie puede corregir después; y mientras
+tanto el dato desaparece de la boleta:
+
+| Acción | ¿Sale de la boleta? | Mecanismo |
+|---|---|---|
+| Desbloquear competencia | **Sí** | la boleta pinta solo competencias con bloqueo (+ cascada que libera TIC/GAMA y anula el cierre transversal) |
+| Reabrir transversal | **Sí** | `getTransversalesAgregadas` corta si no hay cierre vigente |
+| Reabrir conducta | **Sí** | `ConductaModel::getParaPeriodo` devuelve `null` (campo `visible`) |
+| Reabrir asistencia | **No** | `getDelBimestre` lee `inasistencias` sin mirar el cierre |
+
+⚠️ **Cada llamada pasa SU mensaje**: el efecto no es idéntico y el aviso de asistencia no
+debe prometer una pérdida de datos que no ocurre. En la vista los botones quedan
+**inertes con el motivo en el `title`** (no desaparecen: se ve POR QUÉ no se puede),
+reusando `.btn:disabled` de `components/_buttons.scss` — sin SASS nuevo.
+
+**Los botones de AVANCE se dejan intactos a propósito** (Bloquear competencia, Bloquear
+transversal, Bloquear etapa 1, Cerrar etapa 2, Bloquear asistencia): no destruyen nada y
+son la vía para recomponer algo que haya quedado sin bloqueo por un desbloqueo anterior.
+
+**La vía correcta con un bimestre cerrado sigue siendo reabrirlo**
+(`PeriodoController::reabrir`) — con su coste: ver el guard P4 en `docs/ESTADO.md`.
 - **`ConductaModel::getResumenSeccionesPorPeriodo(int $periodoId)`** — espejo del de
   transversales (sección + tutor + estado de las 2 etapas del cierre), enriquecido con
   completitud reusando `getProgresoConductaPorSeccion`. Solo secciones del año del periodo
