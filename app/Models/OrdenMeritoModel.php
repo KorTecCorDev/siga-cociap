@@ -141,6 +141,24 @@ class OrdenMeritoModel extends BaseModel
               -- primaria no tiene competencias, así que no puede colarse.
               AND (a.tipo NOT IN ('transversal', 'tutoria')
                    OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
+              -- ÁREA (o SUBÁREA) EXONERADA: fuera del cálculo (05/08/2026).
+              -- Desde que se puede exonerar a un alumno QUE YA TIENE NOTAS, sus
+              -- notas siguen vivas en `calificaciones` —no se borran, para que la
+              -- exoneración sea reversible— pero la boleta muestra EXO. Sin este
+              -- filtro el mérito seguiría promediándolas: el documento diría EXO
+              -- y el ranking contaría la nota.
+              -- Cubre las dos formas de exonerar: por ÁREA (a.id ya viene
+              -- resuelta con COALESCE, así que alcanza a sus subáreas) y por
+              -- SUBÁREA suelta. Los NULL no generan falsos positivos: una
+              -- exoneración de área tiene subarea_id NULL y `NULL = x` es NULL.
+              -- NO afecta a los snapshots ya guardados (el de B1 es inmutable):
+              -- esto es el cálculo EN VIVO.
+              AND NOT EXISTS (
+                  SELECT 1 FROM exoneraciones ex
+                  WHERE ex.matricula_id = cal.matricula_id
+                    AND ex.revocado_en IS NULL
+                    AND (ex.area_id = a.id OR ex.subarea_id = comp.subarea_id)
+              )
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, p.dni, s.nombre
             ORDER BY promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,
@@ -238,6 +256,24 @@ class OrdenMeritoModel extends BaseModel
               -- primaria no tiene competencias, así que no puede colarse.
               AND (a.tipo NOT IN ('transversal', 'tutoria')
                    OR a.nombre_boleta = '" . AREA_ETICA_NOMBRE_BOLETA . "')
+              -- ÁREA (o SUBÁREA) EXONERADA: fuera del cálculo (05/08/2026).
+              -- Desde que se puede exonerar a un alumno QUE YA TIENE NOTAS, sus
+              -- notas siguen vivas en `calificaciones` —no se borran, para que la
+              -- exoneración sea reversible— pero la boleta muestra EXO. Sin este
+              -- filtro el mérito seguiría promediándolas: el documento diría EXO
+              -- y el ranking contaría la nota.
+              -- Cubre las dos formas de exonerar: por ÁREA (a.id ya viene
+              -- resuelta con COALESCE, así que alcanza a sus subáreas) y por
+              -- SUBÁREA suelta. Los NULL no generan falsos positivos: una
+              -- exoneración de área tiene subarea_id NULL y `NULL = x` es NULL.
+              -- NO afecta a los snapshots ya guardados (el de B1 es inmutable):
+              -- esto es el cálculo EN VIVO.
+              AND NOT EXISTS (
+                  SELECT 1 FROM exoneraciones ex
+                  WHERE ex.matricula_id = cal.matricula_id
+                    AND ex.revocado_en IS NULL
+                    AND (ex.area_id = a.id OR ex.subarea_id = comp.subarea_id)
+              )
             GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
                      p.nombres, s.id, s.nombre
             ORDER BY s.nombre, promedio_exacto DESC, num_c ASC, num_b ASC, num_ad DESC,
