@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **05/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **06/08/2026**.
 
 ## Migraciones
 - **`048_limpieza_backups_conducta_541`** (05/08): retira las dos tablas de respaldo que
@@ -110,25 +110,24 @@
   `duracion_hora_min = 50` por defecto; el año 2026 usa 45.
 
 ## Pendientes de desarrollo
-- **Rediseño 2 del orden de mérito — IMPLEMENTADO Y PROBADO (26/07/2026), EN `dev`,
-  PENDIENTE DE DEPLOY.** Las 6 fases + una fase extra (F5b) y varios fixes; **sin
-  migración nueva**, así que el deploy es merge + push sin tocar la BD de prod.
+- ✅ **Rediseño 2 del orden de mérito — EN PRODUCCIÓN (deploy del 04/08/2026, `de449e2`).**
+  Implementado y probado el 26/07. Las 6 fases + una fase extra (F5b) y varios fixes; **sin
+  migración nueva**, así que el deploy fue merge + push sin tocar la BD de prod.
   Qué hace cada fase, las desviaciones respecto del plan y los efectos colaterales
   aceptados: `docs/modulos/orden-merito-rediseno.md` **§8** (manda esa sección, no las
   §1-5, que son el plan original). Estado vigente del módulo: `orden-merito.md`.
   Diferencia consciente con el diseño: el cierre **no** valida "0 competencias sin
   bloquear" (P3) porque él mismo las fuerza.
-  - **Al 04/08/2026 el lote está LISTO para desplegar** y las dos condiciones duras
-    están en verde (ver "Cierre de B2 — SECUENCIA CORRECTA"). Falta solo la
-    autorización explícita del usuario para mergear `dev` → `main`.
-- **Efecto colateral del guard P4 (llega con el deploy del rediseño 2) — REABRIR UN
-  BIMESTRE YA CERRADO SE VUELVE UNA PUERTA DE UN SOLO SENTIDO.** `cerrar()` exige
+  - Se desplegó el 04/08/2026 con las dos condiciones duras **en verde** (ver "Cierre de
+    B2 — SECUENCIA CORRECTA").
+- **Efecto colateral del guard P4 (VIGENTE EN PRODUCCIÓN desde el 04/08/2026) — REABRIR
+  UN BIMESTRE YA CERRADO ES UNA PUERTA DE UN SOLO SENTIDO.** `cerrar()` exige
   ahora `alertasEvaluacionIncompleta = 0`, y esa alerta se evalúa sobre bimestres
   `activo`. Un bimestre que se cerró ANTES de que existiera el guard puede no
   cumplirlo: **B1 tiene hoy 12 alumnos con blancos sin motivo**, así que reabrirlo lo
   dejaría imposible de re-cerrar hasta resolverlos uno a uno (nota u omisión desde el
   módulo del docente). No es un defecto —es la regla funcionando— pero es una
-  restricción que HOY no existe y que aparece en el instante del merge.
+  restricción que antes no existía y que está activa en producción desde el 04/08.
   Antes de reabrir B1 (p. ej. para una rectificación), medir primero con
   `alerta_evaluacion_incompleta.sql` cambiando a `@periodo := 1`.
 - **La superficie de mérito para familias entra OSCURA (medido el 04/08/2026):** en
@@ -171,8 +170,9 @@
     `getProgresoPorSeccion` (filtra `m.estado='aprobada'`); y en local
     `cierres_asistencia` está **vacía**, así que el escenario de prueba hay que
     construirlo. Detalle en el doc del plan.
-- **BOLETA CON TODAS LAS COMPETENCIAS DEL PLAN — IMPLEMENTADO Y VERIFICADO EN LOCAL
-  (05/08/2026), EN `dev`, SIN DESPLEGAR. Sin migración.** La boleta lista **todas** las
+- ✅ **BOLETA CON TODAS LAS COMPETENCIAS DEL PLAN — EN PRODUCCIÓN (implementada y
+  verificada en local el 05/08/2026, desplegada ese mismo día en `c8681da`). Sin
+  migración.** La boleta lista **todas** las
   competencias que la sección dicta, tengan o no nota, con **guion** donde no hay dato.
   Qué se construyó, trampas y cifras: **`docs/modulos/boleta-competencias-completas.md`
   §10** (manda esa sección; §1-§7 son el plan original). Regla del módulo en
@@ -231,10 +231,11 @@
     de `#555`/8% a `#3f3f3f`/16% — el documento **se imprime en papel con el bimestre
     abierto**, así que la señal debe sobrevivir a la impresora. Decisión del usuario
     sobre 4 alternativas. Ver `docs/modulos/boletas.md`.
-  - 🔴 **PENDIENTE ANTES DE DESPLEGAR: checklist de impresión en navegador** (§8.3 del
-    doc). La restricción dura es **UNA hoja A4 vertical**: el máximo de filas no sube
-    (29 → 29) y el peor incremento es +5 (Primaria 2.º A), pero eso **no está probado en
-    papel**. Toca SASS (`gulp` ya lo compiló en local).
+  - 🔴 **PENDIENTE — checklist de impresión en navegador** (§8.3 del doc). ⚠️ **El
+    disparador CAMBIÓ: el código ya está en producción, así que esto toca hacerlo ANTES
+    DE IMPRIMIR Y ENTREGAR B2**, no antes de desplegar. La restricción dura es **UNA hoja
+    A4 vertical**: el máximo de filas no sube (29 → 29) y el peor incremento es +5
+    (Primaria 2.º A), pero eso **no está probado en papel**.
     - **El alto ya no lo fijan las filas sino las CONCLUSIONES DESCRIPTIVAS** (2 líneas
       por celda, `.conclusion-clip`): el nº de filas es fijo por sección, el alto no.
       Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
@@ -289,8 +290,9 @@
       que se dupliquen cuando el alumno sí tiene agregación.
   - **Abierto (diferido por el usuario):** si van al SIAGIE. No bloquea F1 ni F2; conviene
     resolverlo antes de F4.
-- ✅ **EXONERAR A UN ALUMNO QUE YA TIENE NOTAS — IMPLEMENTADO EN LOCAL (05/08/2026), EN
-  `dev`, SIN MIGRACIÓN.** Deroga el candado del 07/07, que dejaba sin salida el caso real
+- ✅ **EXONERAR A UN ALUMNO QUE YA TIENE NOTAS — EN PRODUCCIÓN (implementado el
+  05/08/2026, desplegado ese mismo día en `c8681da`), SIN MIGRACIÓN.** Deroga el candado
+  del 07/07, que dejaba sin salida el caso real
   (estudiante con notas en un bimestre CERRADO y otro abierto): miraba todo el año y las
   notas del cerrado no se pueden borrar (`periodoEstaBloqueado`), así que su "elimina las
   notas primero" **no era ejecutable**. Ahora el aviso es **franqueable con confirmación
@@ -721,8 +723,8 @@ WHERE id=25;`).
     haría contar el **mismo curso dos veces**; hoy solo lo vigila el guard nuevo.
   - **Esto NO alinea SIGA con el SIAGIE** y no lo pretende: quedan 3 divergencias (GAMA
     va al acta y no al mérito; los 2 talleres cuentan en el mérito y no tienen hoja).
-- **FORMATO OFICIAL EN TODAS LAS BOLETAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
-  DESPLEGAR.** La regla de formato del 09/07 (las 4 columnas de bimestre siempre) se había
+- ✅ **FORMATO OFICIAL EN TODAS LAS BOLETAS — EN PRODUCCIÓN (corregido el 04/08/2026,
+  desplegado el 05/08 en `c8681da`).** La regla de formato del 09/07 (las 4 columnas de bimestre siempre) se había
   aplicado solo a `/boleta/ver/{token}` y a la boleta del trasladado: la **impresión masiva**
   (`/admin/boletas-publicas/{id}/boletas-alumno`), el **ZIP de archivo** y la **digital de
   familias** llamaban a `armar()` sin el 4.º parámetro y colapsaban columnas. El papel que
@@ -756,8 +758,8 @@ WHERE id=25;`).
     tarjeta inerte con badge "No iniciado" + guard en `porPeriodo()`. El **activo** sigue
     accesible (ahí vive la vista previa). Hubo que añadir `.bp-periodo-card.is-disabled`
     (el `.btn.is-disabled` existente exige la clase `.btn`) y `p.estado` a la query.
-- **ASISTENCIA EN LA VISTA PREVIA DE BOLETAS — CORREGIDO EN LOCAL EL 04/08/2026, SIN
-  DESPLEGAR (posterior al deploy `de449e2`).** En
+- ✅ **ASISTENCIA EN LA VISTA PREVIA DE BOLETAS — EN PRODUCCIÓN (corregido el 04/08/2026,
+  posterior al deploy `de449e2`; desplegado el 05/08 en `c8681da`).** En
   `/admin/boletas-publicas/{id}/vista-previa` no aparecía la asistencia del bimestre en
   curso pese a tener las secciones bloqueadas: el cuadro se filtraba por
   `periodos.estado='cerrado'`, y **bloquear el registro de una sección
@@ -771,8 +773,8 @@ WHERE id=25;`).
     familias y el impreso siguen viendo solo bimestres cerrados —y publicados, en
     `'oficial'`—. Verificado con `verif_asistencia_boleta.php`, que simula el Hito A en
     transacción con ROLLBACK. Sin migración, sin Gulp (la clase CSS ya existía).
-- **ORDEN ALFABÉTICO: LA Ñ IBA ANTES QUE LA N — CORREGIDO EN LOCAL EL 04/08/2026, SIN
-  DESPLEGAR.** Detectado por el usuario en la grilla de 4° A primaria (ÑIQUEN PAJUELO
+- ✅ **ORDEN ALFABÉTICO: LA Ñ IBA ANTES QUE LA N — EN PRODUCCIÓN (corregido y desplegado
+  el 04/08/2026, `de449e2`).** Detectado por el usuario en la grilla de 4° A primaria (ÑIQUEN PAJUELO
   salía antes que NOLASCO REYES). Causa: las columnas de `personas` son
   `utf8mb4_unicode_ci`, que equipara Ñ ≡ N. Arreglado con `COLLATE utf8mb4_spanish_ci`
   en los **30 `ORDER BY`** de 19 archivos, con punto único `COLLATE_ES` /
@@ -784,7 +786,7 @@ WHERE id=25;`).
   - **NO se cambió la colación de las columnas** a propósito: rompería la búsqueda
     tolerante a la ñ (hoy "NUNUVERO" encuentra a NUÑUVERO) y arriesga
     `Illegal mix of collations`. Sin migración.
-  - Va en el **mismo deploy** que el roster de asistencia (decisión del usuario).
+  - Fue en el **mismo deploy** que el roster de asistencia (decisión del usuario).
 - **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
   (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la
   pestaña se cierra y no se acumulan.
@@ -945,7 +947,7 @@ WHERE id=25;`).
   - ⚠️ **En B1 SIGUE ABIERTO y ahora tiene consecuencia:** B1 arroja **12 alumnos**
     con blancos sin motivo (692 entre ellos, con 69 blancos). Mientras B1 esté
     **cerrado** la alerta ahí es solo informativa (fix `af72ac7`), pero el guard P4
-    llega con este lote → **si alguna vez se REABRE B1, no se podrá volver a cerrar**
+    ya está en producción (04/08) → **si alguna vez se REABRE B1, no se podrá volver a cerrar**
     hasta resolver esos 12. Tenerlo presente antes de reabrir B1 para una
     rectificación. Ver "Efecto colateral del guard P4" en Pendientes de desarrollo.
   - Se conserva el diagnóstico completo porque el patrón (evaluación registrada en las
@@ -1061,6 +1063,31 @@ WHERE id=25;`).
     recibió la exclusión, converge con el estado correcto al desplegarse el lote.
   - ⚠️ **`main` LOCAL quedó en `0e250d1`, por DETRÁS de `origin/main`.** Es la trampa de
     siempre: actualizar `main` antes de mergear, o el fast-forward no sale.
+- **05/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `de449e2` a `c8681da`**
+  (20:02). **41 commits**, 0 conflictos, árbol limpio. Verificado antes de mergear:
+  sintaxis de los PHP del lote, scripts de verificación en verde y sin archivos sensibles
+  en el diff. Entró a producción: la **boleta con todas las competencias del plan** y
+  guion donde no hay dato (conducta incluida), la **Regla A del retorno de grado**
+  (F1-F3), **Ética y Valores en el mérito de toda secundaria**, la **señal de borrador
+  como punto único** + marca de agua en la digital, la **descarga de borradores en ZIP**,
+  **exonerar a un alumno que ya tiene notas** con las áreas exoneradas fuera del mérito,
+  el **formato oficial (4 columnas) en las 9 entradas** de boleta y la **asistencia con el
+  mismo umbral que las notas**. La migración **047 se aplicó en prod ANTES del merge**
+  (confirmada por el usuario).
+  - ⚠️ **Este deploy NO fue fast-forward: se hizo con COMMIT DE MERGE** (`c8681da`, padres
+    `de449e2` + `9eb13b9`). Consecuencia permanente: **`main` tiene un commit que `dev` no
+    contiene**, así que las dos ramas ya no comparten una historia lineal aunque su ÁRBOL
+    coincida. **No hay que "arreglarlo" trayendo `main` de vuelta a `dev`.**
+- **06/08/2026 — foto verificada: `dev` = `origin/dev` = `95877bb`, `origin/main` =
+  `c8681da`.** `dev` va **1 commit por delante** y ese commit es **solo SQL + docs** (la
+  migración 048 y la actualización de estado): **no hay código pendiente de desplegar**.
+  Árbol limpio.
+  - 🐞 **Incidente del `git pull` (06/08):** se ejecutó `git pull origin main` estando en
+    `dev`. Como `pull.rebase = false` (config global de Git for Windows), arrancó un merge
+    de `main` dentro de `dev` que quedó **a medias** — `MERGE_HEAD` presente, índice sin
+    conflictos y árbol idéntico a `dev`, porque `main` no aporta contenido. Se resolvió con
+    `git merge --abort`, sin pérdida. **Estando en `dev`, `git pull` a secas**:
+    `branch.dev.merge` ya apunta a `refs/heads/dev`.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
