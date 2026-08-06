@@ -95,6 +95,19 @@
 -- ⚠️ ESTE PASO NO PROTEGE AL PASO 2: son sentencias sueltas. Correr este paso
 --   solo, LEER el resultado y recién entonces el PASO 2. (Si algo sale mal, a
 --   diferencia de un DROP esto se puede deshacer — pero no es excusa.)
+
+-- 1.0 ¿EN QUÉ ENTORNO ESTOY? Esta es la lección de la 048, resuelta: aquella se
+--     dio por aplicada en prod cuando había caído en LOCAL, porque su veredicto
+--     era IDÉNTICO en los dos (local es copia de prod: mismos ids, mismas fechas
+--     al segundo). Ningún conteo de DATOS sirve para distinguirlos — la huella
+--     tiene que ser del SERVIDOR. Correr esto ANTES que nada, en cada entorno.
+--       · LOCAL (XAMPP):  bd 'siga_cociap', root@localhost, so 'Win64',
+--                         datadir 'C:\xampp\mysql\data\'.
+--       · PROD (Hostinger): otra bd, otro usuario, so Linux.
+--     Si la fila dice Win64, estás en tu máquina.
+SELECT DATABASE() AS bd, USER() AS usuario_conexion, @@hostname AS hostname,
+       @@version AS version, @@version_compile_os AS so, @@datadir AS datadir;
+
 SET @periodo := (SELECT id FROM periodos
                   WHERE numero = 1
                     AND anio_id = (SELECT id FROM anios_academicos
@@ -262,8 +275,23 @@ WHERE EXISTS (SELECT 1 FROM calificaciones c
 -- escribiría basura. Con la guarda `IS NOT NULL` de cada WHERE, un anclaje que
 -- no resuelva inserta CERO filas en vez de datos corruptos: falla cerrado.
 --
--- Para ENSAYAR sin escribir, envolver este paso completo:
---     START TRANSACTION;  … (los 4 INSERT y el PASO 3) …  ROLLBACK;
+-- 🔴 EJECUTAR SIEMPRE ENVUELTO EN TRANSACCIÓN, también en producción:
+--     START TRANSACTION;  … (los 4 INSERT) …  COMMIT;
+--   Son CUATRO sentencias sueltas y dependientes entre sí: si la 2.c fallara, el
+--   criterio y las 275 notas de criterio ya estarían escritos y la calificación
+--   no — un estado a medias, con criterio confirmado y sin nota final. Aquí no
+--   hay DDL (a diferencia de la 048), así que la transacción SÍ protege: ante un
+--   error, phpMyAdmin corta la ejecución y la conexión muere sin COMMIT →
+--   ROLLBACK implícito, cero filas escritas.
+--   Para ENSAYAR sin escribir, el mismo bloque terminado en ROLLBACK.
+--
+-- ⚠️ PROD Y LOCAL NO CORREN LA MISMA MARIADB (verificado el 06/08/2026 con la
+--   huella 1.0): local **10.4.32**, prod **11.8.8**. El ensayo en local prueba la
+--   LÓGICA, no el plan del optimizador. Importa sobre todo por el patrón
+--   `NOT EXISTS (SELECT 1 FROM (SELECT * FROM tabla) x)` de 2.b/2.c/2.d, que
+--   fuerza la materialización de la derivada para poder leer la MISMA tabla en la
+--   que se inserta. Si una versión decidiera fusionarla, el INSERT abortaría con
+--   error — ruidoso, no silencioso, y con la transacción no deja rastro.
 SET @periodo := (SELECT id FROM periodos
                   WHERE numero = 1
                     AND anio_id = (SELECT id FROM anios_academicos

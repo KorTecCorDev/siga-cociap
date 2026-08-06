@@ -6,8 +6,25 @@
 ## Migraciones
 - **`050_etica_b1_extraordinaria`** (06/08): registra **15 (literal A) como CALIFICACIÓN
   EXTRAORDINARIA** de Ética y Valores en el **I Bimestre** a los **275** estudiantes de
-  secundaria **que cursaron B1**. **ESCRITA Y ENSAYADA EN LOCAL, SIN APLICAR EN NINGÚN
-  ENTORNO.**
+  secundaria **que cursaron B1**.
+  ✅ **APLICADA EN PRODUCCIÓN el 06/08/2026 a las 20:01:10**, con la verificación posterior
+  capturada ALLÍ (la regla que dejó la 048). **NO aplicada en local**, a propósito: local
+  queda como copia del estado previo hasta la próxima sincronización.
+  - **Evidencia en prod:** 11 criterios · 275 notas de criterio · 275 calificaciones · 275
+    marcadas extraordinarias · **0** con nota distinta de 15 · 275 filas de auditoría;
+    `MOTIVO OK` (370 caracteres / 378 bytes, sin mojibake); snapshot oficial de B1 **intacto
+    en 528 / puestos 1-72 / 11 grados / 23 secciones**; **0** notas que entren al mérito; e
+    integridad en **0 · 0 · 0** (ninguna matrícula con dos notas, ninguna nota en carga
+    ajena a su sección, ninguna sin bloqueo).
+  - **Contraste cruzado independiente:** los pares *bloqueados y vacíos* de B1 bajaron
+    **exactamente 11** (890 → 879 con la consulta sin filtrar; equivale a **116 → 105** con
+    la definición correcta del runbook). Los 11 pares de Ética dejaron de estar vacíos.
+  - **PROCEDIMIENTO QUE FUNCIONÓ, y conviene repetir:** PASO 1 en tres envíos de solo
+    lectura → **ENSAYO EN LA PROPIA PRODUCCIÓN** con `START TRANSACTION … ROLLBACK`
+    (mismas cifras, sin escribir) → confirmación de que el rollback limpió (0·0·0) y de que
+    las 4 tablas son **InnoDB** → envío definitivo idéntico terminado en `COMMIT` →
+    verificación **en conexión nueva** (lo único que prueba que el COMMIT persistió; las
+    SELECT de dentro del bloque no lo prueban).
   - **Por qué existe:** en B1 nadie evaluó Ética —los tutores no remitieron a tiempo— y por
     acuerdo de dirección se consignó 15 (A) uniforme, **ya cargado a mano en el SIAGIE** en
     las dos competencias de Ed. Religiosa (vínculo `035-EREL`). Esto alinea SIGA con el acta.
@@ -72,6 +89,25 @@
     - **Efecto medible esperado en el runbook:** los **11 pares bloqueados-y-vacíos de
       Ética** dejan de serlo → el conteo de B1 baja de **116 a 105**. El termómetro de
       bloqueos no se mueve (esas cargas ya estaban bloqueadas).
+  - 🔎 **HALLAZGO DEL DÍA DE LA APLICACIÓN — prod y local NO corren la misma MariaDB:**
+    local **10.4.32**, prod **11.8.8** (visto con la huella nueva del PASO 1.0). Un ensayo
+    en local prueba la LÓGICA, no el plan del optimizador. Por eso el PASO 2 pasó a
+    ejecutarse **siempre envuelto en transacción**, también en prod: son 4 INSERT
+    dependientes y un fallo a mitad dejaría criterios y notas de criterio sin calificación.
+    El patrón `NOT EXISTS (SELECT 1 FROM (SELECT * FROM tabla) x)` se comportó igual en
+    11.8 — verificado en el ensayo sobre prod, no supuesto.
+  - 🔎 **LA LECCIÓN DE TRAZABILIDAD DE LA 048, RESUELTA:** ningún conteo de DATOS distingue
+    local de prod (local es copia fiel: mismas 28 270 notas de B2, mismos ids). La huella
+    tiene que ser del **SERVIDOR** — `DATABASE()`, `USER()`, `@@hostname`,
+    `@@version_compile_os`, `@@datadir` — y ahora es el **PASO 1.0** de la migración.
+    Local: `siga_cociap` · `root@localhost` · **Win64**. Prod: `u761410128_siga_cociap` ·
+    Linux · Hostinger.
+  - ⚠️ **phpMyAdmin IGNORA `USE`:** reselecciona la base según el contexto de la página. Si
+    la pestaña SQL cuelga de `information_schema`, todo se ejecuta allí y las consultas
+    fallan con `#1109 Tabla desconocida`. Pasó durante esta aplicación. Se arregla entrando
+    a la base desde el panel izquierdo y se comprueba con `SELECT DATABASE()`. No es un
+    riesgo de escritura: el bloque falla en su primera sentencia y la transacción queda
+    vacía.
   - ✅ **ENSAYADA ENTERA EN LOCAL con `START TRANSACTION … ROLLBACK`** (no hay DDL, a
     diferencia de la 048): **11 criterios · 275 notas de criterio · 275 calificaciones,
     todas marcadas y ninguna distinta de 15 · 275 filas de auditoría**, y local quedó en 0
@@ -183,9 +219,11 @@
   **APLICADA EN LOCAL Y PROD.** En prod se importó a mano (phpMyAdmin) el
   **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
   código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
-- **LOCAL y PROD: AL DÍA HASTA LA `048`** (la 047 el 05/08/2026, la **048 el 06/08/2026**
-  en ambos entornos, cada uno con la salida de su PASO 3 en 0 filas). La **`050`** (Ética
-  de B1) está escrita y ensayada, **sin aplicar**. La **`049`** será la del registro
+- **PROD AL DÍA HASTA LA `050`; LOCAL, HASTA LA `048`** (la 047 el 05/08/2026, la 048 el
+  06/08/2026 en ambos entornos, cada uno con la salida de su PASO 3 en 0 filas). La
+  **`050`** se aplicó **SOLO EN PROD** (06/08, 20:01:10): local se queda con el estado
+  previo hasta que se vuelva a sincronizar desde prod, así que **una medición local de
+  Ética en B1 dará 0 y no es un error**. La **`049`** será la del registro
   retroactivo de notas, aún sin implementar — ⚠️ **la 050 se numeró antes que la 049 a
   propósito**: son independientes y esta corría primero. Al aplicarlas, el orden lo manda
   la dependencia, no el número.
