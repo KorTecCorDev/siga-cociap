@@ -155,10 +155,34 @@ class BloqueoController extends BaseController
         $transversales = [];
         $transStats    = ['total' => 0, 'cerradas' => 0];
         if ($periodoId && $periodo) {
+            // Bloqueos de competencia (TIC/GAMA) por carga, agrupados por sección
+            // y luego por carga: son el OTRO nivel, el que impide al DOCENTE
+            // editar. El cierre del tutor (abajo) no los toca, y no aparecen en el
+            // panel académico porque cuelgan de un área tipo='transversal'.
+            $bloqPorSeccion = [];
+            foreach ($this->transModel->getBloqueosTransversalesPorPeriodo($periodoId) as $b) {
+                $sid = (int) $b['seccion_id'];
+                $cid = (int) $b['carga_id'];
+                if (!isset($bloqPorSeccion[$sid][$cid])) {
+                    $bloqPorSeccion[$sid][$cid] = [
+                        'carga_nombre'   => $b['carga_nombre'],
+                        'docente_nombre' => $b['docente_nombre'],
+                        'competencias'   => [],
+                    ];
+                }
+                $bloqPorSeccion[$sid][$cid]['competencias'][] = $b;
+            }
+
             foreach ($this->transModel->getResumenSeccionesPorPeriodo($periodoId) as $s) {
                 // Mismos estados que las competencias académicas: Bloqueada (cierre
                 // vigente) o Pendiente. La validación de readiness vive en cerrarTransversal.
+                $sid             = (int) $s['seccion_id'];
                 $s['cerrada']    = $s['cierre_id'] !== null;
+                $s['cargas']     = array_values($bloqPorSeccion[$sid] ?? []);
+                $s['n_bloqueos'] = array_sum(array_map(
+                    static fn(array $c): int => count($c['competencias']),
+                    $s['cargas']
+                ));
                 $transversales[] = $s;
             }
             $transStats['total']    = count($transversales);
@@ -467,7 +491,7 @@ class BloqueoController extends BaseController
         if ($estado['total'] === 0 || $estado['bloqueadas'] < $estado['total']) {
             $this->redirectWithError(
                 $back,
-                'No se puede cerrar: faltan cargas por bloquear ('
+                'No se puede cerrar: faltan competencias transversales por bloquear ('
                 . $estado['bloqueadas'] . ' de ' . $estado['total'] . ').'
             );
         }
@@ -528,6 +552,94 @@ class BloqueoController extends BaseController
                 'Cierre transversal anulado. El tutor puede editar las conclusiones y volver a cerrar.');
         }
         $this->redirectWithError($back, 'No había un cierre transversal vigente para anular.');
+    }
+
+    /**
+     * POST /director/bloqueos/transversal-competencia/{bloqueo_id}/liberar
+     * Libera UNA competencia transversal (TIC o GAMA) de UNA carga, para que su
+     * docente pueda corregir lo que aprobó por error.
+     *
+     * POR QUÉ EXISTE: las transversales NO son filas del panel principal
+     * (`getCompetenciasPorPeriodo` une por el área de la CARGA y ellas cuelgan de
+     * un área propia), así que hasta el 06/08/2026 la única vía era la CASCADA:
+     * desbloquear una competencia ACADÉMICA de la misma carga, que además la
+     * sacaba a ella de la boleta y liberaba las DOS transversales de golpe. Y si
+     * la carga no tenía ninguna académica bloqueada —estado alcanzable, porque
+     * bloquear transversales primero está permitido— no había vía ninguna.
+     *
+     * ⚠️ ANULA EL CIERRE TRANSVERSAL de la sección, igual que la cascada: el
+     * agregado de la boleta (`getTransversalesAgregadas`) exige cierre vigente y
+     * promedia SOLO lo bloqueado, así que dejarlo en pie mostraría a las familias
+     * un promedio que ya no se corresponde con lo que hay bloqueado.
+     */
+    public function liberarTransversalCompetencia(string $bloqueoId): void
+    {
+        $this->validateCsrf();
+        $id   = (int) $bloqueoId;
+        $user = Session::user();
+
+        // El anclaje EXIGE que sea transversal: este endpoint no puede servir
+        // para desbloquear una académica saltándose la cascada de `desbloquear`.
+        $bloqueo = $this->calModel->queryOne("
+            SELECT bc.id, bc.periodo_id, bc.carga_id,
+                   ca.seccion_id,
+                   comp.nombre_corto AS competencia_nombre
+            FROM bloqueos_competencia bc
+            INNER JOIN competencias comp ON comp.id = bc.competencia_id
+            INNER JOIN areas a           ON a.id    = comp.area_id AND a.tipo = 'transversal'
+            INNER JOIN cargas_academicas ca ON ca.id = bc.carga_id
+            WHERE bc.id = ?
+        ", [$id]);
+
+        if (!$bloqueo) {
+            $this->redirectWithError(
+                url('director/bloqueos'),
+                'Bloqueo no encontrado o no corresponde a una competencia transversal.'
+            );
+        }
+
+        $periodoId = (int) $bloqueo['periodo_id'];
+        $back      = url("director/bloqueos?periodo_id={$periodoId}");
+
+        $this->abortarSiPeriodoCerrado(
+            $periodoId,
+            $back,
+            'No se puede liberar con el bimestre cerrado: la competencia transversal '
+            . 'desapareceria de la boleta y el docente seguiria sin poder editarla. '
+            . 'Reabre el bimestre primero.'
+        );
+
+        try {
+            $this->calModel->beginTransaction();
+
+            if (!$this->calModel->desbloquearCompetencia($id)) {
+                $this->calModel->rollback();
+                $this->redirectWithError($back, 'No se pudo liberar la competencia transversal.');
+            }
+
+            $this->transModel->anularCierreVigente(
+                (int) $bloqueo['seccion_id'],
+                $periodoId,
+                (int) $user['id'],
+                'Liberacion de la competencia transversal "' . $bloqueo['competencia_nombre']
+                    . '" (carga ' . (int) $bloqueo['carga_id'] . ') por el director.'
+            );
+
+            $this->calModel->commit();
+        } catch (\Exception $e) {
+            $this->calModel->rollback();
+            log_error('Error liberando competencia transversal', [
+                'bloqueo' => $id, 'error' => $e->getMessage(),
+            ]);
+            $this->redirectWithError($back, 'No se pudo liberar la competencia transversal.');
+        }
+
+        $this->redirectWithSuccess(
+            $back,
+            'Competencia transversal "' . $bloqueo['competencia_nombre'] . '" liberada. '
+            . 'El docente puede volver a editarla y aprobarla. Si la seccion tenia cierre '
+            . 'transversal, quedo anulado hasta que el tutor lo repita.'
+        );
     }
 
     /**

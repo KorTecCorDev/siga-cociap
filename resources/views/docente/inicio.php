@@ -129,7 +129,12 @@ $saludo = match($auth_user['sexo'] ?? null) {
                 : 'Disponible para cerrar';
         } else {
             $tEstado = 'progreso';
-            $tTexto  = 'Bloqueadas ' . $tutoria['bloqueadas'] . ' de ' . $tutoria['total'];
+            // Desde el 06/08/2026 el contador es SOLO de competencias
+            // transversales (las academicas dejaron de condicionar el cierre
+            // del tutor), asi que se nombra: un "X de Y" a secas se leia como
+            // el total de la seccion y ya no lo es.
+            $tTexto  = 'Transversales bloqueadas ' . $tutoria['bloqueadas']
+                     . ' de ' . $tutoria['total'];
         }
         // Semaforo de estado del dashboard docente (ver docs/modulos/ui.md):
         // gris = todavia no depende de ti · ambar = te toca · verde = terminado.

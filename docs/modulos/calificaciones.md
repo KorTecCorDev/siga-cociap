@@ -77,12 +77,32 @@ competencia se queda sin tabla.
 - Rutas: `GET /docente/tutoria[/{periodo_id}]`,
   `POST /docente/tutoria/{periodo_id}/conclusion`, `POST .../cerrar`.
 - Card "Tutoría" DESTACADA en `/docente/mis-cargas` (`.tutoria-card`, 3 estados:
-  `⏳ Bloqueadas X de Y` / `✍ Disponible con N conclusiones pendientes` /
-  `✅ Cerrado el {fecha}`). Solo tutores del año activo (`secciones.tutor_id`).
+  `⏳ Transversales bloqueadas X de Y` / `✍ Disponible con N conclusiones
+  pendientes` / `✅ Cerrado el {fecha}`). Solo tutores del año activo
+  (`secciones.tutor_id`).
 - Panel: selector de bimestre, tabla de promedios agregados TIC/GAMA, textarea
   de conclusión SOLO donde el literal la exige (B/C primaria, C secundaria).
-- `cerrar` valida en servidor: todas las cargas activas bloqueadas + 0
-  conclusiones obligatorias pendientes. JS: `resources/js/tutoria.js`.
+- **La tabla de promedios se muestra SIEMPRE (06/08/2026), también con el
+  bimestre a medias**, en dos estados: *provisional* (solo lectura, badge
+  `Provisional`, guion donde aún no hay aporte) y *definitivo*. Mientras es
+  provisional, el tutor ve además **qué cargas ya aprobaron sus transversales y
+  el nombre de su docente** — esto DEROGA la regla del 14/06/2026 (`73838d1`)
+  que solo exponía el avance agregado; se expone área/carga, docente y estado,
+  nunca notas de otras áreas ni el DNI.
+- **Escribir conclusiones exige el promedio DEFINITIVO**, y el guard está en
+  `TutoriaController::guardarConclusion` (servidor), no solo en la vista: una
+  conclusión redactada sobre un parcial puede terminar describiendo una nota que
+  luego cambia. Medido en B2: el promedio provisional sí se mueve (34 de 48
+  celdas con 12 de 15 cargas sin aprobar), pero el LITERAL no llegó a cambiar
+  mientras quedara alguna carga aportando.
+- `cerrar` valida en servidor: **todas las competencias TRANSVERSALES de la
+  sección bloqueadas** + 0 conclusiones obligatorias pendientes.
+  ⚠️ **Desde el 06/08/2026 las ACADÉMICAS ya no condicionan el cierre**: no
+  participan del promedio que se congela (`getPromediosSeccion` filtra
+  `tipo='transversal'`), así que exigirlas hacía esperar al tutor por notas que
+  no cambiaban su resultado. Contrapartida aceptada: cerrar antes alarga la
+  ventana en la que un desbloqueo académico anula el cierre en cascada.
+  JS: `resources/js/tutoria.js`.
 
 ### Integración con reaperturas
 - `BloqueoController::desbloquear`: al desbloquear una competencia propia LIBERA
@@ -91,6 +111,13 @@ competencia se queda sin tabla.
   sección con traza — todo en una transacción. Las transversales se registran
   bajo la carga del docente pero NO aparecen como filas en el panel; sin la
   cascada quedaban bloqueadas e inalcanzables. Se repite el ciclo re-bloqueo→re-cierre.
+- **`BloqueoController::liberarTransversalCompetencia` (06/08/2026): la vía DIRECTA.**
+  Libera UNA competencia transversal de UNA carga desde el desplegable del panel, sin
+  sacrificar ninguna académica. La cascada de arriba sigue existiendo (es correcta cuando
+  se reabre una carga entera), pero ya no es la única puerta: usarla para corregir una
+  TIC/GAMA obligaba a desbloquear una académica que no tenía ningún problema, y no servía
+  en absoluto si la carga aún no tenía académicas bloqueadas. Detalle y guards en
+  `docs/modulos/admin.md` §"Transversales: los dos niveles".
 - `PeriodoController::reabrir`: YA NO libera bloqueos ni anula cierres
   automáticamente (ver "Origen del bloqueo" abajo). Solo reactiva el periodo y
   deja traza del motivo. La liberación de los bloqueos del cierre forzado es
@@ -101,7 +128,9 @@ competencia se queda sin tabla.
 ### Modelo `TransversalModel`
 `getCompetencias(nivel)`, `getCierreVigente`, `cerrar`, `anularCierreVigente`,
 `getPromediosMatricula/Seccion`, `getConclusiones*`, `guardarConclusion`,
-`estadoCargasSeccion` (solo competencias PROPIAS de cargas activas),
+`estadoCargasSeccion` (**solo competencias TRANSVERSALES** de cargas activas,
+con la lógica de carga dueña; antes sumaba propias + transversales, y esta
+línea decía "solo propias", que nunca fue cierto),
 `conclusionesObligatoriasPendientes`, `seccionesConBloqueosDeCierre`,
 `liberarTransversalesDeCarga`, `anularCierresDeSecciones`, `getSeccionDelTutor`.
 

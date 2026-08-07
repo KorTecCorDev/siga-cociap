@@ -392,6 +392,43 @@ tr.fila-separador-nivel td {
     }
 }
 
+// ── Desplegable de transversales por carga (panel de bloqueos) ─
+// Segundo nivel del bloque de Transversales: los bloqueos por CARGA, que son
+// los que impiden al DOCENTE editar TIC/GAMA. Nace colapsado (<details>
+// nativo, sin JS) porque 23 secciones x ~16 cargas abiertas serian cientos de
+// filas. La celda contenedora anula el padding de la tabla para que la
+// sub-tabla ocupe todo el ancho.
+tr.fila-transversal-detalle > td {
+    padding: 0;
+    background: $bg-secondary;
+}
+
+.bloqueos-transversales {
+    &__summary {
+        cursor: pointer;
+        padding: $spacing-sm $spacing-md;
+        font-size: $font-size-sm;
+        font-weight: 600;
+        color: $text-secondary;
+        user-select: none;
+
+        &:hover { color: $color-info; }
+    }
+
+    &[open] &__summary {
+        border-bottom: 1px solid $border-color;
+    }
+
+    &__tabla {
+        margin: 0;
+
+        // La sub-tabla vive dentro de otra: se distingue por fondo, no por
+        // borde, para no duplicar lineas con la tabla contenedora.
+        th { background: $bg-white; }
+        td { background: $bg-white; }
+    }
+}
+
 // ── Ranking top-5 docentes con incumplimiento ─────────────────
 .ranking-criticos {
     list-style: none;

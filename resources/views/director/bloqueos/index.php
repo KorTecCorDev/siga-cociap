@@ -589,11 +589,24 @@ $_oS  = round(25 - $_pB - $_pP, 2);
     <div class="card mb-md">
         <div class="card__body">
             <p class="text-sm text-muted mb-sm">
-                El estado lo gobierna el <strong>cierre del tutor</strong> (es lo que habilita
-                TIC/GAMA en la boleta), no la carga heredada. <em>Desbloquear</em> anula el cierre
-                vigente; <em>Bloquear</em> lo cierra (requiere todas las cargas bloqueadas y las
-                conclusiones obligatorias completas).
+                Aqui hay <strong>dos niveles distintos</strong>, y conviene no confundirlos:
             </p>
+            <ul class="text-sm text-muted mb-sm">
+                <li>
+                    <strong>Cierre del tutor</strong> (columna Acciones): es lo que habilita
+                    TIC/GAMA en la boleta de la seccion. <em>Anular cierre</em> lo deja sin
+                    efecto para que el tutor edite conclusiones y vuelva a cerrar;
+                    <em>Cerrar</em> lo aprueba (exige las transversales bloqueadas y las
+                    conclusiones obligatorias completas).
+                    <strong>No desbloquea nada al docente.</strong>
+                </li>
+                <li>
+                    <strong>Bloqueo por carga</strong> (desplegable de cada seccion): es lo que
+                    impide al <strong>docente</strong> editar sus notas de TIC/GAMA. Se libera
+                    competencia por competencia. Estas filas no aparecen en la tabla academica
+                    de arriba porque las transversales cuelgan de un area propia.
+                </li>
+            </ul>
             <table class="tabla-ranking tabla-bloqueos">
                 <thead>
                     <tr>
@@ -629,27 +642,102 @@ $_oS  = round(25 - $_pB - $_pP, 2);
                             <?php if ($st['cerrada'] && !$periodoActivo): ?>
                                 <button type="button" class="btn btn--danger btn--sm" disabled
                                         title="Con el bimestre cerrado no se puede reabrir: las transversales (TIC/GAMA) desaparecerian de la boleta de la seccion y el tutor seguiria sin poder editarlas. Reabre el bimestre primero.">
-                                    Desbloquear
+                                    Anular cierre
                                 </button>
                             <?php elseif ($st['cerrada']): ?>
                                 <form method="POST"
                                       action="<?= url('director/bloqueos/transversal/' . $st['seccion_id'] . '/reabrir') ?>"
-                                      onsubmit="return confirm('Desbloquear las transversales de esta seccion? El tutor debera volver a cerrar.')">
+                                      onsubmit="return confirm('Anular el cierre del tutor de esta seccion? TIC/GAMA saldran de la boleta hasta que vuelva a cerrar. Esto NO desbloquea a los docentes: para eso usa el desplegable de la seccion.')">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
-                                    <button type="submit" class="btn btn--danger btn--sm">Desbloquear</button>
+                                    <button type="submit" class="btn btn--danger btn--sm"
+                                            title="Anula el cierre del tutor. No libera los bloqueos por carga.">
+                                        Anular cierre
+                                    </button>
                                 </form>
                             <?php else: ?>
                                 <form method="POST"
                                       action="<?= url('director/bloqueos/transversal/' . $st['seccion_id'] . '/cerrar') ?>"
-                                      onsubmit="return confirm('Bloquear las transversales de esta seccion?')">
+                                      onsubmit="return confirm('Cerrar las transversales de esta seccion?')">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="periodo_id" value="<?= $periodoId ?>">
-                                    <button type="submit" class="btn btn--secondary btn--sm">Bloquear</button>
+                                    <button type="submit" class="btn btn--secondary btn--sm">Cerrar</button>
                                 </form>
                             <?php endif; ?>
                         </td>
                     </tr>
+
+                    <?php // Nivel 2: bloqueos por CARGA. Colapsado por defecto —23 secciones
+                          // x ~16 cargas serian cientos de filas abiertas—; <details> nativo,
+                          // sin JS. Solo aparecen las cargas CON algun bloqueo: si no esta
+                          // bloqueada, no hay nada que liberar. ?>
+                    <?php if (!empty($st['cargas'])): ?>
+                    <tr class="fila-transversal-detalle">
+                        <td colspan="5">
+                            <details class="bloqueos-transversales">
+                                <summary class="bloqueos-transversales__summary">
+                                    Competencias transversales bloqueadas por carga
+                                    (<?= (int) $st['n_bloqueos'] ?> en <?= count($st['cargas']) ?> carga(s))
+                                </summary>
+                                <table class="tabla-ranking tabla-bloqueos bloqueos-transversales__tabla">
+                                    <thead>
+                                        <tr>
+                                            <th>Carga</th>
+                                            <th>Docente</th>
+                                            <th>Competencia</th>
+                                            <th>Origen</th>
+                                            <th>Notas</th>
+                                            <th>Acci&oacute;n</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($st['cargas'] as $cg): ?>
+                                            <?php foreach ($cg['competencias'] as $i => $bt): ?>
+                                            <tr>
+                                                <?php if ($i === 0): ?>
+                                                    <td class="text-sm" rowspan="<?= count($cg['competencias']) ?>">
+                                                        <?= e($cg['carga_nombre'] ?? '') ?>
+                                                    </td>
+                                                    <td class="text-sm" rowspan="<?= count($cg['competencias']) ?>">
+                                                        <?= e($cg['docente_nombre'] ?? 'Sin docente') ?>
+                                                    </td>
+                                                <?php endif; ?>
+                                                <td class="text-sm"><?= e($bt['competencia_nombre'] ?? '') ?></td>
+                                                <td class="text-sm">
+                                                    <?php if ($bt['origen'] === 'cierre'): ?>
+                                                        <span class="badge badge--warning">Cierre forzado</span>
+                                                    <?php else: ?>
+                                                        <span class="badge badge--activo">Docente</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td class="text-sm text-muted"><?= (int) $bt['num_notas'] ?></td>
+                                                <td>
+                                                    <?php if (!$periodoActivo): ?>
+                                                        <button type="button" class="btn btn--danger btn--sm" disabled
+                                                                title="Con el bimestre cerrado no se puede liberar: la competencia desapareceria de la boleta y el docente seguiria sin poder editarla. Reabre el bimestre primero.">
+                                                            Liberar
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <form method="POST"
+                                                              action="<?= url('director/bloqueos/transversal-competencia/' . $bt['bloqueo_id'] . '/liberar') ?>"
+                                                              onsubmit="return confirm('Liberar esta competencia transversal? El docente podra volver a editarla, y el cierre del tutor de la seccion quedara anulado hasta que lo repita.')">
+                                                            <?= csrf_field() ?>
+                                                            <button type="submit" class="btn btn--danger btn--sm"
+                                                                    title="Libera solo esta competencia de esta carga. No toca las academicas ni las demas cargas.">
+                                                                Liberar
+                                                            </button>
+                                                        </form>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </details>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                     <?php endforeach; ?>
                 </tbody>
             </table>

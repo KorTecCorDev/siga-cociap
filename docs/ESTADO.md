@@ -4,6 +4,25 @@
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **06/08/2026**.
 
 ## Migraciones
+- **`051_limpieza_bloqueos_transversales_fantasma`** (06/08): corrección de DATOS (no toca
+  esquema). Borra los bloqueos transversales que el **cierre forzado** creó en **B2** sobre
+  cargas que ningún docente puede bloquear: **46 en 23 cargas TOE + 84 en 42 cargas
+  no-dueñas** de secciones unidocentes = **130**, con **CERO olvidos reales**.
+  🔴 **ESCRITA Y ENSAYADA, NO APLICADA EN NINGÚN ENTORNO.**
+  - **Orden obligatorio:** `F1 a producción → esta migración → CERRAR B2`. Con el código
+    viejo arriba, el siguiente cierre los recrea; y si B2 se cierra sin el fix, nacen
+    fantasmas nuevos.
+  - ⚠️ **En PROD puede devolver 0 filas y ser correcto:** las cifras son de **local**
+    (B2 `cerrado`); en **prod B2 seguía ABIERTO**, y los fantasmas los crea el cierre. Si
+    nunca se cerró allí, no existen. **Manda el PASO 1 en prod.**
+  - **Aborta** si aparece un solo `C_OLVIDO_REAL` (sería un bloqueo legítimo) o si alguna
+    de esas cargas tiene notas o criterios transversales colgando (medido: 0 y 0).
+  - Ensayada con `START TRANSACTION … ROLLBACK` verificando **dentro** de la transacción:
+    borró 130, aviso en **0/0**, los **690** bloqueos de docente y los **23** cierres
+    vigentes intactos, B1 en **774**. Idempotente. Reversible con el PASO 4.
+  - Ancla el periodo por `numero = 2` + año activo, **nunca por `id`**. **B1 no se toca**
+    (decisión del usuario), aunque 84 de sus forzadas sean el mismo defecto.
+  - Ver `docs/modulos/transversales-visibilidad-tutor.md` §5.
 - **`050_etica_b1_extraordinaria`** (06/08): registra **15 (literal A) como CALIFICACIÓN
   EXTRAORDINARIA** de Ética y Valores en el **I Bimestre** a los **275** estudiantes de
   secundaria **que cursaron B1**.
@@ -226,7 +245,9 @@
   Ética en B1 dará 0 y no es un error**. La **`049`** será la del registro
   retroactivo de notas, aún sin implementar — ⚠️ **la 050 se numeró antes que la 049 a
   propósito**: son independientes y esta corría primero. Al aplicarlas, el orden lo manda
-  la dependencia, no el número.
+  la dependencia, no el número. La **`051`** (bloqueos transversales fantasma) está escrita
+  y ensayada pero **sin aplicar en ningún entorno**, y su orden sí es rígido: **exige que
+  el fix F1 esté antes en producción**.
 - **LOCAL y PROD: al día hasta la `045`.** En prod: 038-043 el 20/07/2026, 044 y
   045 el 22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
   había saltado al aplicarse suelta; se corrió el **22/07/2026** (estructura
@@ -410,9 +431,10 @@
       Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
       (ROSALES STEPHANO), **6 filas con conclusión**, hasta 233 caracteres. Es la boleta
       que hay que mirar para dar por buena esa sección.
-- ✅ **LAS 4 REAPERTURAS DEL PANEL DE BLOQUEOS EXIGEN EL BIMESTRE ACTIVO — HECHO Y
-  PROBADO EN LOCAL (06/08/2026, commits `213abc0` y `2122345`). EN `dev`, SIN DESPLEGAR.**
-  Sin migración y sin SASS (reusa `.btn:disabled`). Detalle en `docs/modulos/admin.md`.
+- ✅ **LAS 4 REAPERTURAS DEL PANEL DE BLOQUEOS EXIGEN EL BIMESTRE ACTIVO — EN PRODUCCIÓN
+  (06/08/2026, commits `213abc0` y `2122345`, desplegados el mismo día en `83c87f5`).**
+  Probado en local por el usuario antes del deploy. Sin migración y sin SASS (reusa
+  `.btn:disabled`). Detalle en `docs/modulos/admin.md`.
   - **El defecto:** con el bimestre **cerrado**, los 4 botones destructivos del panel
     (`desbloquear` competencia, `reabrirTransversal`, `reabrirConducta`,
     `reabrirAsistencia`) funcionaban **sin dar error** y sin validar el estado del
@@ -441,8 +463,87 @@
     → re-cerrar todavía actualiza el snapshot **oficial** del mérito. Tras publicar, el
     candado 046 lo congela y la corrección va a `orden_merito_rectificado` (no oficial).
     Medido: B2 **no tiene ninguna fila** en `periodos_publicacion`.
-- 🔴 **EL CIERRE FORZADO INVENTA BLOQUEOS TRANSVERSALES — DEFECTO CONFIRMADO, PLAN SIN
-  IMPLEMENTAR (06/08/2026).** Plan: **`docs/modulos/transversales-visibilidad-tutor.md`**.
+- ✅ **DESBLOQUEO GRANULAR DE TRANSVERSALES EN EL PANEL DEL DIRECTOR — EN `dev`
+  (06/08/2026), SIN DESPLEGAR. Sin migración.** Detalle:
+  **`docs/modulos/admin.md` §"Transversales: los dos niveles"**.
+  - **El hueco:** las transversales **no son filas del panel académico**
+    (`getCompetenciasPorPeriodo` une por el área de la CARGA), así que para reabrir una
+    TIC/GAMA mal aprobada había que **desbloquear una competencia ACADÉMICA** de la misma
+    carga: la sacaba a ella de la boleta, liberaba **las dos** transversales de golpe y
+    obligaba a re-aprobar todo. Y si la carga no tenía académicas bloqueadas —permitido:
+    64 cargas de B2 bloquean transversales primero— **no había vía ninguna**.
+  - ⚠️ **El botón que parecía servir, no servía:** "Desbloquear" del bloque de
+    transversales solo llamaba a `anularCierreVigente` (el cierre del TUTOR), sin tocar
+    los bloqueos por carga. **Renombrado a "Anular cierre"** y el texto del bloque ahora
+    distingue explícitamente los dos niveles. Solo texto: la lógica no cambió.
+  - **Granularidad por COMPETENCIA** (decisión del usuario): TIC y "Aprendizaje autónomo"
+    se liberan por separado, desde un `<details>` colapsado por sección (carga · docente ·
+    competencia · origen · nº de notas · acción). Sin JS.
+  - **Guards:** el anclaje exige `a.tipo='transversal'` (un `bloqueo_id` académico aborta,
+    probado), exige el **bimestre activo** con el mismo punto único del 06/08, y **anula
+    el cierre del tutor** porque el agregado promedia solo lo bloqueado.
+  - **Probado en transacción:** liberar TIC deja *Aprendizaje autónomo* bloqueada,
+    conserva las **44 notas**, no toca las 2 académicas de la carga y anula el cierre;
+    rollback limpio.
+- ✅ **TRANSVERSALES: LAS 4 FASES IMPLEMENTADAS EN `dev` (06/08/2026), SIN DESPLEGAR.**
+  Qué se construyó y con qué cifras:
+  **`docs/modulos/transversales-visibilidad-tutor.md` §5** (manda esa sección).
+  - **F3 — el tutor ya no espera a ciegas.** La tabla de promedios se pinta SIEMPRE, con
+    badge `Provisional` y en solo lectura mientras falten cargas; debajo, el resumen de
+    **qué cargas aprobaron sus transversales y qué docente las lleva** (deroga la regla de
+    privacidad del 14/06/2026 — se expone área, docente y estado; **nunca** notas ajenas
+    ni DNI). Solo se listan las cargas que APORTAN (`total_comp > 0`).
+    🔴 **El guard de escritura está en el SERVIDOR** (`guardarConclusion`), que no
+    comprobaba `$listo`: ocultar el textarea habría sido cosmético.
+  - **F4 — el cierre transversal se desacopla de las académicas.** `estadoCargasSeccion`
+    cuenta solo transversales (numerador y denominador se mueven juntos). Las académicas
+    no participan del promedio que se congela, así que exigirlas hacía esperar por notas
+    que no cambiaban el resultado. **Contrapartida aceptada:** cerrar antes alarga la
+    ventana en la que un desbloqueo académico anula el cierre en cascada (B2 ya llevaba
+    48 anulaciones sobre 71).
+  - ⚠️ **Se revisaron los OTROS DOS consumidores de `estadoCargasSeccion`**
+    (`BloqueoController` y la card del dashboard docente): no se rompen —preguntan lo
+    mismo— pero **sus textos pasaban a mentir** y se ajustaron a «competencias
+    transversales». Un «X de Y» a secas se leía como el total de la sección.
+  - **Probado construyendo el estado provisional en transacción** (en local no existe:
+    B2 está cerrado y todo bloqueado): liberar una carga deja `30/28`, el guard **rechaza
+    el POST**, la tabla conserva sus 24 alumnos y el resumen dice `14 de 15`; rollback a
+    `30/30`. Y `calificaciones.md` tenía una línea **falsa desde antes** —decía que
+    `estadoCargasSeccion` contaba «solo competencias PROPIAS»— ya corregida.
+  - ⚠️ **Dato que matiza F3 sin cambiar la decisión:** el promedio provisional **sí se
+    mueve** (34 de 48 celdas con 12 de 15 cargas sin aprobar), pero **el literal no llegó
+    a cambiar** mientras quedara alguna carga aportando, ni en primaria ni en secundaria.
+    El riesgo es real en el promedio; en B2 no se materializó en el literal.
+  - 🔴 **LA SECUENCIA CHOCA CON EL CIERRE DE B2:** `F1 a producción → aplicar la 051 →
+    CERRAR B2`. Los fantasmas los crea el cierre forzado, así que **si B2 se cierra antes
+    de que el fix esté en prod, nacen fantasmas nuevos**; y si la 051 se aplica con el
+    código viejo arriba, el siguiente cierre los recrea.
+  - ⚠️ **PUEDE QUE EN PROD NO HAYA NADA QUE BORRAR, y es válido.** Las cifras están
+    medidas en **local**, donde B2 figura `cerrado`; en **prod B2 seguía ABIERTO**. Si
+    nunca se cerró allí, los 130 no llegaron a nacer y el PASO 1 dará **0 filas**. Manda
+    el PASO 1 en prod, no las cifras del doc. Lo que protege de verdad es F1.
+  - **F1** (`AnioAcademicoModel::bloquearCompetenciasPendientes`, bloque 2): añade las dos
+    exclusiones del formulario. **Prueba dura, no inspección:** vaciados los 820 bloqueos
+    transversales de B2 en transacción y recreados con el SQL nuevo → **690 en vez de 820,
+    exactamente 130 menos**, 0 en TOE y 0 en no-dueña; rollback limpio.
+  - **La regla de "carga dueña" queda en CUATRO sitios** (decisión: cuarto sitio
+    documentado, **no** helper compartido — no se toca el gate del tutor, que es delicado).
+    Los cuatro llevan comentario cruzado que los nombra: formulario, `estadoCargasSeccion`,
+    `cargaDuenaTransversales` y el cierre forzado.
+  - **F2 = migración `051`** (datos, no esquema), **escrita y ensayada, NO aplicada en
+    ningún entorno**. Aborta si aparece un solo `C_OLVIDO_REAL` o si hay notas/criterios
+    colgando. Ensayo en local con `ROLLBACK` y verificación *dentro* de la transacción:
+    borró **130**, dejó el aviso en **0/0**, con los **690** de docente y los **23** cierres
+    vigentes intactos; B1 siguió en **774**.
+  - **Verificación:** `database/verificaciones/verif_transversales_fantasma.php` (solo
+    lectura, corre en prod). Su bloque de **equivalencia de universos** es el que impide
+    que el defecto vuelva: hoy da **345 = 345**, antes del fix 410 contra 345. Mientras la
+    051 no se aplique, el script **falla a propósito** en el bloque 1.
+  - **Dos afirmaciones del plan corregidas al medirlas:** de las 774 forzadas de B1,
+    **84 son este mismo defecto** (no todas son "modelo viejo"); y la transversal es la
+    última en **13 de 23** secciones, no en las 23 — **F4 solo daría tiempo útil a 4**
+    (47 h, 29 h, 11 h, 3 h).
+  - Diagnóstico original del defecto (sigue vigente como contexto):
   - **El aviso de `/admin/control` en B2 es FALSO.** Dice que 130 competencias en 65
     cargas de **23 docentes** quedaron sin bloquear "porque el docente no las había
     bloqueado". Clasificadas las 65: **23 son cargas TOE** (el formulario NO adjunta
@@ -1351,16 +1452,22 @@ WHERE id=25;`).
     conflictos y árbol idéntico a `dev`, porque `main` no aporta contenido. Se resolvió con
     `git merge --abort`, sin pérdida. **Estando en `dev`, `git pull` a secas**:
     `branch.dev.merge` ya apunta a `refs/heads/dev`.
-- **06/08/2026 (noche) — `dev` acumula el PRIMER CÓDIGO sin desplegar desde el deploy del
-  05/08.** Hasta esta tarde `dev` solo llevaba SQL y documentación; ahora suma el fix de
-  las 4 reaperturas del panel de bloqueos (`213abc0` + `2122345`), **probado en local por
-  el usuario**. `origin/main` sigue en `c8681da`.
-  - **Sin migración**: el deploy sería merge + push. **NO autorizado todavía.**
-  - ⚠️ **Decisión pendiente de calendario:** este fix toca el panel que se usa **durante**
-    el cierre de B2. Desplegarlo antes del cierre lo estrena en el momento de mayor
-    presión; después, deja unos días más el botón que borra datos sin avisar. El fix es
-    defensivo (solo **impide** acciones), lo que juega a favor de desplegarlo ya.
-  - **La migración `051`** (limpieza de los 130 bloqueos fantasma) está **planificada, no
+- **06/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `c8681da` a `83c87f5`** (merge
+  commit, como el del 05/08). **19 commits**, árbol de `main` idéntico al de `dev`.
+  - **Lo único que cambia de comportamiento en prod es el guard de las 4 reaperturas**
+    del panel de bloqueos: de los 11 archivos del lote, solo **2 son código**
+    (`BloqueoController.php` y `bloqueos/index.php`). El resto son las migraciones **048 y
+    050 —ya aplicadas en prod, viajan como archivos inertes—** y documentación (los 3
+    planes nuevos, el runbook y este ESTADO).
+  - **Riesgo bajo por construcción:** el fix es **defensivo**, solo IMPIDE acciones que
+    antes destruían datos en silencio; ninguna acción que ya funcionaba deja de hacerlo.
+    Por eso se desplegó **antes** de cerrar B2 pese a tocar el panel que se usa durante el
+    cierre.
+  - **Verificado antes de mergear:** `main` local **sí** estaba al día con `origin/main`
+    (la trampa recurrente no mordió esta vez), `php -l` en los 2 archivos, 0 archivos
+    sensibles en el diff, **0 cambios en SASS/JS** (no hacía falta `gulp build` ni había
+    riesgo de CSS desincronizado) y **ninguna migración pendiente de aplicar**.
+  - **La migración `051`** (limpieza de los 130 bloqueos fantasma) sigue **planificada, no
     escrita**, y depende de que antes se implemente F1 del plan de transversales.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
