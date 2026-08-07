@@ -28,21 +28,32 @@
 --   siguiente cierre forzado vuelve a crear los 130. Y si B2 se cierra antes de
 --   que el fix esté desplegado, se crean fantasmas nuevos sobre los que falten.
 --
--- 🔴 ANTES DE APLICARLA, LEER ESTO — PUEDE QUE EN PRODUCCIÓN NO HAYA NADA QUE
---   BORRAR, Y ESO ES UN RESULTADO VÁLIDO.
---   Las cifras de esta migración (130 / 65 cargas / 23 docentes) están medidas
---   en LOCAL, donde B2 figura como 'cerrado'. En PRODUCCIÓN, al 06/08/2026, B2
---   seguía ABIERTO y pendiente de cierre. Los fantasmas los crea el CIERRE
---   FORZADO, así que:
---     · Si B2 nunca se cerró en prod → el PASO 1.b devuelve CERO FILAS y no hay
---       nada que limpiar. NO es un error ni un anclaje roto: es que el fix de
---       código llegó a tiempo y los fantasmas no llegaron a nacer. En ese caso
---       basta con NO ejecutar el PASO 2.
---     · Si B2 sí se cerró (y quizá se reabrió después) → aparecerán las clases
---       A y B y el PASO 2 hace su trabajo.
---   En ambos escenarios manda lo que diga el PASO 1 EN PROD, nunca las cifras de
---   este comentario. Y en los dos, lo que de verdad protege es el fix de código:
---   con él desplegado, el cierre de B2 ya no puede crear ninguno.
+-- ✅ APLICADA EN PRODUCCIÓN EL 06/08/2026, con toda la cadena de evidencia
+--   capturada ALLÍ (huella: u761410128_siga_cociap · Linux · MariaDB 11.8.8):
+--     PASO 1.b → A_TOE 46/23 cargas · B_NO_DUENA 84/42 cargas · C_OLVIDO_REAL
+--       SIN NINGUNA FILA (o sea, cero olvidos reales, igual que en local).
+--     PASO 1.c → 0 notas y 0 criterios colgando.  PASO 1.d → 690 y 23.
+--     PASO 2   → "130 filas eliminadas", COMMIT.
+--     PASO 3   → 0/0/0 · 690 y 23 intactos · 0 notas sin bloqueo · B1 en 774.
+--   NO aplicada en local a propósito (local se queda con los 130 para poder
+--   volver a probar el escenario).
+--
+-- ⚠️ EL `SELECT ROW_COUNT()` DEL PASO 2 DEVUELVE 0 EN phpMyAdmin, y NO significa
+--   que el DELETE fallara. phpMyAdmin ejecuta las sentencias por separado, así
+--   que cuando corre ese SELECT el contador ya no refleja al DELETE anterior.
+--   **La cifra buena es la que el propio DELETE reporta** ("130 filas
+--   eliminadas"), y quien manda de verdad es el PASO 3 en conexión nueva.
+--   Pasó tal cual al aplicarla. Vale para cualquier migración futura que copie
+--   este patrón: no fiarse de ROW_COUNT() como constancia en phpMyAdmin.
+--
+-- 🔎 UNA HIPÓTESIS QUE LOS HECHOS DESMINTIERON, anotada para no repetirla:
+--   antes de aplicarla se advirtió aquí que en producción podía no haber nada
+--   que borrar, razonando que B2 seguía ABIERTO y que los fantasmas los crea el
+--   cierre forzado. **FALSO: los 130 estaban, exactamente los mismos que en
+--   local.** O sea que en prod el cierre forzado de B2 SÍ llegó a correr en
+--   algún momento y el bimestre se reabrió después. Lección: el estado ACTUAL
+--   de un periodo no dice nada sobre los procesos que ya corrieron sobre él;
+--   eso solo lo responde consultar los datos.
 --
 -- QUÉ HACE. Borra ÚNICAMENTE filas de `bloqueos_competencia` que cumplan las
 --   CUATRO condiciones a la vez: periodo = II Bimestre, `origen = 'cierre'`,

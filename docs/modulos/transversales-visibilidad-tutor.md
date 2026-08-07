@@ -1,7 +1,8 @@
 # Transversales: bloqueos fantasma del cierre + visibilidad del tutor (PLAN)
 
-> **Estado: LAS CUATRO FASES IMPLEMENTADAS EN `dev` (06/08/2026), SIN DESPLEGAR.**
-> La migración `051` de F2 **no se ha aplicado en ningún entorno**.
+> **Estado: LAS CUATRO FASES EN PRODUCCIÓN (deploy `cf8bdb2`, 06/08/2026), y la
+> migración `051` de F2 APLICADA ALLÍ el mismo día, después del deploy.**
+> No aplicada en local a propósito (allí siguen los 130, para reproducir el escenario).
 > **Qué se construyó y con qué cifras: §5, que manda sobre las §1-§3.**
 > Nace de una observación del usuario sobre
 > `/admin/control` en el II Bimestre y de evaluar la propuesta de "bloquear las
@@ -253,11 +254,16 @@ Los fantasmas los crea **el cierre forzado**. Si B2 se cierra antes de que F1 es
 prod, nacen fantasmas nuevos; si la 051 se aplica con el código viejo todavía arriba, el
 siguiente cierre los recrea. **F1 tiene que estar desplegado antes de tocar el cierre.**
 
-⚠️ **Puede que en PROD no haya nada que borrar, y es un resultado válido.** Las cifras de
-abajo están medidas en **local**, donde B2 figura `cerrado`. En producción, al 06/08/2026,
-**B2 seguía ABIERTO**: si nunca se cerró allí, los fantasmas no llegaron a nacer y el
-PASO 1 de la migración devolverá **cero filas**. Manda lo que diga el PASO 1 en prod, no
-estas cifras. Lo que de verdad protege es F1.
+✅ **Se respetó el orden:** deploy `cf8bdb2` primero, migración `051` después, ambos el
+06/08/2026. Falta el paso 3 (cerrar B2), ya con el fix arriba.
+
+🔎 **Una hipótesis que los hechos desmintieron, anotada para no repetirla.** Antes de
+aplicarla se advirtió aquí que en producción podía **no haber nada que borrar**, razonando
+que B2 seguía ABIERTO y que los fantasmas los crea el cierre forzado. **Falso: estaban los
+130, exactamente los mismos que en local** (46 TOE + 84 no-dueña), así que en prod el
+cierre forzado de B2 sí llegó a correr y el bimestre se reabrió después.
+**Lección: el estado ACTUAL de un periodo no dice nada sobre los procesos que ya
+corrieron sobre él; eso solo lo responden los datos.**
 
 ### F1 — `AnioAcademicoModel::bloquearCompetenciasPendientes` (bloque 2)
 
