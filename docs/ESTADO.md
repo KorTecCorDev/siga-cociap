@@ -822,6 +822,62 @@
     bloquea por separado** y ese empaquetado se retiró. Las otras 4 menciones a "Variante 1"
     son correctas —nombran el MODELO (las transversales viven en la carga de cada docente)—
     y no se tocaron.
+
+  #### 📋 CHECKLIST DE PRUEBAS EN NAVEGADOR — PENDIENTE (guardada el 07/08/2026)
+
+  > Escrita para ejecutarla en **el setup de casa**. Todo lo automatizable ya está en
+  > verde; esto cubre lo único que los scripts no ven: el render y el flujo real.
+
+  **PASO 0 — antes de nada, comprobar la frescura de la BD de esa máquina.**
+  ⚠️ **La BD local de cada equipo es independiente.** La de la oficina se sincronizó con
+  prod el 07/08 (trae la `050`). Si la de casa está atrasada, las cifras de abajo no
+  cuadran y **no es un bug**. Marcadores:
+
+  ```sql
+  SELECT (SELECT COUNT(*) FROM calificaciones WHERE extraordinaria = 1)              AS m050_espera_275,
+         (SELECT COUNT(*) FROM information_schema.tables
+           WHERE table_schema = DATABASE() AND table_name LIKE '\_bkp%')             AS m048_espera_0,
+         (SELECT COUNT(*) FROM bloqueos_competencia bc
+            JOIN competencias c ON c.id = bc.competencia_id
+            JOIN areas a ON a.id = c.area_id AND a.tipo = 'transversal'
+           WHERE bc.periodo_id = 2 AND bc.origen = 'cierre')                         AS m051_espera_0;
+  ```
+
+  **PASO 1 — la batería automática (un comando, todo en verde en la oficina):**
+  ```bash
+  php database/verificaciones/verif_desbloqueo_sin_cascada.php   # 7 bloques, incluye el contraste
+  php database/verificaciones/verif_transversales_fantasma.php   # 345 = 345, 690 intactos
+  php database/verificaciones/verif_asistencia_sin_registro.php  # F1
+  ```
+
+  **BLOQUE 1 — el desbloqueo académico ya no arrastra transversales**
+  1. `/director/bloqueos` con **B2** → desbloquear una competencia **académica** de una
+     carga que tenga TIC/GAMA bloqueadas. El `confirm` debe avisar que las transversales
+     NO se tocan.
+  2. En la pestaña **Competencias transversales**, abrir el desplegable de esa sección:
+     sus **TIC/GAMA siguen bloqueadas**.
+  3. Entrar como el **tutor** de esa sección: la tabla de promedios debe seguir
+     **habilitada** (no en badge *Provisional*) y debe poder **cerrar sin esperar al
+     docente**. ← *es la mejora principal; antes quedaba bloqueado.*
+
+  **BLOQUE 2 — el cierre del tutor sí se anuló**
+  4. En el panel, esa sección debe aparecer **sin cierre vigente** (con el botón *Cerrar*
+     disponible).
+
+  **BLOQUE 3 — la granularidad sigue intacta**
+  5. Liberar **una** transversal desde el desplegable: la otra queda bloqueada y las
+     académicas de la carga no se tocan.
+
+  **BLOQUE 4 — el docente**
+  6. Como docente de esa carga: la competencia desbloqueada **editable**, sus TIC/GAMA en
+     **solo lectura**.
+
+  **BLOQUE 5 — deuda anterior, aprovechando el turno (P1 #7)**
+  7. `/admin/boletas-publicas/{id}` → botón **📄 Borradores**: comprobar que el **ZIP
+     descarga bien en el navegador**. Verificado en servidor (3 boletas → 3 marcas, 0 QR),
+     **nunca en navegador**. Es lo único que quedaba del P1.
+
+  ⚠️ **Nada de esto se despliega todavía**: el merge a `main` espera al cierre de B2.
 - **PANEL DE TRANSVERSALES COMPLETO + PUNTO ÚNICO DE "CARGA DUEÑA" — DIFERIDO AL AÑO
   ACADÉMICO SIGUIENTE (decisión del usuario, 07/08/2026).** El gestor de bloqueos
   transversales solo muestra lo aprobado y bloqueado (`getBloqueosTransversalesPorPeriodo`
