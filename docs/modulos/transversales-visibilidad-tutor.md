@@ -1,10 +1,9 @@
 # Transversales: bloqueos fantasma del cierre + visibilidad del tutor (PLAN)
 
-> **Estado: F1 y F2 IMPLEMENTADAS EN `dev` (06/08/2026) — F3 y F4 SIGUEN SIN
-> IMPLEMENTAR.** Alcance decidido por el usuario: esta tanda cierra el defecto del cierre
-> forzado (F1) y limpia lo ya creado (F2, migración `051`); la visibilidad del tutor (F3)
-> y el desacople del gate (F4) quedan para una tanda posterior. **Qué se construyó y con
-> qué cifras: §5, que manda sobre las §1-§3.** Nace de una observación del usuario sobre
+> **Estado: LAS CUATRO FASES IMPLEMENTADAS EN `dev` (06/08/2026), SIN DESPLEGAR.**
+> La migración `051` de F2 **no se ha aplicado en ningún entorno**.
+> **Qué se construyó y con qué cifras: §5, que manda sobre las §1-§3.**
+> Nace de una observación del usuario sobre
 > `/admin/control` en el II Bimestre y de evaluar la propuesta de "bloquear las
 > transversales antes que las académicas".
 > **Sin migración de esquema; sí una migración de DATOS (`051`) en F2.**
@@ -238,10 +237,11 @@ Script de solo lectura en `database/verificaciones/`:
 
 ---
 
-## 5. LO QUE SE CONSTRUYÓ — F1 y F2 (06/08/2026). Manda sobre §1-§3.
+## 5. LO QUE SE CONSTRUYÓ — las 4 fases (06/08/2026). Manda sobre §1-§3.
 
 **Estado: en `dev`, sin desplegar. La migración `051` NO se ha aplicado en ningún
-entorno.** F3 y F4 no se tocaron.
+entorno.** Se implementó en dos tandas el mismo día: primero F1+F2 (el defecto del cierre
+forzado y su limpieza), después F3+F4 (la visibilidad del tutor y el desacople del gate).
 
 ### 🔴 La secuencia de despliegue, y por qué choca con el cierre de B2
 
@@ -295,7 +295,62 @@ criterios colgando) → **borró 130** → dentro de la transacción el aviso qu
 competencias / 0 cargas**, con los **690** bloqueos de docente y los **23** cierres
 vigentes intactos → tras el `ROLLBACK`, local volvió a 130 y B1 siguió en 774.
 
-### Verificación
+### F3 — El tutor ve los promedios provisionales y quién falta
+
+**Archivos:** `TutoriaController` (`index` sin cambios, `guardarConclusion` con guard) ·
+`resources/views/docente/tutoria.php` · `resources/views/docente/inicio.php` ·
+`pages/_dashboard.scss` (`.tutoria-cargas`, nuevo).
+
+1. **La tabla se pinta siempre.** Antes exigía `$listo || $cerrado`. Ahora hay una sola
+   variable, `$editable = !$cerrado && $listo`, que gobierna textareas y botones; la tabla
+   queda fuera de esa condición y en estado provisional lleva el badge `Provisional`
+   (reusa `.carga-transversal--progreso`).
+2. **Resumen de cargas con nombre de docente**, solo mientras el bimestre está parcial.
+   `estadoCargasSeccion` ya devolvía `nombre_display` y `docente_nombre`: no hizo falta
+   tocar el modelo, solo dejar de ocultarlos. **Se listan únicamente las cargas que
+   APORTAN** (`total_comp > 0`): las de tutoría y las no-dueñas valen 0 a propósito, y
+   listarlas haría creer al tutor que espera por alguien que nunca va a aportar.
+   ✅ El comentario de privacidad del 14/06/2026 **fue reescrito, no borrado**: ahora
+   declara qué se expone (área, docente, estado) y qué no (notas ajenas, DNI).
+3. **El guard de escritura está en el SERVIDOR** (`guardarConclusion`), como exigía el
+   plan: `guardarConclusion` no comprobaba `$listo`, así que ocultar el textarea habría
+   sido cosmético. Devuelve 403 con el número de competencias que faltan.
+
+⚠️ **Dato medido que matiza la decisión (no la cambia):** al liberar cargas en
+transacción sobre B2, el promedio provisional **sí se mueve** (34 de 48 celdas con 12 de
+15 cargas sin aprobar), pero **el LITERAL no llegó a cambiar** mientras quedara alguna
+carga aportando — ni en secundaria ni en primaria, y las conclusiones obligatorias se
+mantuvieron en 0. O sea: el riesgo que motiva el bloqueo es real en el promedio, pero en
+los datos de B2 no se materializó en el literal, que es lo que decide la obligatoriedad.
+La decisión de dejarlo en solo lectura se mantiene por ser la defensiva.
+
+### F4 — El cierre transversal deja de depender de las académicas
+
+**Archivo:** `TransversalModel::estadoCargasSeccion` — `total_comp` y `comp_bloqueadas`
+cuentan ahora **solo transversales**, manteniendo intacta la lógica de dueña. Numerador y
+denominador se movieron juntos, así que el gate sigue cuadrando.
+
+**Los otros dos consumidores del método se revisaron uno a uno** (no solo el panel del
+tutor): `BloqueoController` (cierre transversal manual) y `PanelController` (card del
+dashboard docente). Los dos preguntan exactamente "¿se puede cerrar el bimestre
+transversal?", así que F4 los mejora en vez de romperlos — pero **sus textos pasaban a
+mentir** y se ajustaron: «faltan cargas por bloquear» → «faltan competencias
+transversales por bloquear», y «Bloqueadas X de Y» → «Transversales bloqueadas X de Y».
+Un `X de Y` a secas se leía como el total de la sección y ya no lo es.
+
+**Medido en las 23 secciones:** todas dan LISTO con el gate nuevo (en local B2 está
+cerrado y todo bloqueado), y en las unidocentes de primaria solo **8 de 15** cargas
+aportan — la lógica de dueña sigue aplicándose.
+
+### Verificación de F3 y F4
+
+El estado provisional **no existe de forma natural en local** (B2 está cerrado y todo
+bloqueado), así que se construyó en transacción con `ROLLBACK`: liberar las transversales
+de una carga deja la sección en `30/28`, `$listo` pasa a false, el guard del servidor
+**rechaza el POST** indicando que faltan 2, la tabla provisional conserva sus 24 alumnos
+con promedio y el resumen muestra `14 de 15 cargas aprobadas`. Tras el rollback, `30/30`.
+
+### Verificación de F1 y F2
 
 `database/verificaciones/verif_transversales_fantasma.php` — solo lectura, corre en prod,
 acepta el número de bimestre como argumento. Cuatro bloques: clasificación A/B/C · guard

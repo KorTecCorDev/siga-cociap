@@ -463,9 +463,35 @@
     → re-cerrar todavía actualiza el snapshot **oficial** del mérito. Tras publicar, el
     candado 046 lo congela y la corrección va a `orden_merito_rectificado` (no oficial).
     Medido: B2 **no tiene ninguna fila** en `periodos_publicacion`.
-- ✅ **EL CIERRE FORZADO INVENTABA BLOQUEOS TRANSVERSALES — F1 y F2 IMPLEMENTADAS EN `dev`
-  (06/08/2026), SIN DESPLEGAR. F3 y F4 siguen pendientes.** Qué se construyó y con qué
-  cifras: **`docs/modulos/transversales-visibilidad-tutor.md` §5** (manda esa sección).
+- ✅ **TRANSVERSALES: LAS 4 FASES IMPLEMENTADAS EN `dev` (06/08/2026), SIN DESPLEGAR.**
+  Qué se construyó y con qué cifras:
+  **`docs/modulos/transversales-visibilidad-tutor.md` §5** (manda esa sección).
+  - **F3 — el tutor ya no espera a ciegas.** La tabla de promedios se pinta SIEMPRE, con
+    badge `Provisional` y en solo lectura mientras falten cargas; debajo, el resumen de
+    **qué cargas aprobaron sus transversales y qué docente las lleva** (deroga la regla de
+    privacidad del 14/06/2026 — se expone área, docente y estado; **nunca** notas ajenas
+    ni DNI). Solo se listan las cargas que APORTAN (`total_comp > 0`).
+    🔴 **El guard de escritura está en el SERVIDOR** (`guardarConclusion`), que no
+    comprobaba `$listo`: ocultar el textarea habría sido cosmético.
+  - **F4 — el cierre transversal se desacopla de las académicas.** `estadoCargasSeccion`
+    cuenta solo transversales (numerador y denominador se mueven juntos). Las académicas
+    no participan del promedio que se congela, así que exigirlas hacía esperar por notas
+    que no cambiaban el resultado. **Contrapartida aceptada:** cerrar antes alarga la
+    ventana en la que un desbloqueo académico anula el cierre en cascada (B2 ya llevaba
+    48 anulaciones sobre 71).
+  - ⚠️ **Se revisaron los OTROS DOS consumidores de `estadoCargasSeccion`**
+    (`BloqueoController` y la card del dashboard docente): no se rompen —preguntan lo
+    mismo— pero **sus textos pasaban a mentir** y se ajustaron a «competencias
+    transversales». Un «X de Y» a secas se leía como el total de la sección.
+  - **Probado construyendo el estado provisional en transacción** (en local no existe:
+    B2 está cerrado y todo bloqueado): liberar una carga deja `30/28`, el guard **rechaza
+    el POST**, la tabla conserva sus 24 alumnos y el resumen dice `14 de 15`; rollback a
+    `30/30`. Y `calificaciones.md` tenía una línea **falsa desde antes** —decía que
+    `estadoCargasSeccion` contaba «solo competencias PROPIAS»— ya corregida.
+  - ⚠️ **Dato que matiza F3 sin cambiar la decisión:** el promedio provisional **sí se
+    mueve** (34 de 48 celdas con 12 de 15 cargas sin aprobar), pero **el literal no llegó
+    a cambiar** mientras quedara alguna carga aportando, ni en primaria ni en secundaria.
+    El riesgo es real en el promedio; en B2 no se materializó en el literal.
   - 🔴 **LA SECUENCIA CHOCA CON EL CIERRE DE B2:** `F1 a producción → aplicar la 051 →
     CERRAR B2`. Los fantasmas los crea el cierre forzado, así que **si B2 se cierra antes
     de que el fix esté en prod, nacen fantasmas nuevos**; y si la 051 se aplica con el
