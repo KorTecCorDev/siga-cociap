@@ -796,6 +796,18 @@
     **EXO en los 4 bimestres** y anual EXO, las 3 notas siguen vivas en la BD, y en el
     mérito su promedio de B2 baja de **13.38 a 13.21** sin que **cambie ni un puesto** en
     su grado (39 alumnos). Su puesto congelado de B1 (34, promedio 12.17) queda intacto.
+- **PANEL DE TRANSVERSALES COMPLETO + PUNTO ÚNICO DE "CARGA DUEÑA" — DIFERIDO AL AÑO
+  ACADÉMICO SIGUIENTE (decisión del usuario, 07/08/2026).** El gestor de bloqueos
+  transversales solo muestra lo aprobado y bloqueado (`getBloqueosTransversalesPorPeriodo`
+  arranca `FROM bloqueos_competencia`), y debería mostrar todo diferenciado por estado como
+  el panel académico. **Análisis completo y medido en
+  `docs/decisiones-diferidas.md`** — no re-derivarlo. En una línea: sería la **quinta copia**
+  de la regla de carga dueña (la cuarta divergente creó los 130 fantasmas), **hoy no
+  aportaría información** (en B2 las 690 filas del universo están todas en un mismo estado)
+  y **en B1 mentiría** (sus 1052 notas viven en 23 cargas `inactiva` del modelo viejo,
+  y el panel nuevo escondería los 130 fantasmas que B1 conserva). Toca
+  `estadoCargasSeccion`, el gate del cierre del tutor. **Va junto con la F1 del plan de los
+  4 registros**, que es un punto único sobre el mismo territorio.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.

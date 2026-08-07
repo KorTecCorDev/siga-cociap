@@ -3,6 +3,62 @@
 > Extraído VERBATIM de CLAUDE.md el 03/07/2026 (fase 1 de la red de documentación).
 > Los invariantes globales y la tabla de enrutamiento viven en CLAUDE.md.
 
+## Panel de transversales completo + punto único de "carga dueña" — DIFERIDO AL AÑO ACADÉMICO SIGUIENTE (07/08/2026)
+
+> **NO implementado, y a propósito.** Decisión del usuario: es un cambio estructural y su
+> sitio natural es el **arranque del próximo año académico**, cuando tocar el gate del
+> cierre del tutor no compite con un bimestre en curso. El análisis está hecho y **no hay
+> que re-derivarlo**.
+
+### Qué se pidió
+Que el gestor de bloqueos/desbloqueos de transversales muestre **todas** las competencias
+diferenciadas por estado —como ya hace el panel académico— y no solo las aprobadas y
+bloqueadas.
+
+### El diagnóstico (correcto)
+`TransversalModel::getBloqueosTransversalesPorPeriodo` arranca `FROM bloqueos_competencia`
+con `INNER JOIN`: **estructuralmente no puede mostrar otra cosa que lo bloqueado**. El panel
+académico (`CalificacionModel::getCompetenciasPorPeriodo`) ya resuelve lo mismo al revés —
+parte de `cargas_academicas`, hace `LEFT JOIN` al bloqueo y calcula `num_criterios` para
+distinguir sus 4 estados.
+
+### Por qué NO es una inversión simple — las tres complicaciones
+
+1. **El universo transversal no es un join, es una regla escrita CUATRO VECES.** En lo
+   académico competencia y carga se unen por `area_id`/`subarea_id`. En transversales **el
+   vínculo no existe en el esquema**: se resuelve por nivel + dos exclusiones (fuera las
+   cargas TOE; en unidocente solo la *carga dueña*). Los cuatro sitios están listados en
+   `CalificacionController` (~línea 508). Construir el panel sería la **quinta copia**, y
+   la cuarta copia divergente es exactamente la que creó los **130 bloqueos fantasma**.
+2. **Hoy no aportaría información.** Medido el 07/08/2026: universo canónico = **345 cargas
+   × 2 competencias = 690 filas**, y en **B2 las 690 están "bloqueada CON notas"**, 0 de
+   cierre — o sea, **un solo estado**. El panel actual ya muestra esas mismas 690. El valor
+   es **prospectivo**: aparece en B3, a mitad de bimestre, cuando haya pendientes de verdad.
+3. 🔴 **En B1 MENTIRÍA, y además escondería los fantasmas.** Las **1052** notas
+   transversales de B1 viven en **23 cargas `inactiva`** de un área que es ella misma
+   `tipo='transversal'` (modelo viejo: una carga dedicada por sección). Un universo de
+   cargas **activas** pintaría B1 como *690 filas "bloqueada SIN notas"* → se lee como
+   "nadie evaluó transversales en B1", que es **falso**. Y como **B1 conserva los 130
+   fantasmas** (la `051` solo limpió B2, por decisión), un panel construido sobre el
+   universo canónico **los volvería invisibles**: hoy son las 130 filas de más que el panel
+   sí muestra (820 en total), y son el único sitio donde se ven.
+
+### Cómo hacerlo cuando se retome
+- **Extraer primero** la regla de "carga dueña" a un punto único, y recién después escribir
+  el panel sobre él. Al revés se crea la quinta copia y se repite el patrón de fallo.
+- La query no puede ser una inversión simple: **universo `LEFT JOIN` bloqueos ∪ bloqueos
+  FUERA del universo marcados como anomalía**, o se pierde la visibilidad de los fantasmas.
+- Decidir qué hacer con los periodos **legado**: o el panel solo ofrece bimestres del modelo
+  nuevo, o etiqueta B1 explícitamente como legado.
+- ⚠️ El refactor toca **`TransversalModel::estadoCargasSeccion`**, que es el **gate del
+  cierre del tutor** y está marcado como delicado. Esa es la razón de fondo del diferimiento.
+- **Converge con el plan de los 4 registros del bimestre** (`docs/modulos/cierre-cuatro-registros.md`),
+  cuya F1 es también un "punto único" sobre este mismo territorio: **conviene hacerlos
+  juntos, en una sola tanda de pruebas.**
+- 🔎 **Punto ciego latente que se descubrió de paso:** el panel ACADÉMICO tiene el mismo
+  problema —un bloqueo sobre una carga `inactiva` desaparece de su lista—, solo que ahí
+  nunca ha mordido. Si se toca uno, revisar el otro.
+
 ## Suspensiones / disciplina — decisión de diseño (02/07/2026)
 
 > **NO implementado.** Solo se fija el PRINCIPIO de diseño para no cometer un error
