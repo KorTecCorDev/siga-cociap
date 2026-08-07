@@ -1628,6 +1628,22 @@ WHERE id=25;`).
     `RectificacionController` (pierde el suyo, privado — era obligatorio: un `private` en la
     hija choca con el `protected` de la base y da fatal error de compatibilidad de acceso).
     **Nada toca el camino del cierre de bimestre.**
+- **07/08/2026 — SEGUNDO DEPLOY DEL DÍA: `origin/main` pasó de `2242ec7` a `c8fa4fd`**
+  (commit de merge). **6 commits**, 8 archivos, de los que solo **3 son código**:
+  `AsistenciaModel`, `BoletaModel` y `boleta/digital.php`. Sin migración, sin SASS/JS.
+  - **Qué entró:** **F1** (la asistencia de un bimestre sin registro sale en guion) y el
+    **sello del director fuera de borrador y vista previa**, más la documentación del día
+    (Hito A en el runbook, señal 1.1-bis por competencia, corrección de la causa de los
+    fantasmas).
+  - **Validado por el usuario en navegador ANTES del merge**, en 4 bloques: el caso 694
+    (guion en B1 y `0` en B2), el control 556 sin cambios, el retorno #1 con sus dos
+    bimestres con dato, y el pie de la boleta digital sin sello y sin descuadre.
+  - **Batería previa, toda en verde:** `verif_asistencia_sin_registro` (nuevo),
+    `verif_asistencia_boleta`, `verif_estructura_boleta`, `verif_plan_completo_boleta`
+    (1965 filas de nota, 0 perdidas) y `verif_retorno_grado`. Árbol de `main` idéntico al
+    de `dev`; `php -l` limpio; 0 archivos sensibles.
+  - **`main` local SÍ estaba al día esta vez** (se había puesto al corriente en el primer
+    deploy del día), así que la trampa recurrente no mordió.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
