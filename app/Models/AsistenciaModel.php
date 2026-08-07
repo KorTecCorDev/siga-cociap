@@ -293,6 +293,43 @@ class AsistenciaModel extends BaseModel
         ));
     }
 
+    /**
+     * ¿Alguna de estas matrículas tiene FILA de asistencia en el periodo?
+     *
+     * Es la pregunta que `getDelBimestre` no puede responder: devuelve los 4
+     * contadores en CERO tanto cuando el registro dice "no faltó ningún día"
+     * como cuando NADIE registró nada. Para la boleta esa diferencia es todo:
+     * un cero se lee como dato real, y en el segundo caso no hay dato.
+     *
+     * ⚠️ Va por UNIÓN igual que `getDelBimestreUnion`, y no es un detalle: en un
+     * retorno de grado la asistencia queda repartida por bimestre entre la
+     * oficial y la operativa. Preguntando matrícula por matrícula, la boleta de
+     * B1 de la operativa 692 —que no tiene fila propia— saldría en guion pese a
+     * que su fila de B1 vive en la oficial 190. Medido: es exactamente el caso
+     * del retorno #1, en los dos sentidos.
+     *
+     * Sin fila NO es lo mismo que "sin incidencias": el registro escribe una
+     * fila por alumno aunque vaya en cero (medido: 197 filas así en B1 y 173 en
+     * B2), y esas conservan su 0.
+     */
+    public function tieneRegistroUnion(array $matriculaIds, int $periodoId): bool
+    {
+        $ids = array_values(array_filter(array_map('intval', $matriculaIds)));
+        if (empty($ids)) {
+            return false;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+        return (bool) $this->queryOne("
+            SELECT 1 AS hay
+            FROM inasistencias
+            WHERE periodo_id = ?
+              AND matricula_id IN ({$placeholders})
+            LIMIT 1
+        ", array_merge([$periodoId], $ids));
+    }
+
     public function getAcumuladoAnualUnion(array $matriculaIds, int $periodoIdHasta): array
     {
         if (count($matriculaIds) <= 1) {
