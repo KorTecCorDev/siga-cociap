@@ -594,6 +594,25 @@
   que la última académica. El acoplamiento sí es gratuito (`getPromediosSeccion` filtra
   `tipo='transversal'`), así que desacoplar el gate es correcto — pero el valor está en
   **mostrar promedios parciales**, no en el orden de bloqueo.
+- 🔴 **`notFound()` NO EXISTÍA — BUG PREEXISTENTE CORREGIDO (07/08/2026, en `dev`).**
+  Varios controladores llamaban `$this->notFound()` sin que estuviera definido en
+  ninguna parte: `Router` y `RectificacionController` tenían el suyo, ambos **privados**
+  y por tanto inalcanzables. Efecto real medido: en **local** reventaba con
+  `Call to undefined method` y en **producción** el blindaje global lo capturaba como
+  excepción y devolvía la página de error **genérica** — nunca un 404.
+  - **No se notó durante meses** porque los únicos caminos que lo invocaban exigían un
+    periodo inexistente. Los **gates D3 de `/consulta-notas`** fueron los primeros en
+    dispararlo de verdad, y ahí saltó.
+  - **Punto único:** `BaseController::notFound(): never` — `http_response_code(404)` +
+    `require` de `shared/404.php` + `exit`. Se eliminó el privado de
+    `RectificacionController` (obligatorio: un `private` en la hija choca con el
+    `protected` de la base y da fatal error de compatibilidad de acceso).
+  - ⚠️ **Corrige de paso un segundo defecto latente:** aquel usaba `$this->view('shared/404')`
+    y esa vista es una **página HTML completa**, así que el layout la anidaba dentro de
+    otra. Ahora es `require` directo, como el Router. Verificado: HTTP 404, **un solo
+    `<!DOCTYPE>`**.
+  - **Auditoría de alcance:** se revisaron los **34 controladores** buscando llamadas
+    `$this->metodo()` inexistentes. **0 casos más.** Convención registrada en `CLAUDE.md`.
 - ✅ **`/consulta-notas` CON TRANSVERSALES Y CONDUCTA — IMPLEMENTADO EN `dev`
   (07/08/2026), SIN DESPLEGAR. Sin migración, sin métodos de modelo nuevos.**
   Qué se construyó y con qué cifras:

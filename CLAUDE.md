@@ -368,6 +368,12 @@ lo compila Gulp, `config/database.php` no lleva secretos, `routes/web.php` es la
 - **Vistas:** `$this->view('carpeta/archivo', ['variable' => $valor])`
 - **JSON:** `$this->json(['success' => true, 'mensaje' => '...'])`
 - **CSRF:** siempre `$this->validateCsrf()` en métodos POST
+- **404:** siempre `$this->notFound()` (`BaseController`, `never`). Hace
+  `http_response_code(404)` + `require` de `shared/404.php` + `exit`. NUNCA
+  `$this->view('shared/404')`: esa vista es una página HTML completa y el layout
+  la anidaría dentro de otra. Existe desde el 07/08/2026 — antes varios
+  controladores lo llamaban sin que estuviera definido (fatal en local, página de
+  error genérica en prod)
 - **Auth: por controlador — NO hay middleware.** `app/Middleware/AuthMiddleware.php`
   nunca se usó y se eliminó (commit `eb0e9cf`, 20/06/2026). No reintroducir una capa
   de middleware sin acordarlo antes.

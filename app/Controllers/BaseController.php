@@ -38,6 +38,32 @@ abstract class BaseController
         View::json($data, $status);
     }
 
+    /**
+     * Respuesta 404 estandar del proyecto. PUNTO UNICO: cualquier controlador
+     * que quiera cortar con "no existe" llama aqui.
+     *
+     * ⚠️ NACIO EL 07/08/2026 PORQUE NO EXISTIA. Varios controladores ya
+     * llamaban `$this->notFound()` sin que estuviera definido en ningun sitio
+     * (solo `Router` y `RectificacionController` tenian el suyo, ambos PRIVADOS
+     * y por tanto inalcanzables desde fuera). El resultado era el peor posible:
+     * en local reventaba con "Call to undefined method" y en produccion el
+     * blindaje global lo capturaba como excepcion y devolvia la pagina de error
+     * GENERICA — nunca un 404. No se noto antes porque los unicos caminos que
+     * lo invocaban exigian un periodo inexistente; los gates de
+     * /consulta-notas fueron los primeros en dispararlo de verdad.
+     *
+     * ⚠️ `require` DIRECTO, no `$this->view()`: `shared/404.php` es una pagina
+     * HTML completa (con su propio <!DOCTYPE>), asi que pasarla por el layout
+     * anida un documento dentro de otro. Es el mismo mecanismo que usa
+     * `Router::notFound()`.
+     */
+    protected function notFound(): never
+    {
+        http_response_code(404);
+        require VIEW_PATH . '/shared/404.php';
+        exit;
+    }
+
     /** Redirige con mensaje flash de éxito */
     protected function redirectWithSuccess(string $url, string $mensaje): never
     {
