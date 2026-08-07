@@ -249,12 +249,13 @@
   **APLICADA EN LOCAL Y PROD.** En prod se importó a mano (phpMyAdmin) el
   **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
   código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
-- **PROD AL DÍA HASTA LA `051`; LOCAL, HASTA LA `048`** (la 047 el 05/08/2026, la 048 el
-  06/08/2026 en ambos entornos, cada uno con la salida de su PASO 3 en 0 filas). La
-  **`050`** y la **`051`** se aplicaron **SOLO EN PROD** (06/08): local se queda con el
-  estado previo hasta que se vuelva a sincronizar desde prod, así que **una medición local
-  de Ética en B1 dará 0, y una de bloqueos fantasma dará 130 — ninguna de las dos es un
-  error**. La **`049`** será la del registro retroactivo de notas, aún sin implementar —
+- **PROD AL DÍA HASTA LA `051`. LOCAL: 048 y 051 SÍ, la `050` NO** (la 047 el 05/08/2026,
+  la 048 el 06/08 en ambos entornos, cada uno con su PASO 3 en 0 filas). La **`051`** se
+  aplicó en **prod el 06/08** y en **local el 07/08** (verificado allí: 0 bloqueos de
+  cierre transversales en B2, los 690 de docente intactos). La **`050`** sigue **solo en
+  prod** a propósito, así que **una medición local de Ética en B1 da 0 y NO es un error**;
+  los bloqueos fantasma, en cambio, ya dan 0 en los dos entornos. La **`049`** será la del
+  registro retroactivo de notas, aún sin implementar —
   ⚠️ **la 050 y la 051 se numeraron antes que la 049 a propósito**: son independientes y
   corrían primero. Al aplicarlas, el orden lo manda la dependencia, no el número: la `051`
   exigía que el fix F1 estuviera **antes** en producción, y así se hizo (deploy `cf8bdb2`
@@ -637,6 +638,12 @@
     de la boleta** (`getPromediosMatricula` y `getParaPeriodo`): **2086 celdas y 1048
     filas, 0 divergencias**, con B1 (legado) y B2 (modelo nuevo) en la misma corrida.
   - Plan original y decisiones D1-D3: **`docs/modulos/consulta-notas-ampliada.md`**.
+  - ✅ **PROBADO EN NAVEGADOR POR EL USUARIO (07/08/2026): todas las pruebas pasaron.**
+    Cubrió, en local y en prod: el aviso de incidencias de B2 en 0 (F1+051), el desplegable
+    granular de TIC/GAMA con sus botones inertes en bimestre cerrado, la vista del tutor en
+    estado *Provisional* con el resumen de cargas, la card del dashboard docente, las tres
+    fases de `/consulta-notas` (incluida la comprobación de que **B1 no pinta bloques
+    transversales crudos**) y los gates D3 devolviendo 404 en B3.
   - **Las dos ausencias son estructurales, no un olvido de la vista.** Las transversales
     no las puede alcanzar `getCompetenciasPorPeriodo`: une competencia↔carga por el área
     de la CARGA, y las transversales cuelgan de un área propia (`tipo='transversal'`,
