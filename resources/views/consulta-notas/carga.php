@@ -29,14 +29,30 @@ $nivelCodigo = $carga['nivel_codigo'];
     <span class="badge badge--activo">Solo lectura</span>
 </div>
 
+<?php $transversalAbierto = false; ?>
 <?php foreach ($competencias as $bloque): ?>
     <?php
     $competencia     = $bloque['competencia'];
     $criterios       = $bloque['criterios'];
     $alumnos         = $bloque['alumnos'];
     $extraordinarias = $bloque['extraordinarias'] ?? [];
+    $esTransversal   = !empty($bloque['es_transversal']);
     ?>
-    <div class="card mb-lg">
+
+    <?php // Separador ANTES del primer bloque transversal: el docente las registra
+          // en su carga, pero no son del area — conviene que se lea de un vistazo.
+          if ($esTransversal && !$transversalAbierto): $transversalAbierto = true; ?>
+        <div class="transversales-separador">
+            <h2 class="transversales-separador__titulo">Competencias Transversales</h2>
+            <p class="transversales-separador__desc">
+                TIC y Aprendizaje aut&oacute;nomo, registradas por este docente en su
+                carga. El promedio que llega a la boleta lo agrega el tutor al cerrar
+                el bimestre transversal de la secci&oacute;n.
+            </p>
+        </div>
+    <?php endif; ?>
+
+    <div class="card mb-lg<?= $esTransversal ? ' competencia-card--transversal' : '' ?>">
         <div class="card__header">
             <h2 class="card__title"><?= e($competencia['nombre_completo']) ?></h2>
             <span class="competencia-card__codigo"><?= e($competencia['codigo_minedu'] ?? '') ?></span>

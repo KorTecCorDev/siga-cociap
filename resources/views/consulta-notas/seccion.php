@@ -3,7 +3,9 @@
  * Consulta de calificaciones — areas/cargas oficiales de una seccion.
  * @var array      $periodo
  * @var array|null $seccion  null si la seccion no tiene notas oficiales
- * @var array      $cargas   [{carga_id, area_nombre, subarea_nombre, docente, competencias}]
+ * @var array      $cargas   [{carga_id, area_nombre, subarea_nombre, docente, competencias, transversales}]
+ * @var bool       $tieneTransversales  cierre transversal vigente
+ * @var bool       $tieneConducta       conducta con sus DOS etapas y sin anular
  */
 ?>
 
@@ -21,6 +23,37 @@
     </div>
 </div>
 
+<?php // Registros de nivel SECCION (no cuelgan de ninguna carga). Solo aparecen
+      // cuando estan oficialmente cerrados; si no, su ruta responde 404. ?>
+<?php if ($seccion && ($tieneTransversales || $tieneConducta)): ?>
+    <ul class="consulta-cargas mb-lg">
+        <?php if ($tieneTransversales): ?>
+            <li>
+                <a class="consulta-carga"
+                   href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id'] . '/transversales') ?>">
+                    <span>
+                        <span class="consulta-carga__area">Competencias Transversales</span>
+                        <span class="consulta-carga__docente">Promedio agregado de la sección — el que va a la boleta</span>
+                    </span>
+                    <span class="consulta-carga__meta">Ver →</span>
+                </a>
+            </li>
+        <?php endif; ?>
+        <?php if ($tieneConducta): ?>
+            <li>
+                <a class="consulta-carga"
+                   href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id'] . '/conducta') ?>">
+                    <span>
+                        <span class="consulta-carga__area">Conducta</span>
+                        <span class="consulta-carga__docente">Cerrada por auxiliar y tutor</span>
+                    </span>
+                    <span class="consulta-carga__meta">Ver →</span>
+                </a>
+            </li>
+        <?php endif; ?>
+    </ul>
+<?php endif; ?>
+
 <?php if (empty($cargas)): ?>
     <div class="empty-state"><p>Esta sección no tiene notas oficiales en este periodo.</p></div>
 <?php else: ?>
@@ -30,6 +63,7 @@
             $area = $c['subarea_nombre']
                 ? $c['area_nombre'] . ' — ' . $c['subarea_nombre']
                 : $c['area_nombre'];
+            $nTransv = (int) ($c['transversales'] ?? 0);
             ?>
             <li>
                 <a class="consulta-carga"
@@ -38,7 +72,9 @@
                         <span class="consulta-carga__area"><?= e($area) ?></span>
                         <span class="consulta-carga__docente"><?= e($c['docente'] ?: 'Sin docente') ?></span>
                     </span>
-                    <span class="consulta-carga__meta"><?= (int) $c['competencias'] ?> competencia(s) →</span>
+                    <span class="consulta-carga__meta">
+                        <?= (int) $c['competencias'] ?> competencia(s)<?= $nTransv > 0 ? ' · incl. ' . $nTransv . ' transv.' : '' ?> →
+                    </span>
                 </a>
             </li>
         <?php endforeach; ?>

@@ -197,6 +197,10 @@ $router->get( '/rectificaciones/matricula/{id}',  'Rectificacion\RectificacionCo
 // controlador). Literales primero; las sub-rutas con dos params no chocan con
 // la literal /consulta-notas por tener mas segmentos.
 $router->get('/consulta-notas',                                   'Consulta\ConsultaNotasController@index');
+// Las dos de nivel SECCION van ANTES que la de 4 segmentos: mas especificas
+// primero, el router ancla por orden de registro.
+$router->get('/consulta-notas/{periodo_id}/seccion/{seccion_id}/transversales', 'Consulta\ConsultaNotasController@transversales');
+$router->get('/consulta-notas/{periodo_id}/seccion/{seccion_id}/conducta',      'Consulta\ConsultaNotasController@conducta');
 $router->get('/consulta-notas/{periodo_id}/seccion/{seccion_id}', 'Consulta\ConsultaNotasController@seccion');
 $router->get('/consulta-notas/{periodo_id}/carga/{carga_id}',     'Consulta\ConsultaNotasController@carga');
 
