@@ -796,6 +796,32 @@
     **EXO en los 4 bimestres** y anual EXO, las 3 notas siguen vivas en la BD, y en el
     mérito su promedio de B2 baja de **13.38 a 13.21** sin que **cambie ni un puesto** en
     su grado (39 alumnos). Su puesto congelado de B1 (34, promedio 12.17) queda intacto.
+- 🟡 **DESBLOQUEAR UNA ACADÉMICA YA NO ARRASTRA LAS TRANSVERSALES — EN `dev`,
+  IMPLEMENTADO Y PROBADO, SIN DESPLEGAR (07/08/2026). Sin migración, sin SASS.**
+  Decisión del usuario: prima la **granularidad** sobre el clic de menos.
+  **El merge a `main` espera al cierre de B2** (decisión explícita: no mover el panel que
+  se usa durante el cierre). Detalle en `docs/modulos/admin.md`.
+  - `BloqueoController::desbloquear` pasa de 3 efectos a 2: se retira
+    `liberarTransversalesDeCarga`; **se conserva** la anulación del cierre del tutor.
+  - **Por qué se retira:** su motivo —que las transversales quedarían "inalcanzables"—
+    murió el 06/08 con el desbloqueo granular. Mantenerlo obligaba al docente a re-aprobar
+    TIC/GAMA que nadie tocó y **bajaba el gate del tutor**, que no podía re-cerrar hasta
+    que el docente actuara. Medido en el contraste: el gate caía de **16/16 a 14/16**.
+  - **Por qué se conserva la anulación del cierre:** el promedio transversal NO cambia
+    (`getPromediosSeccion` solo lee bloqueos transversales), pero **la conclusión
+    descriptiva del tutor puede dejar de ser precisa** si cambian las notas. Criterio
+    pedagógico del usuario. Ahora es barato: con los bloqueos intactos el tutor re-cierra
+    de inmediato.
+  - `liberarTransversalesDeCarga` queda **DORMIDO** (0 llamadores), no borrado.
+  - **Verificación:** `verif_desbloqueo_sin_cascada.php` (escribe, transacción + ROLLBACK,
+    guard de prod). **7 bloques en verde**, incluido el contraste que reproduce la cascada
+    vieja y comprueba que rompía el gate.
+  - ✅ **Corregidos de paso dos comentarios FALSOS** en `CalificacionController`: decían que
+    las transversales "se bloquean junto con la última competencia propia (Variante 1)",
+    cuando el docblock de `bloquear()` dice que desde el II Bimestre **cada competencia se
+    bloquea por separado** y ese empaquetado se retiró. Las otras 4 menciones a "Variante 1"
+    son correctas —nombran el MODELO (las transversales viven en la carga de cada docente)—
+    y no se tocaron.
 - **PANEL DE TRANSVERSALES COMPLETO + PUNTO ÚNICO DE "CARGA DUEÑA" — DIFERIDO AL AÑO
   ACADÉMICO SIGUIENTE (decisión del usuario, 07/08/2026).** El gestor de bloqueos
   transversales solo muestra lo aprobado y bloqueado (`getBloqueosTransversalesPorPeriodo`
