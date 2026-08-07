@@ -712,11 +712,29 @@
   - **Decisiones cerradas:** literal puro con **numeral en guion** (no se inventa el
     número); captura en **grilla** por alumno y bimestre; la boleta **declara** el origen
     con una nota al pie; asistencia del bimestre no cursado en **guion**.
-  - 🔴 **Hallazgo con impacto HOY: la boleta imprime `0 faltas` en un bimestre que el
-    alumno no cursó** (medido en la 694). `sin_registro` solo mira el umbral del bimestre
-    y el estado `pendiente`, nunca si esa matrícula tiene filas de asistencia. Es el mismo
-    dato falso del 04/08 con B2 vacío, por otra causa. **Es la fase F1 y es independiente
-    del resto: se puede hacer ya, sin migración.**
+  - ✅ **F1 HECHA — la boleta ya NO imprime `0 faltas` de un bimestre no cursado
+    (07/08/2026, en `dev`, SIN MIGRACIÓN y sin SASS).** `sin_registro` gana un tercer
+    motivo: que **nadie haya registrado** la asistencia de ese alumno. Punto nuevo
+    `AsistenciaModel::tieneRegistroUnion`, consumido por `BoletaModel::armar` en último
+    lugar para que `||` corte en corto y no consulte cuando el umbral ya dijo que no.
+    Detalle y cifras en `docs/modulos/boletas.md`.
+    - **Universo medido: 18 pares** (matrícula, bimestre) sin fila en bimestres
+      cerrados/activos; **la unión neutraliza 2** → **16 celdas** pasan de `0` a guion:
+      los **6 que llegaron tarde** en B1 y **10 trasladados/retirados** en B2.
+      **El Total anual no se mueve** (esas columnas aportaban 0).
+    - ⚠️ **La UNIÓN era imprescindible, y por poco no se ve:** en el retorno #1 la fila de
+      B1 vive en la oficial (190) y la de B2 en la operativa (692). Preguntando matrícula
+      por matrícula, esa boleta habría salido en guion en **los dos** bimestres teniendo
+      datos. Verificado en los dos sentidos.
+    - ⚠️ **Sin fila ≠ sin incidencias**, y esto NO era deducible del código: `guardar()`
+      es un upsert **AJAX fila por fila** y el cierre de sección **no exige completitud**
+      ("sin fila = 0 incidencias", dice su comentario). Como de hecho el registro sí
+      escribe fila por alumno aunque vaya en cero (**197** en B1, **173** en B2), esas
+      conservan su `0`. **Hubo que medirlo, no deducirlo.**
+    - **Contraste que prueba la precisión del cambio:** la 694 pasa a guion en B1 (no lo
+      cursó) y **conserva su `0` en B2**, donde sí tiene fila registrada sin incidencias.
+    - Verificación: `database/verificaciones/verif_asistencia_sin_registro.php` (solo
+      lectura, corre en prod). Su **bloque 2** es el antirregresión.
   - ⚠️ **Prohibido `nota_numerica NULL` en `calificaciones`:** 45 usos en 11 archivos, de
     los que **26 son promedios, umbrales o desempates** que un NULL altera EN SILENCIO.
     De ahí que el plan proponga tabla aparte unida al leer (patrón ya probado en el

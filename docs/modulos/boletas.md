@@ -714,13 +714,14 @@ de notas y 1 de asistencia. **Corregido el mismo día** — la tabla de asistenc
 del modelo oficial igual que la de notas, así que **siempre dibuja una columna por bimestre
 del año**, en las cuatro vistas y en los cuatro umbrales.
 
-Cada columna lleva `sin_registro` (bool). Es `true` por dos motivos distintos que se pintan
-igual, con **guion apagado**:
+Cada columna lleva `sin_registro` (bool). Es `true` por **tres** motivos distintos que se
+pintan igual, con **guion apagado**:
 
 | Motivo | Ejemplo |
 |---|---|
 | El bimestre aún no puede tener registro | B3/B4 `pendiente` |
 | No corresponde a este umbral | bimestre cerrado **no publicado**, o el bimestre en curso bajo `'oficial'` |
+| **Nadie registró la asistencia de ese alumno** (07/08/2026) | quien llegó DESPUÉS del bimestre, o un trasladado que ya no lo cursó |
 
 **Nunca un `0`**: un cero se lee como "no faltó ningún día" y sería un dato inventado.
 Además, con guiones el lector no intenta cuadrar la suma de las columnas con el **Total**,
@@ -728,6 +729,37 @@ que solo acumula las que sí tienen registro.
 
 Cuando `sin_registro` es `true` **no se consulta la asistencia**: la columna vacía no puede
 salir de datos que ese umbral no debe ver.
+
+#### El tercer motivo: sin FILA no es lo mismo que en CERO (F1, 07/08/2026)
+
+`AsistenciaModel::getDelBimestre` devuelve los 4 contadores en **cero** cuando no hay fila
+en `inasistencias`, y `armar()` no distinguía ese caso del cero real → la boleta de un
+alumno que llegó en julio afirmaba **`0 faltas` del I Bimestre**, que no cursó. Dato
+**falso**, no ausente (medido en la matrícula 694).
+
+Lo resuelve **`AsistenciaModel::tieneRegistroUnion(array $ids, int $periodoId): bool`**
+(`EXISTS` sobre `inasistencias`), sumado como tercer término de `$sinRegistro`. Va **el
+último** a propósito: `||` corta en corto, así que la consulta extra no se ejecuta cuando el
+umbral ya dijo que no hay nada que mostrar.
+
+- ⚠️ **Es por UNIÓN, y no es un detalle.** En un retorno de grado la asistencia queda
+  repartida por bimestre entre la oficial y la operativa. Preguntando matrícula por
+  matrícula, el retorno #1 habría salido en guion en **los dos** bimestres pese a tener
+  datos: su fila de B1 vive en la oficial (190) y la de B2 en la operativa (692).
+- **Sin fila ≠ sin incidencias.** El registro escribe una fila por alumno aunque vaya en
+  cero (medido: **197** filas así en B1 y **173** en B2), y esas **conservan su `0`**. Es
+  la distinción que da sentido al cambio. ⚠️ Ojo: `guardar()` es un upsert **AJAX fila por
+  fila**, así que la fila solo existe si alguien tocó a ese alumno; y el cierre de sección
+  **no exige completitud** (su propio comentario dice "sin fila = 0 incidencias"). Por eso
+  el universo hay que medirlo, no suponerlo.
+- **Universo medido (07/08/2026):** **18 pares** (matrícula, bimestre) sin fila en
+  bimestres cerrados/activos; **2 los neutraliza la unión** (692 en B1, 190 en B2), así que
+  **16 celdas** pasan de `0` a guion: los **6 que llegaron tarde** en B1 y **10
+  trasladados/retirados** en B2. **El Total anual no se mueve** — esas columnas aportaban 0.
+- Verificación: `database/verificaciones/verif_asistencia_sin_registro.php` (solo lectura,
+  corre en prod). Su **bloque 2** es el que impide la regresión: comprueba que ninguna fila
+  en cero real se convierta en guion.
+- **La vista no se tocó** (ya pintaba guion) y **no hubo SASS**: las clases existían.
 
 - `boleta/alumno.php` → `.boleta-asistencia__num--pendiente` (ya existía en el SASS).
 - `boleta/digital.php` → `.bd-asistencia__num--pendiente`, **añadido** en
