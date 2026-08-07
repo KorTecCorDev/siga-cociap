@@ -764,6 +764,16 @@ class CalificacionModel extends BaseModel
      * área, así que las TIC/GAMA se registran y cuentan UNA sola vez por área
      * —en esta carga— en lugar de duplicarse en cada subárea. Devuelve null si
      * el área no tiene cargas activas en la sección.
+     *
+     * ⚠️ REGLA ESCRITA EN CUATRO SITIOS (mantenerlos en sync; si cambia uno,
+     * revisar los otros tres):
+     *   1. CalificacionController::calificaciones            (formulario del docente)
+     *   2. TransversalModel::estadoCargasSeccion             (gate del cierre del tutor)
+     *   3. AQUI
+     *   4. AnioAcademicoModel::bloquearCompetenciasPendientes (cierre forzado)
+     * Los sitios 2 y 4 la reescriben en SQL porque operan sobre conjuntos; este
+     * método es la versión PHP para una sola carga. Divergieron una vez (el 4 no
+     * la aplicaba) y el cierre invento 130 bloqueos fantasma en B2 — ver la 051.
      */
     public function cargaDuenaTransversales(int $seccionId, int $areaId): ?int
     {

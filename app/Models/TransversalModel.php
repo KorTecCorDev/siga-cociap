@@ -277,6 +277,20 @@ class TransversalModel extends BaseModel
      * —propias y transversales— están bloqueadas.
      * Retorna ['total' => N, 'bloqueadas' => M, 'cargas' => detalle[]].
      */
+    /**
+     * ⚠️ La lógica de "carga dueña" que usan total_comp y comp_bloqueadas está
+     * escrita en CUATRO SITIOS (mantenerlos en sync; si cambia uno, revisar los
+     * otros tres):
+     *   1. CalificacionController::calificaciones            (formulario del docente)
+     *   2. AQUI                                              (gate del cierre del tutor)
+     *   3. CalificacionModel::cargaDuenaTransversales
+     *   4. AnioAcademicoModel::bloquearCompetenciasPendientes (cierre forzado)
+     * El sitio 4 no la aplicaba hasta el 06/08/2026: el cierre inventaba bloqueos
+     * en cargas TOE y no-dueñas (130 en B2, ver migración 051). El comentario de
+     * comp_bloqueadas, más abajo, documenta cómo ese mismo defecto ya había
+     * inflado ANTES el numerador de este método (53/41) — se parcheó el conteo,
+     * no el origen; ahora sí está corregido el origen.
+     */
     public function estadoCargasSeccion(int $seccionId, int $periodoId): array
     {
         $cargas = $this->query("

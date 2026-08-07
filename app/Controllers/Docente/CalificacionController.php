@@ -504,6 +504,17 @@ class CalificacionController extends BaseController
         // sección de transversales — las TIC/GAMA se registran en las cargas
         // académicas regulares de cada docente, nunca en la de tutoría
         // (decisión 07/07/2026).
+        //
+        // ⚠️ ESTAS DOS EXCLUSIONES SON EL UNIVERSO CANÓNICO de las transversales
+        // y están escritas en CUATRO SITIOS (mantenerlos en sync; si cambia uno,
+        // revisar los otros tres):
+        //   1. AQUI                                              (formulario del docente)
+        //   2. TransversalModel::estadoCargasSeccion             (gate del cierre del tutor)
+        //   3. CalificacionModel::cargaDuenaTransversales
+        //   4. AnioAcademicoModel::bloquearCompetenciasPendientes (cierre forzado)
+        // El sitio 4 no las aplicaba y el cierre de B2 inventó 130 bloqueos en
+        // cargas que ningún docente podía bloquear — corregido el 06/08/2026,
+        // limpieza de lo ya creado en la migración 051.
         $adjuntarTransversales = ($carga['area_tipo'] !== 'tutoria');
         if ($adjuntarTransversales && !empty($carga['es_unidocente'])) {
             $duena = $this->calModel->cargaDuenaTransversales(

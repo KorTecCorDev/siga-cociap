@@ -230,6 +230,23 @@ class AnioAcademicoModel extends BaseModel
         //    las alcanza. Cada docente las registra en su propia carga, asi que
         //    se bloquean por carga igual que en la aprobacion del docente
         //    (Variante 1). Sin esto el cierre dejaba las TIC/GAMA sin bloquear.
+        //
+        //    ⚠️ EL UNIVERSO DEBE SER EL MISMO QUE EL DEL FORMULARIO DEL DOCENTE
+        //    (CalificacionController::calificaciones). Hasta el 06/08/2026 este
+        //    SELECT recorria TODAS las cargas activas sin las dos exclusiones que
+        //    el formulario si aplica, e inventaba bloqueos en cargas que ningun
+        //    docente puede llegar a bloquear: en B2 fueron 130 competencias en 65
+        //    cargas (46 en TOE + 84 en no-dueñas) que /admin/control reportaba como
+        //    "el docente no las bloqueo", acusando a 23 docentes de un olvido
+        //    inexistente (olvidos reales medidos: CERO). Limpieza de lo ya creado:
+        //    migracion 051.
+        //
+        //    REGLA DE "CARGA DUEÑA" — ESCRITA EN CUATRO SITIOS (mantenerlos en
+        //    sync; si cambia uno, revisar los otros tres):
+        //      1. CalificacionController::calificaciones  (formulario del docente)
+        //      2. TransversalModel::estadoCargasSeccion   (gate del cierre del tutor)
+        //      3. CalificacionModel::cargaDuenaTransversales
+        //      4. AQUI                                    (cierre forzado)
         $stmtTrans = $this->db->prepare("
             INSERT IGNORE INTO bloqueos_competencia
                 (carga_id, competencia_id, periodo_id, bloqueado_por, origen)
@@ -239,8 +256,26 @@ class AnioAcademicoModel extends BaseModel
             INNER JOIN grados    g ON g.id = s.grado_id
             INNER JOIN areas     a ON a.tipo = 'transversal' AND a.nivel_id = g.nivel_id
             INNER JOIN competencias comp ON comp.area_id = a.id
+            LEFT  JOIN subareas sa ON sa.id = ca.subarea_id
+            LEFT  JOIN areas    ar ON ar.id = COALESCE(ca.area_id, sa.area_id)
             WHERE ca.estado  = 'activa'
               AND ca.anio_id = (SELECT anio_id FROM periodos WHERE id = ?)
+              -- (A) La carga de TUTORIA (Etica y Valores) NO lleva transversales:
+              --     el formulario no se las adjunta (decision 07/07/2026).
+              AND (ar.tipo IS NULL OR ar.tipo <> 'tutoria')
+              -- (B) UNIDOCENTE: las TIC/GAMA se registran UNA sola vez por area,
+              --     en la carga dueña (subarea de menor orden). Las demas cargas
+              --     del area nunca las reciben en el formulario.
+              AND (s.es_unidocente = 0 OR ca.id = (
+                    SELECT cad.id
+                    FROM cargas_academicas cad
+                    LEFT JOIN subareas sad ON sad.id = cad.subarea_id
+                    WHERE cad.seccion_id = ca.seccion_id
+                      AND cad.estado     = 'activa'
+                      AND COALESCE(cad.area_id, sad.area_id) = COALESCE(ca.area_id, sa.area_id)
+                    ORDER BY COALESCE(sad.orden, 0), cad.id
+                    LIMIT 1
+              ))
         ");
         $stmtTrans->execute([$periodoId, $usuarioId, $periodoId]);
 
