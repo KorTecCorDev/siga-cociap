@@ -178,14 +178,25 @@ class BoletaModel extends BaseModel
         $ceros = ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0];
 
         foreach ($this->getPeriodosDelAnio($anioId) as $pa) {
-            // SIN DATO que mostrar, por dos motivos distintos que se pintan igual (guion):
-            //   - el bimestre aun no puede tener registro ('pendiente'), o
-            //   - no corresponde a este umbral (no publicado, o en curso bajo 'oficial').
+            // SIN DATO que mostrar, por TRES motivos distintos que se pintan igual (guion):
+            //   - el bimestre aun no puede tener registro ('pendiente'),
+            //   - no corresponde a este umbral (no publicado, o en curso bajo 'oficial'), o
+            //   - NADIE registro la asistencia de este alumno en ese bimestre (07/08/2026).
             // Se marca para que la vista lo pinte apagado en vez de con ceros: un cero
             // se lee como dato real ("no falto ningun dia") y aqui no hay dato. Ademas,
             // con guiones el lector no intenta cuadrar la suma con el Total.
+            //
+            // EL TERCER MOTIVO corrige un dato FALSO que se estaba imprimiendo: un alumno
+            // que llego despues del bimestre no tiene fila en `inasistencias`, y
+            // `getDelBimestre` devuelve ceros ante la ausencia de fila, asi que su boleta
+            // afirmaba "0 faltas" de un bimestre que NO CURSO. Medido en la matricula 694.
+            // Va en TERCER lugar a proposito: `||` corta en corto, asi que la consulta
+            // extra no se ejecuta cuando el umbral ya dijo que no hay nada que mostrar
+            // — se conserva la regla de que una columna vacia no sale de datos que este
+            // umbral no debe ver.
             $sinRegistro = !$this->periodoAportaNotas($pa, $datos, $publicados)
-                        || ($pa['estado'] ?? '') === 'pendiente';
+                        || ($pa['estado'] ?? '') === 'pendiente'
+                        || !$this->asistenciaModel->tieneRegistroUnion($fuentes, (int) $pa['id']);
 
             // OJO: variable propia, NO reusar el nombre $datos (parametro del metodo,
             // leido mas abajo por el filtro de conducta). Si no aporta NO se consulta:

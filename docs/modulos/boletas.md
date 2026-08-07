@@ -470,12 +470,39 @@ daba el filtro viejo.
     boleta se marca `--borrador` y su etiqueta dice siempre "Borrador · {bim}".
   - `getNominaResumen` (dashboard) y `nomina.js` sin cambios (`data-buscar` intacto).
 
-### Nota conocida (preexistente, NO introducida por este cambio)
-La boleta DIGITAL muestra el **sello** del director en pantalla sin gate de
-`vistaPrevia` (`digital.php` footer) y sin regla `@media print` que lo oculte —
-aplica a TODO borrador (también el del Hito A del docente), no solo a desactivados.
-La IMPRIMIBLE (`alumno.php`) sí suprime la firma con `vistaPrevia`. Si se quiere
-que el borrador digital tampoco muestre/imprima el sello, es un ajuste aparte.
+### ✅ RESUELTO (07/08/2026) — el SELLO no aparece en borrador ni en vista previa
+
+> Estuvo registrado como *"nota conocida, preexistente"* desde el lote de matrículas
+> desactivadas, con la salida abierta: *"si se quiere que el borrador digital tampoco
+> muestre/imprima el sello, es un ajuste aparte"*. **El usuario lo decidió el 07/08/2026
+> al revisar la boleta digital: el sello del Director EBR no debe aparecer JAMÁS en
+> versiones BORRADOR o vista previa.** Solo el sello; el resto del pie no se toca.
+
+**El defecto:** `digital.php` pintaba `sello_path` **sin gate de `$vistaPrevia`**, mientras
+que la imprimible (`alumno.php`) sí suprimía su `firma_path`. Son **dos assets distintos**
+del Director EBR y cada vista pinta uno solo, así que el hueco quedó en una sola línea.
+
+**Incumplía un contrato ya escrito:** el docblock de `archivarBorrador` define
+`$vistaPrevia = true` como *"sin QR y sin imagen de firma del director"*. Y en el mismo
+`digital.php` el **QR sí lo respetaba** (`!empty($url_boleta) && !$vistaPrevia`) — era una
+omisión puntual, no un criterio distinto.
+
+**Alcance real, que era mayor de lo que sugería la nota:** la entrada más expuesta no eran
+los desactivados sino la **boleta digital del docente** (`verDigitalDocente`), donde
+`vistaPrevia = estado === 'desactivado' || estadoBoletaDePeriodo(...) !== 'oficial'`. Con el
+bimestre sin cerrar eso es `true` **para todos los alumnos**, así que cualquier docente que
+abriera la digital veía el sello en un documento provisional.
+
+**El arreglo:** un término más en el mismo `if` (`!$vistaPrevia &&`). El contenedor
+`.bd-footer__img-area` se conserva **vacío** para que el pie no cambie de alto entre la
+vista previa y el definitivo — mismo criterio que `boleta-footer__espacio-firma` en la
+imprimible. No hizo falta ninguna regla `@media print`: si el flag está puesto, el `<img>`
+**no se emite**, así que la impresión y el PDF quedan cubiertos por construcción.
+
+⚠️ **Los demás documentos con sello o firma NO se tocaron** y no comparten el problema:
+nóminas, actas de desempate, reporte de mérito, horarios, resumen de matrícula, informe
+SIAGIE y constancia de traslado **no tienen modo borrador** (son definitivos). La
+constancia ya usaba el mismo criterio con `!$anulada`. Barrido completo hecho el 07/08.
 
 ## Compuerta del Hito A — la nota aparece solo tras la aprobación de RA (09/07/2026)
 
@@ -714,13 +741,14 @@ de notas y 1 de asistencia. **Corregido el mismo día** — la tabla de asistenc
 del modelo oficial igual que la de notas, así que **siempre dibuja una columna por bimestre
 del año**, en las cuatro vistas y en los cuatro umbrales.
 
-Cada columna lleva `sin_registro` (bool). Es `true` por dos motivos distintos que se pintan
-igual, con **guion apagado**:
+Cada columna lleva `sin_registro` (bool). Es `true` por **tres** motivos distintos que se
+pintan igual, con **guion apagado**:
 
 | Motivo | Ejemplo |
 |---|---|
 | El bimestre aún no puede tener registro | B3/B4 `pendiente` |
 | No corresponde a este umbral | bimestre cerrado **no publicado**, o el bimestre en curso bajo `'oficial'` |
+| **Nadie registró la asistencia de ese alumno** (07/08/2026) | quien llegó DESPUÉS del bimestre, o un trasladado que ya no lo cursó |
 
 **Nunca un `0`**: un cero se lee como "no faltó ningún día" y sería un dato inventado.
 Además, con guiones el lector no intenta cuadrar la suma de las columnas con el **Total**,
@@ -728,6 +756,37 @@ que solo acumula las que sí tienen registro.
 
 Cuando `sin_registro` es `true` **no se consulta la asistencia**: la columna vacía no puede
 salir de datos que ese umbral no debe ver.
+
+#### El tercer motivo: sin FILA no es lo mismo que en CERO (F1, 07/08/2026)
+
+`AsistenciaModel::getDelBimestre` devuelve los 4 contadores en **cero** cuando no hay fila
+en `inasistencias`, y `armar()` no distinguía ese caso del cero real → la boleta de un
+alumno que llegó en julio afirmaba **`0 faltas` del I Bimestre**, que no cursó. Dato
+**falso**, no ausente (medido en la matrícula 694).
+
+Lo resuelve **`AsistenciaModel::tieneRegistroUnion(array $ids, int $periodoId): bool`**
+(`EXISTS` sobre `inasistencias`), sumado como tercer término de `$sinRegistro`. Va **el
+último** a propósito: `||` corta en corto, así que la consulta extra no se ejecuta cuando el
+umbral ya dijo que no hay nada que mostrar.
+
+- ⚠️ **Es por UNIÓN, y no es un detalle.** En un retorno de grado la asistencia queda
+  repartida por bimestre entre la oficial y la operativa. Preguntando matrícula por
+  matrícula, el retorno #1 habría salido en guion en **los dos** bimestres pese a tener
+  datos: su fila de B1 vive en la oficial (190) y la de B2 en la operativa (692).
+- **Sin fila ≠ sin incidencias.** El registro escribe una fila por alumno aunque vaya en
+  cero (medido: **197** filas así en B1 y **173** en B2), y esas **conservan su `0`**. Es
+  la distinción que da sentido al cambio. ⚠️ Ojo: `guardar()` es un upsert **AJAX fila por
+  fila**, así que la fila solo existe si alguien tocó a ese alumno; y el cierre de sección
+  **no exige completitud** (su propio comentario dice "sin fila = 0 incidencias"). Por eso
+  el universo hay que medirlo, no suponerlo.
+- **Universo medido (07/08/2026):** **18 pares** (matrícula, bimestre) sin fila en
+  bimestres cerrados/activos; **2 los neutraliza la unión** (692 en B1, 190 en B2), así que
+  **16 celdas** pasan de `0` a guion: los **6 que llegaron tarde** en B1 y **10
+  trasladados/retirados** en B2. **El Total anual no se mueve** — esas columnas aportaban 0.
+- Verificación: `database/verificaciones/verif_asistencia_sin_registro.php` (solo lectura,
+  corre en prod). Su **bloque 2** es el que impide la regresión: comprueba que ninguna fila
+  en cero real se convierta en guion.
+- **La vista no se tocó** (ya pintaba guion) y **no hubo SASS**: las clases existían.
 
 - `boleta/alumno.php` → `.boleta-asistencia__num--pendiente` (ya existía en el SASS).
 - `boleta/digital.php` → `.bd-asistencia__num--pendiente`, **añadido** en

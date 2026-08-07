@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **06/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **07/08/2026**.
 
 ## Migraciones
 - **`051_limpieza_bloqueos_transversales_fantasma`** (06/08): corrección de DATOS (no toca
@@ -20,9 +20,25 @@
   - 🔎 **UNA HIPÓTESIS QUE LOS HECHOS DESMINTIERON.** Antes de aplicarla se advirtió que
     en prod podía no haber **nada** que borrar, razonando que B2 seguía ABIERTO y que los
     fantasmas los crea el cierre. **FALSO: estaban los 130, exactamente los mismos que en
-    local** → en prod el cierre forzado de B2 **sí llegó a correr** y el bimestre se
-    reabrió después. **Lección: el estado ACTUAL de un periodo no dice nada sobre los
-    procesos que ya corrieron sobre él; eso solo lo responden los datos.**
+    local.** **Lección: el estado ACTUAL de un periodo no dice nada sobre los procesos que
+    ya corrieron sobre él; eso solo lo responden los datos.**
+    - 🔴 **CORREGIDO EL 07/08/2026 — LA EXPLICACIÓN QUE SE DIO AQUÍ ERA FALSA.** Se
+      concluyó que "en prod el cierre forzado de B2 sí llegó a correr y el bimestre se
+      reabrió después". **No fue el cierre: fue el HITO A.** Medido con local ya
+      sincronizada con prod: `periodos.boletas_aprobadas_en` de B2 =
+      **`2026-08-05 20:09:33`**, `estado='activo'`, **sin ninguna fila de B2 en
+      `orden_merito_snapshot`** y **sin reaperturas posteriores al 16/06** (reabrir exige
+      motivo y SIEMPRE deja fila en `reaperturas_periodo`). **B2 nunca se ha cerrado.**
+    - **Por qué el error era fácil:** `bloquearCompetenciasPendientes` tiene **dos**
+      llamadores, no uno — `cerrar()` y `aprobarBoletasBimestre()` (**Hito A**). El Hito A
+      fuerza los MISMOS bloqueos con `origen='cierre'` pero **deja el periodo `activo`**, y
+      `anularAprobacionBoletas` lo revierte **sin tocar los bloqueos** (lo dice su propio
+      comentario). Cronología que encaja al segundo: Hito A el **05/08 20:09** → nacen los
+      130 → F1 a producción el **06/08** (`cf8bdb2`) → la `051` los limpia.
+    - **La conclusión operativa NO cambia** (F1 antes que la 051, y los 130 fuera), pero la
+      secuencia documentada vigilaba la puerta equivocada: **pulsar el Hito A también los
+      recreaba**. Con F1 en prod ya no. El runbook incorpora el Hito A en su **Fase 0.2**,
+      con la consulta que distingue un Hito A de un cierre real.
   - ⚠️ **`SELECT ROW_COUNT()` DEVUELVE 0 EN phpMyAdmin y NO significa que el DELETE
     fallara.** Ejecuta las sentencias por separado, así que el contador ya no refleja al
     DELETE. La cifra buena es la del propio DELETE (**"130 filas eliminadas"**) y quien
@@ -249,12 +265,21 @@
   **APLICADA EN LOCAL Y PROD.** En prod se importó a mano (phpMyAdmin) el
   **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
   código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
-- **PROD AL DÍA HASTA LA `051`. LOCAL: 048 y 051 SÍ, la `050` NO** (la 047 el 05/08/2026,
-  la 048 el 06/08 en ambos entornos, cada uno con su PASO 3 en 0 filas). La **`051`** se
-  aplicó en **prod el 06/08** y en **local el 07/08** (verificado allí: 0 bloqueos de
-  cierre transversales en B2, los 690 de docente intactos). La **`050`** sigue **solo en
-  prod** a propósito, así que **una medición local de Ética en B1 da 0 y NO es un error**;
-  los bloqueos fantasma, en cambio, ya dan 0 en los dos entornos. La **`049`** será la del
+- ✅ **LOS DOS ENTORNOS AL DÍA HASTA LA `051` (verificado en local el 07/08/2026).** La 047
+  el 05/08, la 048 el 06/08 en ambos, la 051 en prod el 06/08 y en local el 07/08. La
+  **`050`, que estuvo un día solo en prod, YA ESTÁ TAMBIÉN EN LOCAL**: el usuario
+  resincronizó la copia. **Huella medida en local** (`siga_cociap` · `root@localhost` ·
+  PROBOOK450 · MariaDB 10.4.32 · Win64): **275 extraordinarias de nota 15 en B1** · 11
+  criterios extraordinarios · 275 filas de auditoría · B1 pasó de 12 047 a **12 322**
+  calificaciones (+275 exactas) · **0 tablas `_bkp`** (048) · transversales de B2 en **690
+  `docente` y 0 `cierre`** (051).
+  - ⚠️ **Queda obsoleta la regla "una medición local de Ética en B1 da 0 y no es un
+    error"** — ahora da 275 en los dos entornos. **Antes de reportar cualquier divergencia
+    entre local y la documentación, comprobar la frescura de la copia con un marcador de
+    migración**: el 07/08 se reportó como "error de documentación" un `limite_notas` de
+    B2 distinto, y era simplemente que la copia local llevaba dos días de retraso. El valor
+    bueno es el que dice el doc: **`2026-08-04 23:59`**.
+  La **`049`** será la del
   registro retroactivo de notas, aún sin implementar —
   ⚠️ **la 050 y la 051 se numeraron antes que la 049 a propósito**: son independientes y
   corrían primero. Al aplicarlas, el orden lo manda la dependencia, no el número: la `051`
@@ -401,6 +426,23 @@
     desaparecería del documento en silencio. El bloque 1 de la verificación lo vigila.
   - **La CONDUCTA también lleva guion** en sus celdas vacías (05/08). Numeral y
     conclusión no le aplican —es siempre literal—, así que van con guion permanente.
+  - ✅ **EL SELLO DEL DIRECTOR YA NO APARECE EN BORRADOR NI EN VISTA PREVIA
+    (07/08/2026, en `dev`, una línea, sin migración y sin SASS).** Decisión del usuario al
+    revisar la boleta digital: **jamás** en versiones provisionales. Solo el sello; el resto
+    del pie no se toca. Detalle en `docs/modulos/boletas.md`.
+    - **Estaba registrado como hueco conocido y DIFERIDO** ("si se quiere que el borrador
+      digital tampoco muestre el sello, es un ajuste aparte"). Hoy se decidió y se hizo.
+    - **Incumplía un contrato ya escrito:** el docblock de `archivarBorrador` define
+      `$vistaPrevia = true` como *"sin QR y sin imagen de firma del director"*, y en el
+      mismo `digital.php` el **QR sí lo respetaba**. Omisión puntual, no criterio distinto.
+    - ⚠️ **El alcance era mayor que el documentado:** la nota lo achacaba a los
+      desactivados, pero la entrada más expuesta es la **boleta digital del docente**
+      (`vistaPrevia` incluye `estadoBoletaDePeriodo(...) !== 'oficial'`) → con el bimestre
+      sin cerrar, **todos** los docentes veían el sello en un documento provisional.
+    - **La imprimible ya estaba bien:** son dos assets distintos (`firma_path` en
+      `alumno.php`, `sello_path` en `digital.php`) y cada vista pinta uno solo.
+    - **Barrido hecho:** los otros 7 documentos con firma o sello (nóminas, actas,
+      constancia, horario, informe SIAGIE, resumen) **no tienen modo borrador**.
   - **SEÑAL DE BORRADOR — PUNTO ÚNICO (05/08).** La marca de agua la pinta el
     DOCUMENTO (`boleta/_marca-borrador.php`, incluido por `boleta/alumno.php` al recibir
     `$vistaPrevia`), no los wrappers. **Corrige una regresión del mismo día:** al quitar
@@ -687,11 +729,29 @@
   - **Decisiones cerradas:** literal puro con **numeral en guion** (no se inventa el
     número); captura en **grilla** por alumno y bimestre; la boleta **declara** el origen
     con una nota al pie; asistencia del bimestre no cursado en **guion**.
-  - 🔴 **Hallazgo con impacto HOY: la boleta imprime `0 faltas` en un bimestre que el
-    alumno no cursó** (medido en la 694). `sin_registro` solo mira el umbral del bimestre
-    y el estado `pendiente`, nunca si esa matrícula tiene filas de asistencia. Es el mismo
-    dato falso del 04/08 con B2 vacío, por otra causa. **Es la fase F1 y es independiente
-    del resto: se puede hacer ya, sin migración.**
+  - ✅ **F1 HECHA — la boleta ya NO imprime `0 faltas` de un bimestre no cursado
+    (07/08/2026, en `dev`, SIN MIGRACIÓN y sin SASS).** `sin_registro` gana un tercer
+    motivo: que **nadie haya registrado** la asistencia de ese alumno. Punto nuevo
+    `AsistenciaModel::tieneRegistroUnion`, consumido por `BoletaModel::armar` en último
+    lugar para que `||` corte en corto y no consulte cuando el umbral ya dijo que no.
+    Detalle y cifras en `docs/modulos/boletas.md`.
+    - **Universo medido: 18 pares** (matrícula, bimestre) sin fila en bimestres
+      cerrados/activos; **la unión neutraliza 2** → **16 celdas** pasan de `0` a guion:
+      los **6 que llegaron tarde** en B1 y **10 trasladados/retirados** en B2.
+      **El Total anual no se mueve** (esas columnas aportaban 0).
+    - ⚠️ **La UNIÓN era imprescindible, y por poco no se ve:** en el retorno #1 la fila de
+      B1 vive en la oficial (190) y la de B2 en la operativa (692). Preguntando matrícula
+      por matrícula, esa boleta habría salido en guion en **los dos** bimestres teniendo
+      datos. Verificado en los dos sentidos.
+    - ⚠️ **Sin fila ≠ sin incidencias**, y esto NO era deducible del código: `guardar()`
+      es un upsert **AJAX fila por fila** y el cierre de sección **no exige completitud**
+      ("sin fila = 0 incidencias", dice su comentario). Como de hecho el registro sí
+      escribe fila por alumno aunque vaya en cero (**197** en B1, **173** en B2), esas
+      conservan su `0`. **Hubo que medirlo, no deducirlo.**
+    - **Contraste que prueba la precisión del cambio:** la 694 pasa a guion en B1 (no lo
+      cursó) y **conserva su `0` en B2**, donde sí tiene fila registrada sin incidencias.
+    - Verificación: `database/verificaciones/verif_asistencia_sin_registro.php` (solo
+      lectura, corre en prod). Su **bloque 2** es el antirregresión.
   - ⚠️ **Prohibido `nota_numerica NULL` en `calificaciones`:** 45 usos en 11 archivos, de
     los que **26 son promedios, umbrales o desempates** que un NULL altera EN SILENCIO.
     De ahí que el plan proponga tabla aparte unida al leer (patrón ya probado en el
@@ -1247,6 +1307,27 @@ WHERE id=25;`).
   del cierre (F4) NO se comportan igual, así que el orden importa:
   **docentes terminan de calificar y bloquear → deploy del rediseño 2 → medir →
   resolver → cerrar.**
+  - ✅ **RE-MEDICIÓN COMPLETA DEL 07/08/2026 (local ya sincronizada con prod, con la 050
+    incluida) — LAS CUATRO CONDICIONES DURAS EN VERDE. B2 SIGUE SIN CERRARSE.**
+
+    | Condición del runbook | Valor | Cómo se midió |
+    |---|---|---|
+    | Termómetro de bloqueos B2 | **0** | la consulta 1.1 no devuelve fila del periodo 2 |
+    | Alerta de evaluación incompleta B2 | **0 estudiantes** | `ControlOperativoModel::alertasEvaluacionIncompleta(2)` |
+    | Empates pendientes B2 | **0 grados** | `OrdenMeritoModel::gradosConEmpatesPendientes(2)` |
+    | Conducta / asistencia (Fase 3.5) | **23/23 y 23/23**, 0 dobles | las 3 consultas dan 0 filas |
+
+    - **`fuePublicado(2)` = `false`** → `registrarRanking` escribirá **OFICIAL**, no
+      rectificado: el candado 046 no muerde y **B2 es reversible hasta que se publique**.
+      `periodos_publicacion` solo tiene las 2 filas de B1 (22/07).
+    - **B1 conserva sus 12 alumnos con blancos** — la `050` **no los movió**, tal como
+      predecía el análisis previo (`alertasEvaluacionIncompleta` filtra
+      `cr.extraordinario = 0`). Verificado, no supuesto.
+    - **La lista 1.1-bis (61 pares bloqueados y vacíos) quedó REVISADA y CERRADA**: ninguna
+      ÁREA está del todo vacía y la única competencia con la firma de Ética —`Escribe
+      diversos tipos de textos en inglés`, primaria— **la declaró NO EVALUADA la docente**
+      (confirmado por el usuario). Detalle y discriminador en el runbook, Fase 1.1-bis.
+    - **Falta solo lo humano:** revisar en papel (Fase 5.5) y pulsar Cerrar.
   - ✅ **MEDICIÓN DEL 04/08/2026 (BD local sincronizada con PROD ese día) — LAS DOS
     CONDICIONES DURAS EN VERDE:**
 
@@ -1529,6 +1610,24 @@ WHERE id=25;`).
     riesgo de CSS desincronizado) y **ninguna migración pendiente de aplicar**.
   - **La migración `051`** (limpieza de los 130 bloqueos fantasma) sigue **planificada, no
     escrita**, y depende de que antes se implemente F1 del plan de transversales.
+    *(Superado: se escribió, se aplicó en prod el 06/08 y en local el 07/08.)*
+- **07/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `31b136c` a `2242ec7`** (commit
+  de merge, como los del 05 y 06/08). **5 commits**, autorizados por el usuario tras haber
+  probado el lote en navegador ese mismo día.
+  - **Qué entró:** `/consulta-notas` con transversales y conducta (las 3 fases) y el fix de
+    **`notFound()`**, que hasta ahora **no existía**: varios controladores lo llamaban sin
+    estar definido, así que en producción ningún 404 llegaba a mostrarse (caía en la página
+    de error genérica). Más la limpieza de `CLAUDE.md` y la documentación del lote.
+  - **Verificado ANTES de pushear:** `main` local estaba **82 commits detrás** de
+    `origin/main` (la trampa recurrente, esta vez enorme) y se puso al día con un
+    fast-forward limpio; el **árbol de `main` quedó idéntico al de `dev`** (`git diff main
+    dev` vacío); `php -l` limpio en los 8 PHP del lote; **0 archivos sensibles** en el diff;
+    **0 cambios en SASS/JS** → no hacía falta `gulp build`. **Sin migración pendiente.**
+  - **Riesgo bajo por construcción:** de los 13 archivos, los únicos que cambian
+    comportamiento fuera de `/consulta-notas` son `BaseController` (gana `notFound`) y
+    `RectificacionController` (pierde el suyo, privado — era obligatorio: un `private` en la
+    hija choca con el `protected` de la base y da fatal error de compatibilidad de acceso).
+    **Nada toca el camino del cierre de bimestre.**
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial

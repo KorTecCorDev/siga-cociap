@@ -82,9 +82,42 @@ FROM periodos WHERE id = 2;
 ⚠️ **Un plazo vencido congela también el termómetro**: si nadie puede calificar, el número
 no puede moverse. Es una ayuda para razonar, **no una excusa para no repetir la medición**.
 
-> **Estado de B2 al 06/08/2026:** `limite_notas = 2026-08-04 23:59`, **vencido**. Con la
+> **Estado de B2 al 07/08/2026:** `limite_notas = 2026-08-04 23:59`, **vencido**. Con la
 > alerta y los empates en 0 no hace falta ampliarlo; si al re-medir apareciera algo, este
 > es el primer paso y arrastra todo el bucle.
+
+### 0.2 El HITO A — el otro camino que fuerza bloqueos (y el que ya corrió)
+
+🔴 **`cerrar()` NO es el único que fuerza bloqueos.** `bloquearCompetenciasPendientes`
+tiene **exactamente dos llamadores**, y el runbook solo describía uno:
+
+| Llamador | Qué hace | Deja el periodo… |
+|---|---|---|
+| `PeriodoController::cerrar` | las 6 operaciones de la Fase 4 | `cerrado` |
+| `AnioAcademicoModel::aprobarBoletasBimestre` — **HITO A** | fuerza los bloqueos + crea los cierres transversales + marca `boletas_aprobadas_en` | **`activo`** |
+
+El Hito A es "Bloquear y aprobar el bimestre": deja las boletas en **BORRADOR** para que
+los docentes las revisen. **Fuerza los mismos bloqueos que el cierre** (con
+`origen='cierre'`), pero el bimestre sigue abierto. Y `anularAprobacionBoletas`, que lo
+revierte, **no toca los bloqueos** — lo dice su propio comentario.
+
+```sql
+-- ¿Está puesto el Hito A? (y desde cuándo)
+SELECT id, nombre_display, estado, boletas_aprobadas_en FROM periodos WHERE id = 2;
+```
+
+⚠️ **Cómo distinguir un Hito A de un cierre real**, que es lo que confundió a la
+documentación: un cierre deja rastro en **cuatro** sitios a la vez —`estado='cerrado'`,
+fila en `orden_merito_snapshot`, `boletas_aprobadas_en` y, si se deshizo, una fila en
+`reaperturas_periodo` (reabrir exige motivo y **siempre** deja traza)—. El Hito A solo
+marca `boletas_aprobadas_en`.
+
+> **Caso real (B2):** `boletas_aprobadas_en = 2026-08-05 20:09:33`, `estado='activo'`,
+> **sin** snapshot de B2 y **sin** reaperturas posteriores al 16/06. Fue el Hito A quien
+> creó los 130 bloqueos transversales fantasma esa noche —antes de que F1 llegara a
+> producción el 06/08— y la migración `051` los limpió después. **B2 nunca se ha cerrado.**
+> `docs/ESTADO.md` afirmaba lo contrario ("el cierre forzado sí llegó a correr y el
+> bimestre se reabrió"); es falso, y la corrección está registrada allí.
 
 ## Fase 1 — Medir (en prod, solo lectura)
 
@@ -156,13 +189,63 @@ fila puede ser:
 - **normal** — esa competencia no se trabajó ese bimestre; o
 - **un olvido como el de Ética** — el área entera sin evaluar y bloqueada igual.
 
-La señal de alarma es **el área COMPLETA vacía en TODAS sus secciones**, que es la forma
-que tuvo Ética (11 secciones, 11 bloqueos, 60 segundos, 0 notas).
+🔴 **AGRUPAR POR ÁREA NO ALCANZA (hallazgo del 07/08/2026).** La consulta de arriba suma
+todas las competencias del área, así que un área que evalúa 2 de sus 3 competencias nunca
+llega a "todo vacío" y **la señal se diluye**. La forma de Ética —bloqueada en TODAS sus
+secciones con CERO notas— hay que buscarla **por competencia**:
 
-**Referencia medida el 06/08/2026** (copia local de prod del 05/08 — repetir en prod):
-**B2 = 61 pares** (Personal Social primaria 26 en 8 secciones · Inglés primaria 16 en 12 ·
-Taller Raz. Mat. 9 en 9 · CyT primaria 5 · resto 5), todos `origen='docente'`.
-**B1 = 116**, incluidos los 11 de Ética.
+```sql
+SELECT n.nombre AS nivel, COALESCE(a.nombre, a2.nombre) AS area,
+       LEFT(c.nombre_corto, 40) AS competencia,
+       COUNT(*) AS secc_bloq,
+       SUM(CASE WHEN cal.n IS NULL THEN 1 ELSE 0 END) AS sin_notas,
+       CASE WHEN COUNT(*) = SUM(CASE WHEN cal.n IS NULL THEN 1 ELSE 0 END)
+            THEN '** TODAS VACIAS **' ELSE 'parcial' END AS senal
+FROM bloqueos_competencia bc
+INNER JOIN cargas_academicas ca ON ca.id = bc.carga_id
+INNER JOIN competencias c ON c.id = bc.competencia_id
+INNER JOIN secciones s ON s.id = ca.seccion_id
+INNER JOIN grados  gg ON gg.id = s.grado_id
+INNER JOIN niveles n  ON n.id  = gg.nivel_id
+LEFT  JOIN areas    a  ON a.id  = ca.area_id
+LEFT  JOIN subareas sa ON sa.id = ca.subarea_id
+LEFT  JOIN areas    a2 ON a2.id = sa.area_id
+LEFT  JOIN (SELECT carga_id, competencia_id, periodo_id, COUNT(*) n
+            FROM calificaciones WHERE periodo_id = 2
+            GROUP BY carga_id, competencia_id, periodo_id) cal
+       ON cal.carga_id = bc.carga_id AND cal.competencia_id = bc.competencia_id
+      AND cal.periodo_id = bc.periodo_id
+WHERE bc.periodo_id = 2
+  AND (c.area_id = ca.area_id OR c.subarea_id = ca.subarea_id)
+GROUP BY n.nombre, COALESCE(a.nombre, a2.nombre), c.id
+HAVING sin_notas > 0
+ORDER BY (COUNT(*) = SUM(CASE WHEN cal.n IS NULL THEN 1 ELSE 0 END)) DESC, sin_notas DESC;
+```
+
+Ante un `** TODAS VACIAS **`, el discriminador barato es **mirar el otro bimestre y quién
+bloqueó**: un olvido aparece de golpe en un bimestre y con bloqueos masivos en segundos;
+una competencia que no se dicta está vacía **también en B1** y sus bloqueos van espaciados,
+uno por sección.
+
+**Referencia medida el 07/08/2026** (local ya sincronizada con prod, migraciones 048/050/051
+aplicadas — repetir igual en prod): **B2 = 61 pares** en 15 competencias, todos
+`origen='docente'`; **ninguna área** da "todo vacío" y **una sola competencia** sí.
+
+- ✅ **`Escribe diversos tipos de textos en inglés` (Primaria, id 3) — REVISADA Y CERRADA.**
+  12 secciones bloqueadas, **0 notas y 0 criterios, ni en B1 ni en B2**. La bloqueó
+  MORENO JANE ALMENDRA (única docente de Inglés de primaria) **sección por sección entre
+  las 17:47 y las 19:46 del 12/07** — acto deliberado, no un bloqueo masivo. En secundaria
+  la competencia equivalente (id 43) **sí** se evalúa (272 notas en B1, 271 en B2).
+  **La docente la declaró NO EVALUADA en primaria** (confirmado por el usuario el
+  07/08/2026). **No hay nada que corregir**: la boleta de B2 mostrará esa fila con guion
+  en las 12 secciones de primaria, y es correcto. No volver a investigarlo.
+  - ⚠️ **Es la primera vez que se ve en papel**: antes del 05/08 la boleta solo pintaba lo
+    que tenía nota, así que en el impreso de B1 esa fila no existía.
+  - Lo mismo, más chico: `Lee y comprende diversos tipos de textos` (id 2) tiene notas en
+    8 de 12 secciones → **4 secciones** saldrán con guion.
+
+**B1 = 116** con la definición del runbook, incluidos los 11 de Ética (ya resueltos por la
+migración `050`: bajaron a 105).
 
 **Consecuencia de dejar una fila sin revisar:** todos los alumnos de esa sección salen con
 **guion** en esa competencia en la boleta, y con la **celda en blanco** en el acta SIAGIE.

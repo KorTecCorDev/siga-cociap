@@ -473,8 +473,14 @@ $vistaPrevia = $vistaPrevia ?? false;
         };
         ?>
         <div class="bd-footer__sig">
+            <!-- El SELLO solo va en el documento definitivo. En vista previa o BORRADOR
+                 se omite: un sello de direccion le da apariencia oficial a un documento
+                 provisional, que es justo lo que la marca de agua intenta desmentir.
+                 Mismo criterio que la firma de la boleta impresa (boleta/alumno.php) y
+                 que el QR de aqui abajo. El contenedor se conserva vacio para que el
+                 pie no cambie de alto entre la vista previa y el definitivo. -->
             <div class="bd-footer__img-area">
-                <?php if (!empty($directorEbr['sello_path'])): ?>
+                <?php if (!$vistaPrevia && !empty($directorEbr['sello_path'])): ?>
                     <img src="<?= url($directorEbr['sello_path']) ?>"
                          alt="Sello <?= $bdCargoDirector ?>"
                          class="bd-footer__sello-img">

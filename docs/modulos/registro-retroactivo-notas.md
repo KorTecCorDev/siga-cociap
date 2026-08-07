@@ -161,7 +161,23 @@ UNION ALL SELECT 'notas_autoriz',    COUNT(*) FROM notas_autorizadas_siagie;
 - **Alguna > 0** → **PARAR**. Hay que añadir a la migración el traslado de esas filas al
   modelo nuevo, y `DROP TABLE notas_externas` deja de ser seguro.
 
-### F1 · Asistencia con guion — *independiente, sin migración*
+### F1 · Asistencia con guion — ✅ **IMPLEMENTADA EN `dev` EL 07/08/2026, SIN MIGRACIÓN**
+
+> Se hizo tal cual el plan (los dos archivos, el método por unión, la vista intacta).
+> Resultado y cifras en **`docs/modulos/boletas.md`**, sección "El tercer motivo: sin FILA
+> no es lo mismo que en CERO". Verificación:
+> `database/verificaciones/verif_asistencia_sin_registro.php`.
+>
+> **Universo medido: 18 pares sin fila, de los que la unión neutraliza 2 → 16 celdas pasan
+> de `0` a guion** (6 que llegaron tarde en B1 + 10 trasladados/retirados en B2). El Total
+> anual no se movió y las 40 filas de muestra "en cero real" conservaron su `0`.
+>
+> ⚠️ **Lo que el plan no anticipaba:** `guardar()` es un upsert **AJAX fila por fila**, así
+> que la fila solo existe si alguien tocó a ese alumno, y el cierre de sección **no exige
+> completitud**. El efecto colateral por tanto NO era deducible del código: hubo que
+> medirlo. Salió acotado, pero la próxima fase que dependa de "hay fila" debe medir igual.
+
+**Contenido original del plan:**
 
 **Problema:** la boleta imprime `0 faltas` en un bimestre que el alumno no cursó.
 `AsistenciaModel::getDelBimestre` devuelve ceros cuando **no hay fila**, y `armar()` no
