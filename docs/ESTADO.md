@@ -594,8 +594,30 @@
   que la última académica. El acoplamiento sí es gratuito (`getPromediosSeccion` filtra
   `tipo='transversal'`), así que desacoplar el gate es correcto — pero el valor está en
   **mostrar promedios parciales**, no en el orden de bloqueo.
-- **`/consulta-notas` CON TRANSVERSALES Y CONDUCTA — PLAN APROBADO, SIN IMPLEMENTAR
-  (06/08/2026).** Plan completo: **`docs/modulos/consulta-notas-ampliada.md`**.
+- ✅ **`/consulta-notas` CON TRANSVERSALES Y CONDUCTA — IMPLEMENTADO EN `dev`
+  (07/08/2026), SIN DESPLEGAR. Sin migración, sin métodos de modelo nuevos.**
+  Qué se construyó y con qué cifras:
+  **`docs/modulos/consulta-notas-ampliada.md` §9** (manda esa sección).
+  - **Las tres fases juntas:** crudo transversal dentro de cada carga, agregado
+    transversal por sección y conducta por sección, las dos últimas con ruta propia de
+    5 segmentos (registradas **antes** que la de 4).
+  - 🔴 **CORRECCIÓN AL PLAN — en B1 el crudo por carga NO existe, y es correcto.** El plan
+    pedía verificar «23 cargas en B1»; da **0**, porque allí regía el modelo viejo (carga
+    única del tutor) y esas 23 cargas están hoy `inactiva`, fuera del alcance de
+    `getCompetenciasPorPeriodo`. **El crudo por docente nace en B2**; para B1 el valor es
+    el agregado.
+  - 🔴 **El bloqueo NO es señal de contenido:** 820 bloqueos sobre 410 cargas por bimestre
+    (cascada del cierre forzado). Sin el `EXISTS` de calificaciones se pintarían **410
+    bloques vacíos en B1** y 65 en B2. El helper exige bloqueo **Y** notas.
+  - **Gate D3 verificado:** B3 oculta las dos entradas (nada cerrado) y sus rutas
+    responden 404 — ocultar el enlace no basta, la URL queda en marcadores.
+  - **El roster se reusa de `ConductaModel::getEstudiantesParaTutor`** a propósito: es el
+    canónico con las exclusiones de retorno, y duplicar ese filtro es como nacieron los
+    bugs de asistencia del 04/08.
+  - **Verificación:** `verif_consulta_notas_ampliada.php` contrasta contra **las fuentes
+    de la boleta** (`getPromediosMatricula` y `getParaPeriodo`): **2086 celdas y 1048
+    filas, 0 divergencias**, con B1 (legado) y B2 (modelo nuevo) en la misma corrida.
+  - Plan original y decisiones D1-D3: **`docs/modulos/consulta-notas-ampliada.md`**.
   - **Las dos ausencias son estructurales, no un olvido de la vista.** Las transversales
     no las puede alcanzar `getCompetenciasPorPeriodo`: une competencia↔carga por el área
     de la CARGA, y las transversales cuelgan de un área propia (`tipo='transversal'`,
