@@ -307,51 +307,13 @@ Versión de una línea; el porqué completo está en el doc del módulo.
 - **Git: `dev` = trabajo, `main` = producción (auto-deploy). PREGUNTAR antes de
   mergear `dev` → `main`.**
 
-## Arquitectura de carpetas
-```
-siga-cociap/
-├── app/
-│   ├── Controllers/        ← por dominio: Admin/, Auth/, Boleta/, Consulta/,
-│   │                          Director/, Docente/, Matricula/, Padre/,
-│   │                          Rectificacion/ + BaseController, DashboardController
-│   ├── Models/             ← BaseModel + un modelo por dominio (UsuarioModel,
-│   │                          CalificacionModel, BoletaModel, MatriculaModel, …)
-│   └── Helpers/helpers.php ← funciones globales + constantes de escala
-├── core/                   ← Router, Database, Session, View, Throttle
-├── config/
-│   ├── app.php             ← valores env-aware (debug, app_url, firmas_path)
-│   └── database.php        ← cargador SIN secretos (prod lee ~/siga_secrets/)
-├── database/
-│   ├── migrations/         ← orden de ejecución en docs/infraestructura.md
-│   └── seeds/
-├── docs/                   ← RED DE DOCUMENTACIÓN (ver tabla de arriba)
-├── public/                 ← document root lógico: index.php (front controller),
-│   ├── css/app.css         ← compilado por Gulp (no editar a mano)
-│   ├── js/                 ← compilados desde resources/js/
-│   └── assets/             ← img, fonts/inter, icons (SVGs locales), qrcode.min.js
-├── resources/
-│   ├── sass/               ← base/, components/, pages/ — importados en app.scss
-│   ├── js/                 ← fuentes JS (gulp los copia a public/js/)
-│   └── views/              ← layouts/(auth, app, print, digital) + carpeta por módulo
-└── routes/web.php          ← única tabla de rutas
-```
-
-## Base de datos — tablas principales
-```
-roles, personas, usuarios
-niveles, grados, areas, subareas, competencias
-reglas_especiales
-anios_academicos, periodos, secciones
-cargas_academicas, sesiones_horario, bloques_horario, configuracion_horario
-estudiantes, apoderados, vinculo_familiar
-matriculas, alertas, documentos_matricula, notas_externas, retornos_grado
-criterios, calificaciones_criterio, calificaciones, omisiones_criterio
-bloqueos_competencia, conclusiones_transversales
-boletas_publicas (dormida), director_ebr_historial
-orden_merito_snapshot, rectificaciones_calificacion
-```
-Migraciones aplicadas y orden de setup desde cero: ver `docs/infraestructura.md`
-y `docs/ESTADO.md`.
+## Arquitectura y base de datos
+El árbol de carpetas y el listado de tablas se leen del propio repo (`ls`,
+`SHOW TABLES`) — no se documentan aquí para que no se desincronicen.
+Lo que NO es derivable ya vive en los invariantes de arriba (`public/css/app.css`
+lo compila Gulp, `config/database.php` no lleva secretos, `routes/web.php` es la
+única tabla de rutas). Migraciones aplicadas y orden de setup desde cero:
+`docs/infraestructura.md` y `docs/ESTADO.md`.
 
 ## Estructura curricular
 - **Área con subáreas:** cada subárea tiene 1 competencia y 1 docente
@@ -406,6 +368,12 @@ y `docs/ESTADO.md`.
 - **Vistas:** `$this->view('carpeta/archivo', ['variable' => $valor])`
 - **JSON:** `$this->json(['success' => true, 'mensaje' => '...'])`
 - **CSRF:** siempre `$this->validateCsrf()` en métodos POST
+- **404:** siempre `$this->notFound()` (`BaseController`, `never`). Hace
+  `http_response_code(404)` + `require` de `shared/404.php` + `exit`. NUNCA
+  `$this->view('shared/404')`: esa vista es una página HTML completa y el layout
+  la anidaría dentro de otra. Existe desde el 07/08/2026 — antes varios
+  controladores lo llamaban sin que estuviera definido (fatal en local, página de
+  error genérica en prod)
 - **Auth: por controlador — NO hay middleware.** `app/Middleware/AuthMiddleware.php`
   nunca se usó y se eliminó (commit `eb0e9cf`, 20/06/2026). No reintroducir una capa
   de middleware sin acordarlo antes.

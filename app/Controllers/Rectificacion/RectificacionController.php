@@ -463,11 +463,4 @@ class RectificacionController extends BaseController
             'Rectificación aplicada.' . $notaRanking . $avisoEmpate);
     }
 
-    /** Respuesta 404 estándar del proyecto. */
-    private function notFound(): never
-    {
-        http_response_code(404);
-        $this->view('shared/404');
-        exit;
-    }
 }

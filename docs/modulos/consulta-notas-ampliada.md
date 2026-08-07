@@ -1,6 +1,9 @@
 # Consulta de calificaciones — transversales y conducta (PLAN, sin implementar)
 
-> **Estado: PLAN APROBADO, SIN IMPLEMENTAR (06/08/2026).** Amplía `/consulta-notas`
+> **Estado: IMPLEMENTADO EN `dev` EL 07/08/2026 — las tres fases, sin desplegar.**
+> Sin migración y sin métodos de modelo nuevos, como prometía el plan.
+> **Qué se construyó, las desviaciones y las cifras: §9, que manda sobre §5 y §7.**
+> Amplía `/consulta-notas`
 > —la capa de supervisión en solo lectura— con los dos registros que hoy no llegan
 > a ella: las **competencias transversales** que registra cada docente y la
 > **conducta** que cierran auxiliares/RA y el tutor.
@@ -217,6 +220,55 @@ Script de solo lectura en `database/verificaciones/`, ejecutable en prod:
 3. **F3** — el nº de filas de la grilla == el roster de conducta de esa sección, y
    `literal_final` coincide con `ConductaModel::getParaPeriodo` (la fuente de la boleta).
    Probar **B1 (legado) y B2** en la misma corrida: son caminos de código distintos.
+
+---
+
+## 9. LO QUE SE CONSTRUYÓ (07/08/2026). Manda sobre §5 y §7.
+
+**Estado: en `dev`, sin desplegar. Sin migración.** Las tres fases entraron juntas.
+
+### Desviaciones respecto del plan
+
+- **F1 usa un helper propio, no `getCompetenciasTransversalesConCriterios`.**
+  `ConsultaNotasController::transversalesConContenido(cargaIds, periodoId)` resuelve
+  bloqueo **+ `EXISTS` de calificaciones** en una sola consulta y devuelve indexado por
+  carga, así que sirve igual a `carga()` (una carga) y a `seccion()` (todas, para el
+  contador) sin duplicar SQL ni hacer N+1. El detalle sigue armándose con
+  `getResumenCompetencia`, como decía el plan — la sonda se confirmó en vivo: sobre una
+  competencia transversal devuelve las mismas claves (1 criterio, 24 alumnos).
+- **El roster sale de `ConductaModel::getEstudiantesParaTutor`**, también para F2. No hay
+  un getter de roster genérico en el proyecto, y escribir otro SELECT habría duplicado el
+  filtro de exclusiones de retorno — justo el origen de los bugs de asistencia del 04/08.
+  Queda documentado en el propio método (`rosterSeccion`).
+
+### 🔴 La corrección más importante: en B1 el crudo por carga NO existe
+
+El plan pedía verificar que F1 diera **23 cargas en B1**. Da **0**, y es correcto: en B1
+regía el modelo viejo —carga única del tutor— y esas 23 cargas están hoy en
+`estado='inactiva'`, así que `getCompetenciasPorPeriodo` (que filtra `estado='activa'`)
+nunca las alcanza. **El crudo por docente es un concepto que nace en B2.** Para B1 el
+valor está en el agregado (F2), que sí funciona y compara sin divergencias.
+
+### Cifras medidas
+
+| | B1 | B2 | B3 |
+|---|---|---|---|
+| Cargas con bloqueo transversal | 410 | 410 | 2 |
+| Cargas con CONTENIDO (lo que se pinta) | **0** | **345** | 2 |
+| Bloques vacíos evitados | **410** | **65** | 0 |
+| Secciones que ofrecen transversales | 23 | 23 | **0** |
+| Secciones que ofrecen conducta | 23 (legado) | 23 | **0** |
+
+B3 con las dos entradas en 0 es el **gate D3 funcionando**: nada cerrado, nada que ver.
+
+### Verificación
+
+`database/verificaciones/verif_consulta_notas_ampliada.php` — solo lectura, corre en prod,
+acepta el número de bimestre. Lo que de verdad prueba es que **la supervisión y la boleta
+dicen lo mismo**: contrasta el agregado contra `getPromediosMatricula` y los literales de
+conducta contra `getParaPeriodo`, que son las fuentes del documento que recibe la familia.
+**2086 celdas y 1048 filas comparadas, 0 divergencias**, con B1 (legado) y B2 (modelo
+nuevo) en la misma corrida.
 
 ---
 

@@ -328,8 +328,10 @@ La completitud de transversales / piso de carga cuenta notas crudas en
   boleta. Bimestres activos y cerrados.
 - **Controlador:** `app/Controllers/Consulta/ConsultaNotasController.php`
   (`requireRole(['admin','registro_academico','director_general','director_ebr'])`).
-  3 métodos: `index` (selector de periodo + grid de secciones), `seccion`
-  (áreas/cargas de la sección), `carga` (grillas read-only por competencia).
+  5 métodos: `index` (selector de periodo + grid de secciones), `seccion`
+  (áreas/cargas de la sección), `carga` (grillas read-only por competencia),
+  y desde el **07/08/2026** `transversales` y `conducta`, los dos registros de
+  nivel SECCIÓN que antes no llegaban aquí.
 - **Sin métodos de modelo nuevos:** navega con
   `CalificacionModel::getCompetenciasPorPeriodo()` filtrando `bloqueo_id != null`
   en PHP, y arma el detalle con `getResumenCompetencia()` (+ omisiones/exonerados,
@@ -341,7 +343,48 @@ La completitud de transversales / piso de carga cuenta notas crudas en
   `require VIEW_PATH . '/consulta-notas/_tabla.php'` por cada competencia.
 - **Rutas:** `/consulta-notas`,
   `/consulta-notas/{periodo_id}/seccion/{seccion_id}`,
-  `/consulta-notas/{periodo_id}/carga/{carga_id}`.
+  `/consulta-notas/{periodo_id}/carga/{carga_id}`,
+  `…/seccion/{seccion_id}/transversales` y `…/seccion/{seccion_id}/conducta`
+  (las de 5 segmentos van **antes** que la de 4 en `routes/web.php`).
+
+### Transversales y conducta en la consulta (07/08/2026)
+Las dos ausencias eran **estructurales, no un olvido de la vista**:
+`getCompetenciasPorPeriodo` une competencia↔carga por el **área de la CARGA**, y las
+transversales cuelgan de un área propia (`tipo='transversal'`) — el vínculo
+transversal↔carga no existe en el esquema, se resuelve por NIVEL. Y la conducta no vive
+en `calificaciones` (4 tablas propias, ciclo por SECCIÓN en dos etapas).
+
+- **Las dos caras de las transversales.** El **crudo por carga** se añade al final de
+  `carga.php` con separador y `.competencia-card--transversal` (clases ya existentes);
+  el **agregado por sección** es una vista nueva con el promedio que llega a la boleta
+  más la conclusión del tutor.
+- 🔴 **El BLOQUEO NO ES SEÑAL DE CONTENIDO** — hay **820 bloqueos sobre 410 cargas en
+  cada bimestre** porque el cierre forzado los propaga en cascada. Copiar el criterio del
+  resto de la pantalla ("mostrar lo que tenga bloqueo") pintaría **410 bloques vacíos en
+  B1**. El helper `transversalesConContenido` exige bloqueo **Y** `EXISTS` de
+  calificaciones. La condición no es opcional.
+- ⚠️ **En B1 el crudo por carga NO EXISTE, y es correcto** (medido, corrige lo que
+  suponía el plan): allí regía el modelo viejo —carga única del tutor— y esas 23 cargas
+  están hoy en `estado='inactiva'`, así que la navegación nunca las alcanza. El crudo por
+  docente es un concepto que **nace en B2**; para B1 el valor está en el agregado.
+- **Gate D3 — solo lo oficial:** transversales exige **cierre vigente**; conducta, las
+  **dos etapas** cumplidas y sin anular. Sin eso la tarjeta no se pinta **y la ruta
+  responde 404** — ocultar el enlace no basta, la URL queda en marcadores.
+- ⚠️ **B1 y B2 no comparten modelo de conducta:** B1 es legado (literal directo, **0
+  respuestas**, 528 calificaciones) y B2+ deriva la nota de las respuestas Sí/No (5240
+  respuestas). `getEstudiantesParaTutor` resuelve las dos y marca `es_legado`; la vista
+  ramifica. Son caminos de código distintos: probar siempre los dos.
+- **Sin métodos de modelo nuevos y sin migración.** El roster sale de
+  `ConductaModel::getEstudiantesParaTutor` **a propósito** —es el roster canónico con las
+  exclusiones de retorno— en vez de escribir otro SELECT: duplicar ese filtro a mano es
+  como nacieron los bugs de asistencia del 04/08.
+- **No se amplían los roles de `/admin/conducta`** (decisión D2): esa pantalla tiene
+  escritura. Esto cierra un hueco real — `director_general` y `director_ebr` no tenían
+  **ninguna** forma de ver conducta ni el agregado transversal.
+- **Verificación:** `database/verificaciones/verif_consulta_notas_ampliada.php` (solo
+  lectura, corre en prod). Contrasta el agregado contra `getPromediosMatricula` y los
+  literales contra `getParaPeriodo`, que son **las fuentes de la boleta**: 2086 celdas y
+  1048 filas comparadas, **0 divergencias**.
 - **Entradas:** botón "Consultar notas (lectura)" en `/director/bloqueos`
   (lleva el periodo actual) y en `/rectificaciones`.
 - **SASS:** `pages/_consulta-notas.scss` (solo las listas de navegación; el detalle

@@ -6,6 +6,8 @@ use App\Controllers\BaseController;
 use App\Models\CalificacionModel;
 use App\Models\OmisionCriterioModel;
 use App\Models\ExoneracionModel;
+use App\Models\TransversalModel;
+use App\Models\ConductaModel;
 
 /**
  * ConsultaNotasController
@@ -27,13 +29,34 @@ class ConsultaNotasController extends BaseController
     private CalificacionModel    $calModel;
     private OmisionCriterioModel $omisionModel;
     private ExoneracionModel     $exoModel;
+    private TransversalModel     $transModel;
+    private ConductaModel        $conductaModel;
 
     public function __construct()
     {
         $this->requireRole(['admin', 'registro_academico', 'director_general', 'director_ebr']);
-        $this->calModel     = new CalificacionModel();
-        $this->omisionModel = new OmisionCriterioModel();
-        $this->exoModel     = new ExoneracionModel();
+        $this->calModel      = new CalificacionModel();
+        $this->omisionModel  = new OmisionCriterioModel();
+        $this->exoModel      = new ExoneracionModel();
+        $this->transModel    = new TransversalModel();
+        $this->conductaModel = new ConductaModel();
+    }
+
+    /**
+     * Roster canonico de una seccion (matricula_id + nombre), con las exclusiones
+     * de retorno de grado ya aplicadas. Se reusa `ConductaModel::getEstudiantesParaTutor`
+     * A PROPOSITO en vez de escribir otro SELECT: es el mismo roster que ven el
+     * tutor y la grilla del docente, y duplicar ese filtro a mano es exactamente
+     * como nacieron los bugs de asistencia del 04/08/2026. Los campos de conducta
+     * que trae de propina los usa F3; F2 solo necesita id y nombre.
+     */
+    private function rosterSeccion(int $seccionId, int $periodoId, int $nivelId): array
+    {
+        return $this->conductaModel->getEstudiantesParaTutor(
+            $seccionId,
+            $periodoId,
+            $this->conductaModel->totalCriterios($nivelId)
+        );
     }
 
     /** Periodos disponibles para el selector (activos + cerrados). */
@@ -80,6 +103,60 @@ class ConsultaNotasController extends BaseController
             $this->calModel->getCompetenciasPorPeriodo($periodoId),
             fn($c) => $c['bloqueo_id'] !== null
         ));
+    }
+
+    /**
+     * Competencias TRANSVERSALES (TIC/GAMA) con CONTENIDO REAL de las cargas
+     * indicadas, indexadas por carga: [carga_id => [ {competencia_id, ...}, ... ]].
+     *
+     * ⚠️ POR QUE NO SALEN POR LA VIA NORMAL: `getCompetenciasPorPeriodo` une
+     * competencia<->carga por el AREA DE LA CARGA, y las transversales cuelgan de
+     * un area propia (`tipo='transversal'`), asi que ese JOIN no puede alcanzarlas
+     * — el vinculo transversal<->carga no existe en el esquema, se resuelve por
+     * NIVEL. Es el mismo limite que las deja fuera del panel de bloqueos.
+     *
+     * 🔴 EL BLOQUEO NO ES SENAL DE CONTENIDO, y por eso hace falta el EXISTS:
+     * el cierre forzado propaga bloqueos en cascada, asi que hay 820 bloqueos
+     * transversales sobre 410 cargas en CADA bimestre, pero en B1 solo 23 cargas
+     * tienen notas. Copiar el criterio del resto de la pantalla ("mostrar lo que
+     * tenga bloqueo") pintaria 387 bloques VACIOS en B1. La condicion de
+     * contenido no es opcional.
+     */
+    private function transversalesConContenido(array $cargaIds, int $periodoId): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $cargaIds)));
+        if (empty($ids)) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+
+        $filas = $this->calModel->query("
+            SELECT bc.carga_id,
+                   bc.bloqueado_en,
+                   comp.id              AS competencia_id,
+                   comp.nombre_completo,
+                   comp.nombre_corto,
+                   comp.codigo_minedu,
+                   comp.orden
+            FROM bloqueos_competencia bc
+            INNER JOIN competencias comp ON comp.id = bc.competencia_id
+            INNER JOIN areas a           ON a.id    = comp.area_id AND a.tipo = 'transversal'
+            WHERE bc.periodo_id = ?
+              AND bc.carga_id IN ({$ph})
+              AND EXISTS (
+                  SELECT 1 FROM calificaciones cal
+                  WHERE cal.carga_id       = bc.carga_id
+                    AND cal.competencia_id = comp.id
+                    AND cal.periodo_id     = bc.periodo_id
+              )
+            ORDER BY bc.carga_id, comp.orden
+        ", array_merge([$periodoId], $ids));
+
+        $out = [];
+        foreach ($filas as $f) {
+            $out[(int) $f['carga_id']][] = $f;
+        }
+        return $out;
     }
 
     /** GET /consulta-notas — selector de periodo + secciones con notas oficiales. */
@@ -159,6 +236,7 @@ class ConsultaNotasController extends BaseController
                 'seccion_nombre' => $primera['seccion_nombre'],
                 'grado_nombre'   => $primera['grado_nombre'],
                 'nivel_nombre'   => $primera['nivel_nombre'],
+                'nivel_id'       => (int) $primera['nivel_id'],
             ];
 
             $byCarga = [];
@@ -171,18 +249,162 @@ class ConsultaNotasController extends BaseController
                         'subarea_nombre' => $c['subarea_nombre'],
                         'docente'        => $this->nombreDocente($c),
                         'competencias'   => 0,
+                        'transversales'  => 0,
                     ];
                 }
                 $byCarga[$cid]['competencias']++;
             }
+
+            // El contador de la tarjeta debe incluir las transversales, o mentiria
+            // respecto a los bloques que la vista de carga va a pintar.
+            $transv = $this->transversalesConContenido(array_keys($byCarga), $periodoId);
+            foreach ($transv as $cid => $lista) {
+                if (isset($byCarga[$cid])) {
+                    $byCarga[$cid]['transversales'] = count($lista);
+                    $byCarga[$cid]['competencias'] += count($lista);
+                }
+            }
+
             $cargas = array_values($byCarga);
         }
 
+        // Las dos entradas de nivel SECCION (no de carga). Solo se ofrecen si el
+        // registro esta OFICIALMENTE terminado (decision D3): cierre transversal
+        // vigente / conducta con sus DOS etapas y sin anular. Lo que esta a medias
+        // no aparece — es la misma promesa que ya hace la pantalla con las notas.
+        $tieneTransversales = false;
+        $tieneConducta      = false;
+        if ($seccion) {
+            $tieneTransversales = $this->transModel->getCierreVigente($seccionId, $periodoId) !== null;
+            $cierreC            = $this->conductaModel->getCierreDetalle($seccionId, $periodoId);
+            $tieneConducta      = $cierreC !== null
+                && !empty($cierreC['ra_bloqueado_en'])
+                && !empty($cierreC['tutor_cerrado_en']);
+        }
+
         $this->view('consulta-notas/seccion', [
-            'titulo'  => 'Consulta de calificaciones',
-            'periodo' => $periodo,
-            'seccion' => $seccion,
-            'cargas'  => $cargas,
+            'titulo'             => 'Consulta de calificaciones',
+            'periodo'            => $periodo,
+            'seccion'            => $seccion,
+            'cargas'             => $cargas,
+            'tieneTransversales' => $tieneTransversales,
+            'tieneConducta'      => $tieneConducta,
+        ]);
+    }
+
+    /**
+     * GET /consulta-notas/{periodo_id}/seccion/{seccion_id}/transversales
+     * Agregado transversal de la seccion: el promedio por competencia que
+     * EFECTIVAMENTE llega a la boleta, con la conclusion del tutor.
+     *
+     * Es la otra cara de las transversales crudas que se ven dentro de cada carga:
+     * aquellas son lo que registro cada docente; esto es lo que el tutor congelo
+     * al cerrar. Sin cierre vigente no hay agregado que mostrar (`getTransversalesAgregadas`
+     * aplica el mismo corte en la boleta), asi que la ruta responde 404 — no basta
+     * con ocultar el enlace: la URL queda en marcadores.
+     */
+    public function transversales(string $periodoId, string $seccionId): void
+    {
+        $periodoId = (int) $periodoId;
+        $seccionId = (int) $seccionId;
+
+        $periodo = $this->getPeriodo($periodoId);
+        if (!$periodo) {
+            $this->notFound();
+        }
+
+        $cierre = $this->transModel->getCierreVigente($seccionId, $periodoId);
+        if (!$cierre) {
+            $this->notFound();
+        }
+
+        $filas = array_values(array_filter(
+            $this->competenciasOficiales($periodoId),
+            fn($c) => (int) $c['seccion_id'] === $seccionId
+        ));
+        if (empty($filas)) {
+            $this->notFound();
+        }
+        $primera = $filas[0];
+        $nivelId = (int) $primera['nivel_id'];
+
+        $seccion = [
+            'seccion_id'     => $seccionId,
+            'seccion_nombre' => $primera['seccion_nombre'],
+            'grado_nombre'   => $primera['grado_nombre'],
+            'nivel_nombre'   => $primera['nivel_nombre'],
+            'nivel_codigo'   => $primera['nivel_codigo'],
+        ];
+
+        // ⚠️ Los promedios vienen indexados POR MATRICULA y con competencia_id
+        // como clave interna: hay que cruzarlos con el roster, nunca asumir orden.
+        $this->view('consulta-notas/transversales', [
+            'titulo'       => 'Transversales — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
+            'periodo'      => $periodo,
+            'seccion'      => $seccion,
+            'cierre'       => $cierre,
+            'competencias' => $this->transModel->getCompetencias($nivelId),
+            'alumnos'      => $this->rosterSeccion($seccionId, $periodoId, $nivelId),
+            'promedios'    => $this->transModel->getPromediosSeccion($seccionId, $periodoId),
+            'conclusiones' => $this->transModel->getConclusionesSeccion($seccionId, $periodoId),
+        ]);
+    }
+
+    /**
+     * GET /consulta-notas/{periodo_id}/seccion/{seccion_id}/conducta
+     * Conducta de la seccion en SOLO LECTURA. Entra aqui —y no ampliando los
+     * roles de /admin/conducta— porque aquella pantalla tiene botones de
+     * escritura y no es de solo lectura por diseno (decision D2).
+     *
+     * Cierra un hueco real: director_general y director_ebr no tenian NINGUNA
+     * forma de ver la conducta de una seccion.
+     *
+     * ⚠️ B1 y B2 NO comparten modelo: B1 es legado (literal directo, 0 respuestas)
+     * y B2+ deriva la nota de las respuestas Si/No. `getEstudiantesParaTutor`
+     * resuelve las dos y marca cada fila con `es_legado`; la vista ramifica.
+     */
+    public function conducta(string $periodoId, string $seccionId): void
+    {
+        $periodoId = (int) $periodoId;
+        $seccionId = (int) $seccionId;
+
+        $periodo = $this->getPeriodo($periodoId);
+        if (!$periodo) {
+            $this->notFound();
+        }
+
+        // Gate D3: las DOS etapas cumplidas y sin anular.
+        $cierre = $this->conductaModel->getCierreDetalle($seccionId, $periodoId);
+        if (!$cierre || empty($cierre['ra_bloqueado_en']) || empty($cierre['tutor_cerrado_en'])) {
+            $this->notFound();
+        }
+
+        $filas = array_values(array_filter(
+            $this->competenciasOficiales($periodoId),
+            fn($c) => (int) $c['seccion_id'] === $seccionId
+        ));
+        if (empty($filas)) {
+            $this->notFound();
+        }
+        $primera = $filas[0];
+        $nivelId = (int) $primera['nivel_id'];
+
+        $alumnos  = $this->rosterSeccion($seccionId, $periodoId, $nivelId);
+        $esLegado = !empty($alumnos) && !empty($alumnos[0]['es_legado']);
+
+        $this->view('consulta-notas/conducta', [
+            'titulo'    => 'Conducta — ' . $primera['grado_nombre'] . ' ' . $primera['seccion_nombre'],
+            'periodo'   => $periodo,
+            'seccion'   => [
+                'seccion_id'     => $seccionId,
+                'seccion_nombre' => $primera['seccion_nombre'],
+                'grado_nombre'   => $primera['grado_nombre'],
+                'nivel_nombre'   => $primera['nivel_nombre'],
+            ],
+            'cierre'    => $cierre,
+            'alumnos'   => $alumnos,
+            'criterios' => $esLegado ? [] : $this->conductaModel->getCriterios($nivelId),
+            'esLegado'  => $esLegado,
         ]);
     }
 
@@ -268,6 +490,31 @@ class ConsultaNotasController extends BaseController
                 'alumnos'         => $resumen['alumnos'],
                 'bloqueado_en'    => $c['bloqueado_en'],
                 'extraordinarias' => $extraordinarias,
+                'es_transversal'  => false,
+            ];
+        }
+
+        // Transversales (TIC/GAMA) de esta carga, al final y solo si tienen
+        // contenido. Se pintan con el MISMO parcial `_tabla.php`: getResumenCompetencia
+        // funciona igual sobre una competencia transversal (verificado con sonda:
+        // devuelve las mismas claves), asi que basta con anadirlas al array.
+        foreach ($this->transversalesConContenido([$cargaId], $periodoId)[$cargaId] ?? [] as $t) {
+            $competenciaId = (int) $t['competencia_id'];
+            $resumen = $this->calModel->getResumenCompetencia($cargaId, $competenciaId, $periodoId);
+
+            $competencias[] = [
+                'competencia'     => [
+                    'id'              => $competenciaId,
+                    'nombre_completo' => $t['nombre_completo'],
+                    'nombre_corto'    => $t['nombre_corto'],
+                    'codigo_minedu'   => $t['codigo_minedu'],
+                    'es_transversal'  => 1,
+                ],
+                'criterios'       => $resumen['criterios'],
+                'alumnos'         => $resumen['alumnos'],
+                'bloqueado_en'    => $t['bloqueado_en'],
+                'extraordinarias' => [],
+                'es_transversal'  => true,
             ];
         }
 
