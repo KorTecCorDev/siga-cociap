@@ -270,14 +270,24 @@ class TransversalModel extends BaseModel
     }
 
     /**
-     * Avance de bloqueo de las cargas ACTIVAS de la sección en un periodo.
-     * Cuenta las competencias PROPIAS de cada carga MÁS las transversales
-     * TIC/GAMA del nivel: cada docente las registra en su propia carga y las
-     * aprueba por separado, así que el tutor solo puede cerrar cuando TODAS
-     * —propias y transversales— están bloqueadas.
-     * Retorna ['total' => N, 'bloqueadas' => M, 'cargas' => detalle[]].
-     */
-    /**
+     * Avance de aprobación TRANSVERSAL de las cargas ACTIVAS de la sección en un
+     * periodo: cuántas competencias TIC/GAMA aporta cada carga y cuántas están ya
+     * bloqueadas. Retorna ['total' => N, 'bloqueadas' => M, 'cargas' => detalle[]].
+     *
+     * ⚠️ CUENTA SOLO LAS TRANSVERSALES (desde el 06/08/2026). Antes sumaba también
+     * las competencias PROPIAS de cada carga, y eso acoplaba el cierre del tutor a
+     * las académicas SIN NINGUNA RAZÓN DE DATO: el promedio que el cierre congela
+     * sale de `getPromediosSeccion`, que filtra `a.tipo = 'transversal'` — las
+     * académicas no participan de lo que se cierra. El tutor esperaba por notas que
+     * no iban a cambiar su resultado. Medido en B2: en 10 de 23 secciones la última
+     * académica llegó DESPUÉS que la última transversal, hasta 47 h después.
+     *
+     * ⚠️ CONSECUENCIA ACEPTADA: al poder cerrar antes, se alarga la ventana en la
+     * que un desbloqueo académico posterior anula el cierre en cascada
+     * (`liberarTransversalesDeCarga` + `BloqueoController::desbloquear`). B2 ya
+     * llevaba 48 anulaciones sobre 71 cierres; esto puede subir. Es reversible y
+     * con traza, pero es trabajo del tutor.
+     *
      * ⚠️ La lógica de "carga dueña" que usan total_comp y comp_bloqueadas está
      * escrita en CUATRO SITIOS (mantenerlos en sync; si cambia uno, revisar los
      * otros tres):
@@ -286,10 +296,13 @@ class TransversalModel extends BaseModel
      *   3. CalificacionModel::cargaDuenaTransversales
      *   4. AnioAcademicoModel::bloquearCompetenciasPendientes (cierre forzado)
      * El sitio 4 no la aplicaba hasta el 06/08/2026: el cierre inventaba bloqueos
-     * en cargas TOE y no-dueñas (130 en B2, ver migración 051). El comentario de
-     * comp_bloqueadas, más abajo, documenta cómo ese mismo defecto ya había
-     * inflado ANTES el numerador de este método (53/41) — se parcheó el conteo,
-     * no el origen; ahora sí está corregido el origen.
+     * en cargas TOE y no-dueñas (130 en B2, ver migración 051). Ese mismo defecto ya
+     * había inflado ANTES el numerador de este método (53/41) — entonces se parcheó
+     * el conteo, no el origen; ahora está corregido el origen.
+     *
+     * Una carga con `total_comp = 0` (TOE, o no dueña en unidocente) NO aporta nada
+     * al gate: se devuelve igual en 'cargas' para que la vista pueda distinguir
+     * "no aplica" de "pendiente".
      */
     public function estadoCargasSeccion(int $seccionId, int $periodoId): array
     {
@@ -299,14 +312,10 @@ class TransversalModel extends BaseModel
                 COALESCE(sa.nombre, a.nombre) AS nombre_display,
                 CONCAT(pu.apellido_paterno, ' ', pu.nombres) AS docente_nombre,
                 (
-                    SELECT COUNT(DISTINCT c2.id)
-                    FROM competencias c2
-                    WHERE (ca.subarea_id IS NOT NULL AND c2.subarea_id = ca.subarea_id)
-                       OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL
-                           AND c2.area_id = ca.area_id)
-                ) + (
                     -- Transversales TIC/GAMA: cada docente las registra en su
                     -- carga, asi que cada carga suma +N (su universo TIC/GAMA).
+                    -- Las competencias PROPIAS de la carga YA NO SUMAN (06/08/2026):
+                    -- no participan del promedio que el cierre congela, ver docblock.
                     -- UNIDOCENTE: el mismo docente dicta todas las subareas de un
                     -- area, asi que las TIC/GAMA cuentan UNA vez por area (en la
                     -- carga dueña = subarea de menor orden); las demas subareas
@@ -333,26 +342,20 @@ class TransversalModel extends BaseModel
                     END
                 ) AS total_comp,
                 (
-                    -- Bloqueadas: académicas de la carga (su universo propio) +
-                    -- transversales con la MISMA lógica de dueña que total_comp
-                    -- (una vez por área, incluidos los especialistas Inglés/Ed.
-                    -- Física). Antes se contaban TODOS los bloqueos de la carga;
-                    -- tras un cierre que bloquea TIC/GAMA en cada subárea, las
-                    -- no-dueña sumaban transversales que el total (dueña) no cuenta,
+                    -- Bloqueadas: SOLO las transversales, con la MISMA lógica de
+                    -- dueña que total_comp (una vez por área, incluidos los
+                    -- especialistas Inglés/Ed. Física). Las académicas de la carga
+                    -- YA NO SE CUENTAN (06/08/2026): el numerador y el denominador
+                    -- se movieron juntos, así que el gate sigue cuadrando.
+                    -- Antes se contaban TODOS los bloqueos de la carga; tras un
+                    -- cierre que bloquea TIC/GAMA en cada subárea, las no-dueña
+                    -- sumaban transversales que el total (dueña) no cuenta,
                     -- inflando el numerador por encima del total (ej. 53/41) y
                     -- habilitando las conclusiones antes de tiempo. El denominador
                     -- NO cambia: las transversales de los especialistas siguen
                     -- siendo obligatorias (las conclusiones promedian TODAS las
                     -- áreas de la sección, no solo las de la unidocente).
                     (
-                        SELECT COUNT(*) FROM bloqueos_competencia bc
-                        WHERE bc.carga_id = ca.id AND bc.periodo_id = ?
-                          AND bc.competencia_id IN (
-                              SELECT cb.id FROM competencias cb
-                              WHERE (ca.subarea_id IS NOT NULL AND cb.subarea_id = ca.subarea_id)
-                                 OR (ca.area_id IS NOT NULL AND ca.subarea_id IS NULL AND cb.area_id = ca.area_id)
-                          )
-                    ) + (
                         CASE WHEN s.es_unidocente = 1
                                   AND ca.id <> (
                                       SELECT cad.id FROM cargas_academicas cad
@@ -389,7 +392,7 @@ class TransversalModel extends BaseModel
               -- condicionar ni inflar el cierre del tutor.
               AND (a.tipo IS NULL OR a.tipo NOT IN ('transversal', 'tutoria'))
             ORDER BY a.orden, sa.id
-        ", [$periodoId, $periodoId, $seccionId]);
+        ", [$periodoId, $seccionId]);
 
         $total = $bloqueadas = 0;
         foreach ($cargas as $c) {

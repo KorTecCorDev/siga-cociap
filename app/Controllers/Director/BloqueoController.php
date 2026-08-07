@@ -467,7 +467,7 @@ class BloqueoController extends BaseController
         if ($estado['total'] === 0 || $estado['bloqueadas'] < $estado['total']) {
             $this->redirectWithError(
                 $back,
-                'No se puede cerrar: faltan cargas por bloquear ('
+                'No se puede cerrar: faltan competencias transversales por bloquear ('
                 . $estado['bloqueadas'] . ' de ' . $estado['total'] . ').'
             );
         }
