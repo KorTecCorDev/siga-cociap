@@ -432,6 +432,58 @@ class TransversalModel extends BaseModel
     }
 
     /**
+     * Bloqueos de competencias TRANSVERSALES del periodo, fila por
+     * (carga, competencia), para el panel del director.
+     *
+     * Solo devuelve las cargas que TIENEN al menos un bloqueo transversal: es lo
+     * único sobre lo que hay algo que hacer, y así se evita reescribir aquí —por
+     * quinta vez— la regla de "carga dueña" (una carga sin bloqueo no aparece,
+     * que es exactamente lo que el panel necesita saber).
+     *
+     * ⚠️ Estas filas NO salen en `getCompetenciasPorPeriodo`: ese JOIN une
+     * competencia↔carga por el área de la CARGA, y las transversales cuelgan de
+     * un área propia (`tipo='transversal'`). Por eso el panel principal nunca las
+     * mostró y la única vía para liberarlas era la cascada de una académica.
+     *
+     * `num_notas` permite avisar de cuántas calificaciones vuelven a ser
+     * editables, y `origen` distingue lo que aprobó el docente de lo que forzó
+     * el cierre.
+     */
+    public function getBloqueosTransversalesPorPeriodo(int $periodoId): array
+    {
+        return $this->query("
+            SELECT ca.seccion_id,
+                   bc.id                AS bloqueo_id,
+                   bc.origen,
+                   bc.bloqueado_en,
+                   ca.id                AS carga_id,
+                   COALESCE(sa.nombre, ar.nombre) AS carga_nombre,
+                   CONCAT(pu.apellido_paterno, ', ', pu.nombres) AS docente_nombre,
+                   comp.id              AS competencia_id,
+                   comp.nombre_corto    AS competencia_nombre,
+                   comp.orden           AS competencia_orden,
+                   (
+                       SELECT COUNT(*) FROM calificaciones cal
+                       WHERE cal.carga_id       = ca.id
+                         AND cal.competencia_id = comp.id
+                         AND cal.periodo_id     = bc.periodo_id
+                   )                    AS num_notas
+            FROM bloqueos_competencia bc
+            INNER JOIN competencias comp ON comp.id = bc.competencia_id
+            INNER JOIN areas a           ON a.id    = comp.area_id AND a.tipo = 'transversal'
+            INNER JOIN cargas_academicas ca ON ca.id = bc.carga_id
+            LEFT  JOIN subareas sa ON sa.id = ca.subarea_id
+            LEFT  JOIN areas ar    ON ar.id = COALESCE(ca.area_id, sa.area_id)
+            LEFT  JOIN usuarios u  ON u.id  = ca.docente_id
+            LEFT  JOIN personas pu ON pu.id = u.persona_id
+            WHERE bc.periodo_id = ?
+            ORDER BY ca.seccion_id,
+                     COALESCE(sa.nombre, ar.nombre) " . COLLATE_ES . ",
+                     comp.orden
+        ", [$periodoId]);
+    }
+
+    /**
      * Libera (elimina) los bloqueos de las competencias TRANSVERSALES (TIC/GAMA)
      * de una carga en un periodo. Las transversales se registran bajo la misma
      * carga del docente pero viven en un área tipo='transversal', así que NO
