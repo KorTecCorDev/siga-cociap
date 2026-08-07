@@ -974,6 +974,46 @@
     }
 }
 
+// ── Resumen de cargas del tutor (estado provisional) ─────────
+// Lista qué cargas ya aprobaron sus transversales y cuáles faltan, con el
+// nombre del docente. Solo aparece mientras el bimestre transversal está
+// parcial: cuando todo está aprobado, la tabla de promedios lo sustituye.
+// El badge de estado reusa .carga-transversal (--completo / --pendiente).
+.tutoria-cargas {
+    list-style: none;
+    margin: $spacing-md 0 0;
+    padding: 0;
+    border-top: 1px solid $border-color;
+
+    &__item {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        padding: $spacing-sm 0;
+        border-bottom: 1px solid $border-color;
+        font-size: $font-size-sm;
+    }
+
+    &__area {
+        flex: 1 1 40%;
+        min-width: 0;
+        font-weight: 600;
+        color: $text-primary;
+    }
+
+    &__docente {
+        flex: 1 1 40%;
+        min-width: 0;
+        color: $text-muted;
+    }
+
+    @media (max-width: 640px) {
+        &__item { flex-wrap: wrap; }
+        &__area,
+        &__docente { flex-basis: 100%; }
+    }
+}
+
 .tutoria-conclusion {
     margin-bottom: $spacing-sm;
 

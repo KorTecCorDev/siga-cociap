@@ -52,23 +52,44 @@ $pid      = (int) $periodoSel['id'];
     </div>
 <?php elseif (!$listo): ?>
     <?php
-    // Solo el avance agregado de la sección — NO se expone el detalle por carga
-    // ni el nombre de otros docentes (información sensible).
+    // Detalle por carga CON el nombre del docente (decisión 06/08/2026). Esto
+    // DEROGA la regla que rigió aquí desde el 14/06/2026 (commit 73838d1), que
+    // solo exponía el avance agregado por considerar sensible el detalle: el
+    // tutor no podía saber a quién esperar, y esperar a ciegas era el problema.
+    // Alcance de lo que se expone: área/carga, docente y si sus transversales
+    // están aprobadas. NADA de notas de otras áreas ni datos personales — la
+    // protección del DNI de aquel mismo lote NO se toca.
     $pct = $estadoCargas['total'] > 0
         ? round($estadoCargas['bloqueadas'] / $estadoCargas['total'] * 100, 2)
         : 0;
+
+    // Solo las cargas que APORTAN transversales (total_comp > 0). Las de tutoría
+    // y las no dueñas de una sección unidocente valen 0 a propósito: listarlas
+    // haría creer al tutor que espera por alguien que nunca va a aportar.
+    $cargasAporte = array_values(array_filter(
+        $estadoCargas['cargas'],
+        static fn(array $c): bool => (int) $c['total_comp'] > 0
+    ));
+    $cargasListas = count(array_filter(
+        $cargasAporte,
+        static fn(array $c): bool => (int) $c['comp_bloqueadas'] >= (int) $c['total_comp']
+    ));
     ?>
     <div class="flash flash--warning">
         <span class="btn-icon btn-icon--wait" aria-hidden="true"></span>
         <span>
-            Aún no puedes cerrar. El cierre se habilita cuando todos los docentes
-            de la sección aprueban sus cargas.
+            Aún no puedes cerrar ni registrar conclusiones: faltan cargas por
+            aprobar sus competencias transversales, así que el promedio todavía
+            puede cambiar. Abajo puedes ver los promedios provisionales.
         </span>
     </div>
 
     <div class="card mb-lg">
         <div class="card__header">
-            <h2 class="card__title">Avance de aprobación de la sección</h2>
+            <h2 class="card__title">
+                Cargas con transversales aprobadas
+                — <?= $cargasListas ?> de <?= count($cargasAporte) ?>
+            </h2>
         </div>
         <div class="card__body">
             <div class="carga-progreso">
@@ -77,10 +98,27 @@ $pid      = (int) $periodoSel['id'];
                          style="--pct: <?= $pct ?>%"></div>
                 </div>
                 <div class="carga-progreso__meta">
-                    <span>Competencias aprobadas en la sección</span>
+                    <span>Competencias transversales aprobadas en la sección</span>
                     <span class="carga-progreso__valor carga-progreso__valor--parcial"><?= number_format($pct, 2) ?>%</span>
                 </div>
             </div>
+
+            <?php if (!empty($cargasAporte)): ?>
+                <ul class="tutoria-cargas">
+                    <?php foreach ($cargasAporte as $c): ?>
+                        <?php $ok = (int) $c['comp_bloqueadas'] >= (int) $c['total_comp']; ?>
+                        <li class="tutoria-cargas__item">
+                            <span class="tutoria-cargas__area"><?= e($c['nombre_display'] ?? '') ?></span>
+                            <span class="tutoria-cargas__docente"><?= e($c['docente_nombre'] ?? 'Sin docente') ?></span>
+                            <span class="carga-transversal carga-transversal--<?= $ok ? 'completo' : 'pendiente' ?>">
+                                <?= $ok
+                                    ? '✓ Aprobadas'
+                                    : (int) $c['comp_bloqueadas'] . ' de ' . (int) $c['total_comp'] ?>
+                            </span>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
         </div>
     </div>
 <?php else: ?>
@@ -93,14 +131,25 @@ $pid      = (int) $periodoSel['id'];
 <?php endif; ?>
 
 <!-- Tabla de promedios TIC/GAMA -->
+<?php
+// La tabla se pinta SIEMPRE desde el 06/08/2026 (antes exigía $listo || $cerrado).
+// En estado provisional es de SOLO LECTURA: muestra el promedio de las cargas ya
+// aprobadas y un guion donde todavía no hay aporte. Escribir conclusiones se
+// habilita cuando todas las cargas aportaron — el guard vive en el servidor
+// (TutoriaController::guardarConclusion), esto es solo su cara visible.
+$editable = !$cerrado && $listo;
+?>
 <?php if (empty($alumnos)): ?>
     <div class="empty-state"><p>No hay alumnos matriculados en la sección.</p></div>
-<?php elseif ($listo || $cerrado): ?>
+<?php else: ?>
 
 <div class="card mb-lg">
     <div class="card__header">
         <h2 class="card__title">
             Promedios C. Transversales — <?= e($periodoSel['nombre_display']) ?>
+            <?php if (!$listo && !$cerrado): ?>
+                <span class="carga-transversal carga-transversal--progreso">Provisional</span>
+            <?php endif; ?>
         </h2>
     </div>
     <div class="tabla-notas-wrapper">
@@ -171,7 +220,7 @@ $pid      = (int) $periodoSel['id'];
                                 $nombreComp  = $comp['nombre_corto'] ?? ($comp['codigo_minedu'] ?? '');
                                 if ($texto !== '') { $algunTexto = true; }
                                 ?>
-                                <?php if (!$cerrado): ?>
+                                <?php if ($editable): ?>
                                     <?php // El tutor puede registrar conclusión a CUALQUIER alumno.
                                           // Las OBLIGATORIAS (B/C prim, C sec) nacen abiertas y sin toggle:
                                           // hay que llenarlas. Las OPCIONALES siempre llevan toggle para
@@ -219,8 +268,12 @@ $pid      = (int) $periodoSel['id'];
                                     </p>
                                 <?php endif; ?>
                             <?php endforeach; ?>
-                            <?php if ($cerrado && !$algunTexto): ?>
-                                <span class="text-muted text-sm">— sin conclusión</span>
+                            <?php if (!$editable && !$algunTexto): ?>
+                                <span class="text-muted text-sm">
+                                    <?= $cerrado
+                                        ? '— sin conclusión'
+                                        : '— se habilita al aprobar todas las cargas' ?>
+                                </span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -229,7 +282,7 @@ $pid      = (int) $periodoSel['id'];
         </table>
     </div>
 
-    <?php if (!$cerrado): ?>
+    <?php if ($editable): ?>
         <div class="resumen-footer tutoria-footer">
             <button class="btn btn--primary" id="btn-guardar-conclusiones-trans"
                     data-periodo-id="<?= $pid ?>">

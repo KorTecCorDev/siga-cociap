@@ -12,9 +12,15 @@ use Core\Session;
  * Vista del tutor de sección: promedios agregados de TIC/GAMA,
  * conclusiones descriptivas y cierre transversal del bimestre.
  *
- * El cierre solo procede cuando TODAS las cargas activas de la sección
- * están bloqueadas y no falta ninguna conclusión obligatoria
- * (B/C primaria, C secundaria).
+ * El cierre solo procede cuando todas las cargas de la sección han aprobado
+ * sus competencias TRANSVERSALES y no falta ninguna conclusión obligatoria
+ * (B/C primaria, C secundaria). ⚠️ Desde el 06/08/2026 las competencias
+ * ACADÉMICAS ya no condicionan el cierre: no participan del promedio que se
+ * congela (`getPromediosSeccion` filtra `tipo='transversal'`), así que exigirlas
+ * hacía esperar al tutor por notas que no cambiaban su resultado.
+ *
+ * La tabla de promedios se muestra SIEMPRE, pero escribir conclusiones exige el
+ * promedio definitivo: el guard vive en `guardarConclusion`, no solo en la vista.
  */
 class TutoriaController extends BaseController
 {
@@ -140,6 +146,24 @@ class TutoriaController extends BaseController
             $this->json(['success' => false, 'mensaje' => 'El bimestre transversal ya está cerrado.'], 403);
         }
 
+        // El tutor SOLO ESCRIBE con el promedio DEFINITIVO (decisión 06/08/2026).
+        // Desde esa fecha la tabla de promedios se muestra también en estado
+        // parcial, pero en solo lectura: una conclusión redactada sobre un
+        // promedio incompleto puede terminar describiendo una nota que después
+        // cambia (de B a A), y ese error lo paga la familia en la boleta.
+        // ⚠️ El guard va AQUÍ y no solo en la vista: ocultar el textarea es
+        // cosmético mientras el endpoint siga aceptando el POST.
+        $estado = $this->transModel->estadoCargasSeccion((int) $seccion['id'], $periodoId);
+        if ($estado['total'] === 0 || $estado['bloqueadas'] < $estado['total']) {
+            $faltan = $estado['total'] - $estado['bloqueadas'];
+            $this->json([
+                'success' => false,
+                'mensaje' => 'Aún no puedes registrar conclusiones: faltan ' . $faltan
+                    . ' competencia(s) transversal(es) por aprobar en la sección. '
+                    . 'El promedio todavía puede cambiar.',
+            ], 403);
+        }
+
         $ok = $this->transModel->guardarConclusion(
             $matriculaId, $competenciaId, $periodoId, $conclusion, (int) $user['id']
         );
@@ -176,9 +200,9 @@ class TutoriaController extends BaseController
         if ($estado['total'] === 0 || $estado['bloqueadas'] < $estado['total']) {
             $this->json([
                 'success' => false,
-                'mensaje' => 'Aún hay cargas sin bloquear: '
+                'mensaje' => 'Aún hay cargas sin aprobar sus transversales: '
                     . $estado['bloqueadas'] . ' de ' . $estado['total']
-                    . ' competencias aprobadas en la sección.',
+                    . ' competencias transversales aprobadas en la sección.',
             ], 400);
         }
 
