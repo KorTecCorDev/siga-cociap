@@ -470,12 +470,39 @@ daba el filtro viejo.
     boleta se marca `--borrador` y su etiqueta dice siempre "Borrador · {bim}".
   - `getNominaResumen` (dashboard) y `nomina.js` sin cambios (`data-buscar` intacto).
 
-### Nota conocida (preexistente, NO introducida por este cambio)
-La boleta DIGITAL muestra el **sello** del director en pantalla sin gate de
-`vistaPrevia` (`digital.php` footer) y sin regla `@media print` que lo oculte —
-aplica a TODO borrador (también el del Hito A del docente), no solo a desactivados.
-La IMPRIMIBLE (`alumno.php`) sí suprime la firma con `vistaPrevia`. Si se quiere
-que el borrador digital tampoco muestre/imprima el sello, es un ajuste aparte.
+### ✅ RESUELTO (07/08/2026) — el SELLO no aparece en borrador ni en vista previa
+
+> Estuvo registrado como *"nota conocida, preexistente"* desde el lote de matrículas
+> desactivadas, con la salida abierta: *"si se quiere que el borrador digital tampoco
+> muestre/imprima el sello, es un ajuste aparte"*. **El usuario lo decidió el 07/08/2026
+> al revisar la boleta digital: el sello del Director EBR no debe aparecer JAMÁS en
+> versiones BORRADOR o vista previa.** Solo el sello; el resto del pie no se toca.
+
+**El defecto:** `digital.php` pintaba `sello_path` **sin gate de `$vistaPrevia`**, mientras
+que la imprimible (`alumno.php`) sí suprimía su `firma_path`. Son **dos assets distintos**
+del Director EBR y cada vista pinta uno solo, así que el hueco quedó en una sola línea.
+
+**Incumplía un contrato ya escrito:** el docblock de `archivarBorrador` define
+`$vistaPrevia = true` como *"sin QR y sin imagen de firma del director"*. Y en el mismo
+`digital.php` el **QR sí lo respetaba** (`!empty($url_boleta) && !$vistaPrevia`) — era una
+omisión puntual, no un criterio distinto.
+
+**Alcance real, que era mayor de lo que sugería la nota:** la entrada más expuesta no eran
+los desactivados sino la **boleta digital del docente** (`verDigitalDocente`), donde
+`vistaPrevia = estado === 'desactivado' || estadoBoletaDePeriodo(...) !== 'oficial'`. Con el
+bimestre sin cerrar eso es `true` **para todos los alumnos**, así que cualquier docente que
+abriera la digital veía el sello en un documento provisional.
+
+**El arreglo:** un término más en el mismo `if` (`!$vistaPrevia &&`). El contenedor
+`.bd-footer__img-area` se conserva **vacío** para que el pie no cambie de alto entre la
+vista previa y el definitivo — mismo criterio que `boleta-footer__espacio-firma` en la
+imprimible. No hizo falta ninguna regla `@media print`: si el flag está puesto, el `<img>`
+**no se emite**, así que la impresión y el PDF quedan cubiertos por construcción.
+
+⚠️ **Los demás documentos con sello o firma NO se tocaron** y no comparten el problema:
+nóminas, actas de desempate, reporte de mérito, horarios, resumen de matrícula, informe
+SIAGIE y constancia de traslado **no tienen modo borrador** (son definitivos). La
+constancia ya usaba el mismo criterio con `!$anulada`. Barrido completo hecho el 07/08.
 
 ## Compuerta del Hito A — la nota aparece solo tras la aprobación de RA (09/07/2026)
 

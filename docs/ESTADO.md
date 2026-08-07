@@ -426,6 +426,23 @@
     desaparecería del documento en silencio. El bloque 1 de la verificación lo vigila.
   - **La CONDUCTA también lleva guion** en sus celdas vacías (05/08). Numeral y
     conclusión no le aplican —es siempre literal—, así que van con guion permanente.
+  - ✅ **EL SELLO DEL DIRECTOR YA NO APARECE EN BORRADOR NI EN VISTA PREVIA
+    (07/08/2026, en `dev`, una línea, sin migración y sin SASS).** Decisión del usuario al
+    revisar la boleta digital: **jamás** en versiones provisionales. Solo el sello; el resto
+    del pie no se toca. Detalle en `docs/modulos/boletas.md`.
+    - **Estaba registrado como hueco conocido y DIFERIDO** ("si se quiere que el borrador
+      digital tampoco muestre el sello, es un ajuste aparte"). Hoy se decidió y se hizo.
+    - **Incumplía un contrato ya escrito:** el docblock de `archivarBorrador` define
+      `$vistaPrevia = true` como *"sin QR y sin imagen de firma del director"*, y en el
+      mismo `digital.php` el **QR sí lo respetaba**. Omisión puntual, no criterio distinto.
+    - ⚠️ **El alcance era mayor que el documentado:** la nota lo achacaba a los
+      desactivados, pero la entrada más expuesta es la **boleta digital del docente**
+      (`vistaPrevia` incluye `estadoBoletaDePeriodo(...) !== 'oficial'`) → con el bimestre
+      sin cerrar, **todos** los docentes veían el sello en un documento provisional.
+    - **La imprimible ya estaba bien:** son dos assets distintos (`firma_path` en
+      `alumno.php`, `sello_path` en `digital.php`) y cada vista pinta uno solo.
+    - **Barrido hecho:** los otros 7 documentos con firma o sello (nóminas, actas,
+      constancia, horario, informe SIAGIE, resumen) **no tienen modo borrador**.
   - **SEÑAL DE BORRADOR — PUNTO ÚNICO (05/08).** La marca de agua la pinta el
     DOCUMENTO (`boleta/_marca-borrador.php`, incluido por `boleta/alumno.php` al recibir
     `$vistaPrevia`), no los wrappers. **Corrige una regresión del mismo día:** al quitar
