@@ -67,7 +67,8 @@
 - Tres `<section class="bloqueos-panel" data-panel="..." hidden>`:
   - **academicas** — donut + widgets + ranking + tablas por sección (TODO lo que existía,
     preservado intacto, solo envuelto en el panel).
-  - **transversales** — tabla TIC/GAMA cerrar/reabrir (lo que existía).
+  - **transversales** — tabla por sección (cierre del tutor) **+ desplegable por carga**
+    (ver "Los dos niveles" abajo).
   - **conducta** — tabla NUEVA (ver abajo).
 - **JS** (`resources/js/bloqueos.js`): tabs sin recargar; clic muestra un panel y oculta
   los demás; segundo clic colapsa; recuerda el último tab **por periodo** en
@@ -75,6 +76,51 @@
   POST→redirect. El acordeón de secciones académicas se mantiene.
 - **SASS** en `pages/_admin.scss`: `.bloqueos-hub`, `.bloqueos-tabcard--*` (tokens
   wayfinding; fondo tenue solo en `--activa`), `.bloqueos-panel`, `.td-acciones-conducta`.
+
+### Transversales: LOS DOS NIVELES (06/08/2026)
+
+El bloque de transversales gobierna **dos cosas distintas**, y confundirlas costaba una
+reapertura innecesaria de todo el bimestre:
+
+| Nivel | Tabla | Qué impide | Acción en el panel |
+|---|---|---|---|
+| **1. Bloqueo por carga** | `bloqueos_competencia` | Que **el DOCENTE** edite sus notas de TIC/GAMA | **Liberar** (desplegable por sección) |
+| **2. Cierre por sección** | `cierres_transversales` | Que el agregado llegue a la **boleta** | **Anular cierre** / **Cerrar** |
+
+⚠️ **"Anular cierre" NO desbloquea a ningún docente.** Llama a `anularCierreVigente` y
+nada más; su nombre anterior era *Desbloquear*, que inducía justo al error contrario
+(renombrado el 06/08/2026 junto con el texto explicativo del bloque).
+
+**Por qué el nivel 1 no existía hasta el 06/08/2026.** Las transversales **no son filas
+del panel académico**: `getCompetenciasPorPeriodo` une competencia↔carga por el área de la
+CARGA, y ellas cuelgan de un área propia (`tipo='transversal'`). La única vía era la
+**cascada**: desbloquear una competencia ACADÉMICA de la misma carga, que
+(a) sacaba también esa académica de la boleta, (b) liberaba **las dos** transversales de
+golpe y (c) obligaba al docente a re-aprobar todo. Y si la carga no tenía ninguna
+académica bloqueada —estado alcanzable, porque bloquear transversales primero está
+permitido y 64 cargas de B2 lo hicieron— **no había vía ninguna**.
+
+- **Ruta:** `POST /director/bloqueos/transversal-competencia/{bloqueo_id}/liberar`
+  → `BloqueoController::liberarTransversalCompetencia`. Prefijo propio para no chocar con
+  `/transversal/{seccion_id}/…`, donde el parámetro es otra cosa.
+- **Granularidad por COMPETENCIA** (decisión del usuario): TIC y "Aprendizaje autónomo"
+  (GAMA) se liberan por separado. Medido: liberar una deja la otra bloqueada, conserva
+  las notas y no toca las académicas de la carga.
+- **El anclaje EXIGE `a.tipo = 'transversal'`** (INNER JOIN): este endpoint no puede
+  usarse para desbloquear una académica saltándose la cascada de `desbloquear`.
+  Verificado: un `bloqueo_id` académico resuelve `null` y aborta.
+- **ANULA el cierre del tutor**, igual que la cascada: `getTransversalesAgregadas` exige
+  cierre vigente y promedia solo lo bloqueado, así que dejarlo en pie mostraría a las
+  familias un promedio que ya no se corresponde con lo bloqueado.
+- **Solo lista cargas CON algún bloqueo transversal.** Sale de los datos y evita
+  reescribir la regla de "carga dueña" por quinta vez: si una carga no aparece, no hay
+  nada que liberar en ella.
+- **UI:** `<details>` nativo colapsado, sin JS — 23 secciones × ~16 cargas abiertas serían
+  cientos de filas. Columnas: carga · docente · competencia · **origen** (docente /
+  cierre forzado) · nº de notas que vuelven a ser editables · acción. SASS:
+  `.bloqueos-transversales` en `pages/_admin.scss`.
+- Modelo: `TransversalModel::getBloqueosTransversalesPorPeriodo` (una sola consulta para
+  todo el periodo, agrupada en el controlador; nada de N+1 por sección).
 
 ### Conducta en el panel del director (gestión nueva)
 - **Dos etapas** (igual que el flujo real): **auxiliar académico** registra/bloquea
@@ -104,7 +150,8 @@ tanto el dato desaparece de la boleta:
 | Acción | ¿Sale de la boleta? | Mecanismo |
 |---|---|---|
 | Desbloquear competencia | **Sí** | la boleta pinta solo competencias con bloqueo (+ cascada que libera TIC/GAMA y anula el cierre transversal) |
-| Reabrir transversal | **Sí** | `getTransversalesAgregadas` corta si no hay cierre vigente |
+| Reabrir transversal (sección) | **Sí** | `getTransversalesAgregadas` corta si no hay cierre vigente |
+| Liberar transversal (carga) | **Sí** | la competencia sale del promedio agregado, y además anula el cierre |
 | Reabrir conducta | **Sí** | `ConductaModel::getParaPeriodo` devuelve `null` (campo `visible`) |
 | Reabrir asistencia | **No** | `getDelBimestre` lee `inasistencias` sin mirar el cierre |
 

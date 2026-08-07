@@ -111,6 +111,13 @@ competencia se queda sin tabla.
   sección con traza — todo en una transacción. Las transversales se registran
   bajo la carga del docente pero NO aparecen como filas en el panel; sin la
   cascada quedaban bloqueadas e inalcanzables. Se repite el ciclo re-bloqueo→re-cierre.
+- **`BloqueoController::liberarTransversalCompetencia` (06/08/2026): la vía DIRECTA.**
+  Libera UNA competencia transversal de UNA carga desde el desplegable del panel, sin
+  sacrificar ninguna académica. La cascada de arriba sigue existiendo (es correcta cuando
+  se reabre una carga entera), pero ya no es la única puerta: usarla para corregir una
+  TIC/GAMA obligaba a desbloquear una académica que no tenía ningún problema, y no servía
+  en absoluto si la carga aún no tenía académicas bloqueadas. Detalle y guards en
+  `docs/modulos/admin.md` §"Transversales: los dos niveles".
 - `PeriodoController::reabrir`: YA NO libera bloqueos ni anula cierres
   automáticamente (ver "Origen del bloqueo" abajo). Solo reactiva el periodo y
   deja traza del motivo. La liberación de los bloqueos del cierre forzado es

@@ -463,6 +463,28 @@
     → re-cerrar todavía actualiza el snapshot **oficial** del mérito. Tras publicar, el
     candado 046 lo congela y la corrección va a `orden_merito_rectificado` (no oficial).
     Medido: B2 **no tiene ninguna fila** en `periodos_publicacion`.
+- ✅ **DESBLOQUEO GRANULAR DE TRANSVERSALES EN EL PANEL DEL DIRECTOR — EN `dev`
+  (06/08/2026), SIN DESPLEGAR. Sin migración.** Detalle:
+  **`docs/modulos/admin.md` §"Transversales: los dos niveles"**.
+  - **El hueco:** las transversales **no son filas del panel académico**
+    (`getCompetenciasPorPeriodo` une por el área de la CARGA), así que para reabrir una
+    TIC/GAMA mal aprobada había que **desbloquear una competencia ACADÉMICA** de la misma
+    carga: la sacaba a ella de la boleta, liberaba **las dos** transversales de golpe y
+    obligaba a re-aprobar todo. Y si la carga no tenía académicas bloqueadas —permitido:
+    64 cargas de B2 bloquean transversales primero— **no había vía ninguna**.
+  - ⚠️ **El botón que parecía servir, no servía:** "Desbloquear" del bloque de
+    transversales solo llamaba a `anularCierreVigente` (el cierre del TUTOR), sin tocar
+    los bloqueos por carga. **Renombrado a "Anular cierre"** y el texto del bloque ahora
+    distingue explícitamente los dos niveles. Solo texto: la lógica no cambió.
+  - **Granularidad por COMPETENCIA** (decisión del usuario): TIC y "Aprendizaje autónomo"
+    se liberan por separado, desde un `<details>` colapsado por sección (carga · docente ·
+    competencia · origen · nº de notas · acción). Sin JS.
+  - **Guards:** el anclaje exige `a.tipo='transversal'` (un `bloqueo_id` académico aborta,
+    probado), exige el **bimestre activo** con el mismo punto único del 06/08, y **anula
+    el cierre del tutor** porque el agregado promedia solo lo bloqueado.
+  - **Probado en transacción:** liberar TIC deja *Aprendizaje autónomo* bloqueada,
+    conserva las **44 notas**, no toca las 2 académicas de la carga y anula el cierre;
+    rollback limpio.
 - ✅ **TRANSVERSALES: LAS 4 FASES IMPLEMENTADAS EN `dev` (06/08/2026), SIN DESPLEGAR.**
   Qué se construyó y con qué cifras:
   **`docs/modulos/transversales-visibilidad-tutor.md` §5** (manda esa sección).
