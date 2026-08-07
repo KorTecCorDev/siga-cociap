@@ -307,7 +307,7 @@ class BloqueoController extends BaseController
 
         // La boleta muestra SOLO competencias bloqueadas: con el bimestre
         // cerrado, quitar el bloqueo saca la nota del documento de todos los
-        // alumnos de la carga (y con la cascada de abajo, tambien sus TIC/GAMA).
+        // alumnos de la carga.
         $this->abortarSiPeriodoCerrado(
             $periodoId,
             $back,
@@ -315,7 +315,6 @@ class BloqueoController extends BaseController
             . 'de la boleta y el docente seguiria sin poder editarla. Reabre el bimestre primero.'
         );
 
-        $transLiberadas = 0;
         try {
             $this->calModel->beginTransaction();
 
@@ -325,12 +324,25 @@ class BloqueoController extends BaseController
                 $this->redirectWithError($back, 'No se pudo desbloquear la competencia.');
             }
 
-            // Cascada: liberar las transversales (TIC/GAMA) de la misma carga.
-            // Se registran bajo este carga_id pero no aparecen en el panel (área
-            // tipo='transversal'), así que quedarían bloqueadas e inalcanzables.
-            $transLiberadas = $this->transModel->liberarTransversalesDeCarga($cargaId, $periodoId);
-
-            // Anular el cierre transversal vigente de la sección.
+            // ⚠️ AQUI YA NO HAY CASCADA SOBRE LAS TRANSVERSALES (07/08/2026).
+            // Hasta hoy se llamaba a `liberarTransversalesDeCarga`, que borraba los
+            // bloqueos TIC/GAMA de la carga. Su motivo era que las transversales no
+            // son filas de este panel y quedarian "bloqueadas e inalcanzables"; eso
+            // dejo de ser cierto el 06/08 con el desbloqueo granular por competencia
+            // (`liberarTransversalCompetencia`, desplegable de cada seccion).
+            // Mantenerla obligaba al DOCENTE a re-aprobar TIC/GAMA que nadie habia
+            // tocado y, peor, bajaba el numerador de `estadoCargasSeccion`, con lo
+            // que el TUTOR no podia re-cerrar hasta que el docente volviera a
+            // aprobarlas. Ahora se desbloquea SOLO la competencia pedida.
+            //
+            // El cierre del tutor SI se anula, y es deliberado: aunque el promedio
+            // transversal no cambie —`getPromediosSeccion` solo lee bloqueos de
+            // competencias transversales, y esta no lo es—, si cambian las notas del
+            // estudiante la CONCLUSION DESCRIPTIVA que el tutor escribio puede dejar
+            // de ser precisa. Decision del usuario (07/08/2026).
+            // Como los bloqueos transversales quedan intactos, el gate sigue
+            // cuadrando y el tutor puede revisar y re-cerrar de inmediato, sin
+            // depender de que el docente haga nada.
             $this->transModel->anularCierreVigente(
                 (int) $bloqueo['seccion_id'],
                 $periodoId,
@@ -346,13 +358,14 @@ class BloqueoController extends BaseController
             $this->redirectWithError($back, 'No se pudo desbloquear la competencia.');
         }
 
-        $mensaje = 'Competencia desbloqueada. El docente puede volver a editar las notas. '
-                 . 'Si la sección tenía cierre transversal, quedó anulado hasta repetir el ciclo.';
-        if ($transLiberadas > 0) {
-            $mensaje .= ' Se liberaron también ' . $transLiberadas
-                      . ' competencia(s) transversal(es) (TIC/GAMA) de la carga.';
-        }
-        $this->redirectWithSuccess($back, $mensaje);
+        $this->redirectWithSuccess(
+            $back,
+            'Competencia desbloqueada. El docente puede volver a editar sus notas. '
+            . 'Las competencias transversales (TIC/GAMA) de la carga NO se tocaron: '
+            . 'si tambien hay que reabrirlas, usa el desplegable de la seccion en la '
+            . 'pestana de transversales. Si la seccion tenia cierre transversal, quedo '
+            . 'anulado para que el tutor revise sus conclusiones y lo repita.'
+        );
     }
 
     /**
