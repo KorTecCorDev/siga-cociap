@@ -492,8 +492,13 @@ class CalificacionController extends BaseController
         );
 
         // Competencias transversales (TIC/GAMA): cada docente las registra
-        // en su propia carga con el mismo mecanismo de criterios y notas.
-        // Se bloquean junto con la última competencia propia (Variante 1).
+        // en su propia carga con el mismo mecanismo de criterios y notas
+        // (Variante 1 = viven en la carga de cada docente, no en una carga
+        // transversal dedicada como en el modelo de B1).
+        // ⚠️ Se bloquean POR SEPARADO, una por una, igual que las propias.
+        // El empaquetado con "la última competencia propia" se retiró en el II
+        // Bimestre; ver el docblock de bloquear(). Este comentario afirmaba lo
+        // contrario hasta el 07/08/2026.
         //
         // UNIDOCENTE: el mismo docente dicta todas las subáreas, así que las
         // TIC/GAMA se adjuntan UNA sola vez por área —en la carga dueña (subárea
@@ -1244,9 +1249,12 @@ class CalificacionController extends BaseController
                       )
                 ) AS competencias_con_criterios,
                 -- Distintivo de transversales: las TIC/GAMA de la carga viven en
-                -- el area transversal del nivel (n.id). Se bloquean junto a la
-                -- ultima competencia propia (Variante 1). 3 estados en la vista:
-                -- bloqueadas==total -> completas; con_criterios>0 -> en progreso.
+                -- el area transversal del nivel (n.id), pero bajo el mismo
+                -- carga_id (Variante 1). Se bloquean UNA POR UNA, igual que las
+                -- propias: el empaquetado con la ultima competencia propia se
+                -- retiro en el II Bimestre (ver bloquear); este comentario
+                -- afirmaba lo contrario hasta el 07/08/2026. 3 estados en la
+                -- vista: bloqueadas==total -> completas; con_criterios>0 -> en progreso.
                 --
                 -- UNIDOCENTE: las TIC/GAMA se registran UNA vez por area (en la
                 -- carga dueña = subarea de menor orden); las demas subareas del
