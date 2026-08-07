@@ -8,20 +8,31 @@
   esquema). Borra los bloqueos transversales que el **cierre forzado** creó en **B2** sobre
   cargas que ningún docente puede bloquear: **46 en 23 cargas TOE + 84 en 42 cargas
   no-dueñas** de secciones unidocentes = **130**, con **CERO olvidos reales**.
-  🔴 **ESCRITA Y ENSAYADA, NO APLICADA EN NINGÚN ENTORNO.**
-  - **Orden obligatorio:** `F1 a producción → esta migración → CERRAR B2`. Con el código
-    viejo arriba, el siguiente cierre los recrea; y si B2 se cierra sin el fix, nacen
-    fantasmas nuevos.
-  - ⚠️ **En PROD puede devolver 0 filas y ser correcto:** las cifras son de **local**
-    (B2 `cerrado`); en **prod B2 seguía ABIERTO**, y los fantasmas los crea el cierre. Si
-    nunca se cerró allí, no existen. **Manda el PASO 1 en prod.**
+  ✅ **APLICADA EN PRODUCCIÓN EL 06/08/2026**, después del deploy `cf8bdb2` que subió el
+  fix F1 (el orden se respetó: sin F1 arriba, el siguiente cierre los recrearía).
+  **NO aplicada en local a propósito**: allí siguen los 130 para poder reproducir el
+  escenario.
+  - **Evidencia capturada EN PROD** (huella `u761410128_siga_cociap` · Linux ·
+    **MariaDB 11.8.8**): PASO 1.b **46/23 + 84/42 y C_OLVIDO_REAL sin ninguna fila** ·
+    1.c **0 notas / 0 criterios** colgando · 1.d 690 y 23 → PASO 2 **"130 filas
+    eliminadas"** + COMMIT → PASO 3 en conexión nueva: **0/0/0**, 690 y 23 **intactos**,
+    **0** notas sin bloqueo y B1 en **774**.
+  - 🔎 **UNA HIPÓTESIS QUE LOS HECHOS DESMINTIERON.** Antes de aplicarla se advirtió que
+    en prod podía no haber **nada** que borrar, razonando que B2 seguía ABIERTO y que los
+    fantasmas los crea el cierre. **FALSO: estaban los 130, exactamente los mismos que en
+    local** → en prod el cierre forzado de B2 **sí llegó a correr** y el bimestre se
+    reabrió después. **Lección: el estado ACTUAL de un periodo no dice nada sobre los
+    procesos que ya corrieron sobre él; eso solo lo responden los datos.**
+  - ⚠️ **`SELECT ROW_COUNT()` DEVUELVE 0 EN phpMyAdmin y NO significa que el DELETE
+    fallara.** Ejecuta las sentencias por separado, así que el contador ya no refleja al
+    DELETE. La cifra buena es la del propio DELETE (**"130 filas eliminadas"**) y quien
+    manda es el PASO 3. Pasó tal cual al aplicarla. **Vale para toda migración futura que
+    copie este patrón.**
   - **Aborta** si aparece un solo `C_OLVIDO_REAL` (sería un bloqueo legítimo) o si alguna
-    de esas cargas tiene notas o criterios transversales colgando (medido: 0 y 0).
-  - Ensayada con `START TRANSACTION … ROLLBACK` verificando **dentro** de la transacción:
-    borró 130, aviso en **0/0**, los **690** bloqueos de docente y los **23** cierres
-    vigentes intactos, B1 en **774**. Idempotente. Reversible con el PASO 4.
+    de esas cargas tiene notas o criterios transversales colgando.
   - Ancla el periodo por `numero = 2` + año activo, **nunca por `id`**. **B1 no se toca**
     (decisión del usuario), aunque 84 de sus forzadas sean el mismo defecto.
+    Idempotente. Reversible con el PASO 4.
   - Ver `docs/modulos/transversales-visibilidad-tutor.md` §5.
 - **`050_etica_b1_extraordinaria`** (06/08): registra **15 (literal A) como CALIFICACIÓN
   EXTRAORDINARIA** de Ética y Valores en el **I Bimestre** a los **275** estudiantes de
@@ -238,16 +249,16 @@
   **APLICADA EN LOCAL Y PROD.** En prod se importó a mano (phpMyAdmin) el
   **22/07/2026**, ANTES del merge `dev`→`main` que desplegó el código — así el
   código nuevo nunca corrió sin su tabla. Backfill verificado (B1 sigue visible).
-- **PROD AL DÍA HASTA LA `050`; LOCAL, HASTA LA `048`** (la 047 el 05/08/2026, la 048 el
+- **PROD AL DÍA HASTA LA `051`; LOCAL, HASTA LA `048`** (la 047 el 05/08/2026, la 048 el
   06/08/2026 en ambos entornos, cada uno con la salida de su PASO 3 en 0 filas). La
-  **`050`** se aplicó **SOLO EN PROD** (06/08, 20:01:10): local se queda con el estado
-  previo hasta que se vuelva a sincronizar desde prod, así que **una medición local de
-  Ética en B1 dará 0 y no es un error**. La **`049`** será la del registro
-  retroactivo de notas, aún sin implementar — ⚠️ **la 050 se numeró antes que la 049 a
-  propósito**: son independientes y esta corría primero. Al aplicarlas, el orden lo manda
-  la dependencia, no el número. La **`051`** (bloqueos transversales fantasma) está escrita
-  y ensayada pero **sin aplicar en ningún entorno**, y su orden sí es rígido: **exige que
-  el fix F1 esté antes en producción**.
+  **`050`** y la **`051`** se aplicaron **SOLO EN PROD** (06/08): local se queda con el
+  estado previo hasta que se vuelva a sincronizar desde prod, así que **una medición local
+  de Ética en B1 dará 0, y una de bloqueos fantasma dará 130 — ninguna de las dos es un
+  error**. La **`049`** será la del registro retroactivo de notas, aún sin implementar —
+  ⚠️ **la 050 y la 051 se numeraron antes que la 049 a propósito**: son independientes y
+  corrían primero. Al aplicarlas, el orden lo manda la dependencia, no el número: la `051`
+  exigía que el fix F1 estuviera **antes** en producción, y así se hizo (deploy `cf8bdb2`
+  y después la migración).
 - **LOCAL y PROD: al día hasta la `045`.** En prod: 038-043 el 20/07/2026, 044 y
   045 el 22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
   había saltado al aplicarse suelta; se corrió el **22/07/2026** (estructura
@@ -463,8 +474,8 @@
     → re-cerrar todavía actualiza el snapshot **oficial** del mérito. Tras publicar, el
     candado 046 lo congela y la corrección va a `orden_merito_rectificado` (no oficial).
     Medido: B2 **no tiene ninguna fila** en `periodos_publicacion`.
-- ✅ **DESBLOQUEO GRANULAR DE TRANSVERSALES EN EL PANEL DEL DIRECTOR — EN `dev`
-  (06/08/2026), SIN DESPLEGAR. Sin migración.** Detalle:
+- ✅ **DESBLOQUEO GRANULAR DE TRANSVERSALES EN EL PANEL DEL DIRECTOR — EN PRODUCCIÓN
+  (deploy `cf8bdb2`, 06/08/2026). Sin migración.** Detalle:
   **`docs/modulos/admin.md` §"Transversales: los dos niveles"**.
   - **El hueco:** las transversales **no son filas del panel académico**
     (`getCompetenciasPorPeriodo` une por el área de la CARGA), así que para reabrir una
@@ -485,7 +496,8 @@
   - **Probado en transacción:** liberar TIC deja *Aprendizaje autónomo* bloqueada,
     conserva las **44 notas**, no toca las 2 académicas de la carga y anula el cierre;
     rollback limpio.
-- ✅ **TRANSVERSALES: LAS 4 FASES IMPLEMENTADAS EN `dev` (06/08/2026), SIN DESPLEGAR.**
+- ✅ **TRANSVERSALES: LAS 4 FASES EN PRODUCCIÓN (deploy `cf8bdb2`, 06/08/2026), con la
+  migración 051 aplicada después.**
   Qué se construyó y con qué cifras:
   **`docs/modulos/transversales-visibilidad-tutor.md` §5** (manda esa sección).
   - **F3 — el tutor ya no espera a ciegas.** La tabla de promedios se pinta SIEMPRE, con
