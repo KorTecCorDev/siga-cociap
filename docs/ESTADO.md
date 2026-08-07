@@ -4,6 +4,25 @@
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **06/08/2026**.
 
 ## Migraciones
+- **`051_limpieza_bloqueos_transversales_fantasma`** (06/08): corrección de DATOS (no toca
+  esquema). Borra los bloqueos transversales que el **cierre forzado** creó en **B2** sobre
+  cargas que ningún docente puede bloquear: **46 en 23 cargas TOE + 84 en 42 cargas
+  no-dueñas** de secciones unidocentes = **130**, con **CERO olvidos reales**.
+  🔴 **ESCRITA Y ENSAYADA, NO APLICADA EN NINGÚN ENTORNO.**
+  - **Orden obligatorio:** `F1 a producción → esta migración → CERRAR B2`. Con el código
+    viejo arriba, el siguiente cierre los recrea; y si B2 se cierra sin el fix, nacen
+    fantasmas nuevos.
+  - ⚠️ **En PROD puede devolver 0 filas y ser correcto:** las cifras son de **local**
+    (B2 `cerrado`); en **prod B2 seguía ABIERTO**, y los fantasmas los crea el cierre. Si
+    nunca se cerró allí, no existen. **Manda el PASO 1 en prod.**
+  - **Aborta** si aparece un solo `C_OLVIDO_REAL` (sería un bloqueo legítimo) o si alguna
+    de esas cargas tiene notas o criterios transversales colgando (medido: 0 y 0).
+  - Ensayada con `START TRANSACTION … ROLLBACK` verificando **dentro** de la transacción:
+    borró 130, aviso en **0/0**, los **690** bloqueos de docente y los **23** cierres
+    vigentes intactos, B1 en **774**. Idempotente. Reversible con el PASO 4.
+  - Ancla el periodo por `numero = 2` + año activo, **nunca por `id`**. **B1 no se toca**
+    (decisión del usuario), aunque 84 de sus forzadas sean el mismo defecto.
+  - Ver `docs/modulos/transversales-visibilidad-tutor.md` §5.
 - **`050_etica_b1_extraordinaria`** (06/08): registra **15 (literal A) como CALIFICACIÓN
   EXTRAORDINARIA** de Ética y Valores en el **I Bimestre** a los **275** estudiantes de
   secundaria **que cursaron B1**.
@@ -226,7 +245,9 @@
   Ética en B1 dará 0 y no es un error**. La **`049`** será la del registro
   retroactivo de notas, aún sin implementar — ⚠️ **la 050 se numeró antes que la 049 a
   propósito**: son independientes y esta corría primero. Al aplicarlas, el orden lo manda
-  la dependencia, no el número.
+  la dependencia, no el número. La **`051`** (bloqueos transversales fantasma) está escrita
+  y ensayada pero **sin aplicar en ningún entorno**, y su orden sí es rígido: **exige que
+  el fix F1 esté antes en producción**.
 - **LOCAL y PROD: al día hasta la `045`.** En prod: 038-043 el 20/07/2026, 044 y
   045 el 22/07/2026, 034-037 el 09/07/2026. En local la `043` (`cierres_asistencia`) se
   había saltado al aplicarse suelta; se corrió el **22/07/2026** (estructura
@@ -442,8 +463,39 @@
     → re-cerrar todavía actualiza el snapshot **oficial** del mérito. Tras publicar, el
     candado 046 lo congela y la corrección va a `orden_merito_rectificado` (no oficial).
     Medido: B2 **no tiene ninguna fila** en `periodos_publicacion`.
-- 🔴 **EL CIERRE FORZADO INVENTA BLOQUEOS TRANSVERSALES — DEFECTO CONFIRMADO, PLAN SIN
-  IMPLEMENTAR (06/08/2026).** Plan: **`docs/modulos/transversales-visibilidad-tutor.md`**.
+- ✅ **EL CIERRE FORZADO INVENTABA BLOQUEOS TRANSVERSALES — F1 y F2 IMPLEMENTADAS EN `dev`
+  (06/08/2026), SIN DESPLEGAR. F3 y F4 siguen pendientes.** Qué se construyó y con qué
+  cifras: **`docs/modulos/transversales-visibilidad-tutor.md` §5** (manda esa sección).
+  - 🔴 **LA SECUENCIA CHOCA CON EL CIERRE DE B2:** `F1 a producción → aplicar la 051 →
+    CERRAR B2`. Los fantasmas los crea el cierre forzado, así que **si B2 se cierra antes
+    de que el fix esté en prod, nacen fantasmas nuevos**; y si la 051 se aplica con el
+    código viejo arriba, el siguiente cierre los recrea.
+  - ⚠️ **PUEDE QUE EN PROD NO HAYA NADA QUE BORRAR, y es válido.** Las cifras están
+    medidas en **local**, donde B2 figura `cerrado`; en **prod B2 seguía ABIERTO**. Si
+    nunca se cerró allí, los 130 no llegaron a nacer y el PASO 1 dará **0 filas**. Manda
+    el PASO 1 en prod, no las cifras del doc. Lo que protege de verdad es F1.
+  - **F1** (`AnioAcademicoModel::bloquearCompetenciasPendientes`, bloque 2): añade las dos
+    exclusiones del formulario. **Prueba dura, no inspección:** vaciados los 820 bloqueos
+    transversales de B2 en transacción y recreados con el SQL nuevo → **690 en vez de 820,
+    exactamente 130 menos**, 0 en TOE y 0 en no-dueña; rollback limpio.
+  - **La regla de "carga dueña" queda en CUATRO sitios** (decisión: cuarto sitio
+    documentado, **no** helper compartido — no se toca el gate del tutor, que es delicado).
+    Los cuatro llevan comentario cruzado que los nombra: formulario, `estadoCargasSeccion`,
+    `cargaDuenaTransversales` y el cierre forzado.
+  - **F2 = migración `051`** (datos, no esquema), **escrita y ensayada, NO aplicada en
+    ningún entorno**. Aborta si aparece un solo `C_OLVIDO_REAL` o si hay notas/criterios
+    colgando. Ensayo en local con `ROLLBACK` y verificación *dentro* de la transacción:
+    borró **130**, dejó el aviso en **0/0**, con los **690** de docente y los **23** cierres
+    vigentes intactos; B1 siguió en **774**.
+  - **Verificación:** `database/verificaciones/verif_transversales_fantasma.php` (solo
+    lectura, corre en prod). Su bloque de **equivalencia de universos** es el que impide
+    que el defecto vuelva: hoy da **345 = 345**, antes del fix 410 contra 345. Mientras la
+    051 no se aplique, el script **falla a propósito** en el bloque 1.
+  - **Dos afirmaciones del plan corregidas al medirlas:** de las 774 forzadas de B1,
+    **84 son este mismo defecto** (no todas son "modelo viejo"); y la transversal es la
+    última en **13 de 23** secciones, no en las 23 — **F4 solo daría tiempo útil a 4**
+    (47 h, 29 h, 11 h, 3 h).
+  - Diagnóstico original del defecto (sigue vigente como contexto):
   - **El aviso de `/admin/control` en B2 es FALSO.** Dice que 130 competencias en 65
     cargas de **23 docentes** quedaron sin bloquear "porque el docente no las había
     bloqueado". Clasificadas las 65: **23 son cargas TOE** (el formulario NO adjunta
