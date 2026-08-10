@@ -3,6 +3,37 @@
 > Extraído VERBATIM de CLAUDE.md el 03/07/2026 (fase 1 de la red de documentación).
 > Los invariantes globales y la tabla de enrutamiento viven en CLAUDE.md.
 
+## Orden de mérito EN LA BOLETA — descartado por ahora (10/08/2026)
+
+> Idea del usuario: añadir el puesto en una abreviatura pequeña, con el ranking de
+> sección, a un lado del documento. **Descartada el mismo día por él**, por la
+> discrepancia que genera entre estudiantes. No se escribió ni una línea de código.
+> Se anota solo para no re-derivar el análisis si vuelve a plantearse.
+
+- **Dónde encajaría sin costo:** el bloque inferior (`.boleta-info`) ya tiene la tabla de
+  asistencia con una columna por bimestre + Total; el puesto entra como dos filas de esa
+  misma forma, o como bloque hermano junto al QR (**costo de alto ~0**). **Nunca** dentro
+  de la tabla de competencias: el mérito es del alumno, no de la competencia.
+- **El dato ya existe y está congelado:** `orden_merito_snapshot.puesto_grado` y
+  `.puesto_seccion`. Hoy no hay lector por matrícula (`rankingGrado` devuelve el grado
+  entero), habría que añadir uno chico contra el snapshot.
+- 🔴 **Tres trampas medidas, que son la razón de anotar esto:**
+  1. **El retorno de grado rompe la búsqueda directa.** El puesto vive bajo la matrícula
+     **operativa**, no bajo la de identidad con la que se arma la boleta. Medido en B2:
+     524 filas de snapshot contra 525 matrículas vivas, y la que falta es la **190**. Un
+     lector por la matrícula del documento la dejaría sin puesto **teniéndolo**; hay que
+     usar la misma unión de fuentes que el resto de la boleta.
+  2. **La compuerta 044 ya lo cubre si se respeta el filtro de bimestres de las notas**
+     (publicar libera boletas Y mérito juntos, por nivel) — pero el umbral `'archivo'`
+     **ignora la compuerta a propósito**, así que el papel de RA mostraría el puesto de un
+     bimestre cerrado y **aún no publicado**.
+  3. **Habrá boletas sin puesto por razones distintas:** un trasladado/retirado sale del
+     ranking vivo, pero el snapshot de B1 los reincorporó (regla de la Fase C) → el mismo
+     alumno mostraría puesto en B1 y guion en B2. Es correcto y se lee como un error.
+- **Sin decidir, si resucita:** en qué boletas aparece (todas / solo el papel de RA / solo
+  gestión), si van los 4 bimestres o solo el vigente, qué se hace con quien no tiene
+  puesto, y si el puesto 1 (media beca) se destaca.
+
 ## Panel de transversales completo + punto único de "carga dueña" — DIFERIDO AL AÑO ACADÉMICO SIGUIENTE (07/08/2026)
 
 > **NO implementado, y a propósito.** Decisión del usuario: es un cambio estructural y su

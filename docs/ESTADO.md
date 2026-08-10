@@ -511,16 +511,25 @@
     de `#555`/8% a `#3f3f3f`/16% — el documento **se imprime en papel con el bimestre
     abierto**, así que la señal debe sobrevivir a la impresora. Decisión del usuario
     sobre 4 alternativas. Ver `docs/modulos/boletas.md`.
-  - 🔴 **PENDIENTE — checklist de impresión en navegador** (§8.3 del doc). ⚠️ **El
-    disparador CAMBIÓ: el código ya está en producción, así que esto toca hacerlo ANTES
-    DE IMPRIMIR Y ENTREGAR B2**, no antes de desplegar. La restricción dura es **UNA hoja
-    A4 vertical**: el máximo de filas no sube (29 → 29) y el peor incremento es +5
-    (Primaria 2.º A), pero eso **no está probado en papel**.
-    - **El alto ya no lo fijan las filas sino las CONCLUSIONES DESCRIPTIVAS** (2 líneas
-      por celda, `.conclusion-clip`): el nº de filas es fijo por sección, el alto no.
-      Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
-      (ROSALES STEPHANO), **6 filas con conclusión**, hasta 233 caracteres. Es la boleta
-      que hay que mirar para dar por buena esa sección.
+  - ✅ **~~PENDIENTE — checklist de impresión en navegador~~ — RESUELTO EL 10/08/2026.**
+    Se probó en papel y **secundaria NO cabía**: el bloque de firmas caía a una segunda
+    hoja (primaria sí entraba). **Arreglado con un cambio de una línea de SASS** — la
+    conclusión descriptiva pasa de **2 líneas a 1** (`-webkit-line-clamp`), lo que
+    devuelve ~15.8mm en Secundaria 4.º A. Validado en papel por el usuario. Modelo de
+    alturas, cifras y el seeder del peor caso: **`docs/modulos/boletas.md`**.
+    - **El alto no lo fijaban las filas ni solo las conclusiones**, sino
+      `max(nombre, literal, conclusión)` por fila. A 2 líneas mandaba la conclusión
+      (4.46mm); a 1 línea cae a 2.43mm y el techo lo pone el literal (3.58mm). **Recortar
+      más allá de una línea no devuelve nada** — el siguiente margen es el ANCHO de la
+      columna de nombre (27 de 59 competencias lo parten en 2 líneas).
+    - **La 556 no era el peor caso**: tiene 7 filas con conclusión. El peor real son **18**
+      y hay **85 alumnos con 10 o más**. Por eso se calibró con un **seeder del peor caso
+      posible** (29 filas, todas en C, conclusiones de 500 caracteres, 4 bimestres y logro
+      anual) en vez de contra una boleta real. `database/seeds/seed_peor_caso_boleta.php`,
+      reversible; **aplicado y revertido el 10/08**, con la BD verificada de vuelta.
+    - **Dato que quita culpa al recorte:** **2 891 de 2 901 conclusiones (99.7 %) ya no
+      cabían en 2 líneas** (promedio 155 caracteres, máximo 500). El papel siempre mostró
+      un fragmento; ahora es más corto. El texto completo vive en la boleta digital.
 - ✅ **LAS 4 REAPERTURAS DEL PANEL DE BLOQUEOS EXIGEN EL BIMESTRE ACTIVO — EN PRODUCCIÓN
   (06/08/2026, commits `213abc0` y `2122345`, desplegados el mismo día en `83c87f5`).**
   Probado en local por el usuario antes del deploy. Sin migración y sin SASS (reusa
@@ -1447,8 +1456,29 @@ WHERE id=25;`).
   del cierre (F4) NO se comportan igual, así que el orden importa:
   **docentes terminan de calificar y bloquear → deploy del rediseño 2 → medir →
   resolver → cerrar.**
-  - ✅ **RE-MEDICIÓN DEL 10/08/2026 (copia local resincronizada con prod ese mismo día) —
-    LAS CUATRO CONDICIONES SIGUEN EN VERDE. B2 SIGUE SIN CERRARSE.** Termómetro **0**
+  - 🎉 **B2 CERRADO EL 10/08/2026 — el cierre salió limpio y sin incidencias.** El
+    snapshot **OFICIAL** de B2 quedó en **524 filas / 11 grados / 23 secciones / puestos
+    1-72**, exactamente lo que había predicho el simulacro, y `orden_merito_rectificado`
+    sigue en **0**. B1 intacto en 528.
+    - **Cero bloqueos forzados y cero cierres transversales creados:** el cierre no generó
+      **ninguna incidencia**. Consecuencia medible y no supuesta: **el "hueco del guard de
+      empates" no aplicó a este cierre**, porque el paso que amplía el universo fue un
+      no-op y el conjunto validado por los guards es idéntico al congelado.
+    - **Secuencia que se siguió:** vencer `limite_notas` (quedó en `2026-08-10 11:50`) →
+      re-medir las 4 condiciones → verificar conducta y asistencia a mano (Fase 3.5, que
+      el cierre NO valida) → cerrar. Antes se descartó la única duda abierta: los 61 pares
+      bloqueados y vacíos son **autonomía legítima del docente**, porque B2 no es el
+      periodo final (ver la regla nueva, arriba).
+    - ⚠️ **B2 NO está publicado** (`periodos_publicacion` solo tiene las 2 filas de B1), así
+      que sigue **reversible**: el candado 046 no se activa hasta publicar.
+    - 🔴 **ABRIR B3 ES LA OTRA PUERTA DE UN SOLO SENTIDO, y no estaba documentada.** Solo
+      existen tres transiciones de estado (`abrir`, `cerrar`, `reabrir`) y **ninguna vuelve
+      a `pendiente`**; `reabrir` aborta si ya hay otro bimestre activo. Así que **en cuanto
+      se abra B3 se pierde la posibilidad de reabrir B2**, y la única salida sería cerrar un
+      B3 vacío, que forzaría bloqueos sobre todas las cargas del año y escribiría un
+      snapshot espurio. **Validar el papel ANTES de abrir B3.** B3 arrancó el 03/08.
+  - ✅ **RE-MEDICIÓN DEL 10/08/2026, ANTES DE CERRAR (copia local resincronizada con prod
+    ese mismo día) — LAS CUATRO CONDICIONES EN VERDE.** Termómetro **0**
     (el periodo 2 no aparece en la consulta 1.1) · alerta de evaluación incompleta
     **0 estudiantes** (`ControlOperativoModel::alertasEvaluacionIncompleta(2)`) · empates
     **0 grados** (`OrdenMeritoModel::gradosConEmpatesPendientes(2)`) · conducta **23/23**

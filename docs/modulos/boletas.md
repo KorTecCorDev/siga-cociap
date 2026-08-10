@@ -673,6 +673,68 @@ lo retirado a mano sigue oculto tras re-cerrar · asistencia/conducta/columna oc
 con la compuerta y presentes en `'archivo'`. Superficie del token comprobada por HTTP
 real con la compuerta encendida y apagada, por nivel.
 
+## La conclusión descriptiva pasa a UNA línea — cabe en una hoja (10/08/2026)
+
+> **El problema:** con el plan completo de competencias, la boleta de **secundaria**
+> empujaba el bloque de **firmas** a una segunda hoja. Primaria entraba bien.
+> Detectado por el usuario al revisar la matrícula 556 (Secundaria 4.º A).
+
+**El cambio es de una línea de SASS** (`_boleta.scss`): `-webkit-line-clamp` de **2 a 1**
+y su respaldo `max-height` de `11.5pt` a `5.75pt`. Nada más: mismas columnas, mismo
+contenido, misma estructura del modelo oficial. Lo único que cambia es cuántos caracteres
+se ven antes del corte. **Validado en papel por el usuario.**
+
+### El modelo de alturas (medido, no estimado)
+Una fila mide `max(nombre, literal, conclusión)`:
+
+| Celda | Alto |
+|---|---|
+| Nombre de competencia (5.5pt, interlínea 1.25) | 1 línea **3.02mm** · 2 líneas **5.45mm** |
+| Literal / nota (7.5pt) | **3.58mm** (fijo) |
+| Conclusión (5pt, interlínea 1.15) | 2 líneas **4.46mm** · 1 línea **2.43mm** |
+
+- A 2 líneas la conclusión **manda**; a 1 línea cae por debajo del literal y el techo pasa
+  a ponerlo éste. En Secundaria 4.º A hay **18 competencias con nombre de una sola línea**
+  → **18 × 0.88mm ≈ 15.8mm** recuperados, que es justo lo que ocupa el pie de firmas.
+- 🔴 **NO tiene sentido recortar más allá de una línea.** Por debajo de 2.43mm la
+  conclusión ya no fija el alto de ninguna fila: seguir cortando caracteres **no devuelve
+  ni un milímetro**.
+- **El siguiente margen, si algún día hace falta:** el **ancho** de la columna de nombre.
+  **27 de 59 competencias superan los 46 caracteres** que entran en una línea de 45mm y
+  por eso parten el nombre en dos. Repartir ancho entre nombre (48mm) y conclusión (~22mm
+  por bimestre) valdría ~30mm. Después, el relleno de las filas de área (12 en secundaria,
+  ~4.8mm) y por último el espacio de firma (12mm, ya recortado una vez desde 15mm).
+
+### El dato que justifica cortar sin culpa
+**2 891 de 2 901 conclusiones reales (99.7 %) ya no cabían en 2 líneas.** Promedio **155
+caracteres**, máximo **500**; en 2 líneas entraban ~48. O sea que el papel **siempre**
+mostró un fragmento cortado a media frase — el cambio lo acorta, no lo estrena. El texto
+completo vive en la **boleta digital**, que se recorre con scroll y no tiene límite de hoja.
+
+⚠️ Los puntos suspensivos los pinta **solo** `-webkit-line-clamp`. El respaldo `max-height`
+—el que aplica html2canvas en el PDF de *Archivar*— corta **sin** ellos.
+
+### Cómo se midió: el seeder del peor caso
+`database/seeds/seed_peor_caso_boleta.php` construye el documento **más alto que el modelo
+puede producir** y permite calibrar contra papel en vez de estimar:
+
+- Una matrícula real de **Secundaria 4.º A** (29 filas / 12 áreas, con columna de nota) y
+  otra de **Primaria 3.º B** (27 / 9, sin nota y con la conclusión más ancha) — el máximo
+  de cada nivel.
+- Por cada competencia del plan **× los 4 bimestres**: nota **C** (la que obliga conclusión
+  en ambos niveles), conclusión de **500 caracteres** y su **bloqueo** (la boleta solo
+  muestra competencias bloqueadas). Además crea los cierres transversales que falten y
+  **cierra B3 y B4**, único modo de que pinten sus columnas y se active el logro anual.
+- El universo de competencias sale de **la misma consulta del cierre forzado**, con las dos
+  exclusiones de "carga dueña" — así se llena cada fila del documento sin crear una quinta
+  copia de esa regla.
+- **Reversible:** vuelca a JSON todo lo que va a pisar y `--revertir` lo restaura; guarda
+  los ids de cada bloqueo y cierre que crea para borrar **solo lo suyo**. Aborta si detecta
+  el archivo de secretos de producción y si ya hay un seed sin revertir.
+- ⚠️ **Ojo al leer su salida:** informa **pares (carga, competencia)** —65 y 41—, no filas
+  del documento. La boleta agrupa por competencia, así que las transversales adjuntas a
+  varias cargas colapsan en una fila. Las filas reales son **29 y 27**.
+
 ### ~~Pendiente relacionado~~ — CERRADO EL 10/08/2026
 🔴 **Esta nota era FALSA y estuvo vigente desde el 21/07.** Decía que el logro anual
 "sigue usando el último bimestre cerrado" y que debía exigir **año académico cerrado**
