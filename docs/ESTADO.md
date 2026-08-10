@@ -368,9 +368,24 @@
   fecha/hora desde `/admin/control`. Regla, decisiones y verificación en
   `docs/modulos/boletas.md`. El diseño viejo de `docs/decisiones-diferidas.md`
   (`periodos.publicado`) quedó OBSOLETO: no alcanzaba un booleano.
-  - **Pendiente relacionado:** el **logro anual** todavía usa "último bimestre
-    cerrado"; debe exigir **año académico cerrado**. Se dejó fuera a propósito
-    (decisión #9): el usuario explicará antes la situación del cierre de fin de año.
+  - ✅ **~~Pendiente relacionado~~ — CERRADO EL 10/08/2026. La decisión #9 queda
+    CANCELADA y la afirmación que la sostenía era FALSA.** Este pendiente decía que el
+    **logro anual** usaba "último bimestre cerrado" y debía exigir **año académico
+    cerrado**. El código **nunca** hizo eso: `BoletaModel::getUltimoBimestreDelAnio` toma
+    el periodo de **mayor `numero`** y exige que **ese** esté cerrado (su comentario lo
+    dice literal: *"NO es el último bimestre CERRADO"*). Estuvo mal documentado desde el
+    21/07 en este archivo y en `docs/modulos/boletas.md`.
+    - **Regla definitiva del usuario (10/08/2026):** el logro anual **solo se activa y
+      muestra el logro del IV Bimestre**. Es el comportamiento vigente → **nada que
+      implementar**. Anclaje por **último periodo del año** (no por el número 4 literal) y
+      disparador **B4 cerrado**, sin exigir publicado. Sin fuga: `literal_final` se calcula
+      sobre datos ya filtrados por la compuerta 044 (verificado en el código).
+    - 🟡 **Queda ABIERTA una sola pregunta, para antes del 05/10/2026** (inicio de B4): qué
+      hacer con una competencia **sin nota en B4** — hoy su anual sale en guion aunque
+      tenga B1-B3. El usuario sostiene que B4 **sí o sí** debe tener promedio final en
+      todas las competencias, así que el caso no debería existir. **Dimensionado con B2
+      como ensayo: 324 pares (alumno, competencia) de 12 121, un 2.7 %, con el 61 % en
+      Personal Social de primaria.** Detalle en `docs/modulos/boletas.md`.
 - **LOS 4 REGISTROS DEL BIMESTRE Y EL CONTRATO DEL CIERRE — PLAN APROBADO, SIN
   IMPLEMENTAR (04/08/2026).** Se ejecuta **después de cerrar y publicar B2**, para que
   el primer bimestre bajo las reglas nuevas sea B3. Plan completo con fases, riesgos y
@@ -957,8 +972,12 @@ Resumen de lo que cambió, para orientarse:
   nunca crea publicaciones nuevas.
 - Despublicar a mano **marca** la fila (motivo + autor auditados), no la borra.
 
-**Sin resolver (fuera de alcance, decisión #9):** el **logro anual** sigue usando
-"último bimestre cerrado" y debería exigir **año académico cerrado**.
+~~**Sin resolver (fuera de alcance, decisión #9):** el **logro anual** sigue usando
+"último bimestre cerrado" y debería exigir **año académico cerrado**.~~
+✅ **CERRADO EL 10/08/2026: la decisión #9 se CANCELA y su premisa era falsa** — el código
+siempre usó el ÚLTIMO periodo del año, no el último cerrado. Regla definitiva del usuario:
+el logro anual se activa **solo con el IV Bimestre**. Ver "Compuerta de publicación" en
+Pendientes de desarrollo y `docs/modulos/boletas.md`.
 
 ## Ética y Valores (Educación Religiosa) — plan de encendido (07/07/2026)
 

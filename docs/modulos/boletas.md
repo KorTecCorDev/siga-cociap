@@ -673,10 +673,43 @@ lo retirado a mano sigue oculto tras re-cerrar · asistencia/conducta/columna oc
 con la compuerta y presentes en `'archivo'`. Superficie del token comprobada por HTTP
 real con la compuerta encendida y apagada, por nivel.
 
-### Pendiente relacionado (fuera de este trabajo)
-**Logro anual** sigue usando "último bimestre cerrado" (`BoletaModel`); debe exigir
-**año académico cerrado**. Decisión #9 del plan: queda para el final, el usuario
-explicará antes la situación del cierre de fin de año.
+### ~~Pendiente relacionado~~ — CERRADO EL 10/08/2026
+🔴 **Esta nota era FALSA y estuvo vigente desde el 21/07.** Decía que el logro anual
+"sigue usando el último bimestre cerrado" y que debía exigir **año académico cerrado**
+(decisión #9). El código nunca hizo eso: desde el fix del 02/07 (sección "Logro anual"
+arriba) `getUltimoBimestreDelAnio` toma el periodo de **mayor `numero`** y exige que
+**ese** esté cerrado — su propio comentario dice *"NO es el último bimestre CERRADO"*.
+
+**Regla confirmada por el usuario el 10/08/2026 (definitiva):** el logro anual **solo se
+activa y muestra el logro obtenido en el IV Bimestre**. Es exactamente el comportamiento
+vigente, así que **no hay nada que implementar y la decisión #9 queda cancelada**.
+- **Anclaje: el ÚLTIMO periodo del año**, no el número 4 literal (decisión del usuario).
+  Si un año se configurara por trimestres (`periodos.tipo` lo admite), sería el III y la
+  regla sigue teniendo sentido sin tocar código. Anclar al 4 haría que un año de 3
+  periodos no activara nunca el anual, y el fallo sería **silencioso**.
+- **Disparador: B4 CERRADO** (no "publicado"). El impreso de staff (umbral `'archivo'`)
+  muestra el anual en cuanto B4 cierra, que es coherente con el motivo por el que existe
+  ese umbral. Decisión del usuario.
+- ✅ **Sin fuga a las familias, verificado en el código el 10/08:** `literal_final` se
+  calcula sobre `$datosPorPeriodo`, que **ya pasó por `periodoAportaNotas`**. Con
+  `'oficial'`, un B4 cerrado y **sin publicar** no aporta datos → no hay entrada de
+  bimestre → `literal_final = null`. La compuerta 044 gobierna el anual sin código extra.
+
+🟡 **ABIERTO — qué pasa si una competencia no tiene nota en el IV Bimestre.** Hoy el anual
+sale en **guion** aunque la competencia tenga notas en B1-B3. El usuario lo considera un
+caso que **no debería existir**: *"el IV bimestre sí o sí tiene que tener un promedio final
+en todas las competencias"*. Queda como decisión de diseño pendiente, a analizar antes de
+que B4 empiece (**05/10/2026**).
+- **Dimensionado el 10/08 usando B2 como ensayo** (si B2 fuera el último bimestre):
+  **324 pares (alumno, competencia)** tendrían anual en guion pese a haber sido evaluados
+  en B1 — sobre 12 121 pares de B1, o sea **2.7 %**. **El 61 % se concentra en Personal
+  Social de primaria** (199 pares); le siguen Matemática (48) y CyT (42) del mismo nivel.
+- **La causa no es un defecto:** desde el cambio del 05/08 es **legítimo** que una
+  competencia no se trabaje en un bimestre (la boleta pinta guion). La pregunta es si en
+  el ÚLTIMO bimestre eso debe seguir siendo legítimo, o si B4 exige plan completo.
+- **No confundir con la alerta de evaluación incompleta:** esa compara alumnos **dentro**
+  de una sección (a él le falta lo que su compañero sí tiene). Aquí faltaría la
+  competencia para **toda** la sección, que es justo el punto ciego del cierre.
 
 ## Fixes importantes aplicados (sesión 3)
 - `CalificacionModel::getBoletaAlumno()` ahora hace INNER JOIN con
