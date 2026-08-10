@@ -44,7 +44,7 @@ return [
     'session_timeout' => 600,            // 10 minutos en segundos
     'timezone'        => 'America/Lima',
     'locale'          => 'es_PE',
-    'url'             => 'http://localhost/siga-cociap/public', // fallback CLI únicamente
+    'url'             => 'http://localhost/siga_cociap/public', // fallback CLI únicamente
     // En producción (host sigacociap.net) fuerza la base limpia sin prefijo /public.
     // En local/LAN queda '' → autodetección por HTTP_HOST (BrowserSync :3000, IP DHCP).
     'app_url'         => str_contains($_SERVER['HTTP_HOST'] ?? '', 'sigacociap.net')
