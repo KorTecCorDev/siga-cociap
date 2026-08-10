@@ -380,12 +380,33 @@
       implementar**. Anclaje por **último periodo del año** (no por el número 4 literal) y
       disparador **B4 cerrado**, sin exigir publicado. Sin fuga: `literal_final` se calcula
       sobre datos ya filtrados por la compuerta 044 (verificado en el código).
-    - 🟡 **Queda ABIERTA una sola pregunta, para antes del 05/10/2026** (inicio de B4): qué
-      hacer con una competencia **sin nota en B4** — hoy su anual sale en guion aunque
-      tenga B1-B3. El usuario sostiene que B4 **sí o sí** debe tener promedio final en
-      todas las competencias, así que el caso no debería existir. **Dimensionado con B2
-      como ensayo: 324 pares (alumno, competencia) de 12 121, un 2.7 %, con el 61 % en
-      Personal Social de primaria.** Detalle en `docs/modulos/boletas.md`.
+    - ✅ **La cola que quedaba abierta se cerró el MISMO DÍA con una regla de negocio
+      nueva** (ver abajo): no se toca el cálculo del anual, se **exige plan completo en el
+      periodo final**.
+- **EL PERIODO FINAL EXIGE TODAS LAS COMPETENCIAS — REGLA DE NEGOCIO APROBADA, SIN
+  IMPLEMENTAR (10/08/2026). Fecha tope: antes del 05/10/2026** (inicio del IV Bimestre).
+  Regla completa, cifras y trampas: **`docs/modulos/calificaciones.md`** §"REGLA DE
+  NEGOCIO — autonomía del docente y periodo final".
+  - **En B1-B3 el docente es autónomo** (elige qué competencias evalúa, mínimo una, y puede
+    cambiarlas entre bimestres). **En el ÚLTIMO periodo pierde esa autonomía:** la carga no
+    está completa hasta tener **todas** sus competencias académicas **y transversales**.
+  - **Decisiones cerradas (no re-preguntar):** universo = propias + transversales de la
+    carga; **basta ≥1 nota** por competencia (los huecos por alumno los sigue cubriendo
+    `alertasEvaluacionIncompleta`, son reglas complementarias); se hace cumplir **en dos
+    sitios** (impedir el bloqueo vacío **y** abortar el cierre); **válvula = REGISTRO
+    ACADÉMICO con motivo específico**, no el director.
+  - **Nace para cerrar el punto ciego del logro anual:** como el anual sale solo del último
+    periodo, una competencia no evaluada allí dejaba al alumno sin logro anual pese a
+    haberla cursado todo el año.
+  - **Dimensionado con B2 como ensayo:** **61 pares vacíos de 1283** y **39 cargas de 398
+    (9.8 %)** incompletas — **0 transversales vacías**, todo académico y concentrado en
+    Personal Social de primaria. El "mínimo una" **ya se cumple al 100 %** (los únicos
+    ceros son las 12 TOE de primaria, con 0 competencias por diseño).
+  - 🔴 **El guard de transversales sería la QUINTA copia de la regla de "carga dueña"**
+    (la cuarta divergente creó los 130 fantasmas) → **extraer el punto único, F1 del plan
+    de los 4 registros, ANTES de escribirlo**.
+  - ⚠️ **Contar por `competencias.area_id` da cifras falsas** (las de subárea tienen
+    `area_id` NULL: 1283 → 1020, 263 pares perdidos en silencio). Pasó al medir esta regla.
 - **LOS 4 REGISTROS DEL BIMESTRE Y EL CONTRATO DEL CIERRE — PLAN APROBADO, SIN
   IMPLEMENTAR (04/08/2026).** Se ejecuta **después de cerrar y publicar B2**, para que
   el primer bimestre bajo las reglas nuevas sea B3. Plan completo con fases, riesgos y
