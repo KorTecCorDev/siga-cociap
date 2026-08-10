@@ -3,6 +3,78 @@
 > Extraído VERBATIM de CLAUDE.md el 03/07/2026 (fase 1 de la red de documentación).
 > Los invariantes globales y la tabla de enrutamiento viven en CLAUDE.md.
 
+## REGLA DE NEGOCIO — autonomía del docente y periodo final (10/08/2026)
+
+> Regla del colegio, confirmada por el usuario. **Aprobada, SIN IMPLEMENTAR.**
+> Fecha tope: antes del **05/10/2026** (inicio del IV Bimestre).
+
+**En los periodos NO finales (B1, B2, B3) el docente es AUTÓNOMO**: elige qué competencias
+de su área-curso evalúa, con un **mínimo de una**. Puede cambiar de competencias entre un
+bimestre y el siguiente — que evaluara una en B1 no lo obliga a repetirla en B2. Una
+competencia sin nota en esos bimestres es **legítima** y la boleta la pinta con guion
+(regla del 05/08/2026).
+
+**En el PERIODO FINAL esa autonomía se pierde.** Una carga no está terminada al 100 %
+mientras le falte **una sola** de sus competencias, y el universo son **las académicas
+propias del área-curso MÁS las transversales que esa carga lleva**. El flujo no cambia:
+las transversales las sigue registrando cada docente en su carga y aprobando el tutor.
+
+- **"Periodo final" = el ÚLTIMO periodo del año** (mayor `numero`), el mismo anclaje que
+  el logro anual — no el número 4 literal. Ver `docs/modulos/boletas.md`.
+- **Basta ≥1 nota por competencia** para darla por evaluada (decisión del usuario). Los
+  huecos POR ALUMNO los sigue cubriendo `alertasEvaluacionIncompleta`, que ya aborta el
+  cierre: las dos reglas son **complementarias**, cada una cubre una dimensión distinta
+  (la de competencia y la de estudiante) y ninguna sustituye a la otra.
+- **Se hace cumplir en DOS sitios** (decisión del usuario): (1) **impedir el bloqueo** de
+  una competencia vacía en el periodo final —el docente se entera en su propia pantalla,
+  cuando todavía puede actuar— y (2) **abortar el cierre** como red de seguridad. Solo lo
+  segundo llega tarde; solo lo primero deja pasar las competencias que nunca se bloquean,
+  porque el cierre forzado las bloquea igual.
+- **Válvula: REGISTRO ACADÉMICO, con motivo específico** (decisión del usuario; no el
+  director). No hay que inventarla: es lo que ya hace la **calificación extraordinaria**
+  (migración 042, en producción desde el 16/07), cuya fila de auditoría con el motivo es
+  el único registro permanente de por qué esa nota existe. Escribir la regla en términos
+  de **"RA con motivo"**, NO del nombre del flujo actual: el plan de registro retroactivo
+  (migración `049`) unifica ese punto de entrada y retira el flujo de la extraordinaria.
+
+### Por qué existe: cierra el punto ciego del logro anual
+El logro anual sale **solo del último periodo**. Sin esta regla, una competencia que el
+docente decide no evaluar en el último bimestre deja al alumno **sin logro anual** en ella
+aunque la haya cursado todo el año. Ver `docs/modulos/boletas.md`.
+
+### Dimensionado con B2 como ensayo (medido el 10/08/2026)
+Si B2 fuera el periodo final, el guard **abortaría el cierre**:
+
+| Universo del periodo | Pares | Vacíos |
+|---|---|---|
+| Competencias académicas | 593 | **61** |
+| Competencias transversales | 690 | **0** |
+| **Total** | **1283** | **61** |
+
+- **39 cargas de 398 (9.8 %)** quedarían incompletas. **Ninguna transversal está vacía**:
+  el problema es enteramente académico y se concentra en **Personal Social de primaria**.
+- El **"mínimo una" ya se cumple al 100 %**: no hay una sola área-curso académica sin
+  alguna competencia evaluada en B2. Los únicos ceros son las **12 cargas de Tutoría (TOE)
+  de primaria**, que tienen **0 competencias por diseño** (`tipo='tutoria'`) → quedan fuera
+  del universo sin necesidad de excepción. La **TOE de secundaria sí entra**: tiene la
+  competencia de Ética (C57) y no lleva transversales (exclusión del 07/07).
+
+### ⚠️ Trampas al implementarlo (medidas, no supuestas)
+1. 🔴 **El guard de transversales sería la QUINTA copia de la regla de "carga dueña"**, y
+   la cuarta divergente creó los **130 bloqueos fantasma** de B2. En unidocentes las
+   TIC/GAMA se registran **una sola vez, en la carga dueña**, así que la obligación solo
+   puede recaer sobre ésa; una copia nueva y distinta exigiría transversales a cargas que
+   nunca las reciben. **Extraer el punto único (F1 del plan de los 4 registros) ANTES de
+   escribir este guard**, no después. Sitios actuales: `CalificacionController::calificaciones`,
+   `TransversalModel::estadoCargasSeccion`, `CalificacionModel::cargaDuenaTransversales` y
+   `AnioAcademicoModel::bloquearCompetenciasPendientes`.
+2. ⚠️ **Contar por `competencias.area_id` da cifras FALSAS.** Las competencias de subárea
+   tienen `area_id` NULL: el conteo bajaba de 1283 a 1020 y perdía 263 pares en silencio.
+   Va siempre `COALESCE(c.area_id, (SELECT area_id FROM subareas WHERE id = c.subarea_id))`.
+   Pasó al medir esta misma regla.
+3. **El cierre forzado bloquea lo que el docente no bloqueó**, así que un guard puesto solo
+   en el bloqueo del docente no ve nada: por eso hacen falta los dos puntos.
+
 ## Módulo soft-delete de criterios (sesión 7)
 - **Migración:** `006_soft_delete_criterios.sql` — agrega `eliminado_en DATETIME NULL` y
   `eliminado_por INT UNSIGNED NULL FK→usuarios` a la tabla `criterios`.

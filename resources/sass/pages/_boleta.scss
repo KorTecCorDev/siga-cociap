@@ -376,19 +376,39 @@ body.boleta-body {
         white-space: nowrap;
     }
 
-    // Conclusión descriptiva — 2 líneas visibles a 5pt
+    // Conclusión descriptiva — 1 línea visible a 5pt (10/08/2026)
+    //
+    // POR QUE UNA Y NO DOS: con el plan completo de competencias, el peor caso
+    // (29 filas, todas en C y todas con conclusion) empujaba el bloque de firmas
+    // a una segunda hoja en SECUNDARIA. Medido con el seeder del peor caso: una
+    // fila mide `max(nombre, literal, conclusion)`; a 2 lineas la conclusion pesa
+    // 4.46mm y manda, a 1 linea baja a 2.43mm y el techo pasa a ponerlo el
+    // literal (3.58mm). En 4° A hay 18 competencias con nombre de una sola linea
+    // -> 18 x 0.88mm = ~15.8mm recuperados, que es lo que ocupa el pie de firmas.
+    // PRIMARIA ya entraba (27 filas / 9 areas): el problema era solo secundaria.
+    //
+    // ⚠️ NO tiene sentido recortar MAS ALLA de una linea: por debajo de 2.43mm la
+    // conclusion deja de fijar el alto de ninguna fila y seguir cortando
+    // caracteres no devuelve ni un milimetro. El siguiente margen esta en el
+    // ancho de la columna de NOMBRE (27 de 59 competencias lo parten en 2 lineas).
+    //
+    // El texto se corta casi siempre y ya se cortaba antes: 2891 de 2901
+    // conclusiones reales (99.7%) no caben ni en 2 lineas — 155 caracteres de
+    // promedio, 500 de maximo. Los puntos suspensivos los pinta el clamp.
     .td-concl { padding: 0.2mm 0.5mm; }
 
     .conclusion-clip {
         display: -webkit-box;
-        -webkit-line-clamp: 2;
+        -webkit-line-clamp: 1;
         -webkit-box-orient: vertical;
         overflow: hidden;
         // Respaldo para html2canvas (PDF de /archivar): si el motor ignora
-        // -webkit-line-clamp, la altura maxima de 2 lineas (2 x 5pt x 1.15)
-        // recorta igual, evitando que la conclusion se encime sobre la fila
-        // siguiente. En pantalla/impresion normal el clamp sigue mandando.
-        max-height: 11.5pt;
+        // -webkit-line-clamp, la altura maxima de 1 linea (5pt x 1.15) recorta
+        // igual, evitando que la conclusion se encime sobre la fila siguiente.
+        // En pantalla/impresion normal el clamp sigue mandando.
+        // ⚠️ Este respaldo corta SIN puntos suspensivos: los pinta solo el clamp,
+        // y html2canvas no lo aplica.
+        max-height: 5.75pt;
         font-size: 5pt;
         font-style: italic;
         color: #333;

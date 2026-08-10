@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **07/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **10/08/2026**.
 
 ## Migraciones
 - **`051_limpieza_bloqueos_transversales_fantasma`** (06/08): corrección de DATOS (no toca
@@ -368,9 +368,45 @@
   fecha/hora desde `/admin/control`. Regla, decisiones y verificación en
   `docs/modulos/boletas.md`. El diseño viejo de `docs/decisiones-diferidas.md`
   (`periodos.publicado`) quedó OBSOLETO: no alcanzaba un booleano.
-  - **Pendiente relacionado:** el **logro anual** todavía usa "último bimestre
-    cerrado"; debe exigir **año académico cerrado**. Se dejó fuera a propósito
-    (decisión #9): el usuario explicará antes la situación del cierre de fin de año.
+  - ✅ **~~Pendiente relacionado~~ — CERRADO EL 10/08/2026. La decisión #9 queda
+    CANCELADA y la afirmación que la sostenía era FALSA.** Este pendiente decía que el
+    **logro anual** usaba "último bimestre cerrado" y debía exigir **año académico
+    cerrado**. El código **nunca** hizo eso: `BoletaModel::getUltimoBimestreDelAnio` toma
+    el periodo de **mayor `numero`** y exige que **ese** esté cerrado (su comentario lo
+    dice literal: *"NO es el último bimestre CERRADO"*). Estuvo mal documentado desde el
+    21/07 en este archivo y en `docs/modulos/boletas.md`.
+    - **Regla definitiva del usuario (10/08/2026):** el logro anual **solo se activa y
+      muestra el logro del IV Bimestre**. Es el comportamiento vigente → **nada que
+      implementar**. Anclaje por **último periodo del año** (no por el número 4 literal) y
+      disparador **B4 cerrado**, sin exigir publicado. Sin fuga: `literal_final` se calcula
+      sobre datos ya filtrados por la compuerta 044 (verificado en el código).
+    - ✅ **La cola que quedaba abierta se cerró el MISMO DÍA con una regla de negocio
+      nueva** (ver abajo): no se toca el cálculo del anual, se **exige plan completo en el
+      periodo final**.
+- **EL PERIODO FINAL EXIGE TODAS LAS COMPETENCIAS — REGLA DE NEGOCIO APROBADA, SIN
+  IMPLEMENTAR (10/08/2026). Fecha tope: antes del 05/10/2026** (inicio del IV Bimestre).
+  Regla completa, cifras y trampas: **`docs/modulos/calificaciones.md`** §"REGLA DE
+  NEGOCIO — autonomía del docente y periodo final".
+  - **En B1-B3 el docente es autónomo** (elige qué competencias evalúa, mínimo una, y puede
+    cambiarlas entre bimestres). **En el ÚLTIMO periodo pierde esa autonomía:** la carga no
+    está completa hasta tener **todas** sus competencias académicas **y transversales**.
+  - **Decisiones cerradas (no re-preguntar):** universo = propias + transversales de la
+    carga; **basta ≥1 nota** por competencia (los huecos por alumno los sigue cubriendo
+    `alertasEvaluacionIncompleta`, son reglas complementarias); se hace cumplir **en dos
+    sitios** (impedir el bloqueo vacío **y** abortar el cierre); **válvula = REGISTRO
+    ACADÉMICO con motivo específico**, no el director.
+  - **Nace para cerrar el punto ciego del logro anual:** como el anual sale solo del último
+    periodo, una competencia no evaluada allí dejaba al alumno sin logro anual pese a
+    haberla cursado todo el año.
+  - **Dimensionado con B2 como ensayo:** **61 pares vacíos de 1283** y **39 cargas de 398
+    (9.8 %)** incompletas — **0 transversales vacías**, todo académico y concentrado en
+    Personal Social de primaria. El "mínimo una" **ya se cumple al 100 %** (los únicos
+    ceros son las 12 TOE de primaria, con 0 competencias por diseño).
+  - 🔴 **El guard de transversales sería la QUINTA copia de la regla de "carga dueña"**
+    (la cuarta divergente creó los 130 fantasmas) → **extraer el punto único, F1 del plan
+    de los 4 registros, ANTES de escribirlo**.
+  - ⚠️ **Contar por `competencias.area_id` da cifras falsas** (las de subárea tienen
+    `area_id` NULL: 1283 → 1020, 263 pares perdidos en silencio). Pasó al medir esta regla.
 - **LOS 4 REGISTROS DEL BIMESTRE Y EL CONTRATO DEL CIERRE — PLAN APROBADO, SIN
   IMPLEMENTAR (04/08/2026).** Se ejecuta **después de cerrar y publicar B2**, para que
   el primer bimestre bajo las reglas nuevas sea B3. Plan completo con fases, riesgos y
@@ -475,16 +511,25 @@
     de `#555`/8% a `#3f3f3f`/16% — el documento **se imprime en papel con el bimestre
     abierto**, así que la señal debe sobrevivir a la impresora. Decisión del usuario
     sobre 4 alternativas. Ver `docs/modulos/boletas.md`.
-  - 🔴 **PENDIENTE — checklist de impresión en navegador** (§8.3 del doc). ⚠️ **El
-    disparador CAMBIÓ: el código ya está en producción, así que esto toca hacerlo ANTES
-    DE IMPRIMIR Y ENTREGAR B2**, no antes de desplegar. La restricción dura es **UNA hoja
-    A4 vertical**: el máximo de filas no sube (29 → 29) y el peor incremento es +5
-    (Primaria 2.º A), pero eso **no está probado en papel**.
-    - **El alto ya no lo fijan las filas sino las CONCLUSIONES DESCRIPTIVAS** (2 líneas
-      por celda, `.conclusion-clip`): el nº de filas es fijo por sección, el alto no.
-      Peor caso medido en Secundaria 4.º A (la sección del incidente): matrícula **556**
-      (ROSALES STEPHANO), **6 filas con conclusión**, hasta 233 caracteres. Es la boleta
-      que hay que mirar para dar por buena esa sección.
+  - ✅ **~~PENDIENTE — checklist de impresión en navegador~~ — RESUELTO EL 10/08/2026.**
+    Se probó en papel y **secundaria NO cabía**: el bloque de firmas caía a una segunda
+    hoja (primaria sí entraba). **Arreglado con un cambio de una línea de SASS** — la
+    conclusión descriptiva pasa de **2 líneas a 1** (`-webkit-line-clamp`), lo que
+    devuelve ~15.8mm en Secundaria 4.º A. Validado en papel por el usuario. Modelo de
+    alturas, cifras y el seeder del peor caso: **`docs/modulos/boletas.md`**.
+    - **El alto no lo fijaban las filas ni solo las conclusiones**, sino
+      `max(nombre, literal, conclusión)` por fila. A 2 líneas mandaba la conclusión
+      (4.46mm); a 1 línea cae a 2.43mm y el techo lo pone el literal (3.58mm). **Recortar
+      más allá de una línea no devuelve nada** — el siguiente margen es el ANCHO de la
+      columna de nombre (27 de 59 competencias lo parten en 2 líneas).
+    - **La 556 no era el peor caso**: tiene 7 filas con conclusión. El peor real son **18**
+      y hay **85 alumnos con 10 o más**. Por eso se calibró con un **seeder del peor caso
+      posible** (29 filas, todas en C, conclusiones de 500 caracteres, 4 bimestres y logro
+      anual) en vez de contra una boleta real. `database/seeds/seed_peor_caso_boleta.php`,
+      reversible; **aplicado y revertido el 10/08**, con la BD verificada de vuelta.
+    - **Dato que quita culpa al recorte:** **2 891 de 2 901 conclusiones (99.7 %) ya no
+      cabían en 2 líneas** (promedio 155 caracteres, máximo 500). El papel siempre mostró
+      un fragmento; ahora es más corto. El texto completo vive en la boleta digital.
 - ✅ **LAS 4 REAPERTURAS DEL PANEL DE BLOQUEOS EXIGEN EL BIMESTRE ACTIVO — EN PRODUCCIÓN
   (06/08/2026, commits `213abc0` y `2122345`, desplegados el mismo día en `83c87f5`).**
   Probado en local por el usuario antes del deploy. Sin migración y sin SASS (reusa
@@ -510,9 +555,10 @@
     transversal / etapa 1 / etapa 2 / asistencia): no destruyen nada y son la vía para
     recomponer lo que haya quedado sin bloqueo por un desbloqueo anterior al fix.
   - **Contexto operativo que lo motivó:** el usuario necesita poder desbloquear una
-    competencia si un docente se equivocó. Con B2 **activo** eso funciona, pero ⚠️
-    `limite_notas` sigue **vencido** (04/08 23:59): hay que **ampliarlo** desde
-    `/director/anios/1` o el docente no podrá editar aunque se desbloquee.
+    competencia si un docente se equivocó. Con B2 **activo** eso funciona, pero hace falta
+    que `limite_notas` esté vigente o el docente no podrá editar aunque se desbloquee.
+    *(Estaba vencido el 04/08 23:59; **ampliado a `2026-08-11 04:00`**, medido el 10/08 —
+    la vía es `/director/anios/1`.)*
   - **La ventana barata para corregir es entre CERRAR y PUBLICAR:** ahí reabrir → corregir
     → re-cerrar todavía actualiza el snapshot **oficial** del mérito. Tras publicar, el
     candado 046 lo congela y la corrección va a `orden_merito_rectificado` (no oficial).
@@ -796,11 +842,14 @@
     **EXO en los 4 bimestres** y anual EXO, las 3 notas siguen vivas en la BD, y en el
     mérito su promedio de B2 baja de **13.38 a 13.21** sin que **cambie ni un puesto** en
     su grado (39 alumnos). Su puesto congelado de B1 (34, promedio 12.17) queda intacto.
-- 🟡 **DESBLOQUEAR UNA ACADÉMICA YA NO ARRASTRA LAS TRANSVERSALES — EN `dev`,
-  IMPLEMENTADO Y PROBADO, SIN DESPLEGAR (07/08/2026). Sin migración, sin SASS.**
-  Decisión del usuario: prima la **granularidad** sobre el clic de menos.
-  **El merge a `main` espera al cierre de B2** (decisión explícita: no mover el panel que
-  se usa durante el cierre). Detalle en `docs/modulos/admin.md`.
+- ✅ **DESBLOQUEAR UNA ACADÉMICA YA NO ARRASTRA LAS TRANSVERSALES — EN PRODUCCIÓN
+  (implementado y probado el 07/08/2026, desplegado el 10/08 en `945ba91`). Sin migración,
+  sin SASS.** Decisión del usuario: prima la **granularidad** sobre el clic de menos.
+  Detalle en `docs/modulos/admin.md`.
+  - ⚠️ **Se desplegó ANTES del cierre de B2, revirtiendo la decisión del 07/08** («el merge
+    espera al cierre; no mover el panel que se usa durante el cierre»). El panel de bloqueos
+    quedó tocado en el mismo tramo en que se usa para cerrar — riesgo asumido a cambio de
+    poder desbloquear sin arrastrar transversales durante las últimas correcciones de B2.
   - `BloqueoController::desbloquear` pasa de 3 efectos a 2: se retira
     `liberarTransversalesDeCarga`; **se conserva** la anulación del cierre del tutor.
   - **Por qué se retira:** su motivo —que las transversales quedarían "inalcanzables"—
@@ -877,7 +926,9 @@
      descarga bien en el navegador**. Verificado en servidor (3 boletas → 3 marcas, 0 QR),
      **nunca en navegador**. Es lo único que quedaba del P1.
 
-  ⚠️ **Nada de esto se despliega todavía**: el merge a `main` espera al cierre de B2.
+  ⚠️ **Actualización 10/08:** el lote **ya está en producción** (`945ba91`), así que esta
+  checklist dejó de ser una condición previa al deploy y pasó a ser **verificación de lo
+  que ya corre en prod**. El BLOQUE 5 (ZIP de borradores en navegador) sigue **sin probar**.
 - **PANEL DE TRANSVERSALES COMPLETO + PUNTO ÚNICO DE "CARGA DUEÑA" — DIFERIDO AL AÑO
   ACADÉMICO SIGUIENTE (decisión del usuario, 07/08/2026).** El gestor de bloqueos
   transversales solo muestra lo aprobado y bloqueado (`getBloqueosTransversalesPorPeriodo`
@@ -951,8 +1002,12 @@ Resumen de lo que cambió, para orientarse:
   nunca crea publicaciones nuevas.
 - Despublicar a mano **marca** la fila (motivo + autor auditados), no la borra.
 
-**Sin resolver (fuera de alcance, decisión #9):** el **logro anual** sigue usando
-"último bimestre cerrado" y debería exigir **año académico cerrado**.
+~~**Sin resolver (fuera de alcance, decisión #9):** el **logro anual** sigue usando
+"último bimestre cerrado" y debería exigir **año académico cerrado**.~~
+✅ **CERRADO EL 10/08/2026: la decisión #9 se CANCELA y su premisa era falsa** — el código
+siempre usó el ÚLTIMO periodo del año, no el último cerrado. Regla definitiva del usuario:
+el logro anual se activa **solo con el IV Bimestre**. Ver "Compuerta de publicación" en
+Pendientes de desarrollo y `docs/modulos/boletas.md`.
 
 ## Ética y Valores (Educación Religiosa) — plan de encendido (07/07/2026)
 
@@ -1401,6 +1456,50 @@ WHERE id=25;`).
   del cierre (F4) NO se comportan igual, así que el orden importa:
   **docentes terminan de calificar y bloquear → deploy del rediseño 2 → medir →
   resolver → cerrar.**
+  - 🎉 **B2 CERRADO EL 10/08/2026 — el cierre salió limpio y sin incidencias.** El
+    snapshot **OFICIAL** de B2 quedó en **524 filas / 11 grados / 23 secciones / puestos
+    1-72**, exactamente lo que había predicho el simulacro, y `orden_merito_rectificado`
+    sigue en **0**. B1 intacto en 528.
+    - **Cero bloqueos forzados y cero cierres transversales creados:** el cierre no generó
+      **ninguna incidencia**. Consecuencia medible y no supuesta: **el "hueco del guard de
+      empates" no aplicó a este cierre**, porque el paso que amplía el universo fue un
+      no-op y el conjunto validado por los guards es idéntico al congelado.
+    - **Secuencia que se siguió:** vencer `limite_notas` (quedó en `2026-08-10 11:50`) →
+      re-medir las 4 condiciones → verificar conducta y asistencia a mano (Fase 3.5, que
+      el cierre NO valida) → cerrar. Antes se descartó la única duda abierta: los 61 pares
+      bloqueados y vacíos son **autonomía legítima del docente**, porque B2 no es el
+      periodo final (ver la regla nueva, arriba).
+    - ⚠️ **B2 NO está publicado** (`periodos_publicacion` solo tiene las 2 filas de B1), así
+      que sigue **reversible**: el candado 046 no se activa hasta publicar.
+    - 🔴 **ABRIR B3 ES LA OTRA PUERTA DE UN SOLO SENTIDO, y no estaba documentada.** Solo
+      existen tres transiciones de estado (`abrir`, `cerrar`, `reabrir`) y **ninguna vuelve
+      a `pendiente`**; `reabrir` aborta si ya hay otro bimestre activo. Así que **en cuanto
+      se abra B3 se pierde la posibilidad de reabrir B2**, y la única salida sería cerrar un
+      B3 vacío, que forzaría bloqueos sobre todas las cargas del año y escribiría un
+      snapshot espurio. **Validar el papel ANTES de abrir B3.** B3 arrancó el 03/08.
+  - ✅ **RE-MEDICIÓN DEL 10/08/2026, ANTES DE CERRAR (copia local resincronizada con prod
+    ese mismo día) — LAS CUATRO CONDICIONES EN VERDE.** Termómetro **0**
+    (el periodo 2 no aparece en la consulta 1.1) · alerta de evaluación incompleta
+    **0 estudiantes** (`ControlOperativoModel::alertasEvaluacionIncompleta(2)`) · empates
+    **0 grados** (`OrdenMeritoModel::gradosConEmpatesPendientes(2)`) · conducta **23/23**
+    y asistencia **23/23** vivas, sin dobles. `fuePublicado(2)` = **`false`** y
+    `periodos_publicacion` sigue con solo las 2 filas de B1 → el cierre escribiría el
+    **OFICIAL** y B2 es reversible hasta que se publique. Snapshot de B1 intacto
+    (528 filas, puestos 1-72) y 0 rectificados. Marcadores de frescura de la copia:
+    050 = **275** · 048 = **0** · 051 = **0**.
+    - 🟢 **`limite_notas` de B2 ya NO está vencido: `2026-08-11 04:00`.** El plazo está
+      **abierto**, así que la edición docente sigue viva y **las cuatro cifras son un piso
+      móvil hasta esa hora**. Repetir la medición inmediatamente antes de pulsar Cerrar.
+    - 🔄 **Hay calificación en curso:** B2 pasó de 28 270 a **28 282 calificaciones**
+      (+12) y ganó **27 bloqueos** entre el 07 y el 10/08, el último movimiento el
+      **10/08 a las 10:16**. Casi todo es de la matrícula **556** (Secundaria 4.º A: CyT,
+      Matemática, Inglés y Comunicación), más 693 y 644 en Inglés de 5.º B. El patrón
+      —notas nuevas sobre pares que ya estaban bloqueados, más bloqueos nuevos— encaja con
+      **desbloquear → registrar → re-bloquear**, que es justo para lo que se amplió el
+      plazo. Los bloqueos siguen **todos con `origen='docente'`** (0 forzados por cierre).
+    - ⚠️ **556 es a la vez el peor caso de la prueba de impresión en papel** (Fase 5.5):
+      acaba de recibir notas nuevas, así que su boleta **cambió después** de que se midiera
+      su alto. Es la que hay que mirar primero al probar el A4.
   - ✅ **RE-MEDICIÓN COMPLETA DEL 07/08/2026 (local ya sincronizada con prod, con la 050
     incluida) — LAS CUATRO CONDICIONES DURAS EN VERDE. B2 SIGUE SIN CERRARSE.**
 
@@ -1738,6 +1837,21 @@ WHERE id=25;`).
     de `dev`; `php -l` limpio; 0 archivos sensibles.
   - **`main` local SÍ estaba al día esta vez** (se había puesto al corriente en el primer
     deploy del día), así que la trampa recurrente no mordió.
+- **10/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `c8fa4fd` a `945ba91`** (commit
+  de merge, 01:29). **7 commits, 9 archivos**, de los que **4 son código**:
+  `BloqueoController`, `CalificacionController`, `TransversalModel` y
+  `bloqueos/index.php`. Sin migración, sin SASS/JS.
+  - **Qué entró:** la **retirada de la cascada de desbloqueo** (desbloquear una académica
+    ya no arrastra las transversales de la carga), el fix de la URL de fallback de
+    `config/app.php` (`siga_cociap` con guion bajo), la verificación
+    `verif_desbloqueo_sin_cascada.php` y la documentación del día (el diferimiento del
+    panel de transversales y la checklist de pruebas de navegador).
+  - ⚠️ **Revierte la decisión del 07/08 de esperar al cierre de B2 para mergear.** El panel
+    de bloqueos se movió justo en el tramo en que se usa para cerrar; a cambio, las
+    correcciones de última hora de B2 ya no obligan a re-aprobar TIC/GAMA que nadie tocó.
+  - **Estado tras el deploy (verificado el 10/08):** `dev` (`bcbae78`) está **íntegramente
+    contenido en `main`** — `git rev-list --left-right --count origin/main...dev` da
+    `7 0` → **nada pendiente de desplegar y ninguna migración pendiente de aplicar**.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
