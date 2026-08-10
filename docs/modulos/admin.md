@@ -107,8 +107,53 @@ permitido y 64 cargas de B2 lo hicieron— **no había vía ninguna**.
   (GAMA) se liberan por separado. Medido: liberar una deja la otra bloqueada, conserva
   las notas y no toca las académicas de la carga.
 - **El anclaje EXIGE `a.tipo = 'transversal'`** (INNER JOIN): este endpoint no puede
-  usarse para desbloquear una académica saltándose la cascada de `desbloquear`.
-  Verificado: un `bloqueo_id` académico resuelve `null` y aborta.
+  usarse para desbloquear una académica. Verificado: un `bloqueo_id` académico resuelve
+  `null` y aborta.
+
+### LA CASCADA SE RETIRÓ — desbloquear una académica ya no toca las transversales (07/08/2026)
+
+> **Decisión del usuario:** *"en caso se desbloquee alguna competencia académica solo debe
+> desbloquear esa competencia… no importa si tenemos que hacer un clic más, lo importante
+> es la granularidad"*. **EN `dev`, SIN DESPLEGAR** — el merge espera al cierre de B2.
+
+`BloqueoController::desbloquear` hacía **tres** cosas. Ahora hace **dos**:
+
+| # | Efecto | Estado |
+|---|---|---|
+| 1 | quitar el bloqueo pedido | se mantiene |
+| 2 | `liberarTransversalesDeCarga` — borrar los TIC/GAMA de la carga | 🔴 **RETIRADO** |
+| 3 | `anularCierreVigente` — anular el cierre del tutor de la sección | **se mantiene** |
+
+**Por qué se retira el 2.** Su motivo era el de arriba: las transversales no eran filas del
+panel y quedarían *"bloqueadas e inalcanzables"*. **Ese motivo murió el 06/08** con el
+desbloqueo granular. Mantenerlo tenía dos costos: obligaba al **docente** a re-aprobar
+TIC/GAMA que nadie había tocado y —lo importante— **bajaba el numerador de
+`estadoCargasSeccion`, así que el TUTOR no podía re-cerrar hasta que el docente actuara**.
+Medido en el contraste de la verificación: el gate caía de **16/16 a 14/16**.
+
+**Por qué se mantiene el 3.** Aunque el promedio transversal **no cambia** —
+`getPromediosSeccion` solo lee bloqueos de competencias transversales, y una académica no
+lo es—, si cambian las notas del estudiante **la conclusión descriptiva del tutor puede
+dejar de ser precisa**. Es criterio pedagógico, no técnico. Y ahora es barato: con los
+bloqueos intactos el gate sigue cuadrando y el tutor **revisa y re-cierra de inmediato,
+sin depender de nadie**.
+
+- `TransversalModel::liberarTransversalesDeCarga` queda **DORMIDO** (sin llamadores) en vez
+  de borrarse, siguiendo el patrón del repo. Su docblock advierte que no se reintroduzca
+  sin decidirlo de nuevo.
+- **Textos actualizados**: el mensaje de éxito y el `confirm` de la vista anticipan que las
+  transversales NO se tocan y dicen dónde reabrirlas.
+- **La regla del tutor NO cambia**: si alguna transversal no está aprobada, sigue sin poder
+  cerrar. El gate es el mismo; solo dejamos de romperlo por accidente.
+- **Verificación:** `database/verificaciones/verif_desbloqueo_sin_cascada.php` — escribe,
+  pero todo en transacción con ROLLBACK y con guard de secretos de producción. 7 bloques:
+  transversales intactas · gate inmóvil · cierre anulado · solo cae la competencia pedida ·
+  re-bloqueo sin duplicados (`uq_bloqueo`) · rollback limpio · y un **contraste que
+  reproduce la cascada vieja** y comprueba que el gate caía. Si ese contraste dejara de
+  mostrar la caída, el cambio habría perdido su justificación.
+- ⚠️ **Cifra que conviene no repetir mal:** de las 48 anulaciones sobre 71 cierres de B2,
+  **solo 2 vinieron de este camino**; las otras 46 son `limpiarBloqueosCierre`. La
+  documentación sugería que la cascada explicaba buena parte de ellas — medido el 07/08, no.
 - **ANULA el cierre del tutor**, igual que la cascada: `getTransversalesAgregadas` exige
   cierre vigente y promedia solo lo bloqueado, así que dejarlo en pie mostraría a las
   familias un promedio que ya no se corresponde con lo bloqueado.

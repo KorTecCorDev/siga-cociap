@@ -540,7 +540,7 @@ $_oS  = round(25 - $_pB - $_pP, 2);
                             <?php elseif ($bloqueada): ?>
                                 <form method="POST"
                                       action="<?= url('director/bloqueos/' . $fila['bloqueo_id'] . '/desbloquear') ?>"
-                                      onsubmit="return confirm('Desbloquear esta competencia? El docente podra modificar las notas nuevamente.')">
+                                      onsubmit="return confirm('Desbloquear SOLO esta competencia? El docente podra modificar sus notas nuevamente. Las transversales (TIC/GAMA) de la carga NO se tocan: para reabrirlas usa el desplegable de la seccion en la pestana de transversales. El cierre del tutor quedara anulado para que revise sus conclusiones.')">
                                     <?= csrf_field() ?>
                                     <button type="submit" class="btn btn--danger btn--sm">
                                         Desbloquear

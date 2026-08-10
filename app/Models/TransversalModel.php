@@ -283,10 +283,19 @@ class TransversalModel extends BaseModel
      * académica llegó DESPUÉS que la última transversal, hasta 47 h después.
      *
      * ⚠️ CONSECUENCIA ACEPTADA: al poder cerrar antes, se alarga la ventana en la
-     * que un desbloqueo académico posterior anula el cierre en cascada
-     * (`liberarTransversalesDeCarga` + `BloqueoController::desbloquear`). B2 ya
-     * llevaba 48 anulaciones sobre 71 cierres; esto puede subir. Es reversible y
-     * con traza, pero es trabajo del tutor.
+     * que un desbloqueo académico posterior ANULA EL CIERRE del tutor
+     * (`BloqueoController::desbloquear`), que debe repetirlo. Se conserva a
+     * propósito: si cambian las notas del estudiante, su conclusión descriptiva
+     * puede dejar de ser precisa aunque el promedio transversal no se mueva.
+     *   - Desde el **07/08/2026** eso es lo ÚNICO que hace: ya NO se liberan los
+     *     bloqueos TIC/GAMA de la carga (`liberarTransversalesDeCarga` quedó
+     *     DORMIDO). Antes sí, y el efecto era que este gate bajaba su numerador
+     *     —el tutor no podía re-cerrar hasta que el DOCENTE volviera a aprobar sus
+     *     transversales—. Ahora los bloqueos quedan intactos, el gate sigue
+     *     cuadrando y el tutor re-cierra sin depender de nadie.
+     *   - Cifra que conviene no repetir mal: de las 48 anulaciones sobre 71 cierres
+     *     de B2, **solo 2 vinieron de este camino**; las otras 46 son
+     *     `limpiarBloqueosCierre` (medido el 07/08/2026).
      *
      * ⚠️ La lógica de "carga dueña" que usan total_comp y comp_bloqueadas está
      * escrita en CUATRO SITIOS (mantenerlos en sync; si cambia uno, revisar los
@@ -485,12 +494,24 @@ class TransversalModel extends BaseModel
 
     /**
      * Libera (elimina) los bloqueos de las competencias TRANSVERSALES (TIC/GAMA)
-     * de una carga en un periodo. Las transversales se registran bajo la misma
-     * carga del docente pero viven en un área tipo='transversal', así que NO
-     * aparecen como filas en el panel de bloqueos. Al desbloquear una competencia
-     * propia se liberan en cascada para que el docente pueda volver a editarlas
-     * (invariante: la carga se reabre completa, incluidas sus TIC/GAMA).
-     * Retorna cuántas se liberaron.
+     * de una carga en un periodo. Retorna cuántas se liberaron.
+     *
+     * 🔴 DORMIDO DESDE EL 07/08/2026 — SIN NINGÚN LLAMADOR, a propósito.
+     * Existía para la cascada de `BloqueoController::desbloquear`: al desbloquear
+     * una competencia académica se liberaban también las TIC/GAMA de la carga,
+     * porque no eran filas del panel y habrían quedado "bloqueadas e inalcanzables".
+     * Ese motivo murió el 06/08 con el desbloqueo granular por competencia
+     * (`liberarTransversalCompetencia`). La cascada se retiró porque obligaba al
+     * docente a re-aprobar transversales que nadie tocó y bloqueaba al tutor:
+     * al borrar esos bloqueos bajaba el numerador de `estadoCargasSeccion`, así que
+     * el tutor no podía re-cerrar hasta que el docente volviera a aprobarlas.
+     *
+     * ⚠️ NO REINTRODUCIR sin decidirlo de nuevo: la granularidad del desbloqueo
+     * transversal es una decisión explícita del usuario (07/08/2026). Si algún día
+     * hace falta "reabrir la carga completa", que sea una acción propia y declarada,
+     * no un efecto colateral de desbloquear una competencia académica.
+     * Se conserva el método (no se borra) por el patrón del repo: dormir antes que
+     * eliminar, para no perder la implementación si la decisión se revierte.
      */
     public function liberarTransversalesDeCarga(int $cargaId, int $periodoId): int
     {

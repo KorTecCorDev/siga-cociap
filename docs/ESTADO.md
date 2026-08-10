@@ -796,6 +796,100 @@
     **EXO en los 4 bimestres** y anual EXO, las 3 notas siguen vivas en la BD, y en el
     mérito su promedio de B2 baja de **13.38 a 13.21** sin que **cambie ni un puesto** en
     su grado (39 alumnos). Su puesto congelado de B1 (34, promedio 12.17) queda intacto.
+- 🟡 **DESBLOQUEAR UNA ACADÉMICA YA NO ARRASTRA LAS TRANSVERSALES — EN `dev`,
+  IMPLEMENTADO Y PROBADO, SIN DESPLEGAR (07/08/2026). Sin migración, sin SASS.**
+  Decisión del usuario: prima la **granularidad** sobre el clic de menos.
+  **El merge a `main` espera al cierre de B2** (decisión explícita: no mover el panel que
+  se usa durante el cierre). Detalle en `docs/modulos/admin.md`.
+  - `BloqueoController::desbloquear` pasa de 3 efectos a 2: se retira
+    `liberarTransversalesDeCarga`; **se conserva** la anulación del cierre del tutor.
+  - **Por qué se retira:** su motivo —que las transversales quedarían "inalcanzables"—
+    murió el 06/08 con el desbloqueo granular. Mantenerlo obligaba al docente a re-aprobar
+    TIC/GAMA que nadie tocó y **bajaba el gate del tutor**, que no podía re-cerrar hasta
+    que el docente actuara. Medido en el contraste: el gate caía de **16/16 a 14/16**.
+  - **Por qué se conserva la anulación del cierre:** el promedio transversal NO cambia
+    (`getPromediosSeccion` solo lee bloqueos transversales), pero **la conclusión
+    descriptiva del tutor puede dejar de ser precisa** si cambian las notas. Criterio
+    pedagógico del usuario. Ahora es barato: con los bloqueos intactos el tutor re-cierra
+    de inmediato.
+  - `liberarTransversalesDeCarga` queda **DORMIDO** (0 llamadores), no borrado.
+  - **Verificación:** `verif_desbloqueo_sin_cascada.php` (escribe, transacción + ROLLBACK,
+    guard de prod). **7 bloques en verde**, incluido el contraste que reproduce la cascada
+    vieja y comprueba que rompía el gate.
+  - ✅ **Corregidos de paso dos comentarios FALSOS** en `CalificacionController`: decían que
+    las transversales "se bloquean junto con la última competencia propia (Variante 1)",
+    cuando el docblock de `bloquear()` dice que desde el II Bimestre **cada competencia se
+    bloquea por separado** y ese empaquetado se retiró. Las otras 4 menciones a "Variante 1"
+    son correctas —nombran el MODELO (las transversales viven en la carga de cada docente)—
+    y no se tocaron.
+
+  #### 📋 CHECKLIST DE PRUEBAS EN NAVEGADOR — PENDIENTE (guardada el 07/08/2026)
+
+  > Escrita para ejecutarla en **el setup de casa**. Todo lo automatizable ya está en
+  > verde; esto cubre lo único que los scripts no ven: el render y el flujo real.
+
+  **PASO 0 — antes de nada, comprobar la frescura de la BD de esa máquina.**
+  ⚠️ **La BD local de cada equipo es independiente.** La de la oficina se sincronizó con
+  prod el 07/08 (trae la `050`). Si la de casa está atrasada, las cifras de abajo no
+  cuadran y **no es un bug**. Marcadores:
+
+  ```sql
+  SELECT (SELECT COUNT(*) FROM calificaciones WHERE extraordinaria = 1)              AS m050_espera_275,
+         (SELECT COUNT(*) FROM information_schema.tables
+           WHERE table_schema = DATABASE() AND table_name LIKE '\_bkp%')             AS m048_espera_0,
+         (SELECT COUNT(*) FROM bloqueos_competencia bc
+            JOIN competencias c ON c.id = bc.competencia_id
+            JOIN areas a ON a.id = c.area_id AND a.tipo = 'transversal'
+           WHERE bc.periodo_id = 2 AND bc.origen = 'cierre')                         AS m051_espera_0;
+  ```
+
+  **PASO 1 — la batería automática (un comando, todo en verde en la oficina):**
+  ```bash
+  php database/verificaciones/verif_desbloqueo_sin_cascada.php   # 7 bloques, incluye el contraste
+  php database/verificaciones/verif_transversales_fantasma.php   # 345 = 345, 690 intactos
+  php database/verificaciones/verif_asistencia_sin_registro.php  # F1
+  ```
+
+  **BLOQUE 1 — el desbloqueo académico ya no arrastra transversales**
+  1. `/director/bloqueos` con **B2** → desbloquear una competencia **académica** de una
+     carga que tenga TIC/GAMA bloqueadas. El `confirm` debe avisar que las transversales
+     NO se tocan.
+  2. En la pestaña **Competencias transversales**, abrir el desplegable de esa sección:
+     sus **TIC/GAMA siguen bloqueadas**.
+  3. Entrar como el **tutor** de esa sección: la tabla de promedios debe seguir
+     **habilitada** (no en badge *Provisional*) y debe poder **cerrar sin esperar al
+     docente**. ← *es la mejora principal; antes quedaba bloqueado.*
+
+  **BLOQUE 2 — el cierre del tutor sí se anuló**
+  4. En el panel, esa sección debe aparecer **sin cierre vigente** (con el botón *Cerrar*
+     disponible).
+
+  **BLOQUE 3 — la granularidad sigue intacta**
+  5. Liberar **una** transversal desde el desplegable: la otra queda bloqueada y las
+     académicas de la carga no se tocan.
+
+  **BLOQUE 4 — el docente**
+  6. Como docente de esa carga: la competencia desbloqueada **editable**, sus TIC/GAMA en
+     **solo lectura**.
+
+  **BLOQUE 5 — deuda anterior, aprovechando el turno (P1 #7)**
+  7. `/admin/boletas-publicas/{id}` → botón **📄 Borradores**: comprobar que el **ZIP
+     descarga bien en el navegador**. Verificado en servidor (3 boletas → 3 marcas, 0 QR),
+     **nunca en navegador**. Es lo único que quedaba del P1.
+
+  ⚠️ **Nada de esto se despliega todavía**: el merge a `main` espera al cierre de B2.
+- **PANEL DE TRANSVERSALES COMPLETO + PUNTO ÚNICO DE "CARGA DUEÑA" — DIFERIDO AL AÑO
+  ACADÉMICO SIGUIENTE (decisión del usuario, 07/08/2026).** El gestor de bloqueos
+  transversales solo muestra lo aprobado y bloqueado (`getBloqueosTransversalesPorPeriodo`
+  arranca `FROM bloqueos_competencia`), y debería mostrar todo diferenciado por estado como
+  el panel académico. **Análisis completo y medido en
+  `docs/decisiones-diferidas.md`** — no re-derivarlo. En una línea: sería la **quinta copia**
+  de la regla de carga dueña (la cuarta divergente creó los 130 fantasmas), **hoy no
+  aportaría información** (en B2 las 690 filas del universo están todas en un mismo estado)
+  y **en B1 mentiría** (sus 1052 notas viven en 23 cargas `inactiva` del modelo viejo,
+  y el panel nuevo escondería los 130 fantasmas que B1 conserva). Toca
+  `estadoCargasSeccion`, el gate del cierre del tutor. **Va junto con la F1 del plan de los
+  4 registros**, que es un punto único sobre el mismo territorio.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
@@ -1628,6 +1722,22 @@ WHERE id=25;`).
     `RectificacionController` (pierde el suyo, privado — era obligatorio: un `private` en la
     hija choca con el `protected` de la base y da fatal error de compatibilidad de acceso).
     **Nada toca el camino del cierre de bimestre.**
+- **07/08/2026 — SEGUNDO DEPLOY DEL DÍA: `origin/main` pasó de `2242ec7` a `c8fa4fd`**
+  (commit de merge). **6 commits**, 8 archivos, de los que solo **3 son código**:
+  `AsistenciaModel`, `BoletaModel` y `boleta/digital.php`. Sin migración, sin SASS/JS.
+  - **Qué entró:** **F1** (la asistencia de un bimestre sin registro sale en guion) y el
+    **sello del director fuera de borrador y vista previa**, más la documentación del día
+    (Hito A en el runbook, señal 1.1-bis por competencia, corrección de la causa de los
+    fantasmas).
+  - **Validado por el usuario en navegador ANTES del merge**, en 4 bloques: el caso 694
+    (guion en B1 y `0` en B2), el control 556 sin cambios, el retorno #1 con sus dos
+    bimestres con dato, y el pie de la boleta digital sin sello y sin descuadre.
+  - **Batería previa, toda en verde:** `verif_asistencia_sin_registro` (nuevo),
+    `verif_asistencia_boleta`, `verif_estructura_boleta`, `verif_plan_completo_boleta`
+    (1965 filas de nota, 0 perdidas) y `verif_retorno_grado`. Árbol de `main` idéntico al
+    de `dev`; `php -l` limpio; 0 archivos sensibles.
+  - **`main` local SÍ estaba al día esta vez** (se había puesto al corriente en el primer
+    deploy del día), así que la trampa recurrente no mordió.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
