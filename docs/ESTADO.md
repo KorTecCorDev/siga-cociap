@@ -1853,6 +1853,25 @@ WHERE id=25;`).
     contenido en `main`** — `git rev-list --left-right --count origin/main...dev` da
     `7 0` → **nada pendiente de desplegar y ninguna migración pendiente de aplicar**.
 
+- **10/08/2026 — SEGUNDO DEPLOY DEL DÍA: `origin/main` pasó de `945ba91` a `992a350`**
+  (commit de merge). **6 commits, 7 archivos**, de los que **uno solo es código**:
+  `_boleta.scss` con su `app.css` recompilado. Sin migración.
+  - **Qué entró:** la **conclusión descriptiva de la boleta pasa a una línea**, que es lo
+    que devuelve los ~15.8mm que hacían caer el bloque de firmas a una segunda hoja en
+    secundaria. Más el **seeder del peor caso** (script CLI, no toca runtime) y la
+    documentación del día: el cierre de B2, la regla del periodo final, el logro anual y
+    el orden de mérito en boleta como decisión diferida.
+  - **Validado en papel por el usuario ANTES del merge**, contra el peor caso posible
+    generado por el seeder (29 filas, todas en C, conclusiones de 500 caracteres, los 4
+    bimestres y logro anual), no contra una boleta real.
+  - **Verificado antes de pushear:** `main` local **sí** estaba al día con `origin/main`
+    (la trampa recurrente no mordió), `php -l` limpio, **0 archivos sensibles** en el diff,
+    **`gulp build` reproduce `public/css/app.css` byte a byte** con lo commiteado y el
+    árbol de `main` quedó idéntico al de `dev`.
+  - ⚠️ **El deploy era condición para IMPRIMIR, no para cerrar.** Producción venía con la
+    conclusión a dos líneas: sin este lote, las boletas de secundaria de B2 se habrían
+    entregado con las firmas en una segunda hoja.
+
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
   de B1.** Su paso 4 "autolimpieza" hacía `DELETE` ciego de `orden_merito_snapshot` y
