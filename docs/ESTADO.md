@@ -3,6 +3,39 @@
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **10/08/2026**.
 
+## ⏱️ CÓMO RETOMAR EN OTRA MÁQUINA (escrito el 10/08/2026)
+
+⚠️ **La BD local de cada equipo es independiente y se resincroniza a mano.** Antes de creer
+una sola cifra, correr esto y comparar con la columna "esperado":
+
+```sql
+SELECT DATABASE() db, USER() usr, @@hostname host, @@version_compile_os so;
+SELECT numero, estado, limite_notas FROM periodos ORDER BY numero;
+SELECT (SELECT COUNT(*) FROM calificaciones WHERE extraordinaria = 1)            AS m050,
+       (SELECT COUNT(*) FROM information_schema.tables
+         WHERE table_schema = DATABASE() AND table_name LIKE '\_bkp%')           AS m048,
+       (SELECT COUNT(*) FROM orden_merito_snapshot WHERE periodo_id = 2)         AS snap_b2,
+       (SELECT COUNT(*) FROM periodos_publicacion WHERE periodo_id = 2)          AS publicado_b2;
+```
+
+| Marcador | Esperado si la copia está al día |
+|---|---|
+| `m050` (extraordinarias de Ética) | **275** |
+| `m048` (tablas `_bkp`) | **0** |
+| `snap_b2` (snapshot oficial de B2) | **524** |
+| `publicado_b2` (filas de publicación) | **2** (un nivel cada una) |
+| Estados de periodo | B1 `cerrado` · B2 `cerrado` · **B3 `activo`** · B4 `pendiente` |
+
+**Si `snap_b2` da 0 o B3 sigue `pendiente`, la copia es ANTERIOR al 10/08** y no sirve para
+medir nada de lo de abajo: resincronizar desde producción primero.
+
+**Estado del repo al cerrar la sesión:** `dev` y `main` con el mismo árbol, todo pusheado,
+**sin migración pendiente** y sin código sin desplegar. Producción en `992a350`.
+
+**Lo primero que toca al retomar:** los dos pendientes inmediatos del cierre —capturar en
+PROD las cifras del snapshot de B2 y confirmar el `limite_notas` de B3— y después el
+siguiente hito con fecha, la **regla del periodo final** (tope 05/10/2026).
+
 ## Migraciones
 - **`051_limpieza_bloqueos_transversales_fantasma`** (06/08): corrección de DATOS (no toca
   esquema). Borra los bloqueos transversales que el **cierre forzado** creó en **B2** sobre
