@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **07/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **10/08/2026**.
 
 ## Migraciones
 - **`051_limpieza_bloqueos_transversales_fantasma`** (06/08): corrección de DATOS (no toca
@@ -510,9 +510,10 @@
     transversal / etapa 1 / etapa 2 / asistencia): no destruyen nada y son la vía para
     recomponer lo que haya quedado sin bloqueo por un desbloqueo anterior al fix.
   - **Contexto operativo que lo motivó:** el usuario necesita poder desbloquear una
-    competencia si un docente se equivocó. Con B2 **activo** eso funciona, pero ⚠️
-    `limite_notas` sigue **vencido** (04/08 23:59): hay que **ampliarlo** desde
-    `/director/anios/1` o el docente no podrá editar aunque se desbloquee.
+    competencia si un docente se equivocó. Con B2 **activo** eso funciona, pero hace falta
+    que `limite_notas` esté vigente o el docente no podrá editar aunque se desbloquee.
+    *(Estaba vencido el 04/08 23:59; **ampliado a `2026-08-11 04:00`**, medido el 10/08 —
+    la vía es `/director/anios/1`.)*
   - **La ventana barata para corregir es entre CERRAR y PUBLICAR:** ahí reabrir → corregir
     → re-cerrar todavía actualiza el snapshot **oficial** del mérito. Tras publicar, el
     candado 046 lo congela y la corrección va a `orden_merito_rectificado` (no oficial).
@@ -796,11 +797,14 @@
     **EXO en los 4 bimestres** y anual EXO, las 3 notas siguen vivas en la BD, y en el
     mérito su promedio de B2 baja de **13.38 a 13.21** sin que **cambie ni un puesto** en
     su grado (39 alumnos). Su puesto congelado de B1 (34, promedio 12.17) queda intacto.
-- 🟡 **DESBLOQUEAR UNA ACADÉMICA YA NO ARRASTRA LAS TRANSVERSALES — EN `dev`,
-  IMPLEMENTADO Y PROBADO, SIN DESPLEGAR (07/08/2026). Sin migración, sin SASS.**
-  Decisión del usuario: prima la **granularidad** sobre el clic de menos.
-  **El merge a `main` espera al cierre de B2** (decisión explícita: no mover el panel que
-  se usa durante el cierre). Detalle en `docs/modulos/admin.md`.
+- ✅ **DESBLOQUEAR UNA ACADÉMICA YA NO ARRASTRA LAS TRANSVERSALES — EN PRODUCCIÓN
+  (implementado y probado el 07/08/2026, desplegado el 10/08 en `945ba91`). Sin migración,
+  sin SASS.** Decisión del usuario: prima la **granularidad** sobre el clic de menos.
+  Detalle en `docs/modulos/admin.md`.
+  - ⚠️ **Se desplegó ANTES del cierre de B2, revirtiendo la decisión del 07/08** («el merge
+    espera al cierre; no mover el panel que se usa durante el cierre»). El panel de bloqueos
+    quedó tocado en el mismo tramo en que se usa para cerrar — riesgo asumido a cambio de
+    poder desbloquear sin arrastrar transversales durante las últimas correcciones de B2.
   - `BloqueoController::desbloquear` pasa de 3 efectos a 2: se retira
     `liberarTransversalesDeCarga`; **se conserva** la anulación del cierre del tutor.
   - **Por qué se retira:** su motivo —que las transversales quedarían "inalcanzables"—
@@ -877,7 +881,9 @@
      descarga bien en el navegador**. Verificado en servidor (3 boletas → 3 marcas, 0 QR),
      **nunca en navegador**. Es lo único que quedaba del P1.
 
-  ⚠️ **Nada de esto se despliega todavía**: el merge a `main` espera al cierre de B2.
+  ⚠️ **Actualización 10/08:** el lote **ya está en producción** (`945ba91`), así que esta
+  checklist dejó de ser una condición previa al deploy y pasó a ser **verificación de lo
+  que ya corre en prod**. El BLOQUE 5 (ZIP de borradores en navegador) sigue **sin probar**.
 - **PANEL DE TRANSVERSALES COMPLETO + PUNTO ÚNICO DE "CARGA DUEÑA" — DIFERIDO AL AÑO
   ACADÉMICO SIGUIENTE (decisión del usuario, 07/08/2026).** El gestor de bloqueos
   transversales solo muestra lo aprobado y bloqueado (`getBloqueosTransversalesPorPeriodo`
@@ -1401,6 +1407,29 @@ WHERE id=25;`).
   del cierre (F4) NO se comportan igual, así que el orden importa:
   **docentes terminan de calificar y bloquear → deploy del rediseño 2 → medir →
   resolver → cerrar.**
+  - ✅ **RE-MEDICIÓN DEL 10/08/2026 (copia local resincronizada con prod ese mismo día) —
+    LAS CUATRO CONDICIONES SIGUEN EN VERDE. B2 SIGUE SIN CERRARSE.** Termómetro **0**
+    (el periodo 2 no aparece en la consulta 1.1) · alerta de evaluación incompleta
+    **0 estudiantes** (`ControlOperativoModel::alertasEvaluacionIncompleta(2)`) · empates
+    **0 grados** (`OrdenMeritoModel::gradosConEmpatesPendientes(2)`) · conducta **23/23**
+    y asistencia **23/23** vivas, sin dobles. `fuePublicado(2)` = **`false`** y
+    `periodos_publicacion` sigue con solo las 2 filas de B1 → el cierre escribiría el
+    **OFICIAL** y B2 es reversible hasta que se publique. Snapshot de B1 intacto
+    (528 filas, puestos 1-72) y 0 rectificados. Marcadores de frescura de la copia:
+    050 = **275** · 048 = **0** · 051 = **0**.
+    - 🟢 **`limite_notas` de B2 ya NO está vencido: `2026-08-11 04:00`.** El plazo está
+      **abierto**, así que la edición docente sigue viva y **las cuatro cifras son un piso
+      móvil hasta esa hora**. Repetir la medición inmediatamente antes de pulsar Cerrar.
+    - 🔄 **Hay calificación en curso:** B2 pasó de 28 270 a **28 282 calificaciones**
+      (+12) y ganó **27 bloqueos** entre el 07 y el 10/08, el último movimiento el
+      **10/08 a las 10:16**. Casi todo es de la matrícula **556** (Secundaria 4.º A: CyT,
+      Matemática, Inglés y Comunicación), más 693 y 644 en Inglés de 5.º B. El patrón
+      —notas nuevas sobre pares que ya estaban bloqueados, más bloqueos nuevos— encaja con
+      **desbloquear → registrar → re-bloquear**, que es justo para lo que se amplió el
+      plazo. Los bloqueos siguen **todos con `origen='docente'`** (0 forzados por cierre).
+    - ⚠️ **556 es a la vez el peor caso de la prueba de impresión en papel** (Fase 5.5):
+      acaba de recibir notas nuevas, así que su boleta **cambió después** de que se midiera
+      su alto. Es la que hay que mirar primero al probar el A4.
   - ✅ **RE-MEDICIÓN COMPLETA DEL 07/08/2026 (local ya sincronizada con prod, con la 050
     incluida) — LAS CUATRO CONDICIONES DURAS EN VERDE. B2 SIGUE SIN CERRARSE.**
 
@@ -1738,6 +1767,21 @@ WHERE id=25;`).
     de `dev`; `php -l` limpio; 0 archivos sensibles.
   - **`main` local SÍ estaba al día esta vez** (se había puesto al corriente en el primer
     deploy del día), así que la trampa recurrente no mordió.
+- **10/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `c8fa4fd` a `945ba91`** (commit
+  de merge, 01:29). **7 commits, 9 archivos**, de los que **4 son código**:
+  `BloqueoController`, `CalificacionController`, `TransversalModel` y
+  `bloqueos/index.php`. Sin migración, sin SASS/JS.
+  - **Qué entró:** la **retirada de la cascada de desbloqueo** (desbloquear una académica
+    ya no arrastra las transversales de la carga), el fix de la URL de fallback de
+    `config/app.php` (`siga_cociap` con guion bajo), la verificación
+    `verif_desbloqueo_sin_cascada.php` y la documentación del día (el diferimiento del
+    panel de transversales y la checklist de pruebas de navegador).
+  - ⚠️ **Revierte la decisión del 07/08 de esperar al cierre de B2 para mergear.** El panel
+    de bloqueos se movió justo en el tramo en que se usa para cerrar; a cambio, las
+    correcciones de última hora de B2 ya no obligan a re-aprobar TIC/GAMA que nadie tocó.
+  - **Estado tras el deploy (verificado el 10/08):** `dev` (`bcbae78`) está **íntegramente
+    contenido en `main`** — `git rev-list --left-right --count origin/main...dev` da
+    `7 0` → **nada pendiente de desplegar y ninguna migración pendiente de aplicar**.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
