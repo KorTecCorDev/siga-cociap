@@ -506,6 +506,39 @@ Cuando Dirección lo decida, no como parte del cierre.
 RA puede imprimir boletas antes de la reunión de entrega sin publicar: el umbral
 `'archivo'` ignora la compuerta a propósito.
 
+## Fase 7 — Abrir el bimestre siguiente
+
+- [ ] `/director/anios/{anio}` → **Abrir** el bimestre siguiente. **Solo funciona con el
+      anterior ya CERRADO**: `abrir()` aborta si hay cualquier otro bimestre `activo`.
+- [ ] **Fijar su `limite_notas`.** Un bimestre recién creado lo tiene en **NULL**, y
+      `periodoEstaBloqueado` con NULL devuelve `false` → los docentes **sí** pueden
+      registrar, pero **sin ninguna fecha límite**. Es el problema inverso al de B2, cuyo
+      plazo vencido cortó la captura de asistencia sin que nadie lo notara.
+
+## ⚠️ LAS DOS PUERTAS DE UN SOLO SENTIDO (hallazgo del 10/08/2026)
+
+El cierre en sí **no** es irreversible. Lo son estas dos, y conviene saber cuál cierra qué:
+
+| Acción | Qué clausura | Reversible mientras… |
+|---|---|---|
+| **Publicar** el bimestre | el snapshot **oficial** del mérito (candado 046) | no se haya publicado |
+| **Abrir** el bimestre siguiente | la posibilidad de **REABRIR** el que cerraste | el siguiente siga `pendiente` |
+
+- **Por qué abrir el siguiente clausura al anterior:** solo existen tres transiciones de
+  estado (`abrir`, `cerrar`, `reabrir`) y **ninguna vuelve a `pendiente`**; `reabrir` aborta
+  si ya hay otro bimestre activo. La única forma de deshacerlo sería **cerrar un bimestre
+  vacío**, que forzaría bloqueos sobre todas las cargas del año y escribiría un snapshot
+  espurio. **No lo hagas.**
+- ✅ **Pero el costo es MENOR de lo que parece: corregir una nota NO exige reabrir.**
+  `RectificacionModel` filtra explícitamente `per.estado = 'cerrado' OR bc.competencia_id
+  IS NOT NULL` — la Rectificación existe justamente para eso, deja traza y regenera el
+  ranking (oficial si el periodo no se publicó; rectificado si ya sí). Lo que se pierde al
+  abrir el siguiente es la **edición masiva por los docentes**, no la corrección puntual.
+- **Orden recomendado:** cerrar → *(deploy si hay cambios de documento pendientes)* →
+  imprimir y validar el papel → publicar → abrir el siguiente. La ventana entre **cerrar** y
+  **publicar** es la barata: ahí reabrir → corregir → re-cerrar todavía actualiza el
+  snapshot **oficial**, y el único costo es que las boletas vuelven a BORRADOR.
+
 ---
 
 ## Criterios de ABORTO

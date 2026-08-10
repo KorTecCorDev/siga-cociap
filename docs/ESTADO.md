@@ -1456,7 +1456,29 @@ WHERE id=25;`).
   del cierre (F4) NO se comportan igual, así que el orden importa:
   **docentes terminan de calificar y bloquear → deploy del rediseño 2 → medir →
   resolver → cerrar.**
-  - 🎉 **B2 CERRADO EL 10/08/2026 — el cierre salió limpio y sin incidencias.** El
+  - 🎉🎉 **B2 CERRADO Y PUBLICADO EN PRODUCCIÓN EL 10/08/2026, Y B3 ABIERTO. CICLO
+    COMPLETO.** Confirmado por el usuario: los cuatro pasos salieron bien —cerrar B2,
+    abrir B3, imprimir y validar el papel con el código nuevo ya desplegado (`992a350`),
+    y publicar B2 por nivel—.
+    - ⚠️ **EL CANDADO 046 YA ESTÁ ACTIVO.** Al publicarse, el snapshot oficial de B2 quedó
+      **INMUTABLE para siempre**: cierres o rectificaciones posteriores irán a
+      `orden_merito_rectificado` (visible solo en `/admin/control`), nunca al oficial.
+    - 🔴 **QUEDA UNA VERIFICACIÓN SIN CAPTURAR, y ahora importa más que antes:** las cifras
+      del snapshot de B2 **en producción** no se recogieron en la sesión. El espejo local
+      predecía **524 filas / 11 grados / 23 secciones / puestos 1-72** y **0 bloqueos con
+      `origen='cierre'`**. Conviene confirmarlo allí de una vez —es solo lectura— porque
+      con el candado puesto una discrepancia ya **no se puede corregir en el oficial**.
+      Vale la regla de trazabilidad de la 048: una operación solo se da por verificada en
+      el entorno donde se capturó su salida.
+    - ⚠️ **`limite_notas` de B3 estaba en NULL** al abrirlo. Con NULL,
+      `periodoEstaBloqueado` devuelve `false` → los docentes **sí** registran, pero **sin
+      fecha límite**. Verificar que se le haya fijado una.
+    - **Antes de esto hubo un cierre EN LOCAL** (mismo día): se cerró B2 en la copia y se
+      dio por hecho en producción. Se detectó al preguntarlo explícitamente y se rehizo
+      donde correspondía. Es exactamente la trampa de la 048 —la salida es idéntica en los
+      dos entornos— y se resolvió resincronizando local desde prod y midiendo de nuevo.
+  - 🎉 **B2 CERRADO EN LOCAL EL 10/08/2026 (ensayo) — el cierre salió limpio y sin
+    incidencias.** El
     snapshot **OFICIAL** de B2 quedó en **524 filas / 11 grados / 23 secciones / puestos
     1-72**, exactamente lo que había predicho el simulacro, y `orden_merito_rectificado`
     sigue en **0**. B1 intacto en 528.
@@ -1677,6 +1699,16 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
+- ✅ **10/08/2026 — CIERRE, ENTREGA Y PUBLICACIÓN DEL II BIMESTRE. Ciclo completo.**
+  B2 cerrado y publicado en producción, B3 abierto y activo para los docentes, y la boleta
+  corregida para caber en una hoja A4 (deploy `992a350`). Es el primer bimestre que recorre
+  entero el flujo nuevo: compuerta de publicación, snapshot oficial inmutable y las dos
+  puertas de un solo sentido documentadas en el runbook.
+  - **Pendiente inmediato:** capturar en PROD las cifras del snapshot de B2 (esperado
+    **524 / 11 / 23 / 1-72**, 0 bloqueos `origen='cierre'`) y confirmar que B3 tiene
+    `limite_notas` fijado.
+  - **Siguiente hito del calendario:** **05/10/2026**, inicio del IV Bimestre — fecha tope
+    de la regla del periodo final (ver Pendientes de desarrollo).
 - ~~**31/07/2026 — CIERRE DE NOTAS DE LOS DOCENTES (II Bimestre).**~~ **CUMPLIDA.**
   Era la fecha límite para que terminaran de calificar y **bloquear**. Medido el
   **04/08/2026**: termómetro de bloqueos **B2 = 0** (1 283 bloqueos, todos con
