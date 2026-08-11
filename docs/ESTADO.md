@@ -3,6 +3,39 @@
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **10/08/2026**.
 
+## ⏱️ CÓMO RETOMAR EN OTRA MÁQUINA (escrito el 10/08/2026)
+
+⚠️ **La BD local de cada equipo es independiente y se resincroniza a mano.** Antes de creer
+una sola cifra, correr esto y comparar con la columna "esperado":
+
+```sql
+SELECT DATABASE() db, USER() usr, @@hostname host, @@version_compile_os so;
+SELECT numero, estado, limite_notas FROM periodos ORDER BY numero;
+SELECT (SELECT COUNT(*) FROM calificaciones WHERE extraordinaria = 1)            AS m050,
+       (SELECT COUNT(*) FROM information_schema.tables
+         WHERE table_schema = DATABASE() AND table_name LIKE '\_bkp%')           AS m048,
+       (SELECT COUNT(*) FROM orden_merito_snapshot WHERE periodo_id = 2)         AS snap_b2,
+       (SELECT COUNT(*) FROM periodos_publicacion WHERE periodo_id = 2)          AS publicado_b2;
+```
+
+| Marcador | Esperado si la copia está al día |
+|---|---|
+| `m050` (extraordinarias de Ética) | **275** |
+| `m048` (tablas `_bkp`) | **0** |
+| `snap_b2` (snapshot oficial de B2) | **524** |
+| `publicado_b2` (filas de publicación) | **2** (un nivel cada una) |
+| Estados de periodo | B1 `cerrado` · B2 `cerrado` · **B3 `activo`** · B4 `pendiente` |
+
+**Si `snap_b2` da 0 o B3 sigue `pendiente`, la copia es ANTERIOR al 10/08** y no sirve para
+medir nada de lo de abajo: resincronizar desde producción primero.
+
+**Estado del repo al cerrar la sesión:** `dev` y `main` con el mismo árbol, todo pusheado,
+**sin migración pendiente** y sin código sin desplegar. Producción en `992a350`.
+
+**Lo primero que toca al retomar:** los dos pendientes inmediatos del cierre —capturar en
+PROD las cifras del snapshot de B2 y confirmar el `limite_notas` de B3— y después el
+siguiente hito con fecha, la **regla del periodo final** (tope 05/10/2026).
+
 ## Migraciones
 - **`051_limpieza_bloqueos_transversales_fantasma`** (06/08): corrección de DATOS (no toca
   esquema). Borra los bloqueos transversales que el **cierre forzado** creó en **B2** sobre
@@ -503,7 +536,12 @@
     guard de bimestre cerrado**: existe para el bimestre abierto. Su destino es el
     **Drive institucional**, para recoger el visto bueno de los docentes antes de
     cerrar. Verificado en servidor (3 boletas → 3 marcas, 0 QR, ZIP correcto) y que el
-    modo Archivar sigue intacto. **Falta probar la descarga real en el navegador.**
+    modo Archivar sigue intacto.
+    ✅ **PROBADO EN NAVEGADOR POR EL USUARIO EL 10/08/2026: TODO CORRECTO.** Cubrió las
+    tres pruebas: sección chica (Primaria 2.º A), sección grande con el peor caso de
+    contenido (Secundaria 4.º A, que contiene la matrícula **556**) y el caso de uso real
+    sobre el **bimestre ABIERTO** (B3). ZIP descargado, carpetas `NIVEL/GRADO_SECCION`,
+    sufijo `_BORRADOR`, marca de agua presente y **0 QR / 0 sello** en los PDFs.
     Ver `docs/modulos/boletas.md`.
   - **BANNER DE BORRADOR ELIMINADO (05/08).** En la vista previa de RA las firmas se
     fueron a una segunda hoja (visto en Secundaria 4.º A): el banner costaba **~6 mm**,
@@ -921,14 +959,19 @@
   6. Como docente de esa carga: la competencia desbloqueada **editable**, sus TIC/GAMA en
      **solo lectura**.
 
-  **BLOQUE 5 — deuda anterior, aprovechando el turno (P1 #7)**
+  **BLOQUE 5 — deuda anterior, aprovechando el turno (P1 #7)** ✅ **HECHO 10/08/2026**
   7. `/admin/boletas-publicas/{id}` → botón **📄 Borradores**: comprobar que el **ZIP
-     descarga bien en el navegador**. Verificado en servidor (3 boletas → 3 marcas, 0 QR),
-     **nunca en navegador**. Es lo único que quedaba del P1.
+     descarga bien en el navegador**. Era lo único que quedaba del P1.
 
   ⚠️ **Actualización 10/08:** el lote **ya está en producción** (`945ba91`), así que esta
   checklist dejó de ser una condición previa al deploy y pasó a ser **verificación de lo
-  que ya corre en prod**. El BLOQUE 5 (ZIP de borradores en navegador) sigue **sin probar**.
+  que ya corre en prod**.
+  ✅ **CHECKLIST COMPLETA — el BLOQUE 5 se probó el 10/08/2026 y salió correcto**, así que
+  ya no queda ningún punto de esta lista sin ejecutar.
+  - **El botón es SIEMPRE por sección** (`?seccion_id=N` en la vista del periodo): desde la
+    UI no hay forma de lanzar el lote completo. ⚠️ La ruta **sin** `seccion_id` sí existe y
+    procesaría las ~524 matrículas del periodo en una sola pestaña — html2pdf renderiza en
+    el cliente, así que es la vía rápida a colgar el navegador. No enlazarla nunca.
 - **PANEL DE TRANSVERSALES COMPLETO + PUNTO ÚNICO DE "CARGA DUEÑA" — DIFERIDO AL AÑO
   ACADÉMICO SIGUIENTE (decisión del usuario, 07/08/2026).** El gestor de bloqueos
   transversales solo muestra lo aprobado y bloqueado (`getBloqueosTransversalesPorPeriodo`
@@ -941,6 +984,61 @@
   y el panel nuevo escondería los 130 fantasmas que B1 conserva). Toca
   `estadoCargasSeccion`, el gate del cierre del tutor. **Va junto con la F1 del plan de los
   4 registros**, que es un punto único sobre el mismo territorio.
+- ✅ **EL MySQL DE PROD CORRE EN UTC (5 h ADELANTADO) Y DOS CONSULTAS LO IGNORABAN —
+  HALLADO Y CORREGIDO EL 10/08/2026, en `dev`, SIN MIGRACIÓN y sin SASS. SIN DESPLEGAR.**
+  - **El arreglo:** las dos consultas pasan a recibir el "ahora" **como parámetro
+    preparado calculado en PHP** (`date('Y-m-d H:i:s')` con `America/Lima`), que es el
+    patrón que ya seguía `PublicacionBoletaModel` y que su docblock documentaba. Dos
+    líneas de SQL y sus comentarios; ninguna interfaz pública cambia.
+  - **Verificación:** `database/verificaciones/verif_flag_editable_timezone.php`
+    (transacción + ROLLBACK, guard de prod). Los dos flags siguen al guard real en las
+    **cuatro fronteras** del `limite_notas`, y su **paso 2 fuerza la sesión MySQL a UTC**
+    para reproducir producción: allí el `NOW()` viejo dice **NO editable** donde el guard
+    real y el flag nuevo dicen **editable**. Si el `NOW()` viejo no llegara a diferir, el
+    script lo declara **fallo de control** — sin ese paso no probaría nada, porque en
+    local el desfase es 0.
+  - ⚠️ **En local NO se reproduce** (XAMPP va en hora del sistema): cualquier prueba
+    manual del flag en local da lo mismo antes y después del fix.
+  Huella capturada en prod: `NOW()` marcó **2026-08-11 01:51** cuando en Perú eran las
+  **20:51 del 10**. En local el desfase es **0** (XAMPP va en hora del sistema), así que
+  esto **no se reproduce en local**.
+  - **Los guards de escritura están BIEN**: `CalificacionModel::periodoEstaBloqueado`
+    (`strtotime() < time()`), `ConductaModel::periodoEditable` y
+    `PublicacionBoletaModel::ahora()` resuelven el "ahora" en **PHP** con `America/Lima`.
+    El docblock de `PublicacionBoletaModel` ya advertía la trampa por escrito.
+  - **Las dos que no:** `AsistenciaModel.php:50` y `ConductaModel.php:53` calculan su
+    columna `editable` con `NOW() <= p.limite_notas` **en SQL**. En prod eso cierra la
+    ventana **5 horas antes** que el guard real: durante ese rato la UI muestra el
+    bimestre como no editable mientras el servidor **sí** aceptaría la escritura.
+  - **Sentido del error: conservador** (nunca abre lo que debería estar cerrado), y por
+    eso ha pasado desapercibido. Pero es incoherencia entre lo que la pantalla dice y lo
+    que el sistema hace, justo en el patrón que ya mordió el 04/08 con la asistencia de
+    B2 («el plazo venció sin que nadie lo notara»).
+  - ⚠️ **Al fijar un `limite_notas` a primera hora de la madrugada el margen se come
+    entero**: un límite a las 04:00 de Lima deja la UI de asistencia/conducta en "no
+    editable" desde las 23:00 del día anterior.
+  - **Regla para cualquier consulta o script nuevo:** el "ahora" de estos criterios se
+    resuelve en PHP, o en SQL con `UTC_TIMESTAMP() - INTERVAL 5 HOUR` (Perú no aplica
+    horario de verano). **Nunca `NOW()`.** Aplicado ya en
+    `database/verificaciones/verif_post_cierre_bimestre.sql`, cuyo bloque 0 devuelve el
+    `desfase_horas` del entorno.
+  - 🔎 **Barrido hecho al corregirlo (10/08):** son las **únicas dos** comparaciones de
+    `limite_notas` contra `NOW()` en `app/`. El resto de criterios temporales de plazos ya
+    se resolvían en PHP.
+  - 🔴 **CONSECUENCIA MAYOR, MEDIDA Y NO ABORDADA: EN PROD CONVIVEN DOS HUSOS DENTRO DE LA
+    MISMA TABLA.** Las columnas con `DEFAULT CURRENT_TIMESTAMP` las sella el **motor**, o
+    sea en **UTC** (verificado en la migración 044: `periodos_publicacion.creado_en`; y en
+    la 023: `orden_merito_snapshot.generado_en`), mientras que las fechas que teclea un
+    humano o calcula PHP —`publica_en`, `limite_notas`— están en **hora de Lima**.
+    - **Efecto inmediato en la lectura de lo capturado hoy:** el `generado_en` del snapshot
+      de B2 (**17:28:00**) y el `creado_en` de la publicación (**17:32:01**) son **UTC** →
+      en hora de Perú fueron las **12:28** y las **12:32**. Ninguna conclusión de esta
+      sesión cambia (ambas salen del mismo reloj y el orden relativo se mantiene), pero
+      **las horas de auditoría no se leen como hora local**.
+    - **Regla:** antes de comparar una columna sellada por el motor contra una hora
+      calculada en PHP —o de mostrarla a un usuario— convertirla. Corregir el huso de esas
+      columnas es un trabajo aparte, **no evaluado**: son muchas tablas y cambiaría el
+      significado de datos ya escritos.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
@@ -1456,7 +1554,57 @@ WHERE id=25;`).
   del cierre (F4) NO se comportan igual, así que el orden importa:
   **docentes terminan de calificar y bloquear → deploy del rediseño 2 → medir →
   resolver → cerrar.**
-  - 🎉 **B2 CERRADO EL 10/08/2026 — el cierre salió limpio y sin incidencias.** El
+  - 🎉🎉 **B2 CERRADO Y PUBLICADO EN PRODUCCIÓN EL 10/08/2026, Y B3 ABIERTO. CICLO
+    COMPLETO.** Confirmado por el usuario: los cuatro pasos salieron bien —cerrar B2,
+    abrir B3, imprimir y validar el papel con el código nuevo ya desplegado (`992a350`),
+    y publicar B2 por nivel—.
+    - ⚠️ **EL CANDADO 046 SE ACTIVA AL PUBLICAR… PERO NO SIEMPRE EN EL ACTO** (matiz
+      medido en el código el 10/08/2026 — **la afirmación anterior de esta línea, «ya está
+      activo», era prematura**). `fuePublicado()` es
+      `primera_publicacion_en IS NOT NULL OR publica_en <= NOW()`, y el sello
+      `primera_publicacion_en` **solo se escribe cuando la publicación es INMEDIATA**
+      (`publicar()` lo pone a NULL si `publica_en` es futuro, y el `COALESCE` del upsert
+      nunca lo rellena después). **Una publicación PROGRAMADA a futuro deja el snapshot
+      oficial todavía corregible** hasta que llegue su hora, y ahí el candado se activa
+      **solo, sin que nadie pulse nada**.
+      - 🔴 **MEDIDO EN PRODUCCIÓN EL 10/08/2026: LA PUBLICACIÓN DE B2 ESTÁ PROGRAMADA Y EL
+        CANDADO 046 NO ESTÁ ACTIVO.** Las dos filas tienen `primera_publicacion_en` en
+        **NULL**: nivel 1 (primaria) al **13/08 19:00** y nivel 2 (secundaria) al
+        **14/08 19:00**, creadas a las 17:32. Idéntico al ensayo local (mismo segundo:
+        copia fiel). **Las familias TODAVÍA NO VEN las boletas de B2** — las verán solas al
+        llegar esas horas, sin que nadie pulse nada.
+      - **El candado se cierra solo el 13/08 19:00** (hora de Lima), con la primera fila que
+        vence. Hasta ese momento el snapshot oficial de B2 **aún se puede modificar**.
+      - ⚠️ **La vía NO es reabrir: es la RECTIFICACIÓN.** Con B3 ya abierto, `reabrir`
+        aborta (la segunda puerta de un solo sentido). `RectificacionModel` sí opera sobre
+        bimestres cerrados y regenera el ranking; como `fuePublicado(2)` es **`false`**,
+        `registrarRanking` escribe el **OFICIAL**. Pasada esa hora, la misma acción irá a
+        `orden_merito_rectificado` (visible solo en `/admin/control`).
+      - **Que la publicación sea programada y escalonada es intencional** —primaria entrega
+        un día antes que secundaria, y el modelo lo documenta—, pero tiene un efecto que no
+        estaba escrito: **retrasa también el candado**, no solo la visibilidad.
+    - 🔴 **QUEDA UNA VERIFICACIÓN SIN CAPTURAR, y ahora importa más que antes:** las cifras
+      del snapshot de B2 **en producción** no se recogieron en la sesión. El espejo local
+      predecía **524 filas / 11 grados / 23 secciones / puestos 1-72** y **0 bloqueos con
+      `origen='cierre'`**. Conviene confirmarlo allí de una vez —es solo lectura— porque
+      con el candado puesto una discrepancia ya **no se puede corregir en el oficial**.
+      Vale la regla de trazabilidad de la 048: una operación solo se da por verificada en
+      el entorno donde se capturó su salida.
+    - ✅ **`limite_notas` de B3 YA ESTÁ FIJADO — verificado en PROD el 10/08/2026:
+      `2026-10-16 04:00`**, con B3 `activo` del **10/08 al 09/10**. Estaba en NULL al
+      abrirlo (con NULL `periodoEstaBloqueado` devuelve `false`: los docentes registran
+      **sin** fecha límite) y se corrigió. El plazo vence **7 días después** del fin del
+      bimestre, que es el margen para terminar de calificar.
+      - ⚠️ **Las 04:00 son una hora mala mientras viva el bug de `NOW()`** (ver Pendientes
+        de desarrollo): la UI de asistencia y conducta se apagará desde las **23:00 del
+        15/10**, 5 horas antes que el guard real. No impide escribir por el resto de vías,
+        pero contradice lo que la pantalla dice.
+    - **Antes de esto hubo un cierre EN LOCAL** (mismo día): se cerró B2 en la copia y se
+      dio por hecho en producción. Se detectó al preguntarlo explícitamente y se rehizo
+      donde correspondía. Es exactamente la trampa de la 048 —la salida es idéntica en los
+      dos entornos— y se resolvió resincronizando local desde prod y midiendo de nuevo.
+  - 🎉 **B2 CERRADO EN LOCAL EL 10/08/2026 (ensayo) — el cierre salió limpio y sin
+    incidencias.** El
     snapshot **OFICIAL** de B2 quedó en **524 filas / 11 grados / 23 secciones / puestos
     1-72**, exactamente lo que había predicho el simulacro, y `orden_merito_rectificado`
     sigue en **0**. B1 intacto en 528.
@@ -1677,6 +1825,47 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
+- ✅ **10/08/2026 — CIERRE, ENTREGA Y PUBLICACIÓN DEL II BIMESTRE. Ciclo completo.**
+  B2 cerrado y publicado en producción, B3 abierto y activo para los docentes, y la boleta
+  corregida para caber en una hoja A4 (deploy `992a350`). Es el primer bimestre que recorre
+  entero el flujo nuevo: compuerta de publicación, snapshot oficial inmutable y las dos
+  puertas de un solo sentido documentadas en el runbook.
+  - ✅ **SNAPSHOT DE B2 CAPTURADO EN PRODUCCIÓN EL 10/08/2026 — COINCIDE CON LO PREDICHO:
+    524 filas / puestos 1-72 / 11 grados / 23 secciones**, `generado_en`
+    **2026-08-10 17:28:00**. Huella del servidor capturada en la misma corrida
+    (`u761410128_siga_cociap` · `u761410128_ktcdev@127.0.0.1` ·
+    `br-asc-web1308.main-hosting.eu` · **MariaDB 11.8.8-log** · Linux · `/var/lib/mysql/`),
+    que es lo que la convierte en una verificación de PROD y no de una copia.
+    - ⚠️ **`generado_en` es el MISMO SEGUNDO en local y en prod**, así que esa cifra
+      **por sí sola no distingue los entornos** — es otra vez la trampa de la 048, y sin
+      el bloque 0 la captura no habría probado nada. La copia local es fiel porque se
+      resincronizó desde prod después del cierre.
+    - ✅ **CERO BLOQUEOS FORZADOS, capturado en PROD el 10/08:** los bloqueos de B2 son
+      **593 académicos + 690 transversales, TODOS con `origen='docente'`** (1283 en total,
+      que cuadra con los 1283 medidos allí el 04/08). Ninguno con `origen='cierre'`.
+      - **Consecuencia confirmada en producción, no solo predicha en local:** el **hueco
+        del guard de empates NO aplicó a este cierre**. El paso que amplía el universo
+        (`bloquearCompetenciasPendientes`) fue un **no-op**, así que el conjunto que
+        validaron los guards es exactamente el que se congeló en el snapshot.
+      - Los 690 transversales confirman además que la **051 sigue haciendo su trabajo** en
+        prod: 0 fantasmas recreados por este cierre (era el riesgo si F1 no hubiera estado
+        arriba antes).
+    - ✅ **LOS DOS PENDIENTES INMEDIATOS DEL CIERRE QUEDAN CERRADOS (10/08/2026).** Los
+      cuatro bloques se capturaron **en producción**, con huella, y los cuatro salieron
+      como se predijo: snapshot 524/1-72/11/23 · 0 bloqueos forzados · publicación
+      programada (candado aún abierto) · `limite_notas` de B3 en `2026-10-16 04:00`.
+      ✅ **Y el BLOQUE 5 de la checklist de navegador (ZIP de borradores) se probó ese
+      mismo día con éxito**, así que del cierre de B2 no queda ningún pendiente abierto.
+    - 🛠 **Herramienta lista (10/08/2026): `database/verificaciones/verif_post_cierre_bimestre.sql`**
+      — solo lectura, 8 bloques autocontenidos para phpMyAdmin, periodo anclado por
+      **número + año activo**. Cubre las dos cosas de una pasada, más el estado real del
+      candado 046. **Su bloque 0 es la huella del servidor**: sin él la captura no prueba
+      en qué entorno se tomó (lección de la 048). Validada en local, donde da
+      **524 / 1-72 / 11 / 23**, 0 empates petrificados, 0 sin puesto de sección, **0
+      bloqueos `origen='cierre'`** (593 académicos + 690 transversales, todos `docente`)
+      y 0 rectificados. Reutilizable en B3/B4 cambiando `@num` y los `@esp_*`.
+  - **Siguiente hito del calendario:** **05/10/2026**, inicio del IV Bimestre — fecha tope
+    de la regla del periodo final (ver Pendientes de desarrollo).
 - ~~**31/07/2026 — CIERRE DE NOTAS DE LOS DOCENTES (II Bimestre).**~~ **CUMPLIDA.**
   Era la fecha límite para que terminaran de calificar y **bloquear**. Medido el
   **04/08/2026**: termómetro de bloqueos **B2 = 0** (1 283 bloqueos, todos con
@@ -1852,6 +2041,25 @@ WHERE id=25;`).
   - **Estado tras el deploy (verificado el 10/08):** `dev` (`bcbae78`) está **íntegramente
     contenido en `main`** — `git rev-list --left-right --count origin/main...dev` da
     `7 0` → **nada pendiente de desplegar y ninguna migración pendiente de aplicar**.
+
+- **10/08/2026 — SEGUNDO DEPLOY DEL DÍA: `origin/main` pasó de `945ba91` a `992a350`**
+  (commit de merge). **6 commits, 7 archivos**, de los que **uno solo es código**:
+  `_boleta.scss` con su `app.css` recompilado. Sin migración.
+  - **Qué entró:** la **conclusión descriptiva de la boleta pasa a una línea**, que es lo
+    que devuelve los ~15.8mm que hacían caer el bloque de firmas a una segunda hoja en
+    secundaria. Más el **seeder del peor caso** (script CLI, no toca runtime) y la
+    documentación del día: el cierre de B2, la regla del periodo final, el logro anual y
+    el orden de mérito en boleta como decisión diferida.
+  - **Validado en papel por el usuario ANTES del merge**, contra el peor caso posible
+    generado por el seeder (29 filas, todas en C, conclusiones de 500 caracteres, los 4
+    bimestres y logro anual), no contra una boleta real.
+  - **Verificado antes de pushear:** `main` local **sí** estaba al día con `origin/main`
+    (la trampa recurrente no mordió), `php -l` limpio, **0 archivos sensibles** en el diff,
+    **`gulp build` reproduce `public/css/app.css` byte a byte** con lo commiteado y el
+    árbol de `main` quedó idéntico al de `dev`.
+  - ⚠️ **El deploy era condición para IMPRIMIR, no para cerrar.** Producción venía con la
+    conclusión a dos líneas: sin este lote, las boletas de secundaria de B2 se habrían
+    entregado con las firmas en una segunda hoja.
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial

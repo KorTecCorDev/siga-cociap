@@ -34,6 +34,13 @@ class AsistenciaModel extends BaseModel
      * "editable" solo es true cuando el periodo está en estado 'activo'
      * y dentro del límite de notas. Mismo criterio que ConductaModel para
      * mantener coherencia entre módulos.
+     *
+     * ZONA HORARIA — el "ahora" lo calcula PHP (`America/Lima`, aplicado en
+     * public/index.php) y viaja como parámetro preparado. NO usar NOW(): el
+     * MySQL de produccion corre en UTC, 5 horas adelantado, y este flag se
+     * apagaba 5 horas ANTES que el guard real de escritura
+     * (`periodoEditable`, que compara con `time()` en PHP). Misma regla que
+     * `PublicacionBoletaModel::ahora()`.
      */
     public function listarPeriodosActivos(): array
     {
@@ -47,13 +54,13 @@ class AsistenciaModel extends BaseModel
                 a.anio,
                 (
                     p.estado = 'activo'
-                    AND (p.limite_notas IS NULL OR NOW() <= p.limite_notas)
+                    AND (p.limite_notas IS NULL OR ? <= p.limite_notas)
                 ) AS editable
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id
             WHERE a.estado = 'activo'
             ORDER BY p.numero
-        ");
+        ", [date('Y-m-d H:i:s')]);
     }
 
     /**

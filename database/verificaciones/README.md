@@ -91,6 +91,19 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     una carga y registra notas. Esta verificación es la red de seguridad — a propósito NO
     se hardcodeó la exclusión en el SQL del mérito, que duplicaría el plan de estudios.
 
+- **`verif_flag_editable_timezone.php`** — Transacción + ROLLBACK. El flag `editable` de
+  `AsistenciaModel::listarPeriodosActivos` y `ConductaModel::listarPeriodosActivos` debe
+  coincidir con el guard **real** de escritura (`periodoEditable`, que resuelve el "ahora"
+  en PHP) en las cuatro fronteras del `limite_notas`.
+  - Su **paso 2 es la prueba dura**: fuerza la sesión MySQL a **UTC** —como corre
+    producción— y comprueba que ahí la consulta **vieja** con `NOW()` contradice al guard
+    real mientras la nueva no. Sin ese paso la verificación no probaría nada: en local el
+    desfase es **0** y el bug no se manifiesta. Si el `NOW()` viejo **no** llega a diferir,
+    el script lo declara **fallo de control**, no éxito.
+  - Existe porque hasta el 10/08/2026 esas dos consultas calculaban el flag en SQL: en
+    producción apagaban la UI **5 horas antes** de que el sistema dejara de aceptar
+    escrituras.
+
 ## Consultas operativas (phpMyAdmin)
 
 - **`alerta_evaluacion_incompleta.sql`** — SOLO LECTURA. Replica
@@ -109,6 +122,30 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     los empates cambian con el deploy, y una resolución se ancla al conjunto exacto de
     matrículas (`grupo_clave`) — si el grupo cambia, deja de cubrirlo. Resolver empates
     va DESPUÉS del deploy y con todo bloqueado.
+
+- **`verif_post_cierre_bimestre.sql`** — SOLO LECTURA, pensada para **producción** desde
+  phpMyAdmin. Captura las cifras que deja el cierre de un bimestre (Fase 5 del runbook)
+  más las dos comprobaciones que van después: la publicación y el `limite_notas` del
+  bimestre siguiente. Ocho bloques autocontenidos, periodo anclado por **número + año
+  activo** (nunca por id).
+  - Su **bloque 0 es obligatorio**: la salida de los demás es idéntica en local y en prod
+    (local es copia), así que sin la huella del servidor una captura no prueba en qué
+    entorno se tomó. Es la lección de la migración 048, que ya se materializó una vez.
+  - **El bloque 6 replica `fuePublicado()` entero**, y ahí está su valor: publicar **no**
+    activa el candado 046 en el acto. `primera_publicacion_en` solo se sella cuando la
+    publicación es **inmediata**; una **programada a futuro** deja el snapshot oficial
+    todavía corregible hasta que llegue su `publica_en` (`candado_desde`).
+  - 🔴 **Ningún criterio temporal usa `NOW()`, y es deliberado.** El MySQL de producción
+    corre en **UTC**: medido el 10/08/2026, va **5 horas adelantado** respecto a Lima. La
+    aplicación nunca compara contra `NOW()` para esto —`PublicacionBoletaModel::ahora()` y
+    `CalificacionModel::periodoEstaBloqueado` resuelven el "ahora" en **PHP**, con
+    `America/Lima`—, así que una consulta con `NOW()` daría por vencido un plazo **5 horas
+    antes** que el código real. Los bloques usan
+    `@ahora := UTC_TIMESTAMP() - INTERVAL 5 HOUR`, que da la hora de Lima en cualquier
+    servidor (Perú no aplica horario de verano). El **bloque 0 mide el desfase** y lo
+    devuelve en `desfase_horas`: 0 en local, 5 en prod.
+  - Nació el 10/08/2026 porque B2 se cerró y publicó en prod **sin capturar allí** las
+    cifras de su snapshot. Reutilizable en B3/B4 cambiando `@num` y los `@esp_*`.
 
 - **`transversales_pendientes.sql`** — SOLO LECTURA. Lista a los **docentes que aún no
   aprobaron+bloquearon las transversales (TIC/GAMA)** de sus cargas: el bloqueador
