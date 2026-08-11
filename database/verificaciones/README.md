@@ -110,6 +110,21 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     matrículas (`grupo_clave`) — si el grupo cambia, deja de cubrirlo. Resolver empates
     va DESPUÉS del deploy y con todo bloqueado.
 
+- **`verif_post_cierre_bimestre.sql`** — SOLO LECTURA, pensada para **producción** desde
+  phpMyAdmin. Captura las cifras que deja el cierre de un bimestre (Fase 5 del runbook)
+  más las dos comprobaciones que van después: la publicación y el `limite_notas` del
+  bimestre siguiente. Ocho bloques autocontenidos, periodo anclado por **número + año
+  activo** (nunca por id).
+  - Su **bloque 0 es obligatorio**: la salida de los demás es idéntica en local y en prod
+    (local es copia), así que sin la huella del servidor una captura no prueba en qué
+    entorno se tomó. Es la lección de la migración 048, que ya se materializó una vez.
+  - **El bloque 6 replica `fuePublicado()` entero**, y ahí está su valor: publicar **no**
+    activa el candado 046 en el acto. `primera_publicacion_en` solo se sella cuando la
+    publicación es **inmediata**; una **programada a futuro** deja el snapshot oficial
+    todavía corregible hasta que llegue su `publica_en` (`candado_desde`).
+  - Nació el 10/08/2026 porque B2 se cerró y publicó en prod **sin capturar allí** las
+    cifras de su snapshot. Reutilizable en B3/B4 cambiando `@num` y los `@esp_*`.
+
 - **`transversales_pendientes.sql`** — SOLO LECTURA. Lista a los **docentes que aún no
   aprobaron+bloquearon las transversales (TIC/GAMA)** de sus cargas: el bloqueador
   típico del cierre del tutor. Cuatro bloques autocontenidos (periodos y secciones de
