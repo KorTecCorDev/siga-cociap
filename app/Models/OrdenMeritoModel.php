@@ -540,9 +540,20 @@ class OrdenMeritoModel extends BaseModel
      */
     public function generarSnapshot(int $periodoId, ?int $usuarioId = null): void
     {
+        $this->escribirOficial($periodoId, $this->calcularFilasRanking($periodoId), $usuarioId);
+    }
+
+    /**
+     * Persiste las filas YA CALCULADAS como snapshot oficial. Separado de
+     * `generarSnapshot` para que quien ya tiene el cálculo en la mano (la
+     * sincronización de roster, que necesita compararlo antes de escribir) no
+     * lo repita: `calcularFilasRanking` recorre todos los grados del periodo.
+     */
+    private function escribirOficial(int $periodoId, array $filas, ?int $usuarioId): void
+    {
         $this->execute("DELETE FROM orden_merito_snapshot WHERE periodo_id = ?", [$periodoId]);
 
-        foreach ($this->calcularFilasRanking($periodoId) as $f) {
+        foreach ($filas as $f) {
             $this->execute("
                 INSERT INTO orden_merito_snapshot
                     (periodo_id, matricula_id, grado_id, seccion_id,
@@ -568,9 +579,15 @@ class OrdenMeritoModel extends BaseModel
      */
     public function generarSnapshotRectificado(int $periodoId, ?int $usuarioId, string $motivo): void
     {
+        $this->escribirRectificado($periodoId, $this->calcularFilasRanking($periodoId), $usuarioId, $motivo);
+    }
+
+    /** Persiste filas YA CALCULADAS como versión rectificada (ver escribirOficial). */
+    private function escribirRectificado(int $periodoId, array $filas, ?int $usuarioId, string $motivo): void
+    {
         $this->execute("DELETE FROM orden_merito_rectificado WHERE periodo_id = ?", [$periodoId]);
 
-        foreach ($this->calcularFilasRanking($periodoId) as $f) {
+        foreach ($filas as $f) {
             $this->execute("
                 INSERT INTO orden_merito_rectificado
                     (periodo_id, matricula_id, grado_id, seccion_id,
@@ -605,14 +622,236 @@ class OrdenMeritoModel extends BaseModel
      * oficial. Lo usan PeriodoController::cerrar y RectificacionController.
      * @return string 'oficial' | 'rectificado'
      */
-    public function registrarRanking(int $periodoId, ?int $usuarioId, string $motivo): string
-    {
+    public function registrarRanking(
+        int $periodoId,
+        ?int $usuarioId,
+        string $motivo,
+        bool $exigirMismoRoster = false
+    ): string {
+        $filas = $this->calcularFilasRanking($periodoId);
+
+        // GUARDA DE ROSTER (11/08/2026). Una rectificación responde a "¿cuánto
+        // sacó cada uno?", NUNCA a "¿quién pertenece a este documento?". Como
+        // `escribirOficial` borra y reinserta el periodo ENTERO, sin esta guarda
+        // una corrección de nota en un grado podía añadir o quitar estudiantes
+        // en OTRO grado, en silencio: paso de verdad el 11/08: al rectificar tres
+        // notas de 4.º de primaria desaparecio del oficial de B2 una alumna de
+        // 1.º de secundaria (trasladada 38 min despues del cierre) y 42
+        // companeros cambiaron de puesto.
+        //
+        // Quien SÍ puede mover el roster es `sincronizarRosterPorMatricula`, en
+        // el momento del cambio de tipo. Aquí, si el roster no coincide, se
+        // ABORTA la reescritura y se informa: mejor un ranking desactualizado y
+        // ruidoso que un documento oficial reescrito sin que nadie lo sepa.
+        if ($exigirMismoRoster && $this->tieneSnapshotOficial($periodoId)) {
+            $difieren = $this->rosterDifiere($periodoId, $filas);
+            if ($difieren !== null) {
+                log_error('Orden de mérito: roster distinto al del snapshot; no se regeneró', [
+                    'periodo' => $periodoId,
+                    'motivo'  => $motivo,
+                    'sobran'  => $difieren['sobran'],
+                    'faltan'  => $difieren['faltan'],
+                ]);
+                return 'roster_cambiado';
+            }
+        }
+
         if ($this->publicacionModel->fuePublicado($periodoId) && $this->tieneSnapshotOficial($periodoId)) {
-            $this->generarSnapshotRectificado($periodoId, $usuarioId, $motivo);
+            $this->escribirRectificado($periodoId, $filas, $usuarioId, $motivo);
             return 'rectificado';
         }
-        $this->generarSnapshot($periodoId, $usuarioId);
+        $this->escribirOficial($periodoId, $filas, $usuarioId);
         return 'oficial';
+    }
+
+    /**
+     * Compara el roster de unas filas recién calculadas con el del snapshot
+     * oficial. Devuelve null si coinciden, o las dos diferencias:
+     *   'faltan' → están en el snapshot y NO saldrían del cálculo (p. ej. el
+     *              alumno cuyo tipo pasó a trasladado tras el cierre)
+     *   'sobran' → saldrían del cálculo y NO están en el snapshot
+     */
+    private function rosterDifiere(int $periodoId, array $filas): ?array
+    {
+        $frescas = [];
+        foreach ($filas as $f) {
+            $frescas[(int) $f['matricula_id']] = true;
+        }
+        $guardadas = array_flip($this->matriculasEnSnapshot($periodoId));
+
+        $faltan = array_keys(array_diff_key($guardadas, $frescas));
+        $sobran = array_keys(array_diff_key($frescas, $guardadas));
+
+        return ($faltan || $sobran) ? ['faltan' => $faltan, 'sobran' => $sobran] : null;
+    }
+
+    /** matricula_id presentes hoy en el snapshot oficial de un periodo. */
+    private function matriculasEnSnapshot(int $periodoId): array
+    {
+        return array_map(
+            static fn($r) => (int) $r['matricula_id'],
+            $this->query(
+                "SELECT matricula_id FROM orden_merito_snapshot WHERE periodo_id = ?",
+                [$periodoId]
+            )
+        );
+    }
+
+    // ── Sincronización del roster por cambio de tipo (11/08/2026) ────────────
+
+    /**
+     * PUNTO ÚNICO de "este estudiante entra o sale del orden de mérito".
+     *
+     * REGLA DEL COLEGIO (11/08/2026, decisión del usuario): quien pasa a
+     * `trasladado` o `retirado` sale del snapshot; si se revierte, vuelve a
+     * entrar. Nace porque **la publicación siempre cae después de activar el
+     * bimestre siguiente**: entre el cierre y la publicación hay una ventana en
+     * la que el alumno se va, y el documento llega a las familias cuando ya no
+     * está en el colegio.
+     *
+     * ALCANCE: solo periodos CERRADOS que aún NO se publicaron. Un bimestre ya
+     * publicado es inmutable (candado 046) y se deja intacto — por eso B1, con
+     * sus 11 trasladados dentro, no se toca nunca.
+     *
+     * ⚠️ SE LLAMA DESDE LOS CUATRO SITIOS QUE MUEVEN `matriculas.tipo` dentro o
+     * fuera de ('trasladado','retirado'): TrasladoController::guardar,
+     * MatriculaController::retirar, ::activar y ::revertirRetiro. Si nace un
+     * quinto, tiene que llamar aquí: que la regla viva en un solo sitio es lo
+     * que este repo ya pagó caro cuatro veces.
+     *
+     * No decide por sí mismo quién entra o sale: pregunta al motor de siempre
+     * (`calcularFilasRanking`, que ya filtra por tipo) y actúa si difiere.
+     *
+     * @return array<int, array{periodo:string, accion:string, puesto:int,
+     *                          grado:string, companeros:int}> efectos, para el
+     *         mensaje al usuario. Vacío si no hubo nada que cambiar.
+     */
+    public function sincronizarRosterPorMatricula(int $matriculaId, ?int $usuarioId = null): array
+    {
+        $efectos = [];
+
+        foreach ($this->periodosConSnapshotEditable() as $per) {
+            $periodoId = (int) $per['id'];
+
+            $antes = [];
+            foreach ($this->query("
+                SELECT s.matricula_id, s.puesto_grado, s.grado_id
+                FROM orden_merito_snapshot s WHERE s.periodo_id = ?
+            ", [$periodoId]) as $r) {
+                $antes[(int) $r['matricula_id']] = $r;
+            }
+
+            $filas   = $this->calcularFilasRanking($periodoId);
+            $frescas = [];
+            foreach ($filas as $f) {
+                $frescas[(int) $f['matricula_id']] = $f;
+            }
+
+            $estaba  = isset($antes[$matriculaId]);
+            $deberia = isset($frescas[$matriculaId]);
+            if ($estaba === $deberia) {
+                continue;   // este periodo ya refleja la situación actual
+            }
+
+            // El grado y el puesto se leen del lado donde SÍ existe la fila.
+            $ref     = $estaba ? $antes[$matriculaId] : $frescas[$matriculaId];
+            $gradoId = (int) $ref['grado_id'];
+            $puesto  = (int) ($ref['puesto_grado'] ?? 0);
+
+            $this->escribirOficial($periodoId, $filas, $usuarioId);
+
+            // Cuántos COMPAÑEROS de ese grado cambiaron de puesto por el ajuste.
+            $companeros = 0;
+            foreach ($frescas as $mid => $f) {
+                if ($mid === $matriculaId || (int) $f['grado_id'] !== $gradoId) {
+                    continue;
+                }
+                if (isset($antes[$mid]) && (int) $antes[$mid]['puesto_grado'] !== (int) $f['puesto_grado']) {
+                    $companeros++;
+                }
+            }
+
+            $efectos[] = [
+                'periodo'    => (string) $per['nombre_display'],
+                'accion'     => $estaba ? 'salio' : 'reintegrado',
+                'puesto'     => $puesto,
+                'grado'      => $this->etiquetaGrado($gradoId),
+                'companeros' => $companeros,
+            ];
+
+            log_error('Orden de mérito: roster sincronizado por cambio de tipo', [
+                'matricula'  => $matriculaId,
+                'periodo'    => $periodoId,
+                'accion'     => $estaba ? 'salio' : 'reintegrado',
+                'puesto'     => $puesto,
+                'grado_id'   => $gradoId,
+                'companeros' => $companeros,
+                'usuario'    => $usuarioId,
+                'filas'      => count($filas),
+            ]);
+        }
+
+        return $efectos;
+    }
+
+    /**
+     * Periodos cuyo snapshot oficial TODAVÍA se puede reescribir: cerrados, con
+     * snapshot y no publicados. Los publicados quedan fuera por el candado 046.
+     */
+    private function periodosConSnapshotEditable(): array
+    {
+        $periodos = $this->query("
+            SELECT p.id, p.nombre_display
+            FROM periodos p
+            WHERE p.estado = 'cerrado'
+              AND EXISTS (SELECT 1 FROM orden_merito_snapshot s WHERE s.periodo_id = p.id)
+            ORDER BY p.numero
+        ");
+
+        return array_values(array_filter(
+            $periodos,
+            fn($p) => !$this->publicacionModel->fuePublicado((int) $p['id'])
+        ));
+    }
+
+    /** Etiqueta legible de un grado ("1° Secundaria") para los mensajes. */
+    private function etiquetaGrado(int $gradoId): string
+    {
+        $g = $this->queryOne("
+            SELECT g.nombre_display, n.nombre AS nivel
+            FROM grados g INNER JOIN niveles n ON n.id = g.nivel_id
+            WHERE g.id = ?
+        ", [$gradoId]);
+
+        return $g ? trim($g['nombre_display'] . ' ' . $g['nivel']) : ('grado ' . $gradoId);
+    }
+
+    /**
+     * Convierte los efectos de `sincronizarRosterPorMatricula` en una frase para
+     * el mensaje de éxito del controlador. Vacía si no hubo efectos.
+     */
+    public static function describirEfectosRoster(array $efectos): string
+    {
+        if (!$efectos) {
+            return '';
+        }
+
+        $partes = [];
+        foreach ($efectos as $e) {
+            $companeros = (int) $e['companeros'];
+            $arrastre   = $companeros === 0 ? '' : ($companeros === 1
+                ? '; 1 compañero cambió de puesto'
+                : sprintf('; %d compañeros cambiaron de puesto', $companeros));
+
+            $partes[] = sprintf(
+                $e['accion'] === 'salio'
+                    ? 'Salió del orden de mérito de %s (ocupaba el puesto %d° de %s)%s.'
+                    : 'Volvió al orden de mérito de %s (puesto %d° de %s)%s.',
+                $e['periodo'], $e['puesto'], $e['grado'], $arrastre
+            );
+        }
+
+        return ' ' . implode(' ', $partes);
     }
 
     // ── Lectores de la versión RECTIFICADA (Centro de control) ───────────────

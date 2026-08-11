@@ -441,9 +441,19 @@ class RectificacionController extends BaseController
         $avisoEmpate = '';
         $notaRanking = '';
         try {
+            // `exigirMismoRoster = true`: una rectificación corrige NOTAS, nunca
+            // decide quién pertenece al documento. Si el roster ya no coincide
+            // con el del snapshot, no se reescribe nada y se avisa (ver la guarda
+            // en OrdenMeritoModel::registrarRanking).
             $tipoRanking = $this->ordenMeritoModel->registrarRanking(
-                $periodoId, $usuarioId, 'Rectificación de notas'
+                $periodoId, $usuarioId, 'Rectificación de notas', true
             );
+            if ($tipoRanking === 'roster_cambiado') {
+                $notaRanking = ' ATENCIÓN: el orden de mérito NO se actualizó porque la lista de '
+                    . 'estudiantes del bimestre cambió desde que se cerró (algún traslado o retiro '
+                    . 'sin sincronizar). Regularízalo desde la matrícula afectada y vuelve a '
+                    . 'guardar esta rectificación.';
+            }
             if ($tipoRanking === 'rectificado') {
                 $notaRanking = ' El orden de mérito oficial (publicado) no se modificó; '
                     . 'la nueva versión quedó registrada en el Centro de control.';
