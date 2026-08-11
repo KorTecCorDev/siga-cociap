@@ -1786,8 +1786,18 @@ WHERE id=25;`).
       **por sí sola no distingue los entornos** — es otra vez la trampa de la 048, y sin
       el bloque 0 la captura no habría probado nada. La copia local es fiel porque se
       resincronizó desde prod después del cierre.
-    - **Falta capturar allí el resto de bloques**: bloqueos `origen='cierre'` (esperado 0),
-      estado real del candado 046 y `limite_notas` de B3.
+    - ✅ **CERO BLOQUEOS FORZADOS, capturado en PROD el 10/08:** los bloqueos de B2 son
+      **593 académicos + 690 transversales, TODOS con `origen='docente'`** (1283 en total,
+      que cuadra con los 1283 medidos allí el 04/08). Ninguno con `origen='cierre'`.
+      - **Consecuencia confirmada en producción, no solo predicha en local:** el **hueco
+        del guard de empates NO aplicó a este cierre**. El paso que amplía el universo
+        (`bloquearCompetenciasPendientes`) fue un **no-op**, así que el conjunto que
+        validaron los guards es exactamente el que se congeló en el snapshot.
+      - Los 690 transversales confirman además que la **051 sigue haciendo su trabajo** en
+        prod: 0 fantasmas recreados por este cierre (era el riesgo si F1 no hubiera estado
+        arriba antes).
+    - **Falta capturar allí**: el estado real del candado 046 (bloque 6/6.b) y el
+      `limite_notas` de B3 (bloque 8).
     - 🛠 **Herramienta lista (10/08/2026): `database/verificaciones/verif_post_cierre_bimestre.sql`**
       — solo lectura, 8 bloques autocontenidos para phpMyAdmin, periodo anclado por
       **número + año activo**. Cubre las dos cosas de una pasada, más el estado real del
