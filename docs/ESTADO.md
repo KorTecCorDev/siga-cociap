@@ -1550,9 +1550,15 @@ WHERE id=25;`).
       con el candado puesto una discrepancia ya **no se puede corregir en el oficial**.
       Vale la regla de trazabilidad de la 048: una operación solo se da por verificada en
       el entorno donde se capturó su salida.
-    - ⚠️ **`limite_notas` de B3 estaba en NULL** al abrirlo. Con NULL,
-      `periodoEstaBloqueado` devuelve `false` → los docentes **sí** registran, pero **sin
-      fecha límite**. Verificar que se le haya fijado una.
+    - ✅ **`limite_notas` de B3 YA ESTÁ FIJADO — verificado en PROD el 10/08/2026:
+      `2026-10-16 04:00`**, con B3 `activo` del **10/08 al 09/10**. Estaba en NULL al
+      abrirlo (con NULL `periodoEstaBloqueado` devuelve `false`: los docentes registran
+      **sin** fecha límite) y se corrigió. El plazo vence **7 días después** del fin del
+      bimestre, que es el margen para terminar de calificar.
+      - ⚠️ **Las 04:00 son una hora mala mientras viva el bug de `NOW()`** (ver Pendientes
+        de desarrollo): la UI de asistencia y conducta se apagará desde las **23:00 del
+        15/10**, 5 horas antes que el guard real. No impide escribir por el resto de vías,
+        pero contradice lo que la pantalla dice.
     - **Antes de esto hubo un cierre EN LOCAL** (mismo día): se cerró B2 en la copia y se
       dio por hecho en producción. Se detectó al preguntarlo explícitamente y se rehizo
       donde correspondía. Es exactamente la trampa de la 048 —la salida es idéntica en los
@@ -1804,8 +1810,12 @@ WHERE id=25;`).
       - Los 690 transversales confirman además que la **051 sigue haciendo su trabajo** en
         prod: 0 fantasmas recreados por este cierre (era el riesgo si F1 no hubiera estado
         arriba antes).
-    - **Falta capturar allí**: el estado real del candado 046 (bloque 6/6.b) y el
-      `limite_notas` de B3 (bloque 8).
+    - ✅ **LOS DOS PENDIENTES INMEDIATOS DEL CIERRE QUEDAN CERRADOS (10/08/2026).** Los
+      cuatro bloques se capturaron **en producción**, con huella, y los cuatro salieron
+      como se predijo: snapshot 524/1-72/11/23 · 0 bloqueos forzados · publicación
+      programada (candado aún abierto) · `limite_notas` de B3 en `2026-10-16 04:00`.
+      **Sigue pendiente solo el BLOQUE 5 de la checklist de navegador** (el ZIP de
+      borradores), que no se mide con SQL.
     - 🛠 **Herramienta lista (10/08/2026): `database/verificaciones/verif_post_cierre_bimestre.sql`**
       — solo lectura, 8 bloques autocontenidos para phpMyAdmin, periodo anclado por
       **número + año activo**. Cubre las dos cosas de una pasada, más el estado real del
