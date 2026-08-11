@@ -29,16 +29,21 @@ SELECT (SELECT COUNT(*) FROM calificaciones WHERE extraordinaria = 1)           
 **Si `snap_b2` da 0 o B3 sigue `pendiente`, la copia es ANTERIOR al 10/08** y no sirve para
 medir nada de lo de abajo: resincronizar desde producción primero.
 
-**Estado del repo al cerrar la sesión:** `dev` y `main` con el mismo árbol, todo pusheado,
-**sin migración pendiente** y sin código sin desplegar. Producción en `992a350`.
+**Estado del repo al cerrar la sesión (11/08/2026):** `dev` y `main` con el mismo árbol,
+todo pusheado, **sin migración pendiente** y sin código sin desplegar. Tres entregas ese
+día: el reporte de mérito firmable por sección, el roster del snapshot y el arreglo del
+candado de la versión rectificada.
 
-> ⚠️ **Desactualizado desde el 11/08/2026:** `dev` lleva el rediseño del reporte
-> imprimible del orden de mérito (solo presentación, **sin migración**) pendiente de
-> validar en el navegador y de merge a `main`. Ver el primer punto de "Eventos con fecha".
+> 🔴 **ÚNICO PENDIENTE DE PRODUCCIÓN (11/08/2026): correr allá
+> `php database/sincronizar_roster_snapshot.php --confirmar`.** Es reparación de DATOS, no
+> de código, y el deploy no la hace. Hasta que se corra, B2 sigue con **524 filas** y su
+> orden de mérito **no refleja las 3 rectificaciones ya aplicadas** a 4.º de primaria
+> (además, ninguna rectificación nueva de B2 se registrará). Ensayado sobre la copia de
+> prod: deja 523 filas. Confirmar el resultado ALLÁ antes de darlo por hecho.
 
-**Lo primero que toca al retomar:** los dos pendientes inmediatos del cierre —capturar en
-PROD las cifras del snapshot de B2 y confirmar el `limite_notas` de B3— y después el
-siguiente hito con fecha, la **regla del periodo final** (tope 05/10/2026).
+**Lo primero que toca al retomar:** el pendiente de arriba; después, capturar en PROD las
+cifras del snapshot de B2 y confirmar el `limite_notas` de B3; y luego el siguiente hito con
+fecha, la **regla del periodo final** (tope 05/10/2026).
 
 ## Migraciones
 - **`051_limpieza_bloqueos_transversales_fantasma`** (06/08): corrección de DATOS (no toca
@@ -1855,7 +1860,7 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
-- 🟡 **11/08/2026 — EN `dev`, SIN DESPLEGAR: la guarda de roster ya no bloquea la versión
+- ✅ **11/08/2026 — EN PRODUCCIÓN: la guarda de roster ya no bloquea la versión
   RECTIFICADA de un bimestre publicado.** Salió de probar en PROD el deploy del mismo día.
   **Sin migración.**
   - **Síntoma:** se rectificaron 3 notas de B2 (4.º primaria B, 15:10–15:13) y el orden de
@@ -1882,8 +1887,8 @@ WHERE id=25;`).
     cuanto se registrara un traslado posterior a la publicación.
   - **Verificación:** paso 6 nuevo en `verif_roster_snapshot_traslado.php` (**20 en verde**);
     los 7 verificadores del módulo siguen pasando.
-- 🟡 **11/08/2026 — EN `dev`, SIN DESPLEGAR: el roster del snapshot deja de moverse por
-  accidente.** Decisión del usuario: **B1 se queda como está (528 filas, 11
+- ✅ **11/08/2026 — EN PRODUCCIÓN (código; la reparación de datos sigue pendiente, ver la
+  cabecera): el roster del snapshot deja de moverse por accidente.** Decisión del usuario: **B1 se queda como está (528 filas, 11
   trasladados/retirados dentro) y la regla nueva —excluir a quien se traslade o retire—
   rige DESDE B2.** El porqué: la publicación siempre cae después de activar el bimestre
   siguiente, así que el documento llega a las familias cuando el alumno ya se fue.
@@ -1915,7 +1920,7 @@ WHERE id=25;`).
     `--confirmar` para aplicar.
   - ~~**ORDEN OBLIGATORIO EN PRODUCCIÓN:** desplegar → script → rehacer las 3
     rectificaciones.~~ **Superado el 11/08 por los hechos: ver el evento siguiente.**
-- 🟡 **11/08/2026 — EN `dev`, SIN DESPLEGAR: el reporte imprimible del orden de mérito
+- ✅ **11/08/2026 — EN PRODUCCIÓN: el reporte imprimible del orden de mérito
   pasó a UNA HOJA FIRMABLE POR SECCIÓN. El usuario lo aprobó como MODELO OFICIAL del
   documento** (decisión cerrada; ver `docs/modulos/orden-merito.md` §"El reporte
   imprimible"). Solo presentación —vista + SASS + el
