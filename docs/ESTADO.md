@@ -1825,6 +1825,22 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
+- ✅ **10/08/2026 (2.º deploy del día) — `origin/main` pasó de `992a350` a `9d3207d`**
+  (commit de merge `--no-ff`, autorizado por el usuario). **3 commits de contenido, SIN
+  MIGRACIÓN.**
+  - **Único código de runtime que entra:** el fix del flag `editable` en
+    `AsistenciaModel` y `ConductaModel` (dos consultas dejan de usar `NOW()`). El resto
+    son dos verificaciones nuevas —que no corren en runtime— y documentación.
+  - **Qué se arregla en prod:** con el motor en UTC la UI de asistencia y conducta
+    apagaba la edición **5 horas antes** que el guard real. Importa ahora porque **B3 está
+    abierto** y su `limite_notas` es `2026-10-16 04:00`: con el bug, la pantalla se habría
+    apagado la noche del **15/10**.
+  - **Verificado antes de mergear:** `php -l` de los dos modelos sobre el árbol ya
+    mergeado, `verif_flag_editable_timezone.php` en verde (incluido su paso de control con
+    la sesión en UTC) y el diff contra `origin/main` sin nada en `database/migrations/`.
+  - **Riesgo bajo, y la razón es medible:** el cambio solo puede alterar el flag en la
+    franja de las 5 horas previas al `limite_notas`. Fuera de esa ventana, el resultado es
+    idéntico al anterior.
 - ✅ **10/08/2026 — CIERRE, ENTREGA Y PUBLICACIÓN DEL II BIMESTRE. Ciclo completo.**
   B2 cerrado y publicado en producción, B3 abierto y activo para los docentes, y la boleta
   corregida para caber en una hoja A4 (deploy `992a350`). Es el primer bimestre que recorre
