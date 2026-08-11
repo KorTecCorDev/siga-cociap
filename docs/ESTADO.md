@@ -536,7 +536,12 @@ siguiente hito con fecha, la **regla del periodo final** (tope 05/10/2026).
     guard de bimestre cerrado**: existe para el bimestre abierto. Su destino es el
     **Drive institucional**, para recoger el visto bueno de los docentes antes de
     cerrar. Verificado en servidor (3 boletas → 3 marcas, 0 QR, ZIP correcto) y que el
-    modo Archivar sigue intacto. **Falta probar la descarga real en el navegador.**
+    modo Archivar sigue intacto.
+    ✅ **PROBADO EN NAVEGADOR POR EL USUARIO EL 10/08/2026: TODO CORRECTO.** Cubrió las
+    tres pruebas: sección chica (Primaria 2.º A), sección grande con el peor caso de
+    contenido (Secundaria 4.º A, que contiene la matrícula **556**) y el caso de uso real
+    sobre el **bimestre ABIERTO** (B3). ZIP descargado, carpetas `NIVEL/GRADO_SECCION`,
+    sufijo `_BORRADOR`, marca de agua presente y **0 QR / 0 sello** en los PDFs.
     Ver `docs/modulos/boletas.md`.
   - **BANNER DE BORRADOR ELIMINADO (05/08).** En la vista previa de RA las firmas se
     fueron a una segunda hoja (visto en Secundaria 4.º A): el banner costaba **~6 mm**,
@@ -954,14 +959,19 @@ siguiente hito con fecha, la **regla del periodo final** (tope 05/10/2026).
   6. Como docente de esa carga: la competencia desbloqueada **editable**, sus TIC/GAMA en
      **solo lectura**.
 
-  **BLOQUE 5 — deuda anterior, aprovechando el turno (P1 #7)**
+  **BLOQUE 5 — deuda anterior, aprovechando el turno (P1 #7)** ✅ **HECHO 10/08/2026**
   7. `/admin/boletas-publicas/{id}` → botón **📄 Borradores**: comprobar que el **ZIP
-     descarga bien en el navegador**. Verificado en servidor (3 boletas → 3 marcas, 0 QR),
-     **nunca en navegador**. Es lo único que quedaba del P1.
+     descarga bien en el navegador**. Era lo único que quedaba del P1.
 
   ⚠️ **Actualización 10/08:** el lote **ya está en producción** (`945ba91`), así que esta
   checklist dejó de ser una condición previa al deploy y pasó a ser **verificación de lo
-  que ya corre en prod**. El BLOQUE 5 (ZIP de borradores en navegador) sigue **sin probar**.
+  que ya corre en prod**.
+  ✅ **CHECKLIST COMPLETA — el BLOQUE 5 se probó el 10/08/2026 y salió correcto**, así que
+  ya no queda ningún punto de esta lista sin ejecutar.
+  - **El botón es SIEMPRE por sección** (`?seccion_id=N` en la vista del periodo): desde la
+    UI no hay forma de lanzar el lote completo. ⚠️ La ruta **sin** `seccion_id` sí existe y
+    procesaría las ~524 matrículas del periodo en una sola pestaña — html2pdf renderiza en
+    el cliente, así que es la vía rápida a colgar el navegador. No enlazarla nunca.
 - **PANEL DE TRANSVERSALES COMPLETO + PUNTO ÚNICO DE "CARGA DUEÑA" — DIFERIDO AL AÑO
   ACADÉMICO SIGUIENTE (decisión del usuario, 07/08/2026).** El gestor de bloqueos
   transversales solo muestra lo aprobado y bloqueado (`getBloqueosTransversalesPorPeriodo`
@@ -1844,8 +1854,8 @@ WHERE id=25;`).
       cuatro bloques se capturaron **en producción**, con huella, y los cuatro salieron
       como se predijo: snapshot 524/1-72/11/23 · 0 bloqueos forzados · publicación
       programada (candado aún abierto) · `limite_notas` de B3 en `2026-10-16 04:00`.
-      **Sigue pendiente solo el BLOQUE 5 de la checklist de navegador** (el ZIP de
-      borradores), que no se mide con SQL.
+      ✅ **Y el BLOQUE 5 de la checklist de navegador (ZIP de borradores) se probó ese
+      mismo día con éxito**, así que del cierre de B2 no queda ningún pendiente abierto.
     - 🛠 **Herramienta lista (10/08/2026): `database/verificaciones/verif_post_cierre_bimestre.sql`**
       — solo lectura, 8 bloques autocontenidos para phpMyAdmin, periodo anclado por
       **número + año activo**. Cubre las dos cosas de una pasada, más el estado real del

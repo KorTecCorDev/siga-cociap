@@ -488,8 +488,11 @@ que la Fase 4 es la primera vez que se puede sacar el lote de verdad.
 - [ ] **Matrícula 556 (ROSALES STEPHANO), Secundaria 4.º A** — el peor caso medido: 6 filas
       con conclusión descriptiva, hasta 233 caracteres. ⚠️ **El alto ya no lo fijan las
       filas sino las conclusiones**, así que esta es la boleta que decide.
-- [ ] Comprobar que el **ZIP de borradores** descarga bien en el navegador (verificado en
-      servidor, no en navegador).
+- [x] Comprobar que el **ZIP de borradores** descarga bien en el navegador.
+      ✅ **Probado el 10/08/2026** en sección chica, sección grande (Secundaria 4.º A, con
+      la 556) y sobre el bimestre ABIERTO: ZIP correcto, carpetas y sufijo `_BORRADOR`,
+      marca de agua, 0 QR y 0 sello. ⚠️ El botón va **por sección**: lanzar la ruta sin
+      `seccion_id` renderiza el periodo entero en el navegador.
 
 Detalle y cifras: `docs/modulos/boleta-competencias-completas.md` §8.3.
 

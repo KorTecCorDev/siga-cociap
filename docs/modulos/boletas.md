@@ -1061,6 +1061,18 @@ Diferencias con Archivar, y solo estas:
 | Nombre | `APELLIDOS_NOMBRES.pdf` | `APELLIDOS_NOMBRES_BORRADOR.pdf` |
 | ZIP | `..._II_BIMESTRE.zip` | `..._II_BIMESTRE_BORRADOR.zip` |
 
+✅ **PROBADO EN NAVEGADOR EL 10/08/2026 (usuario), y con esto se cierra la única deuda que
+arrastraba desde el 05/08** — hasta entonces solo estaba verificado en servidor. Se cubrió
+sección chica (Primaria 2.º A), sección grande con el peor caso de contenido (Secundaria
+4.º A, la de la matrícula **556**) y el caso de uso real sobre el **bimestre ABIERTO**:
+descarga correcta, carpetas `NIVEL/GRADO_SECCION`, sufijo `_BORRADOR`, marca de agua en
+cada PDF y **0 QR / 0 sello del director**.
+
+⚠️ **El botón existe SOLO por sección** (la vista del periodo siempre pasa `?seccion_id=N`).
+La ruta sin ese parámetro es válida y procesaría **todas** las matrículas del periodo
+(~524) en una sola pestaña: html2pdf renderiza en el CLIENTE, así que es la vía directa a
+colgar el navegador. No enlazarla.
+
 ⚠️ **La marca de agua va DENTRO del item, no en el wrapper.** `html2canvas` captura un
 contenedor por boleta (`.boleta-archivo-item`), y un `position: fixed` de fuera **no
 entra en la captura**: los PDFs saldrían sin marca. De ahí la variante
