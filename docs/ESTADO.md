@@ -22,7 +22,7 @@ SELECT (SELECT COUNT(*) FROM calificaciones WHERE extraordinaria = 1)           
 |---|---|
 | `m050` (extraordinarias de Ética) | **275** |
 | `m048` (tablas `_bkp`) | **0** |
-| `snap_b2` (snapshot oficial de B2) | **524** |
+| `snap_b2` (snapshot oficial de B2) | **523** (era 524 hasta la reconciliación del roster del 11/08) |
 | `publicado_b2` (filas de publicación) | **2** (un nivel cada una) |
 | Estados de periodo | B1 `cerrado` · B2 `cerrado` · **B3 `activo`** · B4 `pendiente` |
 
@@ -34,14 +34,13 @@ todo pusheado, **sin migración pendiente** y sin código sin desplegar. Tres en
 día: el reporte de mérito firmable por sección, el roster del snapshot y el arreglo del
 candado de la versión rectificada.
 
-> 🔴 **ÚNICO PENDIENTE DE PRODUCCIÓN (11/08/2026): correr allá
-> `php database/sincronizar_roster_snapshot.php --confirmar`.** Es reparación de DATOS, no
-> de código, y el deploy no la hace. Hasta que se corra, B2 sigue con **524 filas** y su
-> orden de mérito **no refleja las 3 rectificaciones ya aplicadas** a 4.º de primaria
-> (además, ninguna rectificación nueva de B2 se registrará). Ensayado sobre la copia de
-> prod: deja 523 filas. Confirmar el resultado ALLÁ antes de darlo por hecho.
+> ✅ **Reparación de datos APLICADA EN PRODUCCIÓN el 11/08/2026** (`sincronizar_roster_snapshot.php
+> --confirmar`, salida capturada allá): ESCUDERO TORRES `#456` salió del oficial de B2
+> —ocupaba el **puesto 30° de 1.º Secundaria**, 42 compañeros cambiaron de puesto— y el
+> snapshot quedó en **523 filas**, idéntico al ensayo local. Con eso B2 volvió a ser
+> rectificable y el orden refleja las 3 rectificaciones de 4.º de primaria.
 
-**Lo primero que toca al retomar:** el pendiente de arriba; después, capturar en PROD las
+**Lo primero que toca al retomar:** capturar en PROD las
 cifras del snapshot de B2 y confirmar el `limite_notas` de B3; y luego el siguiente hito con
 fecha, la **regla del periodo final** (tope 05/10/2026).
 
@@ -1887,8 +1886,8 @@ WHERE id=25;`).
     cuanto se registrara un traslado posterior a la publicación.
   - **Verificación:** paso 6 nuevo en `verif_roster_snapshot_traslado.php` (**20 en verde**);
     los 7 verificadores del módulo siguen pasando.
-- ✅ **11/08/2026 — EN PRODUCCIÓN (código; la reparación de datos sigue pendiente, ver la
-  cabecera): el roster del snapshot deja de moverse por accidente.** Decisión del usuario: **B1 se queda como está (528 filas, 11
+- ✅ **11/08/2026 — EN PRODUCCIÓN, código y datos: el roster del snapshot deja de moverse
+  por accidente.** Decisión del usuario: **B1 se queda como está (528 filas, 11
   trasladados/retirados dentro) y la regla nueva —excluir a quien se traslade o retire—
   rige DESDE B2.** El porqué: la publicación siempre cae después de activar el bimestre
   siguiente, así que el documento llega a las familias cuando el alumno ya se fue.
