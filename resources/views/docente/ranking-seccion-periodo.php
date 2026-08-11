@@ -1,16 +1,30 @@
 <?php
 /**
- * Ranking por SECCIÓN (vista docente, read-only). Ranking interno de cada
- * sección. NO otorga media beca: esa solo la define el orden de mérito del
- * GRADO (/docente/orden-merito).
+ * Ranking por SECCIÓN (read-only). Ranking interno de cada sección. NO otorga
+ * media beca: esa solo la define el orden de mérito del GRADO.
  *
- * @var array $periodo
- * @var array $ranking  [grado_id => ['grado'=>..., 'secciones'=>[sec=>[...]]]]
+ * SIRVE A DOS MÓDULOS con la misma mecánica (patrón de `archivar.php`), y la
+ * diferencia son solo las URLs de vuelta y del ranking por grado:
+ *   - DOCENTE  (`/docente/ranking-seccion/{p}`)  — claustro, bajo la compuerta
+ *     de publicación 044: solo ve los niveles ya publicados.
+ *   - STAFF    (`/director/ranking-seccion/{p}`) — admin/RA/directores, SIN
+ *     compuerta: la necesitan antes de publicar, para decidir.
+ * Los defaults conservan el comportamiento del docente, que es quien la
+ * estrenó: una vista sin `$rutaBase` sigue funcionando igual que antes.
+ *
+ * @var array  $periodo
+ * @var array  $ranking     [grado_id => ['grado'=>..., 'secciones'=>[sec=>[...]]]]
+ * @var string $rutaBase    ruta del selector (botón Volver)
+ * @var string $rutaMerito  ruta del orden de mérito por grado del mismo módulo
+ * @var bool   $provisional periodo aún ABIERTO: el cálculo es en vivo y se mueve
  */
+$rutaBase    = $rutaBase    ?? 'docente/ranking-seccion';
+$rutaMerito  = $rutaMerito  ?? 'docente/orden-merito';
+$provisional = $provisional ?? false;
 ?>
 
 <div class="page-header">
-    <a href="<?= url('docente/ranking-seccion') ?>" class="btn btn--secondary btn--sm">← Volver</a>
+    <a href="<?= url($rutaBase) ?>" class="btn btn--secondary btn--sm">← Volver</a>
     <div>
         <h1 class="page-title page-title--wf page-title--ranking">Ranking <span class="merito-tag merito-tag--seccion">por sección</span></h1>
         <p class="page-subtitle"><?= e($periodo['nombre_display']) ?> — <?= e($periodo['anio']) ?></p>
@@ -21,8 +35,17 @@
     Ranking <strong>interno de cada sección</strong>. Ser el 1.° de la sección
     <strong>NO otorga media beca</strong>: esa solo la obtiene el 1.° del grado.
     Para la media beca, mira el
-    <a href="<?= url('docente/orden-merito/' . $periodo['id']) ?>">Orden de mérito del grado</a>.
+    <a href="<?= url($rutaMerito . '/' . $periodo['id']) ?>">Orden de mérito del grado</a>.
 </div>
+
+<?php if ($provisional): ?>
+    <div class="merito-aviso">
+        <span class="badge badge--activo">Provisional</span>
+        El bimestre sigue <strong>abierto</strong>: este ranking se calcula EN VIVO sobre las
+        competencias ya <strong>bloqueadas</strong>, así que <strong>cambia</strong> conforme
+        los docentes registran y aprueban. El ranking definitivo se congela al cerrar.
+    </div>
+<?php endif; ?>
 
 <?php if (empty($ranking)): ?>
     <div class="empty-state"><p>No hay calificaciones registradas en este periodo.</p></div>
