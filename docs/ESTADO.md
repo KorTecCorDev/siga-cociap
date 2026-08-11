@@ -1855,6 +1855,42 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
+- 🟡 **11/08/2026 — EN `dev`, SIN DESPLEGAR: el roster del snapshot deja de moverse por
+  accidente.** Decisión del usuario: **B1 se queda como está (528 filas, 11
+  trasladados/retirados dentro) y la regla nueva —excluir a quien se traslade o retire—
+  rige DESDE B2.** El porqué: la publicación siempre cae después de activar el bimestre
+  siguiente, así que el documento llega a las familias cuando el alumno ya se fue.
+  **Sin migración.**
+  - **B1 no necesitó nada:** `fuePublicado(1)=true` → el candado 046 lo protege solo.
+    Verificado. Solo lo rompería invocar `generarSnapshot`/`backfill` a mano.
+  - **Lo arreglado:** `generarSnapshot` recalculaba el ROSTER, no solo las notas, borrando
+    y reinsertando el periodo ENTERO. Ahora: (1) `registrarRanking(..., $exigirMismoRoster)`
+    ABORTA la reescritura si el roster cambió y avisa —lo usa la rectificación—; (2)
+    `sincronizarRosterPorMatricula()` es el **punto único** que sí lo mueve, llamado desde
+    los **4 sitios** que tocan `matriculas.tipo` (traslado, retiro, activación, reversión).
+    Detalle y decisiones en `docs/modulos/orden-merito.md`.
+  - **Caso testigo medido:** ESCUDERO TORRES (1.º sec C) cursó B2 completo y se trasladó
+    38 min después del cierre. Salió del oficial de B2 al rectificarse 3 notas de Educación
+    Física de **4.º de primaria**, arrastrando a 42 compañeros de puesto. B2 pasó de 524 a
+    523 filas. Sigue en el B1 publicado, puesto 39.
+  - **Verificación:** `verif_roster_snapshot_traslado.php` (transacción + ROLLBACK, guard de
+    prod), **16 comprobaciones en verde**. Los 8 verificadores del módulo que ya existían
+    siguen pasando.
+  - ⏰ **VENTANA:** `fuePublicado(2)` pasa a `true` **solo por el paso del tiempo** el
+    **13/08 19:00** (`publica_en` de primaria). El candado es por PERIODO, no por nivel: esa
+    hora bloquea también el oficial de secundaria. Después, toda corrección de B2 va a
+    `orden_merito_rectificado`.
+  - 🔧 **`database/sincronizar_roster_snapshot.php`** — recoge las divergencias ANTERIORES
+    al código, que ningún acto futuro tocaría. **Producción está justo en ese estado**
+    (B2 con 524 filas incluyendo a una alumna ya `trasladado`), así que **sin este script el
+    deploy dejaba B2 sin poder rectificarse**. Corre en prod, simula por defecto,
+    `--confirmar` para aplicar.
+  - **Estado de los DATOS:** las rectificaciones de 4.º de primaria y el snapshot de 523
+    filas están SOLO en la BD local. **Producción sigue con las 524 filas y las notas
+    originales**, y allá hay que rehacer las rectificaciones a mano.
+  - **ORDEN OBLIGATORIO EN PRODUCCIÓN:** desplegar → `sincronizar_roster_snapshot.php`
+    (simular y luego `--confirmar`) → **recién entonces** rehacer las 3 rectificaciones de
+    Educación Física de 4.º de primaria. Al revés, la rectificación aborta.
 - 🟡 **11/08/2026 — EN `dev`, SIN DESPLEGAR: el reporte imprimible del orden de mérito
   pasó a UNA HOJA FIRMABLE POR SECCIÓN. El usuario lo aprobó como MODELO OFICIAL del
   documento** (decisión cerrada; ver `docs/modulos/orden-merito.md` §"El reporte
