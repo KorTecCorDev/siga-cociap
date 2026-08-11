@@ -273,6 +273,65 @@ su sección sí tienen con nota y a él le faltan, sin omisión ni exoneración,
 ACTIVAS). NO valida "0 competencias sin bloquear" —el propio cierre las fuerza, y ese
 camino maneja las transversales—, que es una diferencia consciente con el diseño (P3).
 
+## El reporte imprimible: MODELO OFICIAL del documento (11/08/2026)
+
+> 🔒 **DECISIÓN CERRADA — este es el modelo oficial del orden de mérito del colegio.**
+> Aprobado por el usuario el 11/08/2026 tras revisar el documento renderizado. No se
+> rediseña de nuevo sin decisión explícita suya: el formato de un documento que se firma
+> y se archiva no es una preferencia estética, y cambiarlo deja el papel ya firmado sin
+> corresponder con el que emite el sistema. Lo que sí se puede tocar sin volver a
+> preguntar es lo que NO altera la estructura firmable (corregir un rótulo, ajustar la
+> altura de fila si un grado crece por encima del tope de 55).
+>
+> **Las 4 decisiones que definen el modelo** (elegidas por el usuario, no re-preguntar):
+> A4 vertical a una columna · una hoja por sección · en cada hoja de sección firman
+> Director EBR **y** tutor · hojas agrupadas por grado · «Distinción» como distintivo
+> junto al nombre, no como columna.
+
+`GET /director/orden-merito/{periodo}/imprimir` →
+`Director\OrdenMeritoController::imprimir` + `resources/views/director/reporte-merito.php`
++ `resources/sass/pages/_reporte-merito.scss`. **Solo cambió la presentación: ni una
+consulta, ni el modelo, ni qué se muestra.** Sigue leyendo `rankingGrado` y
+`rankingPorSeccion` (snapshot-aware) con el mismo roster.
+
+**Antes:** A4 apaisado, 2 hojas por grado — la 2.ª apilaba TODAS las secciones del grado,
+cada una con una línea suelta de firma del tutor.
+**Ahora:** A4 **vertical**, y cada hoja es un documento autónomo:
+
+| Hoja | Contenido | Firman |
+|---|---|---|
+| 1 por grado | orden de mérito del grado completo | Director EBR + **todos** sus tutores |
+| 1 por SECCIÓN | ranking interno de esa sección | Director EBR + el tutor de esa sección |
+
+Orden del legajo: agrupado por grado (mérito y a continuación sus secciones).
+Medido en B1/B2 2026: **34 hojas** (11 grados + 23 secciones), 80 bloques de firma.
+
+**Por qué vertical.** La tabla solo necesita ~74mm de columnas fijas, así que los 277mm
+del apaisado se desperdiciaban en la columna de nombre mientras sus 190mm de alto partían
+los grados grandes y dejaban las firmas huérfanas en una hoja sin contexto. En retrato
+caben **55 alumnos por hoja** (medido, no estimado). 10 de los 11 grados entran enteros
+con sus firmas al pie; **solo 1.º de secundaria (72) usa dos hojas**, con el `<thead>`
+repetido y el bloque de firmas viajando entero.
+
+⚠️ **55 es un tope real y está al límite**: 4.º de secundaria tenía 55 en B1 y la hoja
+mide 278.1mm de los 281mm útiles. Si un grado pasa de ahí, la tabla continúa en una
+segunda hoja (degradación limpia, no rotura). Para recuperar filas se toca la ALTURA DE
+FILA, que la fijan `.promedio-val` y `.medalla` —no el `font-size` de la celda—, nunca el
+espacio de firma.
+
+**Dos cosas que conviene no volver a descubrir a mano:**
+- **`.reporte-footer` es COMPARTIDO** con `admin/asistencia/imprimir`,
+  `admin/conducta/imprimir` y el acta de desempates. Lo que solo vale para el mérito vive
+  bajo el scope **`.merito-doc`** (mismo patrón que `.registro-doc` y `.acta-doc`): hoy,
+  el espacio de firma de 15mm en vez de los 18mm compartidos.
+- La columna **«Distinción»** (44mm) pasó a ser un **distintivo junto al nombre**: solo
+  aplica a 3 de las 37-72 filas, así que iba vacía en el 95 % de la tabla. No se perdió
+  información.
+- `body.doc-landscape` / `@page paisaje` (en `_boleta.scss`) **quedaron sin ningún
+  consumidor**; se conservan como mecanismo para el próximo documento ancho.
+- Se eliminaron `.reporte-seccion-bloque` y `.reporte-seccion-firma`, que quedaron
+  muertas al no existir ya la hoja que apilaba secciones.
+
 ## Las ÁREAS EXONERADAS salen del cálculo (05/08/2026)
 
 > **Regla:** una competencia cuya área (o subárea) esté exonerada para ese alumno **no

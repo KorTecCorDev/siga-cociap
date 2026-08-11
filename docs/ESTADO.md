@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **10/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **11/08/2026**.
 
 ## ⏱️ CÓMO RETOMAR EN OTRA MÁQUINA (escrito el 10/08/2026)
 
@@ -31,6 +31,10 @@ medir nada de lo de abajo: resincronizar desde producción primero.
 
 **Estado del repo al cerrar la sesión:** `dev` y `main` con el mismo árbol, todo pusheado,
 **sin migración pendiente** y sin código sin desplegar. Producción en `992a350`.
+
+> ⚠️ **Desactualizado desde el 11/08/2026:** `dev` lleva el rediseño del reporte
+> imprimible del orden de mérito (solo presentación, **sin migración**) pendiente de
+> validar en el navegador y de merge a `main`. Ver el primer punto de "Eventos con fecha".
 
 **Lo primero que toca al retomar:** los dos pendientes inmediatos del cierre —capturar en
 PROD las cifras del snapshot de B2 y confirmar el `limite_notas` de B3— y después el
@@ -1851,6 +1855,29 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
+- 🟡 **11/08/2026 — EN `dev`, SIN DESPLEGAR: el reporte imprimible del orden de mérito
+  pasó a UNA HOJA FIRMABLE POR SECCIÓN. El usuario lo aprobó como MODELO OFICIAL del
+  documento** (decisión cerrada; ver `docs/modulos/orden-merito.md` §"El reporte
+  imprimible"). Solo presentación —vista + SASS + el
+  `bodyClass` del controlador—: **no se tocó ninguna consulta, ni el modelo, ni qué se
+  muestra**. Sin migración.
+  - **A4 apaisado → A4 VERTICAL.** Cada hoja es un documento autónomo: 1 hoja por grado
+    (firman Director EBR + todos sus tutores) + **1 hoja por SECCIÓN** (Director EBR + el
+    tutor de esa sección), agrupadas por grado. Antes, las secciones de un grado iban
+    apiladas en una sola hoja con una línea de firma suelta cada una.
+  - **Medido en Chrome sobre el documento real de B1 y B2 (no estimado):** 34 hojas
+    (11 grados + 23 secciones), 80 bloques de firma, **0 hojas en blanco** al final.
+    Caben **55 alumnos por hoja**; 10 de los 11 grados entran enteros y solo **1.º de
+    secundaria (72)** usa dos hojas. ⚠️ 4.º de secundaria (55 en B1) mide **278.1mm de
+    los 281mm útiles**: el tope está al límite, y por encima la tabla continúa en una
+    segunda hoja (degradación limpia).
+  - La columna «Distinción» (44mm, vacía en el 95 % de las filas) es ahora un distintivo
+    junto al nombre; no se perdió información.
+  - **Efecto lateral evitado a propósito:** `.reporte-footer` lo comparten asistencia,
+    conducta y el acta de desempates; el recorte del espacio de firma (18→15mm) va bajo
+    el scope nuevo **`.merito-doc`**, así que esos tres documentos quedan intactos.
+  - Detalle y trampas en `docs/modulos/orden-merito.md` §"El reporte imprimible".
+  - **Pendiente:** decidir el merge a `main`.
 - ✅ **11/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `9d3207d` a `6b48964`**
   (merge `--no-ff`, autorizado por el usuario). **RANKING POR SECCIÓN PARA STAFF + DOS
   FUGAS DE LA COMPUERTA CERRADAS.** Lote construido en la sesión del 10-11/08.
