@@ -15,6 +15,11 @@
 - **Document root:** `public_html` (NO `public/`). El `.htaccess` raíz reescribe todo a `public/`.
 - **SSH:** `ssh -p 65002 u761410128@89.116.115.116`.
 - **BD:** `u761410128_siga_cociap` / usuario `u761410128_ktcdev` (contraseña rotada).
+- **Scripts de mantenimiento por SSH:** la sesión abre en `~`, así que **hay que entrar
+  primero al repo** o `php database/...` responde `Could not open input file`:
+  `cd ~/domains/sigacociap.net/public_html && php database/<script>.php`.
+  El **PHP del CLI es 8.3.30** (verificado el 11/08/2026), o sea que soporta lo mismo que
+  el sitio: no hace falta invocar un binario versionado tipo `php8.2`.
 
 ### El auto-deploy BORRA todo lo no versionado (CRÍTICO)
 El Git auto-deploy de Hostinger hace un **checkout limpio** en cada push: elimina
