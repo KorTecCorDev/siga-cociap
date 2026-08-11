@@ -8,6 +8,7 @@ use App\Models\ConductaModel;
 use App\Models\DirectorEbrModel;
 use App\Models\EstudianteModel;
 use App\Models\OrdenMeritoModel;
+use App\Models\PublicacionBoletaModel;
 use App\Models\TransversalModel;
 use Core\Session;
 use Core\View;
@@ -243,29 +244,78 @@ class PanelController extends BaseController
         $did     = (int) $user['id'];
         $niveles = $this->getNivelesDocente($did);
 
-        // Buscador en vivo: incluye 'pendiente' y 'desactivado' (espejo de la
-        // grilla). La nómina IMPRIMIBLE (nominaImprimir) sigue solo 'aprobada'.
-        $alumnos = $this->getMatriculados($niveles, 0, false);
+        // Buscador en vivo: SOLO matriculas 'aprobada' (decision del usuario,
+        // 10/08/2026). Es una CONSULTA, no un roster: la grilla de
+        // calificaciones, la de asistencia y la de conducta siguen mostrando
+        // 'pendiente' y 'desactivado' —esos alumnos asisten y SE EVALUAN—, que
+        // es el invariante de CLAUDE.md y lo que arreglo el fix del 04/08.
+        // Aqui solo se oculta la CARD del resultado; no se saca a nadie de la
+        // evaluacion ni cambia un solo dato.
+        $alumnos = $this->getMatriculados($niveles, 0, true);
 
-        // Orden de mérito: puesto del ULTIMO bimestre cerrado del año activo
-        // (misma fuente que el ranking oficial). Si no hay bimestre cerrado aún
-        // —p. ej. en el I Bimestre— no hay puesto vigente.
-        $estModel  = new EstudianteModel();
-        $anio      = $estModel->anioActivo();
-        $bimestre  = $anio ? $estModel->ultimoBimestreCerrado((int) $anio['id']) : null;
-        $puestos   = [];
-        if ($bimestre && $alumnos) {
-            $gradoIds = array_filter(array_map(
-                static fn($a) => (int) ($a['grado_id'] ?? 0),
-                $alumnos
-            ));
-            if ($gradoIds) {
-                $puestos = (new OrdenMeritoModel())
-                    ->puestosPorGrado($gradoIds, (int) $bimestre['id']);
+        // ORDEN DE MERITO — bajo la COMPUERTA DE PUBLICACION (044).
+        // Antes se usaba el ULTIMO BIMESTRE CERRADO, y eso era una FUGA: cerrar
+        // congela el ranking, pero lo que lo hace visible es PUBLICAR, que es un
+        // acto separado, por NIVEL y con fecha. En la ventana entre ambos —dias,
+        // no minutos— esta nomina mostraba el puesto y el nombre del bimestre
+        // que el propio /docente/orden-merito le ocultaba.
+        // La respuesta va POR NIVEL porque la compuerta lo es: primaria suele
+        // publicarse un dia antes que secundaria, y en esa franja un docente con
+        // ambos niveles ve legitimamente distinto bimestre en cada card.
+        // 🔴 DOS CONCEPTOS DISTINTOS, DOS VARIABLES CON NOMBRE PROPIO. Antes los
+        // dos salian de una sola variable `$bimestre` (el ultimo cerrado), y al
+        // cambiar la fuente del MERITO se rompio en silencio la de la BOLETA:
+        //   · $publicados    → MERITO. Bajo la compuerta 044, y POR NIVEL.
+        //   · $ultimoCerrado → BOLETA oficial que el docente puede abrir. NO
+        //     pasa por la 044 a proposito: su regla es `boleta_estado_bimestre`
+        //     (umbral 'borrador'/'archivo'), porque son las notas que el propio
+        //     docente registra, no un ranking comparativo.
+        // No volver a fusionarlas: reglas distintas, vigencias distintas.
+        $estModel   = new EstudianteModel();
+        $anio       = $estModel->anioActivo();
+        $anioId     = $anio ? (int) $anio['id'] : 0;
+
+        $publicados = $anioId
+            ? (new PublicacionBoletaModel())->ultimoPeriodoPublicadoPorNivel($anioId)
+            : [];
+
+        $ultimoCerrado = $anioId ? $estModel->ultimoBimestreCerrado($anioId) : null;
+
+        // Un mismo periodo suele servir a varios niveles: se agrupan los grados
+        // por periodo para no repetir la consulta del ranking.
+        $gradosPorPeriodo = [];
+        $bimestresMerito  = [];
+        foreach ($alumnos as $a) {
+            $nid = (int) ($a['nivel_id'] ?? 0);
+            if (!isset($publicados[$nid])) {
+                continue;
             }
+            $pid = (int) $publicados[$nid]['id'];
+            $gid = (int) ($a['grado_id'] ?? 0);
+            if ($gid) {
+                $gradosPorPeriodo[$pid][$gid] = true;
+            }
+            $bimestresMerito[$nid] = [
+                'nivel_nombre' => $a['nivel_nombre'],
+                'bimestre'     => $publicados[$nid]['nombre_display'],
+            ];
         }
+
+        $ordenModel = new OrdenMeritoModel();
+        $puestos    = [];
+        foreach ($gradosPorPeriodo as $pid => $set) {
+            $puestos[$pid] = $ordenModel->puestosPorGrado(array_keys($set), $pid);
+        }
+
         foreach ($alumnos as &$a) {
-            $a['puesto'] = $puestos[(int) $a['matricula_id']]['puesto'] ?? null;
+            $nid = (int) ($a['nivel_id'] ?? 0);
+            $pid = isset($publicados[$nid]) ? (int) $publicados[$nid]['id'] : null;
+            // `merito_visible` distingue "su nivel aun no se publico" de "esta
+            // publicado pero el alumno no tiene puesto": son mensajes distintos.
+            $a['merito_visible'] = $pid !== null;
+            $a['puesto'] = $pid !== null
+                ? ($puestos[$pid][(int) $a['matricula_id']]['puesto'] ?? null)
+                : null;
         }
         unset($a);
 
@@ -292,7 +342,7 @@ class PanelController extends BaseController
 
         // Estado de la boleta del bimestre ACTIVO: 'borrador' tras el Hito A (RA
         // aprobo), 'registro' antes. Mientras el activo no se aprueba, la boleta
-        // visible es la OFICIAL del ultimo bimestre CERRADO ($bimestre).
+        // visible es la OFICIAL del ultimo bimestre CERRADO ($ultimoCerrado).
         $periodoActivo = $this->getPeriodoActivo();
         $estadoBoleta  = boleta_estado_bimestre(
             $periodoActivo['estado'] ?? null,
@@ -304,11 +354,16 @@ class PanelController extends BaseController
             'alumnos'          => $alumnos,
             'secciones'        => array_values($secciones),
             'total'            => count($alumnos),
-            'tieneOrdenMerito' => $bimestre !== null,
-            'bimestre'         => $bimestre['nombre_display'] ?? null,
+            'tieneOrdenMerito' => $bimestresMerito !== [],
+            // Un rotulo por nivel: en la ventana de publicacion escalonada puede
+            // haber dos bimestres vigentes a la vez, y decir solo uno mentiria.
+            'bimestresMerito'  => array_values($bimestresMerito),
             'estadoBoleta'     => $estadoBoleta,
             'bimestreActivo'   => $periodoActivo['nombre_display'] ?? null,
-            'bimestreCerrado'  => $bimestre['nombre_display'] ?? null,
+            // Alimenta el PANEL DE BOLETA de cada card (`$hayBoletaVisible`): si
+            // llega null con el bimestre activo aun en 'registro', el panel
+            // desaparece para TODOS los alumnos. Paso en el commit ea5c446.
+            'bimestreCerrado'  => $ultimoCerrado['nombre_display'] ?? null,
             'page_scripts'     => ['nomina'],
         ]);
     }
@@ -729,12 +784,20 @@ class PanelController extends BaseController
      * Matriculados de los niveles dados (o de una sección concreta), con su
      * apoderado responsable (vinculo_familiar.es_responsable = 1).
      *
-     * $soloAprobadas = true  → solo 'aprobada' (nómina IMPRIMIBLE, documento
-     *                          oficial SIAGIE — no relajar).
-     * $soloAprobadas = false → incluye 'pendiente' y 'desactivado' (buscador en
-     *                          vivo: espejo de la grilla de calificaciones, que
-     *                          también los muestra). Trasladados y operativas de
-     *                          retorno quedan fuera SIEMPRE.
+     * $soloAprobadas = true  → solo 'aprobada'. Lo usan la nómina IMPRIMIBLE
+     *                          (documento oficial SIAGIE — no relajar) y, desde
+     *                          el 10/08/2026, el BUSCADOR en vivo.
+     * $soloAprobadas = false → incluye 'pendiente' y 'desactivado'. Hoy SIN
+     *                          llamadores; se conserva porque es el criterio de
+     *                          los ROSTERS (grilla de notas, asistencia,
+     *                          conducta), donde esos alumnos SI aparecen porque
+     *                          asisten y se evalúan.
+     * Trasladados y operativas de retorno quedan fuera SIEMPRE.
+     *
+     * ⚠️ Un 'desactivado' por DEUDA sí se califica, así que no saldrá en el
+     * buscador aunque el docente deba evaluarlo. Hoy no muerde —los 11
+     * desactivados del año son trasladados/retirados, que ya están fuera de la
+     * evaluación—, pero es el precio de filtrar por estado en esta pantalla.
      */
     private function getMatriculados(array $niveles, int $seccionId = 0, bool $soloAprobadas = true): array
     {

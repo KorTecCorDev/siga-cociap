@@ -1,8 +1,21 @@
-<?php /** @var array $periodos */ ?>
+<?php
+/**
+ * Selector de periodo del modulo de merito (staff). Sirve a los DOS flujos, que
+ * son distintos y no hay que confundir: orden de merito por GRADO (define la
+ * media beca) y ranking por SECCION (interno, no la otorga). Los defaults
+ * conservan el flujo por grado, que es el que estreno esta vista.
+ *
+ * @var array  $periodos
+ * @var string $rutaBase  destino de cada tarjeta
+ * @var string $titulo    encabezado de la pagina
+ */
+$rutaBase = $rutaBase ?? 'director/orden-merito';
+$encabezado = $titulo ?? 'Orden de mérito';
+?>
 
 <div class="page-header">
     <a href="<?= url('/') ?>" class="btn btn--secondary btn--sm">← Dashboard</a>
-    <h1 class="page-title">Orden de mérito</h1>
+    <h1 class="page-title"><?= e($encabezado) ?></h1>
 </div>
 
 <?php if (empty($periodos)): ?>
@@ -18,7 +31,7 @@
         <div class="card__body">
             <div class="periodos-grid">
                 <?php foreach ($periodos as $periodo): ?>
-                    <a href="<?= url('director/orden-merito/' . $periodo['id']) ?>"
+                    <a href="<?= url($rutaBase . '/' . $periodo['id']) ?>"
                        class="periodo-item">
                         <div class="periodo-item__nombre">
                             <?= e($periodo['nombre_display']) ?>

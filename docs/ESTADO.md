@@ -1449,9 +1449,35 @@ WHERE id=25;`).
   - **Alias del área 14 limpiado por el usuario** el 05/08 (`alias_boleta` de
     «(Ética y Valores)» a NULL): cierra el paso 3 del plan de encendido del 07/07 y
     elimina la ambigüedad que originó la regla errónea.
-  - ⚠️ **Refuerzo recomendado, no hecho:** desactivar el área *Ed. Religiosa* de
-    secundaria en `/admin/curriculum`. Ahora que Ética cuenta, una carga sobre esa área
-    haría contar el **mismo curso dos veces**; hoy solo lo vigila el guard nuevo.
+  - ✅ **~~Refuerzo recomendado: desactivar el área *Ed. Religiosa* de secundaria~~ —
+    PROBADO Y DESCARTADO EL 10/08/2026 (decisión del usuario). EL ÁREA SE QUEDA `activa`.**
+    La idea era que, contando ya Ética en el mérito, una carga sobre esa área haría contar
+    el **mismo curso dos veces**. Se aplicó en local, se midió el efecto completo y se
+    revirtió: **no compensa**.
+    - **Qué se midió con el área en `activa = 0`** (0 cargas, 0 notas, 0 criterios, 0
+      exoneraciones, así que ningún dato se movió): el universo del mérito siguió **OK**,
+      las boletas intactas (**1965 filas de nota, 0 perdidas**) y los exonerados
+      conservaron su `EXO`.
+    - **Lo que sí cambiaba, y es el motivo de descartarlo:**
+      1. **Desaparece de `/admin/actas-siagie/vinculos`** — esa pantalla incluye áreas
+         inactivas solo si tienen notas (`WHERE a.activa = 1 OR notas > 0`) y esta tiene 0.
+         Se perdía la fila donde se audita el vínculo **`035-EREL`**, que es justo lo que
+         esa pantalla existe para no esconder.
+      2. **`verif_plan_completo_boleta.php` da un rojo FALSO**: su bloque 1 filtra
+         `a.activa = 1`, así que el área sale del catálogo y sus 5 exclusiones esperadas
+         (`Secundaria|1..5|Educación Religiosa`) quedan sin cumplir. La exclusión sigue
+         siendo cierta en la boleta — cambia el motivo, no el resultado.
+      3. **Rompía el espejo local↔prod** en un dato de configuración.
+    - **La protección que queda es DETECTIVA, no estructural:** el guard anti-duplicado de
+      `verif_universo_merito.php` **falla (exit 1)** en cuanto esa área empiece a aportar
+      al mérito. Detecta después en vez de impedir antes, y hay que correrlo a mano. Es un
+      riesgo asumido a conciencia: el invariante de `CLAUDE.md` («debe seguir **sin
+      cargas**») sigue siendo la regla, y ahora es la ÚNICA.
+    - ⚠️ **Si alguien vuelve a plantearlo, no repetir el experimento: está hecho.** Y si
+      aun así se desactiva, el rojo del punto 2 es **esperado**, no una regresión.
+    - **El `alias_boleta` del área 14 sigue siendo `(Ética y Valores)`** pese a que este
+      documento lo daba por limpiado a NULL el 05/08. Es inocuo (área sin cargas: nunca se
+      imprime), pero el dato no coincide con lo escrito.
   - **Esto NO alinea SIGA con el SIAGIE** y no lo pretende: quedan 3 divergencias (GAMA
     va al acta y no al mérito; los 2 talleres cuentan en el mérito y no tienen hoja).
 - ✅ **FORMATO OFICIAL EN TODAS LAS BOLETAS — EN PRODUCCIÓN (corregido el 04/08/2026,
@@ -1825,6 +1851,55 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
+- ✅ **11/08/2026 — RANKING POR SECCIÓN PARA STAFF + DOS FUGAS DE LA COMPUERTA CERRADAS.**
+  Lote construido en la sesión del 10-11/08. **5 commits, SIN MIGRACIÓN.**
+  - **`/director/ranking-seccion[/{periodo}]`** para admin, RA y los dos directores.
+    Detalle y decisiones en `docs/modulos/orden-merito.md` §Visibilidad. Reutiliza
+    `rankingPorSeccion()` (snapshot-aware) y la **vista del docente parametrizada**, en vez
+    de copiarla. Verificación: `verif_ranking_seccion_staff.php` (**B1 528=528 · B2
+    524=524**).
+  - 🔴 **FUGA 1 — la nómina del docente enseñaba el mérito NO PUBLICADO.** Resolvía el
+    puesto con "último bimestre **cerrado**". Punto único nuevo
+    `PublicacionBoletaModel::ultimoPeriodoPublicadoPorNivel()`, **por NIVEL** (la compuerta
+    lo es). Verificación: `verif_merito_nomina_compuerta.php`.
+  - **El buscador de la nómina lista solo `aprobada`** (decisión del usuario): 525 → 521.
+    **Los ROSTERS no se tocan** — notas, asistencia y conducta siguen incluyendo
+    `pendiente` y `desactivado`, que es el invariante y lo que arregló el fix del 04/08.
+    Antirregresión: `verif_roster_asistencia.php` **OK** tras el cambio.
+  - 🔴 **REGRESIÓN PROPIA, DETECTADA POR EL USUARIO Y CORREGIDA ANTES DEL DEPLOY: el panel
+    de BOLETA desapareció de todas las cards de la nómina.** Al eliminar la variable
+    `$bimestre` del controlador, el array de la vista seguía leyéndola en
+    `'bimestreCerrado' => $bimestre[...] ?? null`; **el `??` suprime el aviso de variable
+    indefinida**, la clave quedó en `null` y `$hayBoletaVisible` pasó a `false`. Nunca
+    llegó a producción.
+    - **Causa de fondo:** una sola variable servía a **dos reglas distintas** —el mérito
+      (bajo la compuerta 044) y la boleta del docente (que NO pasa por ella: su regla es
+      `boleta_estado_bimestre`)—. Ahora son `$publicados` y `$ultimoCerrado`, con un
+      comentario que prohíbe volver a fusionarlas.
+    - **Nace `verif_nomina_docente_render.php`, la primera verificación que RENDERIZA una
+      vista real** (simula la sesión del docente, ejecuta el controlador, examina el HTML).
+      **Control ejecutado**: con el fallo reintroducido cae de **2080 paneles a 0** y el
+      HTML de **1 413 206 a 650 006 bytes**.
+    - ⚠️ **REGLA NUEVA, aplicable a todo el repo:** `?? null` sobre una **variable** (no
+      sobre un índice de un array que ya existe) convierte un error en un **silencio**. Al
+      tocar un controlador, revisar **todas** las claves que entrega a su vista, no solo
+      las editadas. `php -l` y las verificaciones de MODELO no ven esto.
+- ✅ **10/08/2026 (2.º deploy del día) — `origin/main` pasó de `992a350` a `9d3207d`**
+  (commit de merge `--no-ff`, autorizado por el usuario). **3 commits de contenido, SIN
+  MIGRACIÓN.**
+  - **Único código de runtime que entra:** el fix del flag `editable` en
+    `AsistenciaModel` y `ConductaModel` (dos consultas dejan de usar `NOW()`). El resto
+    son dos verificaciones nuevas —que no corren en runtime— y documentación.
+  - **Qué se arregla en prod:** con el motor en UTC la UI de asistencia y conducta
+    apagaba la edición **5 horas antes** que el guard real. Importa ahora porque **B3 está
+    abierto** y su `limite_notas` es `2026-10-16 04:00`: con el bug, la pantalla se habría
+    apagado la noche del **15/10**.
+  - **Verificado antes de mergear:** `php -l` de los dos modelos sobre el árbol ya
+    mergeado, `verif_flag_editable_timezone.php` en verde (incluido su paso de control con
+    la sesión en UTC) y el diff contra `origin/main` sin nada en `database/migrations/`.
+  - **Riesgo bajo, y la razón es medible:** el cambio solo puede alterar el flag en la
+    franja de las 5 horas previas al `limite_notas`. Fuera de esa ventana, el resultado es
+    idéntico al anterior.
 - ✅ **10/08/2026 — CIERRE, ENTREGA Y PUBLICACIÓN DEL II BIMESTRE. Ciclo completo.**
   B2 cerrado y publicado en producción, B3 abierto y activo para los docentes, y la boleta
   corregida para caber en una hoja A4 (deploy `992a350`). Es el primer bimestre que recorre

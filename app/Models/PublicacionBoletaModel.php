@@ -88,6 +88,53 @@ class PublicacionBoletaModel extends BaseModel
     }
 
     /**
+     * Para CADA NIVEL, el ultimo bimestre CERRADO cuyo merito ya es visible:
+     * [nivel_id => ['id','numero','nombre_display']]. Un nivel sin ninguna
+     * publicacion vigente simplemente no aparece en el array.
+     *
+     * POR QUE EXISTE: "el ultimo bimestre cerrado" NO es lo mismo que "el ultimo
+     * bimestre cuyo merito puede verse". Cerrar congela el ranking; PUBLICAR es
+     * lo que lo muestra, y va por NIVEL y con fecha (compuerta 044). Entre esos
+     * dos momentos —que pueden ser dias— el puesto existe pero nadie fuera de
+     * direccion deberia verlo. La nomina del docente preguntaba solo por el
+     * cierre y filtraba el puesto del bimestre aun no publicado.
+     *
+     * DOS NIVELES SE PUBLICAN EN DIAS DISTINTOS (primaria suele ir un dia antes),
+     * asi que la respuesta es POR NIVEL: en esa ventana, la misma pantalla
+     * muestra legitimamente B2 para primaria y B1 para secundaria.
+     *
+     * Recorre los bimestres cerrados de mas reciente a mas antiguo y se queda
+     * con el primero publicado de cada nivel. **Reutiliza `nivelesPublicados()`
+     * en vez de reescribir el criterio de "publicado"**: son 4 bimestres como
+     * mucho, y una quinta copia de esa regla es justo lo que este proyecto ya
+     * pago caro (los 130 bloqueos fantasma).
+     */
+    public function ultimoPeriodoPublicadoPorNivel(int $anioId, ?string $ahora = null): array
+    {
+        $cerrados = $this->query("
+            SELECT id, numero, nombre_display
+            FROM periodos
+            WHERE anio_id = ? AND estado = 'cerrado'
+            ORDER BY numero DESC
+        ", [$anioId]);
+
+        $porNivel = [];
+        foreach ($cerrados as $periodo) {
+            foreach ($this->nivelesPublicados((int) $periodo['id'], $ahora) as $nivelId => $_) {
+                // El primero que aparece gana: se recorre de mayor a menor numero.
+                if (!isset($porNivel[$nivelId])) {
+                    $porNivel[$nivelId] = [
+                        'id'             => (int) $periodo['id'],
+                        'numero'         => (int) $periodo['numero'],
+                        'nombre_display' => $periodo['nombre_display'],
+                    ];
+                }
+            }
+        }
+        return $porNivel;
+    }
+
+    /**
      * Ids de los periodos con AL MENOS UN nivel publicado, como set
      * [periodo_id => true]. Mismo criterio de "publicado" que los dos metodos
      * de arriba, sin acotar a un nivel: responde "¿este periodo ya tiene algo

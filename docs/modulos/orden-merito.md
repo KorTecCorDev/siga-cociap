@@ -199,10 +199,62 @@ Cerrar el bimestre oficializa (congela) el mérito, pero no lo muestra a nadie f
 dirección.
 
 - **Director:** `/director/orden-merito`, siempre (no depende de la compuerta).
+- **Staff — ranking por SECCIÓN: `/director/ranking-seccion[/{periodo}]` (10/08/2026).**
+  Mismos 4 roles que el módulo (admin, RA, director general, director EBR) porque comparte
+  el `requireRole` de `Director\OrdenMeritoController`. **NO aplica la compuerta 044**, a
+  diferencia del flujo del docente: el staff lo necesita ANTES de publicar, que es cuando
+  el dato sirve para decidir. Es el mismo criterio que ya seguía el ranking por grado.
+  - **No calcula nada nuevo:** llama a `rankingPorSeccion()`, el punto único
+    snapshot-aware (cerrado → congelado; activo → en vivo sobre lo ya bloqueado), que
+    comparten el imprimible del director y la vista del docente.
+  - **Reutiliza la vista del docente** (`docente/ranking-seccion-periodo.php`)
+    parametrizando `$rutaBase`, `$rutaMerito`, `$provisional` y `$hayPendientes`, todos
+    con default. Se descartó copiarla: **dos copias divergen**, y así nacieron los 130
+    bloqueos fantasma y la card de empates irresolubles.
+  - **Sin top-N: todos los estudiantes de cada sección** (decisión del usuario), igual que
+    el reporte imprimible.
+  - Avisa cuando el periodo está **abierto** (badge *Provisional*: el ranking en vivo se
+    mueve) y cuando hay **empates sin resolver** (el orden aún no es oficializable).
+  - **Verificación:** `verif_ranking_seccion_staff.php` (solo lectura, corre en prod).
+    Contrasta la suma de las secciones contra el snapshot oficial —**B1 528=528 y B2
+    524=524**— y comprueba que la compuerta no recorta al staff. Medido el 10/08: en B2 los
+    **11 grados** estaban ocultos al claustro (publicación programada al 13-14/08) y
+    visibles aquí, que es justo el motivo de la vista.
 - **Claustro:** `Docente\OrdenMeritoController` lista solo los periodos con **algún**
   nivel publicado (`PublicacionBoletaModel::periodosConAlgunNivelPublicado`) y, dentro
   de un periodo, solo los grados de niveles publicados (`nivelesPublicados`). El
   criterio de "publicado" no se duplica fuera de ese modelo.
+- 🔴 **FUGA CORREGIDA EL 10/08/2026 — la NÓMINA del docente enseñaba el mérito NO
+  PUBLICADO.** `/docente/nomina` resolvía el puesto con **`ultimoBimestreCerrado()`**, sin
+  preguntar por la publicación: mostraba «Orden de mérito vigente: II Bimestre» y el
+  puesto de cada alumno mientras `/docente/orden-merito` —dos clics más allá— se lo
+  ocultaba. **Cerrar congela el ranking; PUBLICAR es lo que lo muestra**, y entre ambos
+  actos pasan días.
+  - **Punto único nuevo:** `PublicacionBoletaModel::ultimoPeriodoPublicadoPorNivel()`
+    devuelve, **por NIVEL**, el último bimestre cerrado **y ya publicado**. Recorre los
+    cerrados de más reciente a más antiguo y **reutiliza `nivelesPublicados()`** en vez de
+    reescribir el criterio de "publicado" (son 4 bimestres como mucho; una quinta copia de
+    esa regla es lo que costó los 130 bloqueos fantasma).
+  - **La respuesta es POR NIVEL porque la compuerta lo es:** primaria se publica un día
+    antes que secundaria, así que en esa ventana la misma pantalla muestra legítimamente
+    **B2 para primaria y B1 para secundaria**. El encabezado lista un rótulo por nivel
+    cuando difieren; decir uno solo mentiría.
+  - **No se oculta lo ya publicado** (decisión del usuario): retrocede al último bimestre
+    visible en vez de borrar el puesto. Medido el 10/08: la nómina pasa de enseñar **B2**
+    (cerrado, publicación programada al 13-14/08) a enseñar **B1**, publicado el 22/07.
+  - Cada alumno lleva `merito_visible`, que separa **"su nivel aún no se publicó"** de
+    **"está publicado pero no tiene puesto"** — mensajes distintos en la card.
+  - **El buscador de `Admin\BuscadorEstudianteController` NO se toca:** sus roles son staff
+    (admin, RA, secretaría, los dos directores) y para ellos rige lo mismo que en
+    `/director/ranking-seccion` — ven el mérito antes de publicar porque lo necesitan para
+    decidir.
+  - **Revisado y descartado como caso análogo:** el panel de BOLETA de esa misma nómina usa
+    el umbral `'borrador'`, que por diseño no pasa por la compuerta (son las notas que el
+    propio docente registra, y salen con marca de agua). Un ranking comparativo no es lo
+    mismo que la boleta de su alumno.
+  - **Verificación:** `verif_merito_nomina_compuerta.php` (transacción + ROLLBACK, guard de
+    prod). Cubre los 4 escenarios: cerrado-sin-publicar devuelve el anterior, publicación
+    escalonada da bimestres distintos por nivel, y suspendida/despublicada dejan de contar.
 - **Familias:** `/padre/orden-merito` (grado) y `/padre/ranking-seccion` (solo la
   sección del hijo), bajo la misma compuerta que las notas
   (`PanelController::getPeriodoVigentePadre`). Ven la lista completa con nombre y

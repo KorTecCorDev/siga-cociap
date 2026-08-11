@@ -5,8 +5,12 @@
  * @var array  $alumnos          filas planas (matriculados aprobados)
  * @var array  $secciones        [{seccion_id, nivel_nombre, grado_nombre, seccion_nombre, n}]
  * @var int    $total
- * @var bool   $tieneOrdenMerito si hay un bimestre cerrado con ranking vigente
- * @var ?string $bimestre        nombre del bimestre del orden de mérito vigente
+ * @var bool   $tieneOrdenMerito si algun nivel tiene ya merito PUBLICADO
+ * @var array  $bimestresMerito  [{nivel_nombre, bimestre}] — uno por nivel, porque
+ *                               la compuerta 044 publica cada nivel por separado y
+ *                               puede haber dos bimestres vigentes a la vez. Cada
+ *                               alumno trae ademas `merito_visible` (su nivel ya
+ *                               publicado) y `puesto`.
  * @var string  $estadoBoleta    estado del bimestre activo: registro|borrador|oficial
  * @var ?string $bimestreActivo  nombre del bimestre activo
  * @var ?string $bimestreCerrado nombre del ultimo bimestre cerrado (boleta oficial)
@@ -53,9 +57,16 @@ $boletaEtiqueta   = $boletaBorrador
             <p class="text-sm text-muted" id="nomina-hint">Escribe para buscar entre <?= $total ?> estudiantes.</p>
             <p class="text-sm text-muted" id="nomina-sin-resultados" hidden>Sin coincidencias.</p>
             <p class="text-sm text-muted">
-                <?= $tieneOrdenMerito
-                    ? 'Orden de mérito vigente: ' . e($bimestre)
-                    : 'Aún no hay orden de mérito vigente (ningún bimestre cerrado).' ?>
+                <?php if (!$tieneOrdenMerito): ?>
+                    Aún no hay orden de mérito publicado.
+                <?php elseif (count($bimestresMerito) === 1): ?>
+                    Orden de mérito vigente: <?= e($bimestresMerito[0]['bimestre']) ?>
+                <?php else: ?>
+                    Orden de mérito vigente:
+                    <?php foreach ($bimestresMerito as $i => $bm): ?>
+                        <?= $i > 0 ? ' · ' : '' ?><?= e($bm['bimestre']) ?> (<?= e($bm['nivel_nombre']) ?>)
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </p>
         </div>
     </div>
@@ -100,7 +111,7 @@ $boletaEtiqueta   = $boletaBorrador
                     <div class="buscador-item__ubicacion">
                         <div class="buscador-item__lugar"><?= e($a['grado_nombre'] . ' ' . $a['seccion_nombre']) ?></div>
                         <div class="buscador-item__nivel"><?= e($a['nivel_nombre']) ?></div>
-                        <?php if (!$tieneOrdenMerito): ?>
+                        <?php if (!$tieneOrdenMerito || empty($a['merito_visible'])): ?>
                             <div class="buscador-item__puesto buscador-item__puesto--vacio">Sin orden de mérito</div>
                         <?php elseif ($a['puesto'] !== null): ?>
                             <div class="buscador-item__puesto">Puesto <?= (int) $a['puesto'] ?>.° del grado</div>
