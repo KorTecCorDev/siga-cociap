@@ -974,6 +974,31 @@ siguiente hito con fecha, la **regla del periodo final** (tope 05/10/2026).
   y el panel nuevo escondería los 130 fantasmas que B1 conserva). Toca
   `estadoCargasSeccion`, el gate del cierre del tutor. **Va junto con la F1 del plan de los
   4 registros**, que es un punto único sobre el mismo territorio.
+- 🐞 **EL MySQL DE PROD CORRE EN UTC (5 h ADELANTADO) Y DOS CONSULTAS LO IGNORAN —
+  HALLAZGO DEL 10/08/2026, MEDIDO, NO CORREGIDO (fuera del alcance de la sesión).**
+  Huella capturada en prod: `NOW()` marcó **2026-08-11 01:51** cuando en Perú eran las
+  **20:51 del 10**. En local el desfase es **0** (XAMPP va en hora del sistema), así que
+  esto **no se reproduce en local**.
+  - **Los guards de escritura están BIEN**: `CalificacionModel::periodoEstaBloqueado`
+    (`strtotime() < time()`), `ConductaModel::periodoEditable` y
+    `PublicacionBoletaModel::ahora()` resuelven el "ahora" en **PHP** con `America/Lima`.
+    El docblock de `PublicacionBoletaModel` ya advertía la trampa por escrito.
+  - **Las dos que no:** `AsistenciaModel.php:50` y `ConductaModel.php:53` calculan su
+    columna `editable` con `NOW() <= p.limite_notas` **en SQL**. En prod eso cierra la
+    ventana **5 horas antes** que el guard real: durante ese rato la UI muestra el
+    bimestre como no editable mientras el servidor **sí** aceptaría la escritura.
+  - **Sentido del error: conservador** (nunca abre lo que debería estar cerrado), y por
+    eso ha pasado desapercibido. Pero es incoherencia entre lo que la pantalla dice y lo
+    que el sistema hace, justo en el patrón que ya mordió el 04/08 con la asistencia de
+    B2 («el plazo venció sin que nadie lo notara»).
+  - ⚠️ **Al fijar un `limite_notas` a primera hora de la madrugada el margen se come
+    entero**: un límite a las 04:00 de Lima deja la UI de asistencia/conducta en "no
+    editable" desde las 23:00 del día anterior.
+  - **Regla para cualquier consulta o script nuevo:** el "ahora" de estos criterios se
+    resuelve en PHP, o en SQL con `UTC_TIMESTAMP() - INTERVAL 5 HOUR` (Perú no aplica
+    horario de verano). **Nunca `NOW()`.** Aplicado ya en
+    `database/verificaciones/verif_post_cierre_bimestre.sql`, cuyo bloque 0 devuelve el
+    `desfase_horas` del entorno.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
@@ -1751,9 +1776,18 @@ WHERE id=25;`).
   corregida para caber en una hoja A4 (deploy `992a350`). Es el primer bimestre que recorre
   entero el flujo nuevo: compuerta de publicación, snapshot oficial inmutable y las dos
   puertas de un solo sentido documentadas en el runbook.
-  - **Pendiente inmediato:** capturar en PROD las cifras del snapshot de B2 (esperado
-    **524 / 11 / 23 / 1-72**, 0 bloqueos `origen='cierre'`) y confirmar que B3 tiene
-    `limite_notas` fijado.
+  - ✅ **SNAPSHOT DE B2 CAPTURADO EN PRODUCCIÓN EL 10/08/2026 — COINCIDE CON LO PREDICHO:
+    524 filas / puestos 1-72 / 11 grados / 23 secciones**, `generado_en`
+    **2026-08-10 17:28:00**. Huella del servidor capturada en la misma corrida
+    (`u761410128_siga_cociap` · `u761410128_ktcdev@127.0.0.1` ·
+    `br-asc-web1308.main-hosting.eu` · **MariaDB 11.8.8-log** · Linux · `/var/lib/mysql/`),
+    que es lo que la convierte en una verificación de PROD y no de una copia.
+    - ⚠️ **`generado_en` es el MISMO SEGUNDO en local y en prod**, así que esa cifra
+      **por sí sola no distingue los entornos** — es otra vez la trampa de la 048, y sin
+      el bloque 0 la captura no habría probado nada. La copia local es fiel porque se
+      resincronizó desde prod después del cierre.
+    - **Falta capturar allí el resto de bloques**: bloqueos `origen='cierre'` (esperado 0),
+      estado real del candado 046 y `limite_notas` de B3.
     - 🛠 **Herramienta lista (10/08/2026): `database/verificaciones/verif_post_cierre_bimestre.sql`**
       — solo lectura, 8 bloques autocontenidos para phpMyAdmin, periodo anclado por
       **número + año activo**. Cubre las dos cosas de una pasada, más el estado real del
