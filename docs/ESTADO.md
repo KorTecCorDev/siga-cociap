@@ -1527,14 +1527,22 @@ WHERE id=25;`).
       nunca lo rellena después). **Una publicación PROGRAMADA a futuro deja el snapshot
       oficial todavía corregible** hasta que llegue su hora, y ahí el candado se activa
       **solo, sin que nadie pulse nada**.
-      - **En el ensayo LOCAL del 10/08 las dos filas quedaron programadas** (nivel 1 al
-        13/08 19:00, nivel 2 al 14/08 19:00, sello NULL) → allí el candado **no** estaba
-        activo. **Qué pasó en PROD está sin medir**: lo dice el bloque 6 de
-        `verif_post_cierre_bimestre.sql`, que replica `fuePublicado()` entero y devuelve
-        `candado_desde`.
-      - **Si en prod también quedó programada, hay una ventana barata** hasta esa fecha:
-        reabrir → corregir → re-cerrar todavía escribe el **OFICIAL**. Pasada esa hora,
-        toda corrección va a `orden_merito_rectificado` (visible solo en `/admin/control`).
+      - 🔴 **MEDIDO EN PRODUCCIÓN EL 10/08/2026: LA PUBLICACIÓN DE B2 ESTÁ PROGRAMADA Y EL
+        CANDADO 046 NO ESTÁ ACTIVO.** Las dos filas tienen `primera_publicacion_en` en
+        **NULL**: nivel 1 (primaria) al **13/08 19:00** y nivel 2 (secundaria) al
+        **14/08 19:00**, creadas a las 17:32. Idéntico al ensayo local (mismo segundo:
+        copia fiel). **Las familias TODAVÍA NO VEN las boletas de B2** — las verán solas al
+        llegar esas horas, sin que nadie pulse nada.
+      - **El candado se cierra solo el 13/08 19:00** (hora de Lima), con la primera fila que
+        vence. Hasta ese momento el snapshot oficial de B2 **aún se puede modificar**.
+      - ⚠️ **La vía NO es reabrir: es la RECTIFICACIÓN.** Con B3 ya abierto, `reabrir`
+        aborta (la segunda puerta de un solo sentido). `RectificacionModel` sí opera sobre
+        bimestres cerrados y regenera el ranking; como `fuePublicado(2)` es **`false`**,
+        `registrarRanking` escribe el **OFICIAL**. Pasada esa hora, la misma acción irá a
+        `orden_merito_rectificado` (visible solo en `/admin/control`).
+      - **Que la publicación sea programada y escalonada es intencional** —primaria entrega
+        un día antes que secundaria, y el modelo lo documenta—, pero tiene un efecto que no
+        estaba escrito: **retrasa también el candado**, no solo la visibilidad.
     - 🔴 **QUEDA UNA VERIFICACIÓN SIN CAPTURAR, y ahora importa más que antes:** las cifras
       del snapshot de B2 **en producción** no se recogieron en la sesión. El espejo local
       predecía **524 filas / 11 grados / 23 secciones / puestos 1-72** y **0 bloqueos con
