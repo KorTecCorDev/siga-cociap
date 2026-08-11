@@ -27,6 +27,21 @@
 -- ⚠️ `SELECT ROW_COUNT()` y las variables NO cruzan de una pestana a otra en
 -- phpMyAdmin. Si un bloque devuelve `periodo_id` NULL, es que se ejecuto sin su
 -- `SET` previo: vuelve a lanzar el bloque entero.
+--
+-- 🔴 NUNCA COMPARAR CONTRA `NOW()` EN ESTE ARCHIVO. El MySQL de produccion
+-- (Hostinger) corre en **UTC**: medido el 10/08/2026, su `NOW()` va **5 horas
+-- adelantado** respecto a la hora de Lima (marco 2026-08-11 01:51 cuando en
+-- Peru eran las 20:51 del 10). La aplicacion NO usa `NOW()` para estos
+-- criterios: `PublicacionBoletaModel::ahora()` los calcula en PHP con el
+-- timezone de la app (`America/Lima`, config/app.php) y los manda como
+-- parametro preparado — su docblock ya avisaba de esta trampa. Un veredicto
+-- basado en `NOW()` daria por vencida una publicacion programada 5 horas ANTES
+-- que el codigo real.
+-- Por eso los bloques 6 y 8 usan `@ahora`:
+--       UTC_TIMESTAMP() - INTERVAL 5 HOUR
+-- que es la hora de Lima en CUALQUIER servidor (Peru no aplica horario de
+-- verano desde 1994, asi que el offset es fijo) y no depende del huso de la
+-- sesion ni de que las tablas de zonas horarias esten cargadas.
 -- ============================================================================
 
 
@@ -35,9 +50,14 @@
 --   · PROD (Hostinger): otra bd, otro usuario, so Linux.
 -- Si la fila dice Win64, estas en tu maquina y NADA de lo de abajo cuenta como
 -- verificacion de produccion.
+-- `now_del_motor` vs `ahora_lima`: si difieren, el servidor NO esta en hora de
+-- Peru y cualquier criterio temporal escrito con NOW() mentiria. En prod
+-- (10/08/2026) difieren en 5 horas exactas.
 SELECT DATABASE() AS bd, USER() AS usuario_conexion, @@hostname AS hostname,
        @@version AS version, @@version_compile_os AS so, @@datadir AS datadir,
-       NOW() AS momento_de_la_captura;
+       NOW()                             AS now_del_motor,
+       UTC_TIMESTAMP() - INTERVAL 5 HOUR AS ahora_lima,
+       TIMESTAMPDIFF(HOUR, UTC_TIMESTAMP() - INTERVAL 5 HOUR, NOW()) AS desfase_horas;
 
 
 -- ============ 1) ANCLAJE + ESTADO DEL PERIODO ==============================
@@ -159,11 +179,13 @@ SET @periodo := (SELECT id FROM periodos
                     AND anio_id = (SELECT id FROM anios_academicos
                                     WHERE estado = 'activo' ORDER BY anio DESC LIMIT 1));
 
+SET @ahora := UTC_TIMESTAMP() - INTERVAL 5 HOUR;   -- hora de Lima, no NOW()
+
 SELECT pp.*,
        CASE WHEN pp.despublicada_en IS NOT NULL THEN 'despublicada a mano'
             WHEN pp.suspendida_en   IS NOT NULL THEN 'suspendida por reapertura'
             WHEN pp.primera_publicacion_en IS NOT NULL THEN 'publicada (sello inmediato)'
-            WHEN pp.publica_en <= NOW()                THEN 'publicada (programada, ya vencio)'
+            WHEN pp.publica_en <= @ahora               THEN 'publicada (programada, ya vencio)'
             ELSE 'PROGRAMADA a futuro — las familias aun NO la ven'
        END AS estado_publicacion
 FROM periodos_publicacion pp WHERE pp.periodo_id = @periodo;
@@ -175,11 +197,14 @@ SET @periodo := (SELECT id FROM periodos
                     AND anio_id = (SELECT id FROM anios_academicos
                                     WHERE estado = 'activo' ORDER BY anio DESC LIMIT 1));
 
+SET @ahora := UTC_TIMESTAMP() - INTERVAL 5 HOUR;   -- hora de Lima, no NOW()
+
 SELECT
-    SUM(pp.primera_publicacion_en IS NOT NULL OR pp.publica_en <= NOW()) AS niveles_publicados,
-    MIN(pp.publica_en)                                                   AS candado_desde,
+    @ahora                                                                 AS ahora_lima,
+    SUM(pp.primera_publicacion_en IS NOT NULL OR pp.publica_en <= @ahora)  AS niveles_publicados,
+    MIN(pp.publica_en)                                                     AS candado_desde,
     CASE WHEN SUM(pp.primera_publicacion_en IS NOT NULL
-                  OR pp.publica_en <= NOW()) > 0
+                  OR pp.publica_en <= @ahora) > 0
          THEN 'CANDADO 046 ACTIVO — el snapshot oficial ya es INMUTABLE'
          ELSE 'candado 046 AUN NO activo — el oficial todavia es corregible hasta candado_desde'
     END AS veredicto
@@ -205,13 +230,16 @@ FROM orden_merito_rectificado WHERE periodo_id = @periodo;
 -- devuelve false: los docentes SI registran, pero sin ninguna fecha limite.
 -- Es el problema inverso al de B2, cuyo plazo vencido corto la captura de
 -- asistencia sin que nadie lo notara. Aqui se mira B3 (numero = 3).
+-- El guard real (`CalificacionModel::periodoEstaBloqueado`) compara en PHP con
+-- `time()`, o sea hora de Lima — por eso aqui se usa @ahora y NO `NOW()`.
 SET @num_sig := 3;
+SET @ahora   := UTC_TIMESTAMP() - INTERVAL 5 HOUR;
 
 SELECT p.id, p.numero, p.nombre_display, p.estado, p.fecha_inicio, p.fecha_fin,
-       p.limite_notas,
+       p.limite_notas, @ahora AS ahora_lima,
        CASE WHEN p.estado <> 'activo'      THEN 'no es el bimestre en curso'
             WHEN p.limite_notas IS NULL    THEN '*** FIJAR limite_notas en /director/anios/{anio} ***'
-            WHEN p.limite_notas < NOW()    THEN '*** VENCIDO: los docentes NO pueden registrar ***'
+            WHEN p.limite_notas < @ahora   THEN '*** VENCIDO: los docentes NO pueden registrar ***'
             ELSE 'OK · plazo vigente' END AS veredicto
 FROM periodos p
 WHERE p.numero = @num_sig
