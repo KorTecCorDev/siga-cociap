@@ -1851,8 +1851,15 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
-- ✅ **11/08/2026 — RANKING POR SECCIÓN PARA STAFF + DOS FUGAS DE LA COMPUERTA CERRADAS.**
-  Lote construido en la sesión del 10-11/08. **5 commits, SIN MIGRACIÓN.**
+- ✅ **11/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `9d3207d` a `6b48964`**
+  (merge `--no-ff`, autorizado por el usuario). **RANKING POR SECCIÓN PARA STAFF + DOS
+  FUGAS DE LA COMPUERTA CERRADAS.** Lote construido en la sesión del 10-11/08.
+  **6 commits, 16 archivos, SIN MIGRACIÓN.**
+  - **Verificado antes de mergear:** `php -l` de **todos** los PHP del lote y las **5
+    verificaciones en verde** (`verif_nomina_docente_render`, `verif_ranking_seccion_staff`,
+    `verif_merito_nomina_compuerta`, `verif_roster_asistencia`,
+    `verif_flag_editable_timezone`), más la sonda de render **repetida sobre el árbol ya
+    mergeado**.
   - **`/director/ranking-seccion[/{periodo}]`** para admin, RA y los dos directores.
     Detalle y decisiones en `docs/modulos/orden-merito.md` §Visibilidad. Reutiliza
     `rankingPorSeccion()` (snapshot-aware) y la **vista del docente parametrizada**, en vez
