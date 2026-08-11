@@ -96,6 +96,32 @@
 - El `h1` lleva el ícono de concepto wayfinding (ver sección siguiente).
 - SASS en `pages/_docente-panel.scss`. JS `public/js/nomina.js` intacto (todo por ID).
 
+### Quién sale en el buscador — SOLO matrículas `aprobada` (10/08/2026)
+
+Decisión del usuario. El buscador pasó de listar `aprobada + pendiente + desactivado`
+a listar **solo `aprobada`**, el mismo criterio que ya usaba la nómina imprimible.
+Medido: de **525 a 521** (salen las 3 matrículas `pendiente` del año y 1 `retirado`;
+los `trasladado` ya estaban fuera).
+
+🔴 **Esto NO saca a nadie de la evaluación, y la distinción es el punto entero:**
+
+| | Quién aparece |
+|---|---|
+| **Rosters** (grilla de notas, asistencia, conducta, transversales) | `aprobada` + `pendiente` + `desactivado` — **sin cambios** |
+| **Buscador de la nómina** (consulta) y nómina imprimible | solo `aprobada` |
+
+- Un roster es donde se **escribe**: excluir de ahí a un `pendiente` significa que
+  nadie puede calificarlo, que su boleta sale con `0 faltas` —dato falso, no ausente—
+  y que su evaluación incompleta **abortaría el cierre**. Es el invariante de
+  `CLAUDE.md` y el motivo del fix del 04/08. **Aquí solo se oculta una card de
+  resultado**: ningún dato cambia.
+- **Verificado con `verif_roster_asistencia.php` tras el cambio: OK**, y su bloque 3
+  sigue listando a las 3 `pendiente` (696, 695, 693) como parte del roster.
+- ⚠️ **Contrapartida conocida:** un `desactivado` por DEUDA sí se califica y ya no
+  saldrá en el buscador. Hoy no muerde —los 11 desactivados del año son
+  trasladados/retirados, fuera de la evaluación—, pero es el precio de filtrar por
+  estado en esta pantalla.
+
 ## Wayfinding en el h1 de cada vista del docente (22/06/2026)
 
 > Continuidad card→vista: el `h1` de cada vista a la que lleva una card del

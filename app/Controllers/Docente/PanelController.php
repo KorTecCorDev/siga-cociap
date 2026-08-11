@@ -244,9 +244,14 @@ class PanelController extends BaseController
         $did     = (int) $user['id'];
         $niveles = $this->getNivelesDocente($did);
 
-        // Buscador en vivo: incluye 'pendiente' y 'desactivado' (espejo de la
-        // grilla). La nómina IMPRIMIBLE (nominaImprimir) sigue solo 'aprobada'.
-        $alumnos = $this->getMatriculados($niveles, 0, false);
+        // Buscador en vivo: SOLO matriculas 'aprobada' (decision del usuario,
+        // 10/08/2026). Es una CONSULTA, no un roster: la grilla de
+        // calificaciones, la de asistencia y la de conducta siguen mostrando
+        // 'pendiente' y 'desactivado' —esos alumnos asisten y SE EVALUAN—, que
+        // es el invariante de CLAUDE.md y lo que arreglo el fix del 04/08.
+        // Aqui solo se oculta la CARD del resultado; no se saca a nadie de la
+        // evaluacion ni cambia un solo dato.
+        $alumnos = $this->getMatriculados($niveles, 0, true);
 
         // ORDEN DE MERITO — bajo la COMPUERTA DE PUBLICACION (044).
         // Antes se usaba el ULTIMO BIMESTRE CERRADO, y eso era una FUGA: cerrar
@@ -763,12 +768,20 @@ class PanelController extends BaseController
      * Matriculados de los niveles dados (o de una sección concreta), con su
      * apoderado responsable (vinculo_familiar.es_responsable = 1).
      *
-     * $soloAprobadas = true  → solo 'aprobada' (nómina IMPRIMIBLE, documento
-     *                          oficial SIAGIE — no relajar).
-     * $soloAprobadas = false → incluye 'pendiente' y 'desactivado' (buscador en
-     *                          vivo: espejo de la grilla de calificaciones, que
-     *                          también los muestra). Trasladados y operativas de
-     *                          retorno quedan fuera SIEMPRE.
+     * $soloAprobadas = true  → solo 'aprobada'. Lo usan la nómina IMPRIMIBLE
+     *                          (documento oficial SIAGIE — no relajar) y, desde
+     *                          el 10/08/2026, el BUSCADOR en vivo.
+     * $soloAprobadas = false → incluye 'pendiente' y 'desactivado'. Hoy SIN
+     *                          llamadores; se conserva porque es el criterio de
+     *                          los ROSTERS (grilla de notas, asistencia,
+     *                          conducta), donde esos alumnos SI aparecen porque
+     *                          asisten y se evalúan.
+     * Trasladados y operativas de retorno quedan fuera SIEMPRE.
+     *
+     * ⚠️ Un 'desactivado' por DEUDA sí se califica, así que no saldrá en el
+     * buscador aunque el docente deba evaluarlo. Hoy no muerde —los 11
+     * desactivados del año son trasladados/retirados, que ya están fuera de la
+     * evaluación—, pero es el precio de filtrar por estado en esta pantalla.
      */
     private function getMatriculados(array $niveles, int $seccionId = 0, bool $soloAprobadas = true): array
     {
