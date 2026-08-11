@@ -262,11 +262,24 @@ class PanelController extends BaseController
         // La respuesta va POR NIVEL porque la compuerta lo es: primaria suele
         // publicarse un dia antes que secundaria, y en esa franja un docente con
         // ambos niveles ve legitimamente distinto bimestre en cada card.
+        // 🔴 DOS CONCEPTOS DISTINTOS, DOS VARIABLES CON NOMBRE PROPIO. Antes los
+        // dos salian de una sola variable `$bimestre` (el ultimo cerrado), y al
+        // cambiar la fuente del MERITO se rompio en silencio la de la BOLETA:
+        //   · $publicados    → MERITO. Bajo la compuerta 044, y POR NIVEL.
+        //   · $ultimoCerrado → BOLETA oficial que el docente puede abrir. NO
+        //     pasa por la 044 a proposito: su regla es `boleta_estado_bimestre`
+        //     (umbral 'borrador'/'archivo'), porque son las notas que el propio
+        //     docente registra, no un ranking comparativo.
+        // No volver a fusionarlas: reglas distintas, vigencias distintas.
         $estModel   = new EstudianteModel();
         $anio       = $estModel->anioActivo();
-        $publicados = $anio
-            ? (new PublicacionBoletaModel())->ultimoPeriodoPublicadoPorNivel((int) $anio['id'])
+        $anioId     = $anio ? (int) $anio['id'] : 0;
+
+        $publicados = $anioId
+            ? (new PublicacionBoletaModel())->ultimoPeriodoPublicadoPorNivel($anioId)
             : [];
+
+        $ultimoCerrado = $anioId ? $estModel->ultimoBimestreCerrado($anioId) : null;
 
         // Un mismo periodo suele servir a varios niveles: se agrupan los grados
         // por periodo para no repetir la consulta del ranking.
@@ -329,7 +342,7 @@ class PanelController extends BaseController
 
         // Estado de la boleta del bimestre ACTIVO: 'borrador' tras el Hito A (RA
         // aprobo), 'registro' antes. Mientras el activo no se aprueba, la boleta
-        // visible es la OFICIAL del ultimo bimestre CERRADO ($bimestre).
+        // visible es la OFICIAL del ultimo bimestre CERRADO ($ultimoCerrado).
         $periodoActivo = $this->getPeriodoActivo();
         $estadoBoleta  = boleta_estado_bimestre(
             $periodoActivo['estado'] ?? null,
@@ -347,7 +360,10 @@ class PanelController extends BaseController
             'bimestresMerito'  => array_values($bimestresMerito),
             'estadoBoleta'     => $estadoBoleta,
             'bimestreActivo'   => $periodoActivo['nombre_display'] ?? null,
-            'bimestreCerrado'  => $bimestre['nombre_display'] ?? null,
+            // Alimenta el PANEL DE BOLETA de cada card (`$hayBoletaVisible`): si
+            // llega null con el bimestre activo aun en 'registro', el panel
+            // desaparece para TODOS los alumnos. Paso en el commit ea5c446.
+            'bimestreCerrado'  => $ultimoCerrado['nombre_display'] ?? null,
             'page_scripts'     => ['nomina'],
         ]);
     }

@@ -91,6 +91,22 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     una carga y registra notas. Esta verificación es la red de seguridad — a propósito NO
     se hardcodeó la exclusión en el SQL del mérito, que duplicaría el plan de estudios.
 
+- **`verif_nomina_docente_render.php`** — **SOLO LECTURA**, y la única que **RENDERIZA una
+  vista de verdad**: simula una sesión de docente, ejecuta
+  `Docente\PanelController::nomina()` y examina el HTML. Comprueba que el **panel de boleta
+  (imprimir + digital) está presente**, que el rótulo del mérito no nombra un bimestre sin
+  publicar y que el buscador no lista matrículas `pendiente`.
+  - 🔴 **Existe por una regresión real del 10/08/2026:** al cambiar la fuente del mérito se
+    eliminó la variable `$bimestre`, pero el array de la vista seguía leyéndola en
+    `'bimestreCerrado' => $bimestre[...] ?? null`. **El `??` suprime el aviso de variable
+    indefinida**, así que la clave quedó en `null` y **el panel de boleta desapareció de
+    todas las cards**. Ni `php -l` ni las verificaciones del MODELO podían verlo.
+  - **Control ejecutado** (reintroduciendo el fallo a propósito): la sonda pasa de
+    **2080 paneles a 0** y el HTML de **1 413 206 a 650 006 bytes** — falla, como debe.
+  - **Lección aplicable a todo el repo:** `?? null` sobre una VARIABLE (no sobre un índice
+    de un array que ya existe) convierte un error en un silencio. Al tocar un controlador,
+    revisar **todas** las claves que pasa a su vista, no solo las que se editan.
+
 - **`verif_merito_nomina_compuerta.php`** — Transacción + ROLLBACK. Prueba
   `PublicacionBoletaModel::ultimoPeriodoPublicadoPorNivel()`, la fuente del puesto que ve
   el docente en `/docente/nomina`: un bimestre **cerrado y NO publicado** no cuenta (debe
