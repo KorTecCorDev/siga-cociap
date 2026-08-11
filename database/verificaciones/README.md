@@ -91,6 +91,19 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     una carga y registra notas. Esta verificación es la red de seguridad — a propósito NO
     se hardcodeó la exclusión en el SQL del mérito, que duplicaría el plan de estudios.
 
+- **`verif_flag_editable_timezone.php`** — Transacción + ROLLBACK. El flag `editable` de
+  `AsistenciaModel::listarPeriodosActivos` y `ConductaModel::listarPeriodosActivos` debe
+  coincidir con el guard **real** de escritura (`periodoEditable`, que resuelve el "ahora"
+  en PHP) en las cuatro fronteras del `limite_notas`.
+  - Su **paso 2 es la prueba dura**: fuerza la sesión MySQL a **UTC** —como corre
+    producción— y comprueba que ahí la consulta **vieja** con `NOW()` contradice al guard
+    real mientras la nueva no. Sin ese paso la verificación no probaría nada: en local el
+    desfase es **0** y el bug no se manifiesta. Si el `NOW()` viejo **no** llega a diferir,
+    el script lo declara **fallo de control**, no éxito.
+  - Existe porque hasta el 10/08/2026 esas dos consultas calculaban el flag en SQL: en
+    producción apagaban la UI **5 horas antes** de que el sistema dejara de aceptar
+    escrituras.
+
 ## Consultas operativas (phpMyAdmin)
 
 - **`alerta_evaluacion_incompleta.sql`** — SOLO LECTURA. Replica

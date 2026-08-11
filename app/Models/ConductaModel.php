@@ -42,7 +42,14 @@ class ConductaModel extends BaseModel
         ");
     }
 
-    /** Periodos del año activo con flag de edicion (mismo criterio que el resto). */
+    /**
+     * Periodos del año activo con flag de edicion (mismo criterio que el resto).
+     *
+     * ZONA HORARIA — el "ahora" lo calcula PHP y viaja como parámetro
+     * preparado, igual que en `periodoEditable()` (que usa `time()`) unas
+     * lineas mas abajo. NO usar NOW(): el MySQL de produccion corre en UTC,
+     * 5 horas adelantado, y el flag se apagaba antes que el guard real.
+     */
     public function listarPeriodosActivos(): array
     {
         return $this->query("
@@ -50,13 +57,13 @@ class ConductaModel extends BaseModel
                 p.id, p.numero, p.nombre_display, p.estado, p.limite_notas, a.anio,
                 (
                     p.estado = 'activo'
-                    AND (p.limite_notas IS NULL OR NOW() <= p.limite_notas)
+                    AND (p.limite_notas IS NULL OR ? <= p.limite_notas)
                 ) AS editable
             FROM periodos p
             INNER JOIN anios_academicos a ON a.id = p.anio_id
             WHERE a.estado = 'activo'
             ORDER BY p.numero
-        ");
+        ", [date('Y-m-d H:i:s')]);
     }
 
     /** Criterios vigentes; si se pasa $nivelId, incluye los de ambos (nivel_id NULL). */
