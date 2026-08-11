@@ -24,7 +24,11 @@
  *      informa del puesto que ocupaba y de cuántos compañeros se movieron.
  *   4. La reversión (vuelve a continuador) lo REINTEGRA en su puesto.
  *   5. Un periodo YA PUBLICADO no se toca (candado 046) — es lo que protege a B1.
- *   6. El ROLLBACK dejó todo como estaba.
+ *   6. En un periodo publicado la rectificación SÍ registra la versión no oficial
+ *      ('rectificado'), aunque su roster difiera: la guarda de roster protege al
+ *      OFICIAL, y allí el oficial ya es intocable. Antes devolvía 'roster_cambiado'
+ *      y no guardaba nada (B1 diverge por diseño: 528 filas contra 517 del motor).
+ *   7. El ROLLBACK dejó todo como estaba.
  */
 
 define('ROOT_PATH', dirname(__DIR__, 2));
@@ -113,6 +117,7 @@ printf("Matrícula de prueba: #%d (puesto %d° de su grado)\n\n", $matriculaId, 
 $firmaInicial  = $firma($periodoId);
 $cuentaInicial = $cuenta($periodoId);
 $tipoOriginal  = $pdo->query("SELECT tipo FROM matriculas WHERE id = $matriculaId")->fetchColumn();
+$rectInicial   = (int) $pdo->query("SELECT COUNT(*) FROM orden_merito_rectificado")->fetchColumn();
 
 $pdo->beginTransaction();
 
@@ -195,6 +200,29 @@ try {
         echo "  --    (no hay ningún periodo publicado con snapshot en esta base)\n";
     }
 
+    // ── 6. Publicado + roster divergente → SÍ registra la versión rectificada ──
+    // La guarda de roster protege al OFICIAL; con el periodo publicado el oficial
+    // ya es intocable, así que la guarda no debe bloquear el registro no oficial.
+    // Regresión real: B1 diverge por diseño y toda rectificación suya devolvía
+    // 'roster_cambiado' sin guardar nada, pidiendo "regularizar la matrícula".
+    echo "\n6) Publicado con roster divergente: se registra la versión rectificada\n";
+    if ($publicado) {
+        $pid      = (int) $publicado['id'];
+        $firmaPub = $firma($pid);   // el traslado del paso 5 ya hizo divergir el roster
+
+        $tipoPub = $om->registrarRanking($pid, null, 'verificación', true);
+        $ok($tipoPub === 'rectificado',
+            'registrarRanking devuelve "rectificado"', "devolvió '$tipoPub'");
+
+        $filasRect = (int) $pdo->query("SELECT COUNT(*) FROM orden_merito_rectificado
+                                        WHERE periodo_id = $pid")->fetchColumn();
+        $ok($filasRect > 0, 'la versión rectificada quedó registrada', "$filasRect filas");
+        $ok($firma($pid) === $firmaPub,
+            'el snapshot OFICIAL siguió intacto', 'el candado 046 es lo que protege a B1');
+    } else {
+        echo "  --    (no hay ningún periodo publicado con snapshot en esta base)\n";
+    }
+
     $pdo->rollBack();
 } catch (\Throwable $e) {
     $pdo->rollBack();
@@ -202,12 +230,14 @@ try {
     exit(1);
 }
 
-// ── 6. El rollback dejó todo como estaba ────────────────────────────────────
-echo "\n6) Estado tras el ROLLBACK\n";
+// ── 7. El rollback dejó todo como estaba ────────────────────────────────────
+echo "\n7) Estado tras el ROLLBACK\n";
 $ok($firma($periodoId) === $firmaInicial, 'el snapshot volvió a su firma original');
 $ok($cuenta($periodoId) === $cuentaInicial, 'volvió al número de filas original');
 $ok($pdo->query("SELECT tipo FROM matriculas WHERE id = $matriculaId")->fetchColumn() === $tipoOriginal,
     'la matrícula volvió a su tipo original');
+$ok((int) $pdo->query("SELECT COUNT(*) FROM orden_merito_rectificado")->fetchColumn() === $rectInicial,
+    'la versión rectificada volvió a su estado original', "$rectInicial filas");
 
 echo "\n", $fallos === 0 ? "TODO OK\n" : "*** $fallos COMPROBACION(ES) FALLIDA(S)\n";
 exit($fallos === 0 ? 0 : 1);

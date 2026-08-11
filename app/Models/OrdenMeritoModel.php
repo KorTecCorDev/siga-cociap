@@ -620,7 +620,7 @@ class OrdenMeritoModel extends BaseModel
      * Si el periodo ya ESTUVO publicado (compuerta 044) y tiene oficial → escribe la
      * versión RECTIFICADA no oficial (el oficial no se toca). Si no → (re)genera el
      * oficial. Lo usan PeriodoController::cerrar y RectificacionController.
-     * @return string 'oficial' | 'rectificado'
+     * @return string 'oficial' | 'rectificado' | 'roster_cambiado'
      */
     public function registrarRanking(
         int $periodoId,
@@ -629,6 +629,23 @@ class OrdenMeritoModel extends BaseModel
         bool $exigirMismoRoster = false
     ): string {
         $filas = $this->calcularFilasRanking($periodoId);
+
+        // PERIODO YA PUBLICADO → versión rectificada, y la guarda de roster NO
+        // aplica (11/08/2026). Va ANTES de la guarda a propósito: lo que esa
+        // guarda protege es el OFICIAL, y aquí el oficial ya es intocable por el
+        // candado 046 — no hay nada que proteger. La `orden_merito_rectificado`
+        // es una versión de trabajo no oficial cuyo sentido es reflejar el
+        // cálculo de hoy, roster incluido.
+        //
+        // Con el orden inverso, B1 no registraba NADA: su roster diverge por
+        // diseño (528 filas del documento reconstruido contra 517 del motor, los
+        // 10 `trasladado` + 1 `retirado` que la regla especial reincorporó), así
+        // que toda rectificación suya devolvía 'roster_cambiado' y pedía
+        // "regularizar la matrícula" — justo lo que en B1 NO se debe hacer.
+        if ($this->publicacionModel->fuePublicado($periodoId) && $this->tieneSnapshotOficial($periodoId)) {
+            $this->escribirRectificado($periodoId, $filas, $usuarioId, $motivo);
+            return 'rectificado';
+        }
 
         // GUARDA DE ROSTER (11/08/2026). Una rectificación responde a "¿cuánto
         // sacó cada uno?", NUNCA a "¿quién pertenece a este documento?". Como
@@ -656,10 +673,6 @@ class OrdenMeritoModel extends BaseModel
             }
         }
 
-        if ($this->publicacionModel->fuePublicado($periodoId) && $this->tieneSnapshotOficial($periodoId)) {
-            $this->escribirRectificado($periodoId, $filas, $usuarioId, $motivo);
-            return 'rectificado';
-        }
         $this->escribirOficial($periodoId, $filas, $usuarioId);
         return 'oficial';
     }
