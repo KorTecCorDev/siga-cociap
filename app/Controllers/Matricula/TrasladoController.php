@@ -8,6 +8,7 @@ use App\Models\TrasladoModel;
 use App\Models\ApoderadoModel;
 use App\Models\EstudianteModel;
 use App\Models\DirectorEbrModel;
+use App\Models\OrdenMeritoModel;
 use Core\Session;
 use Core\View;
 
@@ -31,6 +32,7 @@ class TrasladoController extends BaseController
     private ApoderadoModel  $apoderados;
     private EstudianteModel $estudiantes;
     private DirectorEbrModel $directores;
+    private OrdenMeritoModel $ordenMerito;
 
     public function __construct()
     {
@@ -40,6 +42,7 @@ class TrasladoController extends BaseController
         $this->apoderados  = new ApoderadoModel();
         $this->estudiantes = new EstudianteModel();
         $this->directores  = new DirectorEbrModel();
+        $this->ordenMerito = new OrdenMeritoModel();
     }
 
     // ── GET /matriculas/{id}/trasladar ───────────────────────────
@@ -190,6 +193,12 @@ class TrasladoController extends BaseController
                 [$id]
             );
 
+            // El trasladado sale del orden de mérito de los bimestres cerrados
+            // que aún no se publicaron (punto único; los publicados no se tocan).
+            // Va DENTRO de la transacción: el PDO es singleton compartido, así
+            // que o se traslada y se ajusta el ranking, o no pasa ninguna de las dos.
+            $efectosMerito = $this->ordenMerito->sincronizarRosterPorMatricula($id, $usuarioId);
+
             $this->matriculas->commit();
         } catch (\Exception $e) {
             $this->matriculas->rollback();
@@ -199,7 +208,8 @@ class TrasladoController extends BaseController
         }
 
         $this->redirectWithSuccess(url('traslados/' . $trasladoId . '/imprimir'),
-            'Constancia ' . $numero . ' registrada. La matrícula quedó trasladada.');
+            'Constancia ' . $numero . ' registrada. La matrícula quedó trasladada.'
+            . OrdenMeritoModel::describirEfectosRoster($efectosMerito));
     }
 
     // ── GET /traslados ───────────────────────────────────────────

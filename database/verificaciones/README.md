@@ -141,6 +141,22 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     producción apagaban la UI **5 horas antes** de que el sistema dejara de aceptar
     escrituras.
 
+- **`verif_roster_snapshot_traslado.php`** — Transacción + ROLLBACK. El roster del snapshot
+  solo lo mueve un traslado/retiro, **nunca** una rectificación de notas. Comprueba las dos
+  piezas del 11/08/2026: `registrarRanking(..., $exigirMismoRoster)` regenera cuando el
+  roster está intacto y **aborta con `'roster_cambiado'`** cuando no (dejando el snapshot
+  byte a byte igual), y `sincronizarRosterPorMatricula()` saca al trasladado renumerando sin
+  huecos, informa del puesto que ocupaba y de cuántos compañeros se movieron, y **lo
+  reintegra** al revertir devolviendo la firma exacta del snapshot original.
+  - Su paso 5 es el que protege a B1: fuerza un traslado sobre un periodo **ya publicado** y
+    confirma que el snapshot no se mueve (candado 046).
+  - Existe porque `escribirOficial` borra y reinserta el periodo ENTERO: el 11/08/2026, al
+    rectificar tres notas de Educación Física de **4.º de primaria**, desapareció del oficial
+    de B2 una alumna de **1.º de secundaria** (trasladada 38 min después del cierre) y 42
+    compañeros cambiaron de puesto, sin un solo aviso.
+  - Se salta solo (exit 0) si no hay ningún bimestre cerrado, con snapshot y sin publicar:
+    es el estado normal una vez publicado todo.
+
 ## Consultas operativas (phpMyAdmin)
 
 - **`alerta_evaluacion_incompleta.sql`** — SOLO LECTURA. Replica

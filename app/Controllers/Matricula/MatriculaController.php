@@ -10,6 +10,7 @@ use App\Models\TrasladoModel;
 use App\Models\ExoneracionModel;
 use App\Models\NotaAutorizadaSiagieModel;
 use App\Models\DirectorEbrModel;
+use App\Models\OrdenMeritoModel;
 use Core\Session;
 use Core\View;
 
@@ -32,6 +33,7 @@ class MatriculaController extends BaseController
     private TrasladoModel $traslados;
     private ExoneracionModel $exoneraciones;
     private NotaAutorizadaSiagieModel $notasAut;
+    private OrdenMeritoModel $ordenMerito;
 
     /** Tipos de vínculo disponibles: valor BD => etiqueta mostrada. */
     private const TIPOS_VINCULO = [
@@ -90,6 +92,7 @@ class MatriculaController extends BaseController
         $this->traslados   = new TrasladoModel();
         $this->exoneraciones = new ExoneracionModel();
         $this->notasAut    = new NotaAutorizadaSiagieModel();
+        $this->ordenMerito = new OrdenMeritoModel();
     }
 
     /** Catálogo de tipos de vínculo (para reutilizar desde otros módulos). */
@@ -917,6 +920,7 @@ class MatriculaController extends BaseController
         // preservado en `tipo_anterior` (reversibilidad 100%), de modo que vuelva
         // a su tipo nuevo/continuador y reaparezca en calificaciones. Fallback a
         // 'continuador' solo si no hubiera respaldo (datos previos a esta lógica).
+        $efectos = [];
         if (in_array($matricula['tipo'] ?? '', ['trasladado', 'retirado'], true)) {
             $original = $matricula['tipo_anterior'] ?? null;
             $this->model->update((int) $id, [
@@ -924,9 +928,18 @@ class MatriculaController extends BaseController
                     ? $original : 'continuador',
                 'tipo_anterior' => null,
             ]);
+
+            // Reversión simétrica: vuelve al orden de mérito de los bimestres
+            // cerrados no publicados. Solo se sincroniza si el tipo REALMENTE
+            // cambió — `calcularFilasRanking` recorre el periodo entero y no
+            // vale la pena en una activación que no toca el roster.
+            $efectos = $this->ordenMerito->sincronizarRosterPorMatricula(
+                (int) $id, (int) (Session::user()['id'] ?? 0)
+            );
         }
 
-        $this->redirectWithSuccess(url('matriculas/' . $id), 'Matrícula activada.');
+        $this->redirectWithSuccess(url('matriculas/' . $id),
+            'Matrícula activada.' . OrdenMeritoModel::describirEfectosRoster($efectos));
     }
 
     // ── POST /matriculas/{id}/desactivar ─────────────────────────
@@ -994,13 +1007,27 @@ class MatriculaController extends BaseController
                 'Solo se puede marcar como retirada una matrícula desactivada de tipo continuador o nuevo.');
         }
 
-        $this->model->update((int) $id, [
-            'tipo'          => 'retirado',
-            'tipo_anterior' => $matricula['tipo'],
-        ]);
+        // El cambio de tipo y el ajuste del orden de mérito son UN SOLO hecho:
+        // si el ranking falla, el retiro no se registra a medias.
+        $this->model->beginTransaction();
+        try {
+            $this->model->update((int) $id, [
+                'tipo'          => 'retirado',
+                'tipo_anterior' => $matricula['tipo'],
+            ]);
+            $efectos = $this->ordenMerito->sincronizarRosterPorMatricula(
+                (int) $id, (int) (Session::user()['id'] ?? 0)
+            );
+            $this->model->commit();
+        } catch (\Exception $e) {
+            $this->model->rollback();
+            log_error('Error al marcar retiro', ['id' => $id, 'error' => $e->getMessage()]);
+            $this->redirectWithError(url('matriculas/' . $id), 'No se pudo marcar la matrícula como retirada.');
+        }
 
         $this->redirectWithSuccess(url('matriculas/' . $id),
-            'Matrícula marcada como retirada: el estudiante deja de aparecer en calificaciones y conducta.');
+            'Matrícula marcada como retirada: el estudiante deja de aparecer en calificaciones y conducta.'
+            . OrdenMeritoModel::describirEfectosRoster($efectos));
     }
 
     // ── POST /matriculas/{id}/revertir-retiro ────────────────────
@@ -1019,13 +1046,31 @@ class MatriculaController extends BaseController
         }
 
         $original = $matricula['tipo_anterior'] ?? null;
-        $this->model->update((int) $id, [
-            'tipo'          => in_array($original, ['continuador', 'nuevo'], true) ? $original : 'continuador',
-            'tipo_anterior' => null,
-        ]);
+
+        // Reversión SIMÉTRICA (decisión del usuario, 11/08/2026): al volver a
+        // continuador/nuevo el estudiante REGRESA al orden de mérito de los
+        // bimestres cerrados no publicados. Sus notas nunca se borraron, así que
+        // el motor lo recalcula igual. Que revertir deshaga de verdad evita que
+        // un retiro marcado por error lo deje fuera del documento para siempre.
+        $this->model->beginTransaction();
+        try {
+            $this->model->update((int) $id, [
+                'tipo'          => in_array($original, ['continuador', 'nuevo'], true) ? $original : 'continuador',
+                'tipo_anterior' => null,
+            ]);
+            $efectos = $this->ordenMerito->sincronizarRosterPorMatricula(
+                (int) $id, (int) (Session::user()['id'] ?? 0)
+            );
+            $this->model->commit();
+        } catch (\Exception $e) {
+            $this->model->rollback();
+            log_error('Error al revertir retiro', ['id' => $id, 'error' => $e->getMessage()]);
+            $this->redirectWithError(url('matriculas/' . $id), 'No se pudo revertir el retiro.');
+        }
 
         $this->redirectWithSuccess(url('matriculas/' . $id),
-            'Se revirtió el retiro: el estudiante vuelve a aparecer en calificaciones y conducta.');
+            'Se revirtió el retiro: el estudiante vuelve a aparecer en calificaciones y conducta.'
+            . OrdenMeritoModel::describirEfectosRoster($efectos));
     }
 
     // ── GET /matriculas/{id}/notas-externas ──────────────────────

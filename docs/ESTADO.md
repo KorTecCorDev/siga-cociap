@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **10/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **11/08/2026**.
 
 ## ⏱️ CÓMO RETOMAR EN OTRA MÁQUINA (escrito el 10/08/2026)
 
@@ -31,6 +31,10 @@ medir nada de lo de abajo: resincronizar desde producción primero.
 
 **Estado del repo al cerrar la sesión:** `dev` y `main` con el mismo árbol, todo pusheado,
 **sin migración pendiente** y sin código sin desplegar. Producción en `992a350`.
+
+> ⚠️ **Desactualizado desde el 11/08/2026:** `dev` lleva el rediseño del reporte
+> imprimible del orden de mérito (solo presentación, **sin migración**) pendiente de
+> validar en el navegador y de merge a `main`. Ver el primer punto de "Eventos con fecha".
 
 **Lo primero que toca al retomar:** los dos pendientes inmediatos del cierre —capturar en
 PROD las cifras del snapshot de B2 y confirmar el `limite_notas` de B3— y después el
@@ -1851,8 +1855,74 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
-- ✅ **11/08/2026 — RANKING POR SECCIÓN PARA STAFF + DOS FUGAS DE LA COMPUERTA CERRADAS.**
-  Lote construido en la sesión del 10-11/08. **5 commits, SIN MIGRACIÓN.**
+- 🟡 **11/08/2026 — EN `dev`, SIN DESPLEGAR: el roster del snapshot deja de moverse por
+  accidente.** Decisión del usuario: **B1 se queda como está (528 filas, 11
+  trasladados/retirados dentro) y la regla nueva —excluir a quien se traslade o retire—
+  rige DESDE B2.** El porqué: la publicación siempre cae después de activar el bimestre
+  siguiente, así que el documento llega a las familias cuando el alumno ya se fue.
+  **Sin migración.**
+  - **B1 no necesitó nada:** `fuePublicado(1)=true` → el candado 046 lo protege solo.
+    Verificado. Solo lo rompería invocar `generarSnapshot`/`backfill` a mano.
+  - **Lo arreglado:** `generarSnapshot` recalculaba el ROSTER, no solo las notas, borrando
+    y reinsertando el periodo ENTERO. Ahora: (1) `registrarRanking(..., $exigirMismoRoster)`
+    ABORTA la reescritura si el roster cambió y avisa —lo usa la rectificación—; (2)
+    `sincronizarRosterPorMatricula()` es el **punto único** que sí lo mueve, llamado desde
+    los **4 sitios** que tocan `matriculas.tipo` (traslado, retiro, activación, reversión).
+    Detalle y decisiones en `docs/modulos/orden-merito.md`.
+  - **Caso testigo medido:** ESCUDERO TORRES (1.º sec C) cursó B2 completo y se trasladó
+    38 min después del cierre. Salió del oficial de B2 al rectificarse 3 notas de Educación
+    Física de **4.º de primaria**, arrastrando a 42 compañeros de puesto. B2 pasó de 524 a
+    523 filas. Sigue en el B1 publicado, puesto 39.
+  - **Verificación:** `verif_roster_snapshot_traslado.php` (transacción + ROLLBACK, guard de
+    prod), **16 comprobaciones en verde**. Los 8 verificadores del módulo que ya existían
+    siguen pasando.
+  - ⏰ **VENTANA:** `fuePublicado(2)` pasa a `true` **solo por el paso del tiempo** el
+    **13/08 19:00** (`publica_en` de primaria). El candado es por PERIODO, no por nivel: esa
+    hora bloquea también el oficial de secundaria. Después, toda corrección de B2 va a
+    `orden_merito_rectificado`.
+  - 🔧 **`database/sincronizar_roster_snapshot.php`** — recoge las divergencias ANTERIORES
+    al código, que ningún acto futuro tocaría. **Producción está justo en ese estado**
+    (B2 con 524 filas incluyendo a una alumna ya `trasladado`), así que **sin este script el
+    deploy dejaba B2 sin poder rectificarse**. Corre en prod, simula por defecto,
+    `--confirmar` para aplicar.
+  - **Estado de los DATOS:** las rectificaciones de 4.º de primaria y el snapshot de 523
+    filas están SOLO en la BD local. **Producción sigue con las 524 filas y las notas
+    originales**, y allá hay que rehacer las rectificaciones a mano.
+  - **ORDEN OBLIGATORIO EN PRODUCCIÓN:** desplegar → `sincronizar_roster_snapshot.php`
+    (simular y luego `--confirmar`) → **recién entonces** rehacer las 3 rectificaciones de
+    Educación Física de 4.º de primaria. Al revés, la rectificación aborta.
+- 🟡 **11/08/2026 — EN `dev`, SIN DESPLEGAR: el reporte imprimible del orden de mérito
+  pasó a UNA HOJA FIRMABLE POR SECCIÓN. El usuario lo aprobó como MODELO OFICIAL del
+  documento** (decisión cerrada; ver `docs/modulos/orden-merito.md` §"El reporte
+  imprimible"). Solo presentación —vista + SASS + el
+  `bodyClass` del controlador—: **no se tocó ninguna consulta, ni el modelo, ni qué se
+  muestra**. Sin migración.
+  - **A4 apaisado → A4 VERTICAL.** Cada hoja es un documento autónomo: 1 hoja por grado
+    (firman Director EBR + todos sus tutores) + **1 hoja por SECCIÓN** (Director EBR + el
+    tutor de esa sección), agrupadas por grado. Antes, las secciones de un grado iban
+    apiladas en una sola hoja con una línea de firma suelta cada una.
+  - **Medido en Chrome sobre el documento real de B1 y B2 (no estimado):** 34 hojas
+    (11 grados + 23 secciones), 80 bloques de firma, **0 hojas en blanco** al final.
+    Caben **55 alumnos por hoja**; 10 de los 11 grados entran enteros y solo **1.º de
+    secundaria (72)** usa dos hojas. ⚠️ 4.º de secundaria (55 en B1) mide **278.1mm de
+    los 281mm útiles**: el tope está al límite, y por encima la tabla continúa en una
+    segunda hoja (degradación limpia).
+  - La columna «Distinción» (44mm, vacía en el 95 % de las filas) es ahora un distintivo
+    junto al nombre; no se perdió información.
+  - **Efecto lateral evitado a propósito:** `.reporte-footer` lo comparten asistencia,
+    conducta y el acta de desempates; el recorte del espacio de firma (18→15mm) va bajo
+    el scope nuevo **`.merito-doc`**, así que esos tres documentos quedan intactos.
+  - Detalle y trampas en `docs/modulos/orden-merito.md` §"El reporte imprimible".
+  - **Pendiente:** decidir el merge a `main`.
+- ✅ **11/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `9d3207d` a `6b48964`**
+  (merge `--no-ff`, autorizado por el usuario). **RANKING POR SECCIÓN PARA STAFF + DOS
+  FUGAS DE LA COMPUERTA CERRADAS.** Lote construido en la sesión del 10-11/08.
+  **6 commits, 16 archivos, SIN MIGRACIÓN.**
+  - **Verificado antes de mergear:** `php -l` de **todos** los PHP del lote y las **5
+    verificaciones en verde** (`verif_nomina_docente_render`, `verif_ranking_seccion_staff`,
+    `verif_merito_nomina_compuerta`, `verif_roster_asistencia`,
+    `verif_flag_editable_timezone`), más la sonda de render **repetida sobre el árbol ya
+    mergeado**.
   - **`/director/ranking-seccion[/{periodo}]`** para admin, RA y los dos directores.
     Detalle y decisiones en `docs/modulos/orden-merito.md` §Visibilidad. Reutiliza
     `rankingPorSeccion()` (snapshot-aware) y la **vista del docente parametrizada**, en vez

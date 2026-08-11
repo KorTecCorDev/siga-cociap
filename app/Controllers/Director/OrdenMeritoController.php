@@ -352,10 +352,14 @@ class OrdenMeritoController extends BaseController
             }
         }
 
+        // A4 VERTICAL (sin `doc-landscape`): la tabla solo necesita ~74mm de
+        // columnas fijas, así que el ancho apaisado se desperdiciaba y el alto
+        // (190mm) partía los grados grandes dejando las firmas huérfanas. En
+        // retrato entran 55 filas por hoja (medido): 10 de los 11 grados caben
+        // enteros con su bloque de firmas al pie.
         View::setLayout('print');
         $this->view('director/reporte-merito', [
             'titulo'        => 'Orden de mérito — ' . $periodo['nombre_display'] . ' ' . $periodo['anio'],
-            'bodyClass'     => 'doc-landscape',
             'periodo'       => $periodo,
             'ranking'       => $ranking,
             'institucion'   => config('institucion'),
