@@ -1449,9 +1449,35 @@ WHERE id=25;`).
   - **Alias del área 14 limpiado por el usuario** el 05/08 (`alias_boleta` de
     «(Ética y Valores)» a NULL): cierra el paso 3 del plan de encendido del 07/07 y
     elimina la ambigüedad que originó la regla errónea.
-  - ⚠️ **Refuerzo recomendado, no hecho:** desactivar el área *Ed. Religiosa* de
-    secundaria en `/admin/curriculum`. Ahora que Ética cuenta, una carga sobre esa área
-    haría contar el **mismo curso dos veces**; hoy solo lo vigila el guard nuevo.
+  - ✅ **~~Refuerzo recomendado: desactivar el área *Ed. Religiosa* de secundaria~~ —
+    PROBADO Y DESCARTADO EL 10/08/2026 (decisión del usuario). EL ÁREA SE QUEDA `activa`.**
+    La idea era que, contando ya Ética en el mérito, una carga sobre esa área haría contar
+    el **mismo curso dos veces**. Se aplicó en local, se midió el efecto completo y se
+    revirtió: **no compensa**.
+    - **Qué se midió con el área en `activa = 0`** (0 cargas, 0 notas, 0 criterios, 0
+      exoneraciones, así que ningún dato se movió): el universo del mérito siguió **OK**,
+      las boletas intactas (**1965 filas de nota, 0 perdidas**) y los exonerados
+      conservaron su `EXO`.
+    - **Lo que sí cambiaba, y es el motivo de descartarlo:**
+      1. **Desaparece de `/admin/actas-siagie/vinculos`** — esa pantalla incluye áreas
+         inactivas solo si tienen notas (`WHERE a.activa = 1 OR notas > 0`) y esta tiene 0.
+         Se perdía la fila donde se audita el vínculo **`035-EREL`**, que es justo lo que
+         esa pantalla existe para no esconder.
+      2. **`verif_plan_completo_boleta.php` da un rojo FALSO**: su bloque 1 filtra
+         `a.activa = 1`, así que el área sale del catálogo y sus 5 exclusiones esperadas
+         (`Secundaria|1..5|Educación Religiosa`) quedan sin cumplir. La exclusión sigue
+         siendo cierta en la boleta — cambia el motivo, no el resultado.
+      3. **Rompía el espejo local↔prod** en un dato de configuración.
+    - **La protección que queda es DETECTIVA, no estructural:** el guard anti-duplicado de
+      `verif_universo_merito.php` **falla (exit 1)** en cuanto esa área empiece a aportar
+      al mérito. Detecta después en vez de impedir antes, y hay que correrlo a mano. Es un
+      riesgo asumido a conciencia: el invariante de `CLAUDE.md` («debe seguir **sin
+      cargas**») sigue siendo la regla, y ahora es la ÚNICA.
+    - ⚠️ **Si alguien vuelve a plantearlo, no repetir el experimento: está hecho.** Y si
+      aun así se desactiva, el rojo del punto 2 es **esperado**, no una regresión.
+    - **El `alias_boleta` del área 14 sigue siendo `(Ética y Valores)`** pese a que este
+      documento lo daba por limpiado a NULL el 05/08. Es inocuo (área sin cargas: nunca se
+      imprime), pero el dato no coincide con lo escrito.
   - **Esto NO alinea SIGA con el SIAGIE** y no lo pretende: quedan 3 divergencias (GAMA
     va al acta y no al mérito; los 2 talleres cuentan en el mérito y no tienen hoja).
 - ✅ **FORMATO OFICIAL EN TODAS LAS BOLETAS — EN PRODUCCIÓN (corregido el 04/08/2026,
