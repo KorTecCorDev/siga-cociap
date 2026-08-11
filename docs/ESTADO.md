@@ -1851,6 +1851,39 @@ WHERE id=25;`).
   cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
 
 ## Eventos con fecha
+- ✅ **11/08/2026 — RANKING POR SECCIÓN PARA STAFF + DOS FUGAS DE LA COMPUERTA CERRADAS.**
+  Lote construido en la sesión del 10-11/08. **5 commits, SIN MIGRACIÓN.**
+  - **`/director/ranking-seccion[/{periodo}]`** para admin, RA y los dos directores.
+    Detalle y decisiones en `docs/modulos/orden-merito.md` §Visibilidad. Reutiliza
+    `rankingPorSeccion()` (snapshot-aware) y la **vista del docente parametrizada**, en vez
+    de copiarla. Verificación: `verif_ranking_seccion_staff.php` (**B1 528=528 · B2
+    524=524**).
+  - 🔴 **FUGA 1 — la nómina del docente enseñaba el mérito NO PUBLICADO.** Resolvía el
+    puesto con "último bimestre **cerrado**". Punto único nuevo
+    `PublicacionBoletaModel::ultimoPeriodoPublicadoPorNivel()`, **por NIVEL** (la compuerta
+    lo es). Verificación: `verif_merito_nomina_compuerta.php`.
+  - **El buscador de la nómina lista solo `aprobada`** (decisión del usuario): 525 → 521.
+    **Los ROSTERS no se tocan** — notas, asistencia y conducta siguen incluyendo
+    `pendiente` y `desactivado`, que es el invariante y lo que arregló el fix del 04/08.
+    Antirregresión: `verif_roster_asistencia.php` **OK** tras el cambio.
+  - 🔴 **REGRESIÓN PROPIA, DETECTADA POR EL USUARIO Y CORREGIDA ANTES DEL DEPLOY: el panel
+    de BOLETA desapareció de todas las cards de la nómina.** Al eliminar la variable
+    `$bimestre` del controlador, el array de la vista seguía leyéndola en
+    `'bimestreCerrado' => $bimestre[...] ?? null`; **el `??` suprime el aviso de variable
+    indefinida**, la clave quedó en `null` y `$hayBoletaVisible` pasó a `false`. Nunca
+    llegó a producción.
+    - **Causa de fondo:** una sola variable servía a **dos reglas distintas** —el mérito
+      (bajo la compuerta 044) y la boleta del docente (que NO pasa por ella: su regla es
+      `boleta_estado_bimestre`)—. Ahora son `$publicados` y `$ultimoCerrado`, con un
+      comentario que prohíbe volver a fusionarlas.
+    - **Nace `verif_nomina_docente_render.php`, la primera verificación que RENDERIZA una
+      vista real** (simula la sesión del docente, ejecuta el controlador, examina el HTML).
+      **Control ejecutado**: con el fallo reintroducido cae de **2080 paneles a 0** y el
+      HTML de **1 413 206 a 650 006 bytes**.
+    - ⚠️ **REGLA NUEVA, aplicable a todo el repo:** `?? null` sobre una **variable** (no
+      sobre un índice de un array que ya existe) convierte un error en un **silencio**. Al
+      tocar un controlador, revisar **todas** las claves que entrega a su vista, no solo
+      las editadas. `php -l` y las verificaciones de MODELO no ven esto.
 - ✅ **10/08/2026 (2.º deploy del día) — `origin/main` pasó de `992a350` a `9d3207d`**
   (commit de merge `--no-ff`, autorizado por el usuario). **3 commits de contenido, SIN
   MIGRACIÓN.**
