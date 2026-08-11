@@ -373,6 +373,18 @@ ranking desactualizado y ruidoso que un documento oficial reescrito en silencio.
 **No re-rankea en PHP a propósito:** reproducir la cascada fuera de `aplicarDesempate`
 sería su quinta copia, y ese es el patrón de fallo caro de este repo.
 
+⚠️ **La guarda solo corre cuando se va a escribir el OFICIAL** (corregido el 11/08/2026,
+mismo día). Si el periodo ya está publicado, `registrarRanking` sale antes por la rama del
+candado 046 y registra la versión rectificada **aunque el roster difiera**: allí el oficial
+ya es intocable, así que la guarda no protege nada, y `orden_merito_rectificado` es una
+versión de trabajo cuyo sentido es reflejar el cálculo de hoy, roster incluido.
+**Con el orden inverso B1 no registraba NADA:** su roster diverge **por diseño** (528 filas
+del documento reconstruido contra 517 del motor —los 10 `trasladado` + 1 `retirado` que la
+regla especial reincorporó—), así que toda rectificación suya devolvía `'roster_cambiado'`
+y pedía «regularizar la matrícula», que es justo lo que en B1 **no** se debe hacer. El caso
+se le escapó al verificador porque su paso 5 solo probaba `sincronizarRosterPorMatricula`
+sobre el periodo publicado, nunca `registrarRanking`; hoy es el paso 6.
+
 **2. `sincronizarRosterPorMatricula($matriculaId, $usuarioId)` — punto único.** Es lo único
 que puede mover el roster. No decide por su cuenta: pregunta a `calcularFilasRanking` (que
 ya filtra por tipo) y actúa si difiere. Alcance: periodos **cerrados y NO publicados**.
@@ -405,9 +417,11 @@ singleton compartido): o se traslada y se ajusta el ranking, o no ocurre ninguna
 dos. `retirar` y `revertirRetiro` no tenían transacción y ahora la tienen.
 
 **Verificación:** `database/verificaciones/verif_roster_snapshot_traslado.php` (transacción
-+ ROLLBACK, guard de prod). 16 comprobaciones: la rectificación con roster intacto sí
++ ROLLBACK, guard de prod). 20 comprobaciones: la rectificación con roster intacto sí
 regenera; con roster cambiado aborta y no toca nada; el traslado saca y renumera sin dejar
-huecos; la reversión devuelve la firma original; y un bimestre publicado queda intacto.
+huecos; la reversión devuelve la firma original; un bimestre publicado queda intacto; y en
+un publicado con roster divergente **sí** se registra la versión rectificada (paso 6, la
+regresión de arriba).
 
 ### Divergencias ANTERIORES al código: `database/sincronizar_roster_snapshot.php`
 
