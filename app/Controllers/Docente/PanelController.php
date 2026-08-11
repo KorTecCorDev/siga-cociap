@@ -8,6 +8,7 @@ use App\Models\ConductaModel;
 use App\Models\DirectorEbrModel;
 use App\Models\EstudianteModel;
 use App\Models\OrdenMeritoModel;
+use App\Models\PublicacionBoletaModel;
 use App\Models\TransversalModel;
 use Core\Session;
 use Core\View;
@@ -247,25 +248,56 @@ class PanelController extends BaseController
         // grilla). La nómina IMPRIMIBLE (nominaImprimir) sigue solo 'aprobada'.
         $alumnos = $this->getMatriculados($niveles, 0, false);
 
-        // Orden de mérito: puesto del ULTIMO bimestre cerrado del año activo
-        // (misma fuente que el ranking oficial). Si no hay bimestre cerrado aún
-        // —p. ej. en el I Bimestre— no hay puesto vigente.
-        $estModel  = new EstudianteModel();
-        $anio      = $estModel->anioActivo();
-        $bimestre  = $anio ? $estModel->ultimoBimestreCerrado((int) $anio['id']) : null;
-        $puestos   = [];
-        if ($bimestre && $alumnos) {
-            $gradoIds = array_filter(array_map(
-                static fn($a) => (int) ($a['grado_id'] ?? 0),
-                $alumnos
-            ));
-            if ($gradoIds) {
-                $puestos = (new OrdenMeritoModel())
-                    ->puestosPorGrado($gradoIds, (int) $bimestre['id']);
+        // ORDEN DE MERITO — bajo la COMPUERTA DE PUBLICACION (044).
+        // Antes se usaba el ULTIMO BIMESTRE CERRADO, y eso era una FUGA: cerrar
+        // congela el ranking, pero lo que lo hace visible es PUBLICAR, que es un
+        // acto separado, por NIVEL y con fecha. En la ventana entre ambos —dias,
+        // no minutos— esta nomina mostraba el puesto y el nombre del bimestre
+        // que el propio /docente/orden-merito le ocultaba.
+        // La respuesta va POR NIVEL porque la compuerta lo es: primaria suele
+        // publicarse un dia antes que secundaria, y en esa franja un docente con
+        // ambos niveles ve legitimamente distinto bimestre en cada card.
+        $estModel   = new EstudianteModel();
+        $anio       = $estModel->anioActivo();
+        $publicados = $anio
+            ? (new PublicacionBoletaModel())->ultimoPeriodoPublicadoPorNivel((int) $anio['id'])
+            : [];
+
+        // Un mismo periodo suele servir a varios niveles: se agrupan los grados
+        // por periodo para no repetir la consulta del ranking.
+        $gradosPorPeriodo = [];
+        $bimestresMerito  = [];
+        foreach ($alumnos as $a) {
+            $nid = (int) ($a['nivel_id'] ?? 0);
+            if (!isset($publicados[$nid])) {
+                continue;
             }
+            $pid = (int) $publicados[$nid]['id'];
+            $gid = (int) ($a['grado_id'] ?? 0);
+            if ($gid) {
+                $gradosPorPeriodo[$pid][$gid] = true;
+            }
+            $bimestresMerito[$nid] = [
+                'nivel_nombre' => $a['nivel_nombre'],
+                'bimestre'     => $publicados[$nid]['nombre_display'],
+            ];
         }
+
+        $ordenModel = new OrdenMeritoModel();
+        $puestos    = [];
+        foreach ($gradosPorPeriodo as $pid => $set) {
+            $puestos[$pid] = $ordenModel->puestosPorGrado(array_keys($set), $pid);
+        }
+
         foreach ($alumnos as &$a) {
-            $a['puesto'] = $puestos[(int) $a['matricula_id']]['puesto'] ?? null;
+            $nid = (int) ($a['nivel_id'] ?? 0);
+            $pid = isset($publicados[$nid]) ? (int) $publicados[$nid]['id'] : null;
+            // `merito_visible` distingue "su nivel aun no se publico" de "esta
+            // publicado pero el alumno no tiene puesto": son mensajes distintos.
+            $a['merito_visible'] = $pid !== null;
+            $a['puesto'] = $pid !== null
+                ? ($puestos[$pid][(int) $a['matricula_id']]['puesto'] ?? null)
+                : null;
         }
         unset($a);
 
@@ -304,8 +336,10 @@ class PanelController extends BaseController
             'alumnos'          => $alumnos,
             'secciones'        => array_values($secciones),
             'total'            => count($alumnos),
-            'tieneOrdenMerito' => $bimestre !== null,
-            'bimestre'         => $bimestre['nombre_display'] ?? null,
+            'tieneOrdenMerito' => $bimestresMerito !== [],
+            // Un rotulo por nivel: en la ventana de publicacion escalonada puede
+            // haber dos bimestres vigentes a la vez, y decir solo uno mentiria.
+            'bimestresMerito'  => array_values($bimestresMerito),
             'estadoBoleta'     => $estadoBoleta,
             'bimestreActivo'   => $periodoActivo['nombre_display'] ?? null,
             'bimestreCerrado'  => $bimestre['nombre_display'] ?? null,

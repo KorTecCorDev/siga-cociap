@@ -91,6 +91,15 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     una carga y registra notas. Esta verificación es la red de seguridad — a propósito NO
     se hardcodeó la exclusión en el SQL del mérito, que duplicaría el plan de estudios.
 
+- **`verif_merito_nomina_compuerta.php`** — Transacción + ROLLBACK. Prueba
+  `PublicacionBoletaModel::ultimoPeriodoPublicadoPorNivel()`, la fuente del puesto que ve
+  el docente en `/docente/nomina`: un bimestre **cerrado y NO publicado** no cuenta (debe
+  devolver el anterior), la **publicación escalonada** da un bimestre distinto por nivel, y
+  suspendida/despublicada dejan de contar.
+  - Existe porque hasta el 10/08/2026 esa nómina resolvía el puesto con "último bimestre
+    **cerrado**" y enseñaba el mérito que `/docente/orden-merito` ocultaba. El escenario 3
+    reproduce la ventana real: primaria publicada y secundaria todavía no.
+
 - **`verif_ranking_seccion_staff.php`** — **SOLO LECTURA**, apto para producción. Comprueba
   que `/director/ranking-seccion` (staff) muestra el universo completo: la suma de
   estudiantes de todas las secciones cuadra **exactamente** con las filas del snapshot
