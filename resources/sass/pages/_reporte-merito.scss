@@ -1,10 +1,26 @@
 // ============================================================
 // _reporte-merito.scss — Reporte de Orden de Mérito imprimible
-// Layout: print.php | Orientación: A4 landscape (vía @page paisaje + body.doc-landscape, en _boleta.scss)
+// Layout: print.php | Orientación: A4 VERTICAL (@page boleta, margen 8mm)
 //
-// Estructura por grado:
-//   Página 1 → Cuadro de Honor General (tabla con todos los estudiantes)
-//   Página 2 → Primeros Puestos por Sección (grid de mini-tablas)
+// Estructura por grado — cada hoja es un documento autónomo y firmable:
+//   1 hoja  → Orden de mérito del grado (Director EBR + todos sus tutores)
+//   N hojas → Ranking por sección, UNA HOJA POR SECCIÓN (Director EBR + su tutor)
+//
+// Cálculo de espacio (A4 portrait, márgenes 8mm → útil 194mm × 281mm).
+// Las cifras de alto están MEDIDAS en Chrome sobre el documento real de
+// B1 y B2 2026, no estimadas — el papel es el que manda:
+//   Ancho: columnas fijas 74mm → el nombre se queda con ~120mm (134mm en la
+//          hoja de sección, que no lleva la columna Secc.).
+//   Alto:  ~61mm de cromo (cabecera + título + thead + firmas) y 3.95mm por
+//          fila → TOPE 55 ALUMNOS POR HOJA. El grado más grande que entra hoy
+//          es 4° de secundaria con 55 (278.1mm de 281): va al límite.
+//          Solo 1° de secundaria (72) desborda a una segunda hoja; ahí el
+//          <thead> se repite y el bloque de firmas viaja entero
+//          (break-inside: avoid). Las 23 hojas de sección (18-27 alumnos) se
+//          quedan en 132-178mm, con holgura de sobra.
+//   ⚠️ Si el colegio crece por encima de 55 alumnos en un grado, lo que se
+//      toca es la altura de fila (`.promedio-val` / line-height), no el
+//      espacio de firma: ver `.merito-doc` al final del archivo.
 // ============================================================
 
 // ── Colores de medalla ────────────────────────────────────────
@@ -86,6 +102,7 @@ $c-beca:   #1a5c1a;
 }
 
 // ── Tabla principal — ranking general ────────────────────────
+// El <thead> se repite solo en la 2ª hoja cuando un grado desborda (1° sec.).
 .tabla-merito {
     width: 100%;
     border-collapse: collapse;
@@ -94,12 +111,11 @@ $c-beca:   #1a5c1a;
     table-layout: fixed;
     margin-bottom: 2mm;
 
-    .tm-puesto     { width: 12mm; }
+    .tm-puesto     { width: 13mm; }
     .tm-seccion    { width: 14mm; }
-    .tm-comp       { width: 12mm; }
-    .tm-total      { width: 16mm; }
-    .tm-promedio   { width: 20mm; }
-    .tm-distincion { width: 44mm; }
+    .tm-comp       { width: 13mm; }
+    .tm-total      { width: 15mm; }
+    .tm-promedio   { width: 19mm; }
 
     thead th {
         background: #efefef;
@@ -117,17 +133,26 @@ $c-beca:   #1a5c1a;
         &.tm-nombre { text-align: left; padding-left: 1.5mm; }
     }
 
+    // ⚠️ La altura de la fila NO la fija este font-size, sino el mayor de sus
+    // hijos: `.promedio-val` (7pt) y `.medalla` (7pt). Bajar el promedio de
+    // 7.5 a 7pt y el interlineado de 1.15 a 1.1 llevó la fila de 4.32mm a
+    // 3.95mm MEDIDOS, y eso es lo que metió los grados de 52-55 alumnos en
+    // una sola hoja. Tocar aquí el tamaño de esos dos hijos cambia cuántos
+    // alumnos entran por hoja.
     tbody td {
-        padding: 0.5mm 1mm;
+        padding: 0.45mm 1mm;
         border: 0.3pt solid #ddd;
         vertical-align: middle;
         background: #fff;
-        line-height: 1.2;
+        line-height: 1.1;
     }
 
     tbody tr:nth-child(even) td { background: #f8f8f8; }
 
-    .tm-puesto, .tm-seccion, .tm-comp, .tm-total, .tm-promedio, .tm-distincion { text-align: center; }
+    // Ninguna fila se parte entre dos hojas.
+    tbody tr { break-inside: avoid; page-break-inside: avoid; }
+
+    .tm-puesto, .tm-seccion, .tm-comp, .tm-total, .tm-promedio { text-align: center; }
     .tm-nombre { text-align: left; padding-left: 1.5mm; }
 
     // ── Filas top-3 con acento izquierdo ─────────────────────
@@ -161,13 +186,20 @@ $c-beca:   #1a5c1a;
 }
 
 // ── Promedio numérico ─────────────────────────────────────────
+// 7pt (antes 7.5): es el elemento más alto de la fila y por tanto quien manda
+// en cuántos alumnos entran por hoja. Sigue por encima del 6.5pt del resto de
+// la tabla, que es lo que lo destaca.
 .promedio-val {
     font-family: Arial, Helvetica, sans-serif;
     font-weight: bold;
-    font-size: 7.5pt;
+    font-size: 7pt;
 }
 
-// ── Badges de distinción ─────────────────────────────────────
+// ── Distintivos de distinción ────────────────────────────────
+// Van JUNTO AL NOMBRE, no en columna propia: solo aplican a 3 de las 37-72
+// filas del grado, así que como columna dejaban 44mm en blanco en el 95% de la
+// tabla. Al ser más bajos que la línea de texto (5pt frente a 6.5pt) no hacen
+// crecer la fila.
 .distincion-beca {
     display: inline-block;
     font-family: Arial, Helvetica, sans-serif;
@@ -177,6 +209,8 @@ $c-beca:   #1a5c1a;
     border: 0.5pt solid $c-beca;
     border-radius: 1mm;
     padding: 0.2mm 1.5mm;
+    margin-left: 1.5mm;
+    vertical-align: middle;
     letter-spacing: 0.2pt;
     white-space: nowrap;
 }
@@ -188,6 +222,8 @@ $c-beca:   #1a5c1a;
     border: 0.4pt solid #bbb;
     border-radius: 1mm;
     padding: 0.2mm 1.5mm;
+    margin-left: 1.5mm;
+    vertical-align: middle;
     white-space: nowrap;
     color: #555;
 
@@ -195,70 +231,21 @@ $c-beca:   #1a5c1a;
     &--3 { color: $c-bronce; border-color: $c-bronce; }
 }
 
-// ── Bloque de ranking completo por sección ───────────────────
-.reporte-seccion-bloque {
-    margin-bottom: 4mm;
+// Nota: `.reporte-seccion-bloque` y `.reporte-seccion-firma` se eliminaron al
+// pasar a UNA HOJA POR SECCIÓN. La banda azul de sección la sustituye el
+// `.reporte-titulo` de la hoja, y la línea suelta del tutor la sustituye el
+// `.reporte-footer` completo (Director EBR + tutor), que es lo que hace que
+// cada hoja de sección sea firmable por sí sola.
 
-    &__header {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        background: #dce8f0;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 7pt;
-        font-weight: bold;
-        padding: 0.8mm 1.5mm;
-        border: 0.5pt solid #7aa0b8;
-        border-bottom: 0.5pt solid #aac4d8;
-        text-transform: uppercase;
-        letter-spacing: 0.3pt;
-        break-after: avoid;
-    }
-
-    &__nombre { color: #1a3a5c; }
-
-    &__count {
-        font-size: 5.5pt;
-        font-weight: normal;
-        color: #4a6880;
-        font-style: italic;
-    }
-
-    // La tabla de esta sección no necesita borde superior propio
-    .tabla-merito thead th {
-        border-top: none;
-    }
-}
-
-// ── Firma del tutor al pie de cada bloque de sección ─────────
-.reporte-seccion-firma {
-    text-align: center;
-    margin-top: 3mm;
-    padding-top: 1mm;
-    break-inside: avoid;
-
-    &__linea {
-        border-top: 0.4pt solid #000;
-        width: 55mm;
-        margin: 5mm auto 0.8mm;
-    }
-
-    &__nombre {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 5.5pt;
-        font-weight: bold;
-        color: #111;
-        margin-bottom: 0.3mm;
-    }
-
-    &__cargo {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 5.5pt;
-        color: #444;
-    }
-}
-
-// ── Bloque de firmas del reporte (Director EBR + tutores por sección) ────
+// ── Bloque de firmas del reporte (Director EBR + tutores) ────────────────
+//
+// Lo usan las DOS hojas: la del grado (Director + todos sus tutores) y la de
+// cada sección (Director + su tutor). Es lo que hace que cada hoja se pueda
+// firmar por separado.
+//
+// ⚠️ NO ES EXCLUSIVO DE ESTE REPORTE: lo reutilizan `admin/asistencia/imprimir`,
+// `admin/conducta/imprimir` y el acta de desempates. Todo ajuste que solo tenga
+// sentido para el orden de mérito va bajo `.merito-doc` (más abajo), nunca aquí.
 //
 // Diseño: flex-wrap con máximo 3 columnas por fila.
 // Cada bloque tiene un __espacio-firma de altura fija (18mm) que alinea
@@ -331,4 +318,17 @@ $c-beca:   #1a5c1a;
     font-size: 7pt;
     color: #666;
     margin: 3mm 0;
+}
+
+// ── Ajustes EXCLUSIVOS del orden de mérito ───────────────────
+// `.merito-doc` acota lo que solo vale para este documento, igual que hacen
+// `.registro-doc` (asistencia/conducta) y `.acta-doc` (acta de desempates)
+// sobre las mismas piezas compartidas. Aquí manda una razón que los otros
+// documentos no tienen: son tablas de 18 a 72 filas, así que cada milímetro
+// de cromo que se recorta es una fila más que entra en la hoja.
+.merito-doc {
+    // 15mm (el compartido son 18): sigue dando 1.5cm de alto para firmar a
+    // mano sobre la línea, y devuelve 3mm de tabla.
+    .reporte-footer__espacio-firma { height: 15mm; }
+    .reporte-footer__firma-img     { max-height: 14mm; }
 }
