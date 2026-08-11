@@ -1493,9 +1493,23 @@ WHERE id=25;`).
     COMPLETO.** Confirmado por el usuario: los cuatro pasos salieron bien —cerrar B2,
     abrir B3, imprimir y validar el papel con el código nuevo ya desplegado (`992a350`),
     y publicar B2 por nivel—.
-    - ⚠️ **EL CANDADO 046 YA ESTÁ ACTIVO.** Al publicarse, el snapshot oficial de B2 quedó
-      **INMUTABLE para siempre**: cierres o rectificaciones posteriores irán a
-      `orden_merito_rectificado` (visible solo en `/admin/control`), nunca al oficial.
+    - ⚠️ **EL CANDADO 046 SE ACTIVA AL PUBLICAR… PERO NO SIEMPRE EN EL ACTO** (matiz
+      medido en el código el 10/08/2026 — **la afirmación anterior de esta línea, «ya está
+      activo», era prematura**). `fuePublicado()` es
+      `primera_publicacion_en IS NOT NULL OR publica_en <= NOW()`, y el sello
+      `primera_publicacion_en` **solo se escribe cuando la publicación es INMEDIATA**
+      (`publicar()` lo pone a NULL si `publica_en` es futuro, y el `COALESCE` del upsert
+      nunca lo rellena después). **Una publicación PROGRAMADA a futuro deja el snapshot
+      oficial todavía corregible** hasta que llegue su hora, y ahí el candado se activa
+      **solo, sin que nadie pulse nada**.
+      - **En el ensayo LOCAL del 10/08 las dos filas quedaron programadas** (nivel 1 al
+        13/08 19:00, nivel 2 al 14/08 19:00, sello NULL) → allí el candado **no** estaba
+        activo. **Qué pasó en PROD está sin medir**: lo dice el bloque 6 de
+        `verif_post_cierre_bimestre.sql`, que replica `fuePublicado()` entero y devuelve
+        `candado_desde`.
+      - **Si en prod también quedó programada, hay una ventana barata** hasta esa fecha:
+        reabrir → corregir → re-cerrar todavía escribe el **OFICIAL**. Pasada esa hora,
+        toda corrección va a `orden_merito_rectificado` (visible solo en `/admin/control`).
     - 🔴 **QUEDA UNA VERIFICACIÓN SIN CAPTURAR, y ahora importa más que antes:** las cifras
       del snapshot de B2 **en producción** no se recogieron en la sesión. El espejo local
       predecía **524 filas / 11 grados / 23 secciones / puestos 1-72** y **0 bloqueos con
@@ -1740,6 +1754,14 @@ WHERE id=25;`).
   - **Pendiente inmediato:** capturar en PROD las cifras del snapshot de B2 (esperado
     **524 / 11 / 23 / 1-72**, 0 bloqueos `origen='cierre'`) y confirmar que B3 tiene
     `limite_notas` fijado.
+    - 🛠 **Herramienta lista (10/08/2026): `database/verificaciones/verif_post_cierre_bimestre.sql`**
+      — solo lectura, 8 bloques autocontenidos para phpMyAdmin, periodo anclado por
+      **número + año activo**. Cubre las dos cosas de una pasada, más el estado real del
+      candado 046. **Su bloque 0 es la huella del servidor**: sin él la captura no prueba
+      en qué entorno se tomó (lección de la 048). Validada en local, donde da
+      **524 / 1-72 / 11 / 23**, 0 empates petrificados, 0 sin puesto de sección, **0
+      bloqueos `origen='cierre'`** (593 académicos + 690 transversales, todos `docente`)
+      y 0 rectificados. Reutilizable en B3/B4 cambiando `@num` y los `@esp_*`.
   - **Siguiente hito del calendario:** **05/10/2026**, inicio del IV Bimestre — fecha tope
     de la regla del periodo final (ver Pendientes de desarrollo).
 - ~~**31/07/2026 — CIERRE DE NOTAS DE LOS DOCENTES (II Bimestre).**~~ **CUMPLIDA.**
