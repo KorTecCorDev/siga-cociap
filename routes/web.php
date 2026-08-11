@@ -301,6 +301,14 @@ $router->get('/director/orden-merito/{periodo_id}/desempates/imprimir', 'Directo
 $router->get('/director/orden-merito/{periodo_id}/desempates',          'Director\OrdenMeritoController@desempates');
 $router->get('/director/orden-merito/{periodo_id}',             'Director\OrdenMeritoController@porPeriodo');
 
+// Ranking por SECCION para el staff (admin/RA/directores). Flujo hermano del de
+// arriba y hay que no confundirlos: el de GRADO define la media beca, este es
+// interno de cada seccion. A diferencia de /docente/ranking-seccion, este NO
+// aplica la compuerta de publicacion: el staff lo necesita antes de publicar.
+// Literal antes que el patron {periodo_id}, como en el bloque anterior.
+$router->get('/director/ranking-seccion',                'Director\OrdenMeritoController@seccionIndex');
+$router->get('/director/ranking-seccion/{periodo_id}',   'Director\OrdenMeritoController@seccionPorPeriodo');
+
 // ─── Gestión de bloqueos ─────────────────────────────────────
 $router->get( '/director/bloqueos',                     'Director\BloqueoController@index');
 $router->post('/director/bloqueos/bloquear',             'Director\BloqueoController@bloquear');

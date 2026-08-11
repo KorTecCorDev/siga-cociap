@@ -14,13 +14,16 @@
  *
  * @var array  $periodo
  * @var array  $ranking     [grado_id => ['grado'=>..., 'secciones'=>[sec=>[...]]]]
- * @var string $rutaBase    ruta del selector (botón Volver)
- * @var string $rutaMerito  ruta del orden de mérito por grado del mismo módulo
- * @var bool   $provisional periodo aún ABIERTO: el cálculo es en vivo y se mueve
+ * @var string $rutaBase      ruta del selector (botón Volver)
+ * @var string $rutaMerito    ruta del orden de mérito por grado del mismo módulo
+ * @var bool   $provisional   periodo aún ABIERTO: el cálculo es en vivo y se mueve
+ * @var bool   $hayPendientes hay empates sin resolver (solo lo pasa el staff:
+ *                            es quien puede resolverlos, el docente no)
  */
-$rutaBase    = $rutaBase    ?? 'docente/ranking-seccion';
-$rutaMerito  = $rutaMerito  ?? 'docente/orden-merito';
-$provisional = $provisional ?? false;
+$rutaBase      = $rutaBase      ?? 'docente/ranking-seccion';
+$rutaMerito    = $rutaMerito    ?? 'docente/orden-merito';
+$provisional   = $provisional   ?? false;
+$hayPendientes = $hayPendientes ?? false;
 ?>
 
 <div class="page-header">
@@ -44,6 +47,15 @@ $provisional = $provisional ?? false;
         El bimestre sigue <strong>abierto</strong>: este ranking se calcula EN VIVO sobre las
         competencias ya <strong>bloqueadas</strong>, así que <strong>cambia</strong> conforme
         los docentes registran y aprueban. El ranking definitivo se congela al cerrar.
+    </div>
+<?php endif; ?>
+
+<?php if ($hayPendientes): ?>
+    <div class="merito-aviso">
+        <strong>Hay empates sin resolver.</strong> Las filas resaltadas comparten puesto
+        porque la cascada de desempate no llegó a separarlas: el orden entre ellas
+        <strong>aún no es oficializable</strong> y se resuelve a mano desde el
+        <a href="<?= url($rutaMerito . '/' . $periodo['id']) ?>">orden de mérito del grado</a>.
     </div>
 <?php endif; ?>
 

@@ -29,6 +29,7 @@ $grupos = [
         ['roles' => ['admin', 'registro_academico'],                                     'url' => 'admin/asistencia',      'icon' => 'calendar-add.svg',      'titulo' => 'Asistencia',           'desc' => 'Registro de faltas y tardanzas por sección'],
         ['roles' => ['admin', 'director_general', 'director_ebr', 'registro_academico'], 'url' => 'director/bloqueos',     'icon' => 'key-unblocked.svg',      'titulo' => 'Bloqueos del bimestre','desc' => 'Gestionar permisos de edición de notas'],
         ['roles' => ['admin', 'director_general', 'director_ebr', 'registro_academico'], 'url' => 'director/orden-merito', 'icon' => 'medal-ribbon-star.svg', 'titulo' => 'Orden de mérito',      'desc' => 'Ranking bimestral por grado'],
+        ['roles' => ['admin', 'director_general', 'director_ebr', 'registro_academico'], 'url' => 'director/ranking-seccion','icon' => 'users-group-rounded.svg','titulo' => 'Ranking por sección',  'desc' => 'Ranking interno de cada sección - no otorga media beca'],
         ['roles' => ['admin', 'registro_academico'],                                     'url' => 'admin/boletas-publicas','icon' => 'file-send.svg',         'titulo' => 'Boletas públicas',     'desc' => 'Generar y distribuir boletas con código QR'],
         ['roles' => ['admin', 'registro_academico'],                                     'url' => 'rectificaciones',       'icon' => 'edit-pen.svg',      'titulo' => 'Rectificación de notas','desc' => 'Corregir notas aprobadas y bloqueadas'],
     ],

@@ -54,6 +54,97 @@ class OrdenMeritoController extends BaseController
     }
 
     /**
+     * GET /director/ranking-seccion
+     * Selector de periodo del ranking por SECCION. Mismo universo que index()
+     * (activos y cerrados): el staff lo consulta durante el bimestre y despues.
+     */
+    public function seccionIndex(): void
+    {
+        $periodos = $this->calModel->query("
+            SELECT p.*, a.anio
+            FROM periodos p
+            INNER JOIN anios_academicos a ON a.id = p.anio_id
+            WHERE p.estado IN ('activo', 'cerrado')
+            ORDER BY a.anio DESC, p.numero ASC
+        ");
+
+        $this->view('director/orden-merito', [
+            'titulo'   => 'Ranking por sección',
+            'rutaBase' => 'director/ranking-seccion',
+            'periodos' => $periodos,
+        ]);
+    }
+
+    /**
+     * GET /director/ranking-seccion/{periodo_id}
+     * Ranking interno de cada seccion, para admin/RA/directores.
+     *
+     * ⚠️ A DIFERENCIA DEL DOCENTE, NO APLICA LA COMPUERTA DE PUBLICACION (044):
+     * el claustro y las familias ven el merito cuando su nivel se publica, pero
+     * el staff necesita revisarlo ANTES —es el insumo para decidir—. Es el mismo
+     * criterio que ya sigue `porPeriodo()` con el ranking por grado, y lo que
+     * anticipa el comentario de `Docente\OrdenMeritoController::verSelector`
+     * ("el director lo ve en vivo desde su modulo").
+     *
+     * La fuente es `rankingPorSeccion`, que es snapshot-aware: bimestre cerrado
+     * -> ranking CONGELADO; activo -> calculo en vivo sobre lo ya bloqueado.
+     */
+    public function seccionPorPeriodo(string $periodoId): void
+    {
+        $periodoId = (int) $periodoId;
+
+        $periodo = $this->calModel->queryOne("
+            SELECT p.*, a.anio
+            FROM periodos p
+            INNER JOIN anios_academicos a ON a.id = p.anio_id
+            WHERE p.id = ?
+        ", [$periodoId]);
+
+        if (!$periodo) {
+            $this->redirectWithError(
+                url('director/ranking-seccion'),
+                'Periodo no encontrado.'
+            );
+        }
+
+        // Snapshot-aware, igual que el imprimible: para un bimestre cerrado
+        // enumera desde el snapshot (incluye grados congelados, como la seccion
+        // operativa de un retorno de grado).
+        $ranking = [];
+        foreach ($this->ordenMeritoModel->gradosConRanking($periodoId) as $grado) {
+            $gid = (int) $grado['id'];
+            $ranking[$gid] = [
+                'grado'     => $grado,
+                // Sin limite: TODOS los estudiantes de cada seccion, como el
+                // reporte imprimible (un top-N escondería a quien se consulta).
+                'secciones' => $this->calcularRankingPorSeccion($gid, $periodoId),
+            ];
+        }
+
+        // Mismo aviso que el imprimible: con empates sin resolver el orden no es
+        // oficializable. Reutiliza el helper de esta misma clase.
+        $hayPendientes = false;
+        foreach ($ranking as $data) {
+            foreach ($data['secciones'] as $estudiantes) {
+                if ($this->rankingTienePendientes($estudiantes)) {
+                    $hayPendientes = true;
+                    break 2;
+                }
+            }
+        }
+
+        $this->view('docente/ranking-seccion-periodo', [
+            'titulo'        => 'Ranking por sección — ' . $periodo['nombre_display'],
+            'periodo'       => $periodo,
+            'ranking'       => $ranking,
+            'rutaBase'      => 'director/ranking-seccion',
+            'rutaMerito'    => 'director/orden-merito',
+            'provisional'   => ($periodo['estado'] ?? '') === 'activo',
+            'hayPendientes' => $hayPendientes,
+        ]);
+    }
+
+    /**
      * GET /director/orden-merito/{periodo_id}
      * Muestra el ranking de todos los grados en un periodo.
      */

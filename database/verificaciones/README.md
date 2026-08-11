@@ -91,6 +91,18 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     una carga y registra notas. Esta verificación es la red de seguridad — a propósito NO
     se hardcodeó la exclusión en el SQL del mérito, que duplicaría el plan de estudios.
 
+- **`verif_ranking_seccion_staff.php`** — **SOLO LECTURA**, apto para producción. Comprueba
+  que `/director/ranking-seccion` (staff) muestra el universo completo: la suma de
+  estudiantes de todas las secciones cuadra **exactamente** con las filas del snapshot
+  oficial del periodo (B1 **528=528**, B2 **524=524**), no hay top-N escondido y los puestos
+  por sección empiezan en 1 sin huecos.
+  - Su comprobación característica es la **compuerta**: lista los grados que el claustro NO
+    ve (niveles sin publicar) y confirma que el staff **sí** los ve. El 10/08/2026 eran los
+    **11 grados de B2**, cuya publicación estaba programada al 13-14/08 — el motivo mismo
+    de que la vista exista.
+  - No prueba el cálculo (eso es `rankingPorSeccion`, ya cubierto): prueba que la vista
+    nueva **no filtra de más ni de menos**.
+
 - **`verif_flag_editable_timezone.php`** — Transacción + ROLLBACK. El flag `editable` de
   `AsistenciaModel::listarPeriodosActivos` y `ConductaModel::listarPeriodosActivos` debe
   coincidir con el guard **real** de escritura (`periodoEditable`, que resuelve el "ahora"

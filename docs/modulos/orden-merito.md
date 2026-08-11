@@ -199,6 +199,27 @@ Cerrar el bimestre oficializa (congela) el mérito, pero no lo muestra a nadie f
 dirección.
 
 - **Director:** `/director/orden-merito`, siempre (no depende de la compuerta).
+- **Staff — ranking por SECCIÓN: `/director/ranking-seccion[/{periodo}]` (10/08/2026).**
+  Mismos 4 roles que el módulo (admin, RA, director general, director EBR) porque comparte
+  el `requireRole` de `Director\OrdenMeritoController`. **NO aplica la compuerta 044**, a
+  diferencia del flujo del docente: el staff lo necesita ANTES de publicar, que es cuando
+  el dato sirve para decidir. Es el mismo criterio que ya seguía el ranking por grado.
+  - **No calcula nada nuevo:** llama a `rankingPorSeccion()`, el punto único
+    snapshot-aware (cerrado → congelado; activo → en vivo sobre lo ya bloqueado), que
+    comparten el imprimible del director y la vista del docente.
+  - **Reutiliza la vista del docente** (`docente/ranking-seccion-periodo.php`)
+    parametrizando `$rutaBase`, `$rutaMerito`, `$provisional` y `$hayPendientes`, todos
+    con default. Se descartó copiarla: **dos copias divergen**, y así nacieron los 130
+    bloqueos fantasma y la card de empates irresolubles.
+  - **Sin top-N: todos los estudiantes de cada sección** (decisión del usuario), igual que
+    el reporte imprimible.
+  - Avisa cuando el periodo está **abierto** (badge *Provisional*: el ranking en vivo se
+    mueve) y cuando hay **empates sin resolver** (el orden aún no es oficializable).
+  - **Verificación:** `verif_ranking_seccion_staff.php` (solo lectura, corre en prod).
+    Contrasta la suma de las secciones contra el snapshot oficial —**B1 528=528 y B2
+    524=524**— y comprueba que la compuerta no recorta al staff. Medido el 10/08: en B2 los
+    **11 grados** estaban ocultos al claustro (publicación programada al 13-14/08) y
+    visibles aquí, que es justo el motivo de la vista.
 - **Claustro:** `Docente\OrdenMeritoController` lista solo los periodos con **algún**
   nivel publicado (`PublicacionBoletaModel::periodosConAlgunNivelPublicado`) y, dentro
   de un periodo, solo los grados de niveles publicados (`nivelesPublicados`). El

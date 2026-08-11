@@ -15,6 +15,10 @@
         </p>
     </div>
     <div class="btn-group">
+        <a href="<?= url('director/ranking-seccion/' . $periodo['id']) ?>"
+           class="btn btn--secondary btn--sm">
+            Ranking por sección
+        </a>
         <?php if (!empty($tieneDesempates)): ?>
             <a href="<?= url('director/orden-merito/' . $periodo['id'] . '/desempates') ?>"
                class="btn btn--secondary btn--sm">
