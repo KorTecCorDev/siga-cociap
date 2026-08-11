@@ -974,8 +974,21 @@ siguiente hito con fecha, la **regla del periodo final** (tope 05/10/2026).
   y el panel nuevo escondería los 130 fantasmas que B1 conserva). Toca
   `estadoCargasSeccion`, el gate del cierre del tutor. **Va junto con la F1 del plan de los
   4 registros**, que es un punto único sobre el mismo territorio.
-- 🐞 **EL MySQL DE PROD CORRE EN UTC (5 h ADELANTADO) Y DOS CONSULTAS LO IGNORAN —
-  HALLAZGO DEL 10/08/2026, MEDIDO, NO CORREGIDO (fuera del alcance de la sesión).**
+- ✅ **EL MySQL DE PROD CORRE EN UTC (5 h ADELANTADO) Y DOS CONSULTAS LO IGNORABAN —
+  HALLADO Y CORREGIDO EL 10/08/2026, en `dev`, SIN MIGRACIÓN y sin SASS. SIN DESPLEGAR.**
+  - **El arreglo:** las dos consultas pasan a recibir el "ahora" **como parámetro
+    preparado calculado en PHP** (`date('Y-m-d H:i:s')` con `America/Lima`), que es el
+    patrón que ya seguía `PublicacionBoletaModel` y que su docblock documentaba. Dos
+    líneas de SQL y sus comentarios; ninguna interfaz pública cambia.
+  - **Verificación:** `database/verificaciones/verif_flag_editable_timezone.php`
+    (transacción + ROLLBACK, guard de prod). Los dos flags siguen al guard real en las
+    **cuatro fronteras** del `limite_notas`, y su **paso 2 fuerza la sesión MySQL a UTC**
+    para reproducir producción: allí el `NOW()` viejo dice **NO editable** donde el guard
+    real y el flag nuevo dicen **editable**. Si el `NOW()` viejo no llegara a diferir, el
+    script lo declara **fallo de control** — sin ese paso no probaría nada, porque en
+    local el desfase es 0.
+  - ⚠️ **En local NO se reproduce** (XAMPP va en hora del sistema): cualquier prueba
+    manual del flag en local da lo mismo antes y después del fix.
   Huella capturada en prod: `NOW()` marcó **2026-08-11 01:51** cuando en Perú eran las
   **20:51 del 10**. En local el desfase es **0** (XAMPP va en hora del sistema), así que
   esto **no se reproduce en local**.
@@ -999,6 +1012,23 @@ siguiente hito con fecha, la **regla del periodo final** (tope 05/10/2026).
     horario de verano). **Nunca `NOW()`.** Aplicado ya en
     `database/verificaciones/verif_post_cierre_bimestre.sql`, cuyo bloque 0 devuelve el
     `desfase_horas` del entorno.
+  - 🔎 **Barrido hecho al corregirlo (10/08):** son las **únicas dos** comparaciones de
+    `limite_notas` contra `NOW()` en `app/`. El resto de criterios temporales de plazos ya
+    se resolvían en PHP.
+  - 🔴 **CONSECUENCIA MAYOR, MEDIDA Y NO ABORDADA: EN PROD CONVIVEN DOS HUSOS DENTRO DE LA
+    MISMA TABLA.** Las columnas con `DEFAULT CURRENT_TIMESTAMP` las sella el **motor**, o
+    sea en **UTC** (verificado en la migración 044: `periodos_publicacion.creado_en`; y en
+    la 023: `orden_merito_snapshot.generado_en`), mientras que las fechas que teclea un
+    humano o calcula PHP —`publica_en`, `limite_notas`— están en **hora de Lima**.
+    - **Efecto inmediato en la lectura de lo capturado hoy:** el `generado_en` del snapshot
+      de B2 (**17:28:00**) y el `creado_en` de la publicación (**17:32:01**) son **UTC** →
+      en hora de Perú fueron las **12:28** y las **12:32**. Ninguna conclusión de esta
+      sesión cambia (ambas salen del mismo reloj y el orden relativo se mantiene), pero
+      **las horas de auditoría no se leen como hora local**.
+    - **Regla:** antes de comparar una columna sellada por el motor contra una hora
+      calculada en PHP —o de mostrarla a un usuario— convertirla. Corregir el huso de esas
+      columnas es un trabajo aparte, **no evaluado**: son muchas tablas y cambiaría el
+      significado de datos ya escritos.
 - **Staging `dev.sigacociap.net`** (diferido): subdominio alimentado por `dev`,
   BD propia, secretos fuera del repo.
 - **Modo mantenimiento** (diferido, opcional): pantalla 503 + lista blanca staff.
