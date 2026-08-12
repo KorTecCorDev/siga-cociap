@@ -698,10 +698,28 @@ class MatriculaController extends BaseController
         $actual = $this->requireMatricula((int) $id);
         $faltan = $this->pendientesParaActivar($actual);
         if ($actual['estado'] === 'aprobada' && !empty($faltan)) {
-            $this->model->cambiarEstado((int) $id, 'pendiente', $usuarioId,
-                'Faltan requisitos: ' . implode('; ', $faltan));
+            // Degradar a 'pendiente' la SACA del orden de mérito de los bimestres
+            // cerrados no publicados (roster = matrículas aprobadas, 12/08/2026).
+            // Es el TERCER sitio que mueve `matriculas.estado`, junto a activar()
+            // y desactivar(): desmarcar un documento entregado también reescribe
+            // el documento oficial, así que va en transacción y se avisa.
+            $efectos = [];
+            $this->model->beginTransaction();
+            try {
+                $this->model->cambiarEstado((int) $id, 'pendiente', $usuarioId,
+                    'Faltan requisitos: ' . implode('; ', $faltan));
+                $efectos = $this->ordenMerito->sincronizarRosterPorMatricula((int) $id, $usuarioId);
+                $this->model->commit();
+            } catch (\Exception $e) {
+                $this->model->rollback();
+                log_error('Error al degradar matrícula a pendiente', ['id' => $id, 'error' => $e->getMessage()]);
+                $this->redirectWithError(url('matriculas/' . $id),
+                    'Se registraron los documentos, pero no se pudo actualizar el estado de la matrícula.');
+            }
+
             $this->redirectWithSuccess(url('matriculas/' . $id),
-                'Documentos actualizados. La matrícula volvió a PENDIENTE porque aún faltan requisitos.');
+                'Documentos actualizados. La matrícula volvió a PENDIENTE porque aún faltan requisitos.'
+                . OrdenMeritoModel::describirEfectosRoster($efectos));
         }
 
         $this->redirectWithSuccess(url('matriculas/' . $id),
@@ -904,38 +922,58 @@ class MatriculaController extends BaseController
                 . implode('; ', $faltan) . '.');
         }
 
-        // Activar = estado 'aprobada' (único estado vigente). El motivo se limpia
-        // (null) porque ya no hay pendientes que reportar.
-        $this->model->cambiarEstado((int) $id, 'aprobada', (int) (Session::user()['id'] ?? 0), null);
-
-        // Reactivar las boletas públicas que se apagaron al desactivar/trasladar,
-        // para que la matrícula reactivada vuelva a exponer su boleta.
-        $this->model->execute(
-            "UPDATE boletas_publicas SET activa = 1 WHERE matricula_id = ?",
-            [(int) $id]
-        );
+        $usuarioId = (int) (Session::user()['id'] ?? 0);
 
         // Si la matrícula venía de un traslado o de un retiro quedó marcada
         // 'trasladado'/'retirado'. Al reactivar se restaura el ORIGEN real
         // preservado en `tipo_anterior` (reversibilidad 100%), de modo que vuelva
         // a su tipo nuevo/continuador y reaparezca en calificaciones. Fallback a
         // 'continuador' solo si no hubiera respaldo (datos previos a esta lógica).
-        $efectos = [];
-        if (in_array($matricula['tipo'] ?? '', ['trasladado', 'retirado'], true)) {
-            $original = $matricula['tipo_anterior'] ?? null;
-            $this->model->update((int) $id, [
-                'tipo'          => in_array($original, ['continuador', 'nuevo'], true)
-                    ? $original : 'continuador',
-                'tipo_anterior' => null,
-            ]);
+        $cambiaTipo = in_array($matricula['tipo'] ?? '', ['trasladado', 'retirado'], true);
 
-            // Reversión simétrica: vuelve al orden de mérito de los bimestres
-            // cerrados no publicados. Solo se sincroniza si el tipo REALMENTE
-            // cambió — `calcularFilasRanking` recorre el periodo entero y no
-            // vale la pena en una activación que no toca el roster.
-            $efectos = $this->ordenMerito->sincronizarRosterPorMatricula(
-                (int) $id, (int) (Session::user()['id'] ?? 0)
+        // ¿Este acto mueve el ROSTER del orden de mérito? Desde el 12/08/2026 el
+        // roster exige `estado='aprobada'`, así que aprobar una matrícula la
+        // REINCORPORA (reversión simétrica, igual que revertir un retiro). Se
+        // comprueba antes de escribir: `$matricula` trae el estado previo.
+        // La condición evita el recálculo cuando activar no cambia nada — una
+        // reactivación de una matrícula ya aprobada y del mismo tipo—, porque
+        // `calcularFilasRanking` recorre el periodo entero.
+        $mueveRoster = $cambiaTipo || ($matricula['estado'] ?? '') !== 'aprobada';
+
+        // El cambio de estado y el ajuste del ranking son UN SOLO hecho: o se
+        // activa y el orden de mérito queda coherente, o no ocurre ninguna.
+        $efectos = [];
+        $this->model->beginTransaction();
+        try {
+            // Activar = estado 'aprobada' (único estado vigente). El motivo se
+            // limpia (null) porque ya no hay pendientes que reportar.
+            $this->model->cambiarEstado((int) $id, 'aprobada', $usuarioId, null);
+
+            // Reactivar las boletas públicas que se apagaron al desactivar/trasladar,
+            // para que la matrícula reactivada vuelva a exponer su boleta.
+            $this->model->execute(
+                "UPDATE boletas_publicas SET activa = 1 WHERE matricula_id = ?",
+                [(int) $id]
             );
+
+            if ($cambiaTipo) {
+                $original = $matricula['tipo_anterior'] ?? null;
+                $this->model->update((int) $id, [
+                    'tipo'          => in_array($original, ['continuador', 'nuevo'], true)
+                        ? $original : 'continuador',
+                    'tipo_anterior' => null,
+                ]);
+            }
+
+            if ($mueveRoster) {
+                $efectos = $this->ordenMerito->sincronizarRosterPorMatricula((int) $id, $usuarioId);
+            }
+
+            $this->model->commit();
+        } catch (\Exception $e) {
+            $this->model->rollback();
+            log_error('Error al activar matrícula', ['id' => $id, 'error' => $e->getMessage()]);
+            $this->redirectWithError(url('matriculas/' . $id), 'No se pudo activar la matrícula.');
         }
 
         $this->redirectWithSuccess(url('matriculas/' . $id),
@@ -961,12 +999,22 @@ class MatriculaController extends BaseController
                 'Debes indicar el motivo de la desactivación.');
         }
 
+        $efectos = [];
         $this->model->beginTransaction();
         try {
             // estado=desactivado conservando el tipo; apaga login del apoderado
             // y códigos de boleta pública del periodo activo.
             $this->model->cambiarEstado((int) $id, 'desactivado', $usuarioId, $motivo);
             $this->apoderados->desactivarUsuarioDeEstudiante((int) $matricula['estudiante_id']);
+
+            // Sale del orden de mérito de los bimestres cerrados no publicados:
+            // desde el 12/08/2026 el roster exige `estado='aprobada'`. Va DENTRO
+            // de la transacción — la baja y el ajuste del ranking son un solo
+            // hecho. Solo actúa si venía de 'aprobada'; si ya estaba pendiente o
+            // desactivada no formaba parte del documento.
+            if (($matricula['estado'] ?? '') === 'aprobada') {
+                $efectos = $this->ordenMerito->sincronizarRosterPorMatricula((int) $id, $usuarioId);
+            }
 
             // Apaga las boletas públicas de TODOS los periodos de la matrícula,
             // no solo el activo: un alumno desactivado no debe exponer ninguna
@@ -984,7 +1032,8 @@ class MatriculaController extends BaseController
             $this->redirectWithError(url('matriculas/' . $id), 'No se pudo desactivar la matrícula.');
         }
 
-        $this->redirectWithSuccess(url('matriculas/' . $id), 'Matrícula desactivada.');
+        $this->redirectWithSuccess(url('matriculas/' . $id),
+            'Matrícula desactivada.' . OrdenMeritoModel::describirEfectosRoster($efectos));
     }
 
     // ── POST /matriculas/{id}/retirar ────────────────────────────
