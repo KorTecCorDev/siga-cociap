@@ -132,11 +132,19 @@ Las literales (`/matriculas/crear`) y los sub-recursos (`/{id}/apoderado`,
 | Estado | Significado | Reglas |
 |--------|-------------|--------|
 | `aprobada` ("Aprobado") | Estudiante correctamente matriculado, sin pendientes | Cuenta para TODO (boleta, orden de mérito, notas) |
-| `pendiente` | Documentos/observaciones pendientes | Matrícula incompleta; el motivo lista los faltantes |
+| `pendiente` | Documentos/observaciones pendientes | Matrícula incompleta; el motivo lista los faltantes. **SÍ se califica y SÍ recibe boleta, pero NO entra al orden de mérito** (12/08/2026) |
 | `desactivado` | No matriculado por algún motivo (**motivo obligatorio**) | Apaga login del apoderado; SIN orden de mérito; SIN boleta |
 
 El motivo visible vive en `matriculas.motivo_estado` (**TEXT**); `observaciones`
 queda como traza de auditoría histórica. Se muestra junto al badge en `index` y `show`.
+
+> ⚠️ **El `estado` mueve el ORDEN DE MÉRITO desde el 12/08/2026.** Los tres actos que lo
+> cambian —`activar`, `desactivar` y `guardarDocumentos` al desmarcar un documento
+> entregado— entran o sacan al estudiante del snapshot de los bimestres cerrados y **no
+> publicados**, avisando del puesto que ocupaba y del arrastre. Van en transacción y
+> llaman a `OrdenMeritoModel::sincronizarRosterPorMatricula`. Los rosters de EVALUACIÓN
+> no cambiaron: siguen filtrando solo por `tipo`. Detalle en
+> `docs/modulos/orden-merito.md` §7.1.
 
 ### Migración — `017_estados_matricula_consolidacion.sql`
 > El plan original pedía `013`, pero `013`–`016` ya estaban ocupados (reaperturas,

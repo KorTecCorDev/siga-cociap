@@ -1,7 +1,29 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **11/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **12/08/2026**.
+
+## 🔴 CON FECHA LÍMITE — antes del 14/08/2026 19:00
+
+**Regla nueva del 12/08: al orden de mérito solo entran las matrículas `estado='aprobada'`.**
+Decisión del usuario, con las 6 preguntas de alcance ya cerradas (ver
+`docs/modulos/orden-merito.md` §7.1). El código está en `dev`, **sin migración**.
+
+Aplica a **B2, que se publica el 13/08 19:00 (primaria) y el 14/08 19:00 (secundaria)**.
+Después de esa hora el candado 046 vuelve inmutable el oficial de B2 y la corrección ya no
+podría hacerse sobre el documento que reciben las familias.
+
+**El auto-deploy publica CÓDIGO, no repara DATOS.** El despliegue son DOS actos:
+
+1. `dev` → `main` (push) — el cambio del roster.
+2. **Por SSH, en producción:** `php database/sincronizar_roster_snapshot.php` (simula) y
+   luego `--confirmar`. **Sin este paso B2 queda sin poder rectificarse** (su snapshot
+   incluye a los pendientes, el roster no, y la guarda aborta toda rectificación).
+
+Esperado en prod, si la copia local es fiel: **3 divergencias, B2 de 523 → 520 filas**,
+las tres de secundaria (`#693` 5.º, `#695` 5.º, `#696` 3.º), **11 compañeros** cambian de
+puesto y **ningún primer puesto se mueve**. Confirmar contra la salida real: prod pudo
+haber aprobado alguna de esas matrículas desde el 13/07.
 
 ## ⏱️ CÓMO RETOMAR EN OTRA MÁQUINA (escrito el 10/08/2026)
 
@@ -22,7 +44,7 @@ SELECT (SELECT COUNT(*) FROM calificaciones WHERE extraordinaria = 1)           
 |---|---|
 | `m050` (extraordinarias de Ética) | **275** |
 | `m048` (tablas `_bkp`) | **0** |
-| `snap_b2` (snapshot oficial de B2) | **523** (era 524 hasta la reconciliación del roster del 11/08) |
+| `snap_b2` (snapshot oficial de B2) | **520** desde el 12/08 (era 524 → 523 con la reconciliación del 11/08 → 520 al exigir matrícula aprobada). Si da 523, falta correr `sincronizar_roster_snapshot.php --confirmar` |
 | `publicado_b2` (filas de publicación) | **2** (un nivel cada una) |
 | Estados de periodo | B1 `cerrado` · B2 `cerrado` · **B3 `activo`** · B4 `pendiente` |
 
@@ -40,9 +62,10 @@ candado de la versión rectificada.
 > snapshot quedó en **523 filas**, idéntico al ensayo local. Con eso B2 volvió a ser
 > rectificable y el orden refleja las 3 rectificaciones de 4.º de primaria.
 
-**Lo primero que toca al retomar:** capturar en PROD las
-cifras del snapshot de B2 y confirmar el `limite_notas` de B3; y luego el siguiente hito con
-fecha, la **regla del periodo final** (tope 05/10/2026).
+**Lo primero que toca al retomar:** el bloque de arriba con fecha límite (el roster del
+mérito en B2, antes de que se publique); capturar en PROD las cifras del snapshot de B2 y
+confirmar el `limite_notas` de B3; y luego el siguiente hito con fecha, la **regla del
+periodo final** (tope 05/10/2026).
 
 ## Migraciones
 - **`051_limpieza_bloqueos_transversales_fantasma`** (06/08): corrección de DATOS (no toca

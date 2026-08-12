@@ -287,11 +287,17 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   — cambiar la colación de las columnas rompería la búsqueda tolerante a la ñ.
   Nunca ordenar por un alias `CONCAT(...)`: hereda la colación de la columna.
   Ver `docs/modulos/ui.md`.
-- **Orden de mérito: el ranking filtra el roster por `m.tipo NOT IN ('trasladado',
-  'retirado')`** (NO por `estado='aprobada'`). Un alumno permanece hasta que su tipo
-  sea trasladado/retirado; `desactivado` por deuda y `pendiente` SÍ compiten.
-  Conserva el anclaje de retorno (`NOT IN` de la oficial activa). Ver
-  `docs/modulos/orden-merito.md`.
+- **Orden de mérito: al ranking SOLO entran las matrículas `estado='aprobada'`**
+  (12/08/2026; deroga la mitad `estado`→`tipo` de la Fase A). `pendiente` —el estado
+  en que NACE toda matrícula— y `desactivado` NO compiten, aunque sí se califican y
+  reciben boleta: **pertenecer al documento oficial y ser evaluado son preguntas
+  distintas**. Se conserva además el filtro por `tipo` (sin él, la excepción de
+  abajo podría reingresar a un retirado) y el anclaje de retorno. **UNA excepción:**
+  la operativa de un retorno REVERTIDO, que queda `desactivado` pero es donde viven
+  las notas de los bimestres que el alumno cursó allí. PUNTO ÚNICO:
+  `OrdenMeritoModel::ROSTER_MERITO` (5 consultas). Mover `matriculas.estado` dentro
+  o fuera de `aprobada` obliga a llamar a `sincronizarRosterPorMatricula` — son 6
+  sitios contando los de `tipo`. Ver `docs/modulos/orden-merito.md`.
 - **Orden de mérito: el snapshot OFICIAL es INMUTABLE una vez que el periodo
   ESTUVO publicado** (compuerta 044; `PublicacionBoletaModel::fuePublicado`,
   monotónico vía `periodos_publicacion.primera_publicacion_en`). Cierres y
