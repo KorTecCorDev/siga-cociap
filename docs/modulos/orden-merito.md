@@ -177,20 +177,97 @@ extraordinaria"). Lo que importa a ESTE módulo:
   propósito: deciden DÓNDE compite el alumno (dónde viven sus notas), no qué
   suma al promedio.
 
-## Integración con matrículas (7.1)
-En ranking/conteo el roster se filtra por **`m.tipo NOT IN ('trasladado','retirado')`**
-(NO por `estado='aprobada'`): un alumno permanece en el orden de mérito hasta que su
-tipo sea `trasladado` o `retirado` — los `desactivado` por deuda y los `pendiente` SÍ
-compiten. Alineado con los rosters de evaluación. La operativa de un retorno revertido
-(`continuador`) queda incluida por tipo; ya no hace falta el `OR revertido` explícito.
+## Integración con matrículas (7.1) — SOLO COMPITEN LAS APROBADAS (12/08/2026)
+
+> 🔒 **DECISIÓN DEL USUARIO (12/08/2026).** Al orden de mérito solo entran las
+> matrículas con **`estado='aprobada'`**. Deroga la mitad `estado`→`tipo` de la Fase A
+> (24/07). Motivo: el orden de mérito es un documento que se firma y se archiva, y un
+> alumno cuya matrícula no está regularizada no puede figurar en él.
+
+**PUNTO ÚNICO: `OrdenMeritoModel::ROSTER_MERITO`**, un fragmento SQL interpolado en las
+**5** consultas del modelo que enumeran competidores o grados con ranking
+(`rankingGradoLive`, `rankingPorSeccionLive`, `gradosConRanking`, `calcularFilasRanking`
+y `gradosConEmpatesPendientesDetalle`). Se extrajo al hacer este cambio: cinco copias a
+mano de la misma regla es el patrón de fallo que este repo ya pagó cuatro veces.
+
+```sql
+m.tipo NOT IN ('trasladado', 'retirado')
+AND (m.estado = 'aprobada'
+     OR m.id IN (SELECT r.matricula_operativa_id FROM retornos_grado r
+                 WHERE r.estado = 'revertido'))
+```
+
+Tres cosas que no son obvias al leerlo:
+
+- **`pendiente` es el estado en que NACE toda matrícula** (`MatriculaModel::crear`) y en
+  el que se queda el registro provisional mientras falte el DNI. No es un caso raro: son
+  alumnos que asisten y a los que el docente ya les puso nota.
+- **Seguir calificándose y pertenecer al documento son cosas distintas.** Los rosters de
+  evaluación (calificaciones, asistencia, conducta, transversales, tutoría) **NO
+  cambiaron**: siguen filtrando solo por `tipo`, así que un `pendiente` se califica, tiene
+  conducta y recibe boleta — simplemente no tiene puesto. `alertasEvaluacionIncompleta`
+  también los sigue vigilando (su nota va a boleta y al SIAGIE igual), así que un
+  pendiente con evaluación incompleta **sigue abortando el cierre**. Es deliberado.
+- **El filtro por `tipo` NO es redundante** ahora que hay uno por `estado`: `retirar()`
+  exige que la matrícula ya esté `desactivado`, así que sin él la excepción del retorno
+  revertido podría reingresar a un RETIRADO.
+
+**La excepción del retorno revertido.** Al revertir, la operativa queda `desactivado`
+(`RetornoGradoController::revertir`) pero conserva su `tipo`, y es donde viven las notas
+de los bimestres que el alumno cursó en el grado inferior. Sin la excepción se caería del
+ranking de un bimestre que sí cursó. Es el `OR revertido` explícito que la Fase A había
+podido eliminar cuando el criterio era el `tipo`. La operativa de un retorno **activo** no
+la necesita: nace `aprobada` a propósito (`RetornoGradoController::guardar:142`).
+
 Se sigue EXCLUYENDO la matrícula oficial de un retorno activo (`m.id NOT IN
 (SELECT matricula_oficial_id FROM retornos_grado WHERE estado='activo' …)`) — el
 estudiante compite en su grado OPERATIVO (anclaje por bimestre intacto).
 
-> Cambio del 24/07/2026 (Fase A del rediseño): el filtro pasó de `estado` a `tipo`.
+**Impacto medido el 12/08/2026** (copia local, antes de publicar B2): 3 matrículas
+pendientes en todo el año, las tres de secundaria y con 55-64 notas cada una — dos por
+«Registro provisional — pendiente de DNI». Estaban en el snapshot de B2 en los puestos
+41/50, 44/50 (5.º) y 43/45 (3.º): **ningún primer puesto se movió** y la media beca no se
+vio afectada. B2 pasó de **523 a 520** filas y **11 compañeros** cambiaron de puesto.
+Como no existe ninguna matrícula `desactivado` que no sea además `trasladado`/`retirado`,
+hoy el criterio nuevo y el viejo difieren **exactamente** en esos 3.
+
 > Nota histórica: la vista live de un bimestre CERRADO sin snapshot (fallback) refleja
 > este roster actual; por eso el reporte oficial debe venir del snapshot congelado
 > (ver Fases B y C en `docs/ESTADO.md`), no del cálculo en vivo tardío.
+
+### Los SEIS sitios que mueven el roster
+
+`sincronizarRosterPorMatricula` sigue siendo el único que puede mover el roster de un
+snapshot, y ahora se dispara también por `estado`. La reversión es **simétrica en los dos
+ejes**: aprobar una matrícula la REINCORPORA al mérito de los bimestres cerrados y no
+publicados, igual que revertir un retiro.
+
+| Acción | Dónde | Eje | Efecto |
+|---|---|---|---|
+| Traslado de salida | `TrasladoController::guardar` | tipo | sale |
+| Marcar retirado | `MatriculaController::retirar` | tipo | sale |
+| Revertir retiro | `MatriculaController::revertirRetiro` | tipo | vuelve |
+| Activar matrícula | `MatriculaController::activar` | tipo + estado | vuelve |
+| Desactivar matrícula | `MatriculaController::desactivar` | estado | sale |
+| Desmarcar un documento | `MatriculaController::guardarDocumentos` | estado | sale |
+
+Las dos últimas son nuevas del 12/08. `guardarDocumentos` es fácil de pasar por alto:
+desmarcar un documento entregado degrada la matrícula de `aprobada` a `pendiente`
+(línea 700) y **eso reescribe el documento oficial**, así que va en transacción y avisa.
+`activar` y `desactivar` no tenían transacción y ahora la tienen.
+
+**NO hace falta en `RetornoGradoController::revertir`**, que deja la operativa en
+`desactivado`: la excepción de `ROSTER_MERITO` la mantiene dentro a propósito, así que el
+roster no se mueve.
+
+**Verificación:** `verif_roster_merito_estado.php` (transacción + ROLLBACK, guard de
+prod). 20 comprobaciones, **cada regla en sus DOS ramas** —que excluya a quien debe
+excluir Y que siga dejando pasar a quien debe competir—, porque el 11/08 se desplegó una
+guarda que bloqueaba justo el caso que debía permitir y su verificador estaba en verde
+por probar la función vecina. Ojo con su **paso 0**: normaliza el snapshot dentro de la
+transacción, porque `escribirOficial` reescribe el periodo ENTERO y una divergencia sin
+reconciliar descuadraría todas las firmas. `verif_fase_a_orden_merito.php` (solo lectura)
+cubre el filtro en sí, ahora con casos derivados de la BD en vez de IDs fijos.
 
 ## Visibilidad: quién ve el mérito y cuándo (rediseño 2, 26/07/2026)
 
@@ -402,6 +479,10 @@ compañeros cambiaron de puesto»).
 | Reactivar matrícula | `MatriculaController::activar` | vuelve |
 | Revertir retiro | `MatriculaController::revertirRetiro` | vuelve |
 
+> ⚠️ **Desde el 12/08/2026 son SEIS**: el roster también exige `estado='aprobada'`, así
+> que `desactivar` y `guardarDocumentos` se suman a la lista. Tabla completa en
+> «Los SEIS sitios que mueven el roster» (§7.1).
+
 **Decisiones del usuario (11/08/2026), no re-preguntar:**
 - **Automático, avisando.** Sin pantalla de confirmación; el mensaje de éxito dice el
   puesto que ocupaba y cuántos compañeros se movieron.
@@ -444,6 +525,19 @@ sin poder rectificarse.**
 - Probado de extremo a extremo el 11/08 sobre la copia local: crear la divergencia →
   detectarla → aplicarla (522 filas) → revertir el tipo → reconciliar, y la **firma del
   snapshot volvió idéntica** a la de partida.
+
+**Es también el camino previsto para aplicar el cambio de regla del 12/08/2026** (solo
+compiten las aprobadas) sobre los bimestres ya cerrados y no publicados: desplegar el
+código deja B2 divergente —el snapshot lo incluye, el roster no— y **sin correr el script
+B2 no se puede rectificar**. En local: 523 → 520.
+
+⚠️ **Corregido el 12/08: con VARIAS divergencias a la vez solo se registraba una.** La
+primera llamada resuelve todas —`escribirOficial` reescribe el periodo entero con las
+filas frescas— así que las siguientes no ven diferencia y no devuelven efectos: dos de
+las tres salidas de B2 no dejaban ni una línea de log. Ahora las barridas se informan
+igual, con el puesto que ocupaban y la matrícula que disparó la reescritura. De quién
+sale del documento oficial siempre tiene que quedar traza. Verificado con un round trip
+de 2 divergencias simultáneas: firma idéntica al volver.
 
 ## Las ÁREAS EXONERADAS salen del cálculo (05/08/2026)
 

@@ -17,6 +17,52 @@ class OrdenMeritoModel extends BaseModel
 {
     protected string $table = 'matriculas';
 
+    /**
+     * PUNTO ÚNICO del ROSTER del orden de mérito: quién PERTENECE al documento.
+     * Se interpola (alias `m` = matriculas) en las 5 consultas del modelo que
+     * enumeran competidores o grados con ranking. No confundir con el filtro de
+     * QUÉ NOTAS suman (bloqueadas, no extraordinarias, áreas no exoneradas), que
+     * es otra pregunta y vive en cada query.
+     *
+     * REGLA VIGENTE (12/08/2026, decisión del usuario): al orden de mérito solo
+     * entran las matrículas APROBADAS. Un `pendiente` —el estado en que NACE toda
+     * matrícula (`MatriculaModel::crear`) y en el que se queda el registro
+     * provisional mientras falte el DNI— se sigue calificando y recibe boleta,
+     * pero NO compite: el orden de mérito es un documento que se firma y se
+     * archiva, y un alumno sin matrícula regularizada no puede figurar en él.
+     *
+     * > Deroga la Fase A del 24/07/2026, que había cambiado `estado='aprobada'`
+     * > por el filtro de `tipo` para alinear el mérito con los rosters de
+     * > evaluación. Esa alineación se mantiene en TODO lo demás (calificaciones,
+     * > asistencia, conducta, transversales, tutoría siguen filtrando solo por
+     * > `tipo`): pertenecer al documento oficial y ser evaluado son dos preguntas
+     * > distintas, y desde hoy tienen dos respuestas distintas.
+     *
+     * SE CONSERVA el filtro por `tipo` además del de `estado`, y no es redundante:
+     * `retirar()` exige que la matrícula ya esté `desactivado`, así que sin él la
+     * excepción del retorno revertido (abajo) podría reingresar a un RETIRADO.
+     *
+     * EXCEPCIÓN — la operativa de un retorno de grado REVERTIDO. Al revertir, esa
+     * matrícula queda `desactivado` (`RetornoGradoController::revertir`) pero
+     * conserva su `tipo`, y es donde viven las notas de los bimestres que el
+     * alumno cursó en el grado inferior. Sin la excepción se caería del ranking de
+     * un bimestre que sí cursó, rompiendo el anclaje por bimestre. Es el `OR
+     * revertido` explícito que la Fase A había podido eliminar cuando el criterio
+     * era el `tipo`. (La operativa de un retorno ACTIVO no la necesita: nace
+     * `aprobada` a propósito, ver `RetornoGradoController::guardar`.)
+     */
+    private const ROSTER_MERITO = "
+        m.tipo NOT IN ('trasladado', 'retirado')
+        AND (
+            m.estado = 'aprobada'
+            OR m.id IN (
+                SELECT r.matricula_operativa_id
+                FROM retornos_grado r
+                WHERE r.estado = 'revertido'
+            )
+        )
+    ";
+
     private DesempateMeritoModel $desempateModel;
     private PublicacionBoletaModel $publicacionModel;
 
@@ -103,11 +149,10 @@ class OrdenMeritoModel extends BaseModel
               -- Rectificación, migración 042) NO cuentan para el mérito:
               -- van a boleta y SIAGIE, pero no mueven puestos.
               AND cal.extraordinaria = 0
-              -- Filtro por TIPO (no por estado): el alumno permanece en el orden
-              -- de mérito hasta que su tipo sea 'trasladado' o 'retirado'. Los
-              -- 'desactivado' por deuda y 'pendiente' SÍ compiten; la operativa de
-              -- un retorno revertido (continuador) queda incluida por tipo.
-              AND m.tipo NOT IN ('trasladado', 'retirado')
+              -- ROSTER del documento (quién compite). PUNTO ÚNICO: la condición
+              -- vive en self::ROSTER_MERITO y la comparten las 5 consultas del
+              -- modelo. Solo compiten las matrículas APROBADAS (12/08/2026).
+              AND (" . self::ROSTER_MERITO . ")
               -- Anclaje por bimestre: el alumno compite donde están sus notas de
               -- ESE periodo. Se excluye la OFICIAL cuando su operativa cubrió este
               -- periodo (retorno activo siempre; revertido solo en sus bimestres).
@@ -224,8 +269,8 @@ class OrdenMeritoModel extends BaseModel
               AND cal.periodo_id = ?
               -- Extraordinarias fuera del mérito (ver rankingGradoLive).
               AND cal.extraordinaria = 0
-              -- Filtro por TIPO (ver rankingGradoLive).
-              AND m.tipo NOT IN ('trasladado', 'retirado')
+              -- ROSTER del documento (ver rankingGradoLive y self::ROSTER_MERITO).
+              AND (" . self::ROSTER_MERITO . ")
               AND m.id NOT IN (
                   SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo'
                   UNION
@@ -457,7 +502,7 @@ class OrdenMeritoModel extends BaseModel
                    AND bc.competencia_id = cal.competencia_id
                    AND bc.periodo_id     = cal.periodo_id
             WHERE cal.periodo_id = ?
-              AND m.tipo NOT IN ('trasladado', 'retirado')
+              AND (" . self::ROSTER_MERITO . ")
             ORDER BY n.id, g.numero
         ", [$periodoId]);
     }
@@ -484,7 +529,7 @@ class OrdenMeritoModel extends BaseModel
                     ON bc.carga_id       = cal.carga_id
                    AND bc.competencia_id = cal.competencia_id
                    AND bc.periodo_id     = cal.periodo_id
-            WHERE m.tipo NOT IN ('trasladado', 'retirado')
+            WHERE (" . self::ROSTER_MERITO . ")
         ", [$periodoId]);
 
         $filas = [];
@@ -681,7 +726,8 @@ class OrdenMeritoModel extends BaseModel
      * Compara el roster de unas filas recién calculadas con el del snapshot
      * oficial. Devuelve null si coinciden, o las dos diferencias:
      *   'faltan' → están en el snapshot y NO saldrían del cálculo (p. ej. el
-     *              alumno cuyo tipo pasó a trasladado tras el cierre)
+     *              alumno cuyo tipo pasó a trasladado tras el cierre, o aquel
+     *              cuya matrícula dejó de estar 'aprobada')
      *   'sobran' → saldrían del cálculo y NO están en el snapshot
      */
     private function rosterDifiere(int $periodoId, array $filas): ?array
@@ -722,18 +768,33 @@ class OrdenMeritoModel extends BaseModel
      * la que el alumno se va, y el documento llega a las familias cuando ya no
      * está en el colegio.
      *
+     * AMPLIADA EL 12/08/2026: el roster también exige `estado='aprobada'` (ver
+     * self::ROSTER_MERITO), así que aprobar, desactivar o degradar a 'pendiente'
+     * una matrícula mueve el documento igual que un traslado. La reversión es
+     * SIMÉTRICA en los dos ejes: al aprobar, el alumno vuelve a entrar.
+     *
      * ALCANCE: solo periodos CERRADOS que aún NO se publicaron. Un bimestre ya
      * publicado es inmutable (candado 046) y se deja intacto — por eso B1, con
      * sus 11 trasladados dentro, no se toca nunca.
      *
-     * ⚠️ SE LLAMA DESDE LOS CUATRO SITIOS QUE MUEVEN `matriculas.tipo` dentro o
-     * fuera de ('trasladado','retirado'): TrasladoController::guardar,
-     * MatriculaController::retirar, ::activar y ::revertirRetiro. Si nace un
-     * quinto, tiene que llamar aquí: que la regla viva en un solo sitio es lo
+     * ⚠️ SE LLAMA DESDE LOS SEIS SITIOS QUE MUEVEN EL ROSTER. Si nace un
+     * séptimo, tiene que llamar aquí: que la regla viva en un solo sitio es lo
      * que este repo ya pagó caro cuatro veces.
      *
+     *   `matriculas.tipo` dentro/fuera de ('trasladado','retirado'):
+     *     TrasladoController::guardar · MatriculaController::retirar
+     *     MatriculaController::activar · MatriculaController::revertirRetiro
+     *   `matriculas.estado` dentro/fuera de 'aprobada':
+     *     MatriculaController::activar · MatriculaController::desactivar
+     *     MatriculaController::guardarDocumentos (degrada a 'pendiente' al
+     *     desmarcar un documento entregado)
+     *
+     * NO hace falta en `RetornoGradoController::revertir`, que deja la operativa
+     * en 'desactivado': la excepción de self::ROSTER_MERITO la mantiene dentro a
+     * propósito, así que el roster no se mueve.
+     *
      * No decide por sí mismo quién entra o sale: pregunta al motor de siempre
-     * (`calcularFilasRanking`, que ya filtra por tipo) y actúa si difiere.
+     * (`calcularFilasRanking`, que ya aplica el roster) y actúa si difiere.
      *
      * @return array<int, array{periodo:string, accion:string, puesto:int,
      *                          grado:string, companeros:int}> efectos, para el
@@ -792,7 +853,7 @@ class OrdenMeritoModel extends BaseModel
                 'companeros' => $companeros,
             ];
 
-            log_error('Orden de mérito: roster sincronizado por cambio de tipo', [
+            log_error('Orden de mérito: roster sincronizado por cambio de tipo o estado', [
                 'matricula'  => $matriculaId,
                 'periodo'    => $periodoId,
                 'accion'     => $estaba ? 'salio' : 'reintegrado',
@@ -1015,7 +1076,7 @@ class OrdenMeritoModel extends BaseModel
                    AND bc.competencia_id = cal.competencia_id
                    AND bc.periodo_id     = cal.periodo_id
             WHERE cal.periodo_id = ?
-              AND m.tipo NOT IN ('trasladado', 'retirado')
+              AND (" . self::ROSTER_MERITO . ")
             ORDER BY n.id, g.numero
         ", [$periodoId]);
 

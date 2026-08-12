@@ -13,12 +13,16 @@
  *
  * POR QUÉ EXISTE. Desde el 11/08/2026 la salida de un alumno del orden de mérito
  * la hace `OrdenMeritoModel::sincronizarRosterPorMatricula()`, disparada por el
- * cambio de `matriculas.tipo` (traslado, retiro y sus reversiones). Pero las
- * matrículas que YA habían cambiado de tipo antes de que ese código existiera
- * quedan huérfanas: su snapshot las incluye, su tipo las excluye, y ningún acto
- * futuro va a volver a moverles el tipo. Mientras esa divergencia exista, la
- * guarda de `registrarRanking` ABORTA toda rectificación del periodo
+ * cambio de `matriculas.tipo` (traslado, retiro y sus reversiones) y, desde el
+ * 12/08/2026, también por el de `matriculas.estado` (el roster exige
+ * 'aprobada'). Pero las matrículas que YA estaban del otro lado antes de que ese
+ * código existiera quedan huérfanas: su snapshot las incluye, el roster las
+ * excluye, y ningún acto futuro va a volver a moverlas. Mientras esa divergencia
+ * exista, la guarda de `registrarRanking` ABORTA toda rectificación del periodo
  * ('roster_cambiado'), que es correcto pero deja el bimestre bloqueado.
+ *
+ * Es el camino previsto para aplicar el cambio de regla del 12/08/2026 sobre los
+ * bimestres ya cerrados y aún no publicados (en prod, B2).
  *
  * Este script es el que recoge esas divergencias previas. También sirve como
  * diagnóstico permanente: sin --confirmar solo informa.
@@ -114,10 +118,10 @@ foreach ($periodos as $per) {
                 INNER JOIN niveles ni    ON ni.id = g.nivel_id
                 WHERE m.id = $mid")->fetch(PDO::FETCH_ASSOC);
 
-            printf("   %-7s #%-5d %-34s %-11s %-3s tipo=%-12s (cambio %s)\n",
+            printf("   %-7s #%-5d %-34s %-11s %-3s tipo=%-12s estado=%-12s (cambio %s)\n",
                 $clase === 'sobran' ? 'SOBRA' : 'FALTA', $mid,
                 mb_substr($d['alumno'] ?? '?', 0, 34), $d['nivel'] ?? '?', $d['grado'] ?? '?',
-                $d['tipo'] ?? '?', $d['updated_at'] ?? '?');
+                $d['tipo'] ?? '?', $d['estado'] ?? '?', $d['updated_at'] ?? '?');
         }
     }
 
@@ -128,13 +132,38 @@ foreach ($periodos as $per) {
 
     // Se sincroniza por matrícula para que cada salida/reingreso quede en el log
     // con su puesto y su arrastre, igual que si lo hubiera hecho el acto normal.
+    //
+    // ⚠️ Con VARIAS divergencias a la vez, la primera llamada las resuelve TODAS:
+    // `escribirOficial` reescribe el periodo entero con las filas frescas, así que
+    // las siguientes ya no ven diferencia y no devuelven efectos. Sin la cuenta de
+    // abajo, esas salidas quedarían fuera del registro — y de quién sale del
+    // documento oficial siempre tiene que quedar traza.
     $pdo->beginTransaction();
     try {
+        $reescritaPor = null;
         foreach (array_keys($sobran + $faltan) as $mid) {
             $efectos = $om->sincronizarRosterPorMatricula((int) $mid, null);
             foreach ($efectos as $e) {
                 printf("   APLICADO  #%-5d %s\n", $mid,
                     trim(App\Models\OrdenMeritoModel::describirEfectosRoster([$e])));
+                $reescritaPor ??= (int) $mid;
+                $totalAplicadas++;
+            }
+            if (!$efectos) {
+                $puesto = isset($guardadas[$mid])
+                    ? sprintf('ocupaba el puesto %d°', (int) $guardadas[$mid]['puesto_grado'])
+                    : 'no figuraba en el snapshot';
+                printf("   APLICADO  #%-5d %s en %s (%s) — resuelto en la misma reescritura%s.\n",
+                    $mid, isset($guardadas[$mid]) ? 'Salió' : 'Volvió',
+                    $per['nombre_display'], $puesto,
+                    $reescritaPor !== null ? ' que #' . $reescritaPor : '');
+                log_error('Orden de mérito: roster reconciliado en bloque', [
+                    'matricula' => (int) $mid,
+                    'periodo'   => $periodoId,
+                    'accion'    => isset($guardadas[$mid]) ? 'salio' : 'reintegrado',
+                    'puesto'    => isset($guardadas[$mid]) ? (int) $guardadas[$mid]['puesto_grado'] : null,
+                    'junto_con' => $reescritaPor,
+                ]);
                 $totalAplicadas++;
             }
         }
