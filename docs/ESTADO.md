@@ -3,27 +3,42 @@
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **12/08/2026**.
 
-## 🔴 CON FECHA LÍMITE — antes del 14/08/2026 19:00
+## ✅ CICLO CERRADO EL 12/08/2026 — el mérito exige matrícula aprobada
 
-**Regla nueva del 12/08: al orden de mérito solo entran las matrículas `estado='aprobada'`.**
-Decisión del usuario, con las 6 preguntas de alcance ya cerradas (ver
-`docs/modulos/orden-merito.md` §7.1). El código está en `dev`, **sin migración**.
+**Regla del 12/08: al orden de mérito solo entran las matrículas `estado='aprobada'`.**
+Decisión del usuario, con las 6 preguntas de alcance cerradas (ver
+`docs/modulos/orden-merito.md` §7.1). **Sin migración.** Los dos actos del despliegue
+—el auto-deploy publica CÓDIGO, no repara DATOS— quedaron hechos el mismo día:
 
-Aplica a **B2, que se publica el 13/08 19:00 (primaria) y el 14/08 19:00 (secundaria)**.
-Después de esa hora el candado 046 vuelve inmutable el oficial de B2 y la corrección ya no
-podría hacerse sobre el documento que reciben las familias.
+1. ✅ `dev` → `main` (merge `7de64b5`): el cambio del roster, el arreglo del log del
+   script de reconciliación, las verificaciones y la documentación.
+2. ✅ **`sincronizar_roster_snapshot.php --confirmar` en PRODUCCIÓN**, salida capturada.
 
-**El auto-deploy publica CÓDIGO, no repara DATOS.** El despliegue son DOS actos:
+Se hizo **antes de publicar B2** (primaria 13/08 19:00, secundaria 14/08 19:00), que era
+el tope: pasada esa hora el candado 046 vuelve inmutable el oficial y los tres alumnos se
+habrían quedado dentro del documento que reciben las familias.
 
-1. `dev` → `main` (push) — el cambio del roster.
-2. **Por SSH, en producción:** `php database/sincronizar_roster_snapshot.php` (simula) y
-   luego `--confirmar`. **Sin este paso B2 queda sin poder rectificarse** (su snapshot
-   incluye a los pendientes, el roster no, y la guarda aborta toda rectificación).
+**Resultado en prod, idéntico al ensayo local — B2 de 523 → 520 filas:**
 
-Esperado en prod, si la copia local es fiel: **3 divergencias, B2 de 523 → 520 filas**,
-las tres de secundaria (`#693` 5.º, `#695` 5.º, `#696` 3.º), **11 compañeros** cambian de
-puesto y **ningún primer puesto se mueve**. Confirmar contra la salida real: prod pudo
-haber aprobado alguna de esas matrículas desde el 13/07.
+| Matrícula | Alumno | Grado | Puesto que ocupaba |
+|---|---|---|---|
+| `#696` | MORALES YANAC, Yeremi Miguel | 3.º Secundaria | 43° |
+| `#693` | RIMAC CIRIACO, Azahí Fernanda | 5.º Secundaria | 41° |
+| `#695` | GONZALEZ RIBERA, Jeanfranco Nuriel | 5.º Secundaria | 44° |
+
+Las tres `estado='pendiente'`, dos de ellas por «Registro provisional — pendiente de DNI».
+**11 compañeros** cambiaron de puesto (9 en 5.º, 2 en 3.º) y **ningún primer puesto se
+movió**: la media beca no se vio afectada. B1 intacto (528 filas, publicado).
+
+> ⚠️ **Al leer esa salida:** el arrastre por matrícula solo aparece en la que dispara la
+> reescritura (`#696`, «2 compañeros»); las otras dos se informan con su puesto pero sin
+> arrastre, porque `escribirOficial` reescribe el periodo entero de una vez. El total real
+> es 11. Las tres quedaron en el log de la aplicación.
+
+**Sigue vivo:** un `pendiente` se califica, recibe boleta y su evaluación incompleta
+**sigue abortando el cierre** (`alertasEvaluacionIncompleta` no cambió) — simplemente no
+tiene puesto. Si alguna de esas tres matrículas se regulariza, aprobarla la **reincorpora
+sola** al mérito de los bimestres cerrados y no publicados, avisando del puesto.
 
 ## ⏱️ CÓMO RETOMAR EN OTRA MÁQUINA (escrito el 10/08/2026)
 
