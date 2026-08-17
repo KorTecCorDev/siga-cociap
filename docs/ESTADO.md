@@ -80,7 +80,7 @@ Detalle en cada entrada de la sección "Pendientes operativos"; aquí solo el sa
 | 4 | Los 12 alumnos de B1 con blancos | ✅ **Medidos y nombrados.** 1 blanco cada uno, no 69. **No se pueden pre-resolver** con B1 cerrado: queda como restricción documentada de reapertura |
 | 5 | Talleres sin hoja en el SIAGIE | ✅ **Bloqueado fuera de SIGA** (UGEL Huaraz), decisión firme. Alcance re-medido: **1332 notas**, no 321 |
 | 6 | Limpiar datos de ensayo en local | ✅ **Nada que limpiar**, y la receta se retiró: sus ids apuntaban ya a datos REALES |
-| 7 | Alias huérfano del área 14 | ✅ **Migración `052`**, aplicada en LOCAL. ⏳ Falta importarla en PROD |
+| 7 | Alias huérfano del área 14 | ✅ **Migración `052`, aplicada y verificada en LOS DOS ENTORNOS** el mismo día |
 | 8 | Re-subir firma/sello del Director | ✅ **No era un pendiente**: nota condicional, reclasificada |
 
 **Los dos hallazgos que justificaron medir antes de ejecutar:**
@@ -95,10 +95,10 @@ Detalle en cada entrada de la sección "Pendientes operativos"; aquí solo el sa
    **subárea**. La trampa del `COALESCE` que `CLAUDE.md` documenta para competencias
    **vale igual para cargas**.
 
-**Lo único que queda de este bloque:** importar la migración **`052`** en producción
-(phpMyAdmin, PASO 1 primero — debe dar 1 fila `PUEDE_LIMPIARSE`). No es un pendiente
-operativo sino un paso de despliegue: el cambio de datos ya está decidido, escrito, ensayado
-con ROLLBACK y aplicado en local.
+✅ **NO QUEDA NADA DE ESTE BLOQUE.** La migración `052` se aplicó en producción el mismo
+**17/08/2026 a las 12:12:34**, con la huella del servidor y el PASO 4 en conexión nueva
+capturados allí (deploy `481bbe7 → 0d7c030` primero, script por SSH después). Los ocho
+pendientes operativos quedan cerrados y sin cola.
 
 ## ✅ CICLO CERRADO EL 12/08/2026 — el mérito exige matrícula aprobada
 
@@ -185,8 +185,25 @@ periodo final** (tope 05/10/2026).
   SECUNDARIA**. Es el **paso 3 del plan de encendido de Ética del 07/07**, que este archivo
   daba por ejecutado el 05/08 y **nunca se ejecutó** (verificado el 17/08 sobre la copia
   local ya sincronizada con prod).
-  ✅ **APLICADA EN LOCAL el 17/08/2026** (1 fila; verificación en conexión nueva).
-  ⏳ **PENDIENTE DE APLICAR EN PRODUCCIÓN.**
+  ✅ **APLICADA EN LOS DOS ENTORNOS EL 17/08/2026**, con la salida capturada en cada uno
+  (local por la mañana; **PRODUCCIÓN a las 12:12:34** hora de Lima, vía SSH).
+  - **Evidencia capturada EN PROD** — huella del PASO 0: `u761410128_siga_cociap` ·
+    `u761410128_ktcdev@localhost` · `br-asc-web1308.main-hosting.eu` · **MariaDB
+    11.8.8-log** · Linux · `/var/lib/mysql/`, o sea la misma huella que se capturó el 10/08
+    con el snapshot de B2. **Es lo que convierte esto en una verificación de PROD y no de
+    una copia** (regla de la 048).
+  - **Recorrido completo allí:** ensayo previo a las **12:08** con ROLLBACK (`PUEDE_LIMPIARSE`,
+    1 fila, idempotencia 0, y la conexión nueva confirmando que el alias volvía) → corrida
+    definitiva con `--confirmar` a las **12:12** → **COMMIT** → PASO 4 **en conexión nueva**:
+    `alias_actual=NULL`, veredicto `YA_LIMPIO`, áreas con alias **3 → 2**, y el área 24
+    (Tutoría TOE) intacta con su `nombre_boleta='Ética y Valores'` +
+    `alias_boleta='(Educación Religiosa)'` y sus 11 cargas. `codigo_siagie` siguió en `035`.
+  - **El pendiente era real en prod:** allí también estaba el alias puesto y las mismas 3
+    áreas con alias, o sea que el paso 3 del plan de encendido tampoco se había ejecutado
+    en producción. No era una divergencia de la copia local.
+  - 🔎 **El `NOT EXISTS` se comporta igual en MariaDB 11.8 que en 10.4** — verificado en el
+    ensayo sobre la propia producción, no supuesto. Era la duda legítima que dejó la 050:
+    un ensayo local prueba la LÓGICA, no el plan del optimizador.
   - ★ **VÍA: `database/aplicar_052_alias_huerfano.php`, por SSH — NO phpMyAdmin.**
     Simula por defecto (ensayo real + ROLLBACK) y escribe con `--confirmar`, igual que
     `sincronizar_roster_snapshot.php`. **Evita las tres trampas ya documentadas:** imprime
@@ -2532,6 +2549,26 @@ La competencia **C57** (área 24) nunca fue ensayo: la crea la migración `036`.
   - ⚠️ **El deploy era condición para IMPRIMIR, no para cerrar.** Producción venía con la
     conclusión a dos líneas: sin este lote, las boletas de secundaria de B2 se habrían
     entregado con las firmas en una segunda hoja.
+- **17/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `481bbe7` a `0d7c030`** (commit de
+  merge, autorizado por el usuario). **2 commits, 4 archivos, CERO código de runtime.**
+  - **Qué entró:** la migración **`052`** (alias huérfano de Ética en secundaria), su
+    aplicador `database/aplicar_052_alias_huerfano.php`, y la documentación del cierre
+    íntegro del bloque de pendientes operativos.
+  - **El deploy fue el MEDIO, no el fin.** Lo que había que hacer era una reparación de
+    DATOS en producción, y el script vive en el repo: sin desplegarlo antes, el `php
+    database/...` responde `Could not open input file` porque el auto-deploy borra todo lo
+    no versionado. **El auto-deploy publica CÓDIGO, no repara DATOS** — el segundo acto fue
+    correr el script por SSH, y sin él el deploy no habría cambiado nada.
+  - **Verificado antes de pushear:** el lote **no toca `app/`, `routes/`, `public/`,
+    `core/`, `config/` ni `resources/`** (comprobado con el diff contra `origin/main`), así
+    que no hacía falta `gulp build` ni había riesgo de CSS desincronizado; `php -l` limpio
+    en el único PHP del lote; árbol de `main` idéntico al de `dev`.
+  - ⚠️ **El trabajo se había hecho estando en `main`.** Se movió a `dev` con un `checkout`
+    tras comprobar que `git diff main dev` estaba vacío (árboles idénticos), así que los
+    cambios sin commitear viajaron sin conflicto. **La rama de trabajo es `dev`**: conviene
+    verificarlo ANTES de empezar a editar, no al ir a commitear.
+  - **Los 2 commits van separados por contenido:** `1709abe` (`fix(areas)`: migración +
+    aplicador) y `9986899` (`docs(estado)`: el cierre del bloque operativo).
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
