@@ -1,7 +1,104 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **12/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **17/08/2026**.
+
+## 🔴 REVISIÓN DEL 17/08/2026 — EL CANDADO 046 SE CERRÓ SOLO Y NADIE LO ANOTÓ
+
+Repaso completo de pendientes contra el repo y la BD. **Copia local al día** (huella
+`siga_cociap` · `root@localhost` · PROBOOK450 · MariaDB 10.4.32; marcadores
+`m050=275 · m048=0 · snap_b1=528 · snap_b2=520 · rectificado=0`). **`dev` y `main`
+idénticos en `481bbe7`**, árbol limpio, nada sin pushear, **sin migración pendiente**.
+Última actividad de código: **12/08**.
+
+**1. B2 ESTÁ PUBLICADO Y SU SNAPSHOT OFICIAL YA ES INMUTABLE.** Las dos filas de
+`periodos_publicacion` conservan `primera_publicacion_en` en **NULL** —la publicación fue
+PROGRAMADA, no inmediata— pero sus `publica_en` **ya vencieron**: primaria el **13/08
+19:00** y secundaria el **14/08 19:00**. Como `fuePublicado()` es
+`primera_publicacion_en IS NOT NULL OR publica_en <= NOW()`, el candado 046 está **activo
+desde el 13/08 19:00**, sin que nadie pulsara nada.
+- Las familias **ya ven** las boletas de B2 desde esas horas.
+- El snapshot oficial de B2 (**520 filas**) **no se puede volver a escribir**: toda
+  rectificación va desde ahora a `orden_merito_rectificado` (hoy **0 filas**), visible solo
+  en `/admin/control`.
+- **La ventana barata de corrección se cerró.** La regla del roster `aprobada` del 12/08
+  entró con un día de margen; un caso equivalente que aparezca hoy ya no tiene arreglo en
+  el oficial.
+- Las entradas escritas el 10 y el 11/08 hablan de esa hora **en futuro**. Quedan corregidas
+  en su sitio (ver "Cierre de B2 — SECUENCIA CORRECTA" y el evento del 11/08).
+
+**2. QUEDAN 49 DÍAS PARA EL 05/10** (`periodos.fecha_inicio` de B4, verificado; B3 `activo`
+con `limite_notas = 2026-10-16 04:00`). Lo que tiene que estar arriba antes:
+
+| # | Pendiente | Estado |
+|---|---|---|
+| 2.1 | **El periodo final exige todas las competencias** (regla del 10/08, 4 decisiones cerradas) | sin escribir |
+| 2.2 | **F1 — punto único de "carga dueña"**, prerrequisito duro de 2.1 | sin escribir |
+| 2.3 | **Los 4 registros del bimestre** (plan del 04/08, 6 decisiones cerradas) | **DESBLOQUEADO desde el 14/08** |
+| 2.4 | **Cola del logro anual** (324 pares sin nota en B4 → guion) | la resuelve 2.1 |
+
+**F1 (2.2) es el cuello de botella real:** 2.1, 2.3 y el panel de transversales diferido
+dependen los tres de él. El plan de los 4 registros se había diferido a "después de cerrar
+y publicar B2", y eso **ya ocurrió**.
+
+**3. LA PREMISA F0 DEL PLAN DE NOTAS RETROACTIVAS (`049`) CADUCÓ.** Detalle y cifras en su
+entrada de Pendientes de desarrollo. En una línea: los 5 mecanismos ya **no** están en 0
+filas —la migración **050** metió 275 extraordinarias de un bimestre **publicado**—, así que
+"la unificación no arrastra datos" dejó de ser cierto.
+
+**4. TRES PENDIENTES DE DESARROLLO CAMBIARON DE ESTADO, NO DE CONTENIDO:** la **opción B**
+del hueco del guard de empates queda **desbloqueada** (se difería a "después del cierre de
+B2"); los **dos husos horarios en prod** siguen medidos y **no abordados**; y el refactor
+del **retorno de grado escrito a mano en ~15 sitios** sigue sin dueño.
+
+**5. PENDIENTES OPERATIVOS SIN MOVIMIENTO:** horarios reales de 1.º A secundaria, la decisión
+del colegio sobre regenerar el ranking de B1 (**ahora más cara: B1 está publicado y bajo
+candado**), la validación en móvil del botón "✕ Cerrar", y los **12 alumnos de B1 con blancos
+sin motivo** que hacen de reabrir B1 una puerta de un solo sentido.
+
+**6. TRES DATOS VERIFICADOS HOY EN LA BD, sin cambios respecto de lo documentado:**
+**0 usuarios con rol Padre** (la superficie de familias sigue oscura), **9 bloques basura**
+en `bloques_horario` y el **`alias_boleta` del área 14 todavía en `(Ética y Valores)`** en
+vez de NULL. Ninguno muerde hoy; los tres siguen abiertos.
+- ⚠️ **Etiquetas obsoletas corregidas en este repaso:** `/consulta-notas` ampliada y el fix
+  de `NOW()`/timezone figuraban como **"SIN DESPLEGAR"** en sus cabeceras. Los dos están en
+  producción (`dev == main`; las 5 rutas de consulta-notas están en `routes/web.php`). Los
+  eventos posteriores de este mismo archivo ya los daban por desplegados: eran las cabeceras
+  las que no se actualizaron.
+
+## ✅ PENDIENTES OPERATIVOS — BLOQUE CERRADO ENTERO EL 17/08/2026
+
+Los 8 pendientes operativos se revisaron uno a uno contra la BD. **Los 8 quedaron cerrados
+el mismo día: no queda ninguno vivo.** Es la primera vez que esta sección queda en cero.
+Detalle en cada entrada de la sección "Pendientes operativos"; aquí solo el saldo.
+
+| # | Pendiente | Cómo cerró |
+|---|---|---|
+| 1 | Digitar horarios reales en prod | ✅ **Ya estaba hecho.** 0 áreas huérfanas; las 43 cargas sin horario propio están cubiertas por la carga dueña de su área (regla general, no defecto) |
+| 2 | Regenerar o no el ranking de B1 | ✅ **Decidido: NO se regenera.** El snapshot de 528 filas es definitivo |
+| 3 | Validar en móvil el botón «✕ Cerrar» | ✅ **Probado por el usuario en móvil real: funciona.** Era el único que no se podía cerrar desde el servidor |
+| 4 | Los 12 alumnos de B1 con blancos | ✅ **Medidos y nombrados.** 1 blanco cada uno, no 69. **No se pueden pre-resolver** con B1 cerrado: queda como restricción documentada de reapertura |
+| 5 | Talleres sin hoja en el SIAGIE | ✅ **Bloqueado fuera de SIGA** (UGEL Huaraz), decisión firme. Alcance re-medido: **1332 notas**, no 321 |
+| 6 | Limpiar datos de ensayo en local | ✅ **Nada que limpiar**, y la receta se retiró: sus ids apuntaban ya a datos REALES |
+| 7 | Alias huérfano del área 14 | ✅ **Migración `052`**, aplicada en LOCAL. ⏳ Falta importarla en PROD |
+| 8 | Re-subir firma/sello del Director | ✅ **No era un pendiente**: nota condicional, reclasificada |
+
+**Los dos hallazgos que justificaron medir antes de ejecutar:**
+
+1. 🔴 **La receta de limpieza del #6 habría borrado datos reales.** Anclaba por id, y las
+   resincronizaciones desde producción reciclaron esos ids: la «exoneración de ensayo»
+   es hoy la exoneración **real** de la matrícula 530, y la «sección sembrada» es 1.º A de
+   Secundaria con 240 respuestas de un bimestre cerrado y publicado. **Un `DELETE` por id no
+   falla cuando el id cambia de dueño: acierta sobre la fila equivocada.**
+2. ⚠️ **Dos de mis mediciones del #1 dieron 0 y eran falsas** — la segunda por hacer
+   `JOIN areas ON ca.area_id`, que descarta en silencio las cargas colgadas de una
+   **subárea**. La trampa del `COALESCE` que `CLAUDE.md` documenta para competencias
+   **vale igual para cargas**.
+
+**Lo único que queda de este bloque:** importar la migración **`052`** en producción
+(phpMyAdmin, PASO 1 primero — debe dar 1 fila `PUEDE_LIMPIARSE`). No es un pendiente
+operativo sino un paso de despliegue: el cambio de datos ya está decidido, escrito, ensayado
+con ROLLBACK y aplicado en local.
 
 ## ✅ CICLO CERRADO EL 12/08/2026 — el mérito exige matrícula aprobada
 
@@ -83,6 +180,50 @@ confirmar el `limite_notas` de B3; y luego el siguiente hito con fecha, la **reg
 periodo final** (tope 05/10/2026).
 
 ## Migraciones
+- **`052_alias_huerfano_etica_secundaria`** (17/08): corrección de DATOS (no toca esquema).
+  Pone en NULL el `alias_boleta` «(Ética y Valores)» del área **Ed. Religiosa de
+  SECUNDARIA**. Es el **paso 3 del plan de encendido de Ética del 07/07**, que este archivo
+  daba por ejecutado el 05/08 y **nunca se ejecutó** (verificado el 17/08 sobre la copia
+  local ya sincronizada con prod).
+  ✅ **APLICADA EN LOCAL el 17/08/2026** (1 fila; verificación en conexión nueva).
+  ⏳ **PENDIENTE DE APLICAR EN PRODUCCIÓN.**
+  - ★ **VÍA: `database/aplicar_052_alias_huerfano.php`, por SSH — NO phpMyAdmin.**
+    Simula por defecto (ensayo real + ROLLBACK) y escribe con `--confirmar`, igual que
+    `sincronizar_roster_snapshot.php`. **Evita las tres trampas ya documentadas:** imprime
+    la **huella del servidor** (la lección de la 048: la salida del veredicto es idéntica en
+    los dos entornos y no prueba dónde se ejecutó), el contador sale del propio UPDATE (en
+    phpMyAdmin `ROW_COUNT()` da 0), y no depende de que phpMyAdmin haya seleccionado la base
+    correcta. Y sobre todo **aborta de verdad**: pegar el `.sql` entero ejecuta el PASO 2
+    aunque el PASO 1 salga en rojo, porque son sentencias sueltas — que es exactamente lo
+    que pasó al aplicar la 048.
+  - ✅ **PROBADO EN SUS CUATRO RAMAS EN LOCAL (17/08/2026)**, siguiendo la regla de que una
+    guarda nueva se prueba bloqueando **y** dejando pasar:
+    1. `YA_LIMPIO` → no toca nada, sale 0 (idempotencia).
+    2. `PUEDE_LIMPIARSE` sin flag → aplica, mide, **revierte**; la conexión nueva confirma
+       que el alias volvió.
+    3. `PUEDE_LIMPIARSE --confirmar` → COMMIT; la conexión nueva confirma que persistió.
+    4. `NO_LIMPIAR_TIENE_CARGAS` → **aborta con exit 1 incluso con `--confirmar`**. Se probó
+       creando una carga temporal sobre el área y borrándola después; local quedó verificada
+       de vuelta en su línea base (433 cargas, 2 alias, snapshot de B2 en 520).
+  - **Impacto real: cosmético.** El área tiene **0 cargas y 0 notas**, así que ese alias no
+    se imprime en ninguna boleta. Lo que corrige es la **divergencia entre el dato y lo que
+    la documentación afirma**, en el catálogo que `/admin/actas-siagie/vinculos` existe para
+    no esconder.
+  - **Anclada por `nombre` + `nivel_id`, NUNCA por id** (el id 14 es de esta copia). El
+    matcher del nombre va en **ASCII** (`LIKE 'Educaci_n Religiosa'`) para no depender de
+    que el cliente mande la tilde en UTF-8 — ese fallo ya ocurrió de verdad al ensayar la
+    **050**.
+  - **Guard duro:** `NOT EXISTS` sobre `cargas_academicas`. Si esa área llegara a tener
+    cargas, su alias dejaría de ser huérfano y la migración es un no-op — coherente con el
+    invariante de `CLAUDE.md` de que debe seguir **sin cargas**.
+  - **NO toca** el área de Ed. Religiosa de PRIMARIA (que se dicta con normalidad) ni el
+    área de **Tutoría (TOE)**, cuyo par `nombre_boleta='Ética y Valores'` +
+    `alias_boleta='(Educación Religiosa)'` **sí** es el vínculo válido de la asignatura.
+    Tampoco toca `codigo_siagie` (sigue en `035`, el vínculo `035-EREL`), `tipo` ni
+    `activa` — el área **se queda activa**: desactivarla se probó y se descartó el 10/08.
+  - Idempotente (2.ª corrida = 0 filas, verificado) y reversible con el PASO 4. Ensayada en
+    transacción con ROLLBACK antes de aplicarla, con el control de que primaria y TOE no se
+    mueven.
 - **`051_limpieza_bloqueos_transversales_fantasma`** (06/08): corrección de DATOS (no toca
   esquema). Borra los bloqueos transversales que el **cierre forzado** creó en **B2** sobre
   cargas que ningún docente puede bloquear: **46 en 23 cargas TOE + 84 en 42 cargas
@@ -786,8 +927,11 @@ periodo final** (tope 05/10/2026).
     `<!DOCTYPE>`**.
   - **Auditoría de alcance:** se revisaron los **34 controladores** buscando llamadas
     `$this->metodo()` inexistentes. **0 casos más.** Convención registrada en `CLAUDE.md`.
-- ✅ **`/consulta-notas` CON TRANSVERSALES Y CONDUCTA — IMPLEMENTADO EN `dev`
-  (07/08/2026), SIN DESPLEGAR. Sin migración, sin métodos de modelo nuevos.**
+- ✅ **`/consulta-notas` CON TRANSVERSALES Y CONDUCTA — EN PRODUCCIÓN. Sin migración, sin
+  métodos de modelo nuevos.** Implementado en `dev` el **07/08/2026** y desplegado en los
+  lotes posteriores. ⚠️ **La etiqueta «SIN DESPLEGAR» de esta cabecera quedó vieja y se
+  corrigió el 17/08/2026** (verificado: `dev == main` y las 5 rutas están en
+  `routes/web.php`).
   Qué se construyó y con qué cifras:
   **`docs/modulos/consulta-notas-ampliada.md` §9** (manda esa sección).
   - **Las tres fases juntas:** crudo transversal dentro de cada carga, agregado
@@ -895,6 +1039,19 @@ periodo final** (tope 05/10/2026).
       extraordinarias, `notas_externas`, `notas_autorizadas_siagie`). 🔴 **Verificar esas
       5 cifras en PROD antes de tocar nada**: si allí hay extraordinarias, se migran en la
       misma migración.
+      - 🔴 **PREMISA CADUCADA EL 06/08, DETECTADA EL 17/08/2026: YA NO SON 0.** La migración
+        **050** —aplicada en los DOS entornos el 06-07/08, o sea DESPUÉS de escribirse esta
+        línea— dejó **275 calificaciones extraordinarias · 11 criterios extraordinarios ·
+        275 rectificaciones `tipo='extraordinaria'`**. Medido en local el 17/08;
+        `notas_externas` y `notas_autorizadas_siagie` **sí siguen en 0**.
+      - **Qué cambia del plan:** la decisión D6 («la extraordinaria y el registro retroactivo
+        SE UNIFICAN; el flujo de la extraordinaria se retira») ya **no es gratuita**. Esas
+        275 notas son de **B1, que está PUBLICADO**: las familias las están viendo. Retirar
+        el flujo sin migrarlas las dejaría huérfanas. El `DROP notas_externas` **sí sigue
+        siendo seguro** (0 filas).
+      - **F0 sigue siendo BLOQUEANTE, pero ahora su respuesta esperada NO es 0:** contar las
+        5 cifras en PROD antes de escribir la `049` y **presupuestar la migración de datos
+        que el plan daba por innecesaria**.
     - **Modelo unificado:** `nota_literal` SIEMPRE + `nota_numerica` **NULL** cuando viene
       de otro colegio (boleta: `— / A`) y con número cuando es evaluación real nuestra.
     - **Transversales:** hoy quedan fuera del insertable porque se muestran AGREGADAS
@@ -1031,7 +1188,9 @@ periodo final** (tope 05/10/2026).
   `estadoCargasSeccion`, el gate del cierre del tutor. **Va junto con la F1 del plan de los
   4 registros**, que es un punto único sobre el mismo territorio.
 - ✅ **EL MySQL DE PROD CORRE EN UTC (5 h ADELANTADO) Y DOS CONSULTAS LO IGNORABAN —
-  HALLADO Y CORREGIDO EL 10/08/2026, en `dev`, SIN MIGRACIÓN y sin SASS. SIN DESPLEGAR.**
+  HALLADO Y CORREGIDO EL 10/08/2026, SIN MIGRACIÓN y sin SASS. EN PRODUCCIÓN** desde el
+  2.º deploy de ese mismo día (`992a350` → `9d3207d`, ver Eventos con fecha). ⚠️ **La
+  etiqueta «SIN DESPLEGAR» de esta cabecera quedó vieja y se corrigió el 17/08/2026.**
   - **El arreglo:** las dos consultas pasan a recibir el "ahora" **como parámetro
     preparado calculado en PHP** (`date('Y-m-d H:i:s')` con `America/Lima`), que es el
     patrón que ya seguía `PublicacionBoletaModel` y que su docblock documentaba. Dos
@@ -1190,14 +1349,31 @@ sin input (ya genérico); la sección de transversales NO aparece en la carga TO
 del II Bim (área oficial evaluada por su dimensión de conciencia moral, a cargo
 del tutor; derecho de exoneración disponible). NO diferir a fin de año.
 
-**Datos de ensayo en LOCAL** (borrar si estorban a la demo del 08/07):
-la competencia C57 (área 24, hoy id=127) YA NO es ensayo: la crea la migración
-`036` — NO borrarla. Restan como ensayo: carga id=416 (1°A sec., tutor
-docente_id=2) y exoneración id=2 (matrícula 198, "ENSAYO LOCAL"). Además conducta B2 de la
-sección 13: 510 respuestas sembradas + cierre RA id=25 (limpiar con
-`DELETE FROM conducta_respuestas WHERE periodo_id=2 AND matricula_id IN
-(SELECT id FROM matriculas WHERE seccion_id=13); DELETE FROM cierres_conducta
-WHERE id=25;`).
+~~**Datos de ensayo en LOCAL**~~ 🔴 **RECETA DE BORRADO RETIRADA EL 17/08/2026 — YA NO
+QUEDA NADA QUE LIMPIAR Y EJECUTARLA HABRÍA DESTRUIDO DATOS REALES.**
+
+Aquí vivía un `DELETE` anclado por **ids auto-incrementales** (carga 416, exoneración 2,
+sección 13, cierre de conducta 25) para retirar los datos sembrados en la demo del 08/07.
+Las resincronizaciones de la copia local desde producción (07, 10 y 12/08) **borraron el
+ensayo y reciclaron esos ids con registros reales**. Medido el 17/08:
+
+| El texto decía | Qué es hoy en esa fila |
+|---|---|
+| carga `416` — 1.º A sec., ensayo de Ética | **Tutoría (TOE) de 2.º A de PRIMARIA**, área 23, activa |
+| exoneración `id=2` — matrícula 198, «ENSAYO LOCAL» | **La exoneración REAL de la matrícula 530** (NOLASCO ALVARADO, YURIANA), el caso verificado end-to-end el 05/08 |
+| sección `13` — 510 respuestas sembradas | **1.º A de Secundaria**, con **240 respuestas reales** de un B2 cerrado y publicado |
+| cierre de conducta `id=25` | Pertenece a la **sección 20** (4.º A Sec), no a la 13 |
+
+**No existe ninguna exoneración con motivo «ENSAYO»:** las únicas dos vivas son reales, de
+primaria y área 5 — exactamente las que contó la auditoría de la migración 050.
+
+🔎 **LECCIÓN, y es la del endurecimiento de la 048 otra vez:** un `DELETE` anclado por id
+**no falla** cuando el id cambia de dueño; borra en silencio el registro equivocado. Una
+receta de limpieza que sobreviva a una resincronización tiene que anclarse en algo que
+identifique al DATO —un motivo, un marcador, una fecha— nunca en su id. Lo único que salvó
+esto fue medir antes de ejecutar.
+
+La competencia **C57** (área 24) nunca fue ensayo: la crea la migración `036`. No borrarla.
 
 ## Exportación SIAGIE (implementada 03/07 — B1 cerrado en prod el 20/07)
 - **B1 COMPLETO subido al SIAGIE sin rebotes (20/07/2026, confirmado por el
@@ -1288,6 +1464,14 @@ WHERE id=25;`).
     registrado en el SIAGIE** → es una gestión del colegio ante SIAGIE/UGEL, no un
     cambio de código. Alcance (local, B1 completo; confirmar en prod): Raz. Mat.
     = 1° a 5°, 11 secciones, 273 notas; Pre-Cálculo = 5° A y B, 49 notas.
+    - 📈 **RE-MEDIDO EL 17/08/2026 — EL ALCANCE SE MULTIPLICÓ POR CUATRO AL CERRARSE B2.**
+      Ya no son las 321 notas de B1: son **1332 notas** que no llegan al SIAGIE.
+      **Taller de Raz. Matemático 1133** (11 secciones · B1 272 · B2 861) y **Taller de
+      Pre-Cálculo 199** (2 secciones · B1 49 · B2 150). Los dos siguen con
+      `codigo_siagie` en NULL, que es lo correcto mientras no exista la hoja.
+      **La decisión NO cambia** —Raz. Mat. se dará de alta cuando la UGEL apruebe, y
+      Pre-Cálculo no se reporta— pero el volumen que espera esa aprobación sí, y crecerá
+      otro tanto con B3 y B4.
     **CAUSA RAÍZ Y DECISIONES (29/07/2026, usuario):** hay una **aprobación de talleres
     PENDIENTE en la UGEL de Huaraz** y por eso el SIAGIE no habilita esas hojas.
     **Taller de Raz. Mat. → SE DARÁ DE ALTA (sí o sí se registrará en el SIAGIE):**
@@ -1590,12 +1774,33 @@ WHERE id=25;`).
     tolerante a la ñ (hoy "NUNUVERO" encuentra a NUÑUVERO) y arriesga
     `Illegal mix of collations`. Sin migración.
   - Fue en el **mismo deploy** que el roster de asistencia (decisión del usuario).
-- **Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva
-  (Chrome Android / Safari iOS): abrir varias boletas seguidas y confirmar que la
-  pestaña se cierra y no se acumulan.
-- **Digitar horarios reales en prod:** 1°A secundaria (11 cursos "sin horario
-  propio" tras la migración 031) y las áreas sin bloques reales tras la 030
-  (CyT/Matemática primaria 4°-6°, Arte y Cultura 1°A prim., etc.). 3°B ya está completo.
+- ~~**Validar en móvil real** el botón "✕ Cerrar" de documentos en ventana nueva~~
+  ✅ **PROBADO POR EL USUARIO EN MÓVIL REAL EL 17/08/2026 — FUNCIONA. Pendiente CERRADO.**
+  El botón cierra la pestaña y no se acumulan al abrir varias boletas seguidas.
+  - Era el último pendiente operativo que quedaba vivo, y **el único que no se podía cerrar
+    desde el servidor**: lo que se prueba es el comportamiento de `window.close()` en el
+    navegador del alumno o del apoderado, y eso solo lo dice un teléfono real.
+  - No hace falta volver a probarlo salvo que cambie el mecanismo de apertura en ventana
+    nueva de los documentos.
+- ~~**Digitar horarios reales en prod**~~ ✅ **CERRADO EL 17/08/2026 — YA ESTABA HECHO Y
+  NADIE LO ANOTÓ. Áreas huérfanas: 0.** Decía que faltaban los 11 cursos de 1.º A de
+  secundaria (que quedaron «sin horario propio» tras la migración 031) y las áreas sin
+  bloques reales tras la 030 (CyT/Matemática de primaria 4.º-6.º, Arte y Cultura de 1.º A
+  de primaria).
+  - **Medido:** hay **43 cargas activas sin horario propio**, pero las **43 están cubiertas
+    por otra carga de su MISMA área en la MISMA sección** — que es la *regla general*
+    documentada en `docs/modulos/horarios.md` («una carga puede existir sin horario
+    propio»: el horario del área vive en la carga dueña), **no un defecto**. Son las
+    subáreas de Matemática y CyT de primaria 1.º-3.º y la subárea Economía de Ciencias
+    Sociales en las 11 secciones de secundaria.
+  - **Ninguna área se quedó sin ningún bloque en ninguna sección**, que es la condición que
+    este pendiente vigilaba. 1.º A de secundaria tiene su horario.
+  - ⚠️ **DOS MEDICIONES FALSAS ANTES DE LLEGAR AL NÚMERO BUENO, las dos por el mismo
+    descuido:** un `HAVING` sobre una subconsulta no agrupada dio **0**; y después un
+    `INNER JOIN areas ON ca.area_id` volvió a dar **0**, porque **una carga puede colgar de
+    una SUBÁREA y entonces `ca.area_id` es NULL**. Es la trampa que `CLAUDE.md` ya advierte
+    para las competencias, y vale igual para las cargas: **el área se resuelve con
+    `COALESCE(sa.area_id, ca.area_id)`**, nunca con un join directo.
 - ~~**Solape de CLEMENTE ANGELES (DPCC, lunes)**~~ **RESUELTO EN PROD EL 29/07/2026**
   (corregido por el usuario desde la UI; confirmó que el horario quedó bien). Se deja el
   diagnóstico porque el patrón puede repetirse. El dato anterior tenía las secciones
@@ -1647,6 +1852,12 @@ WHERE id=25;`).
         llegar esas horas, sin que nadie pulse nada.
       - **El candado se cierra solo el 13/08 19:00** (hora de Lima), con la primera fila que
         vence. Hasta ese momento el snapshot oficial de B2 **aún se puede modificar**.
+      - ✅ **SUPERADO POR EL RELOJ — VERIFICADO EL 17/08/2026: LAS DOS FECHAS YA VENCIERON Y
+        EL CANDADO ESTÁ ACTIVO.** `primera_publicacion_en` sigue en **NULL** en las dos filas
+        (no se rellena nunca en una publicación programada), pero `publica_en <= NOW()` basta:
+        `fuePublicado(2)` es **`true`** desde el **13/08 19:00**. Las familias ven B2, el
+        snapshot oficial de **520 filas** es inmutable y `orden_merito_rectificado` sigue en
+        **0**. **Todo lo que dicen en futuro los dos puntos de arriba ya es pasado.**
       - ⚠️ **La vía NO es reabrir: es la RECTIFICACIÓN.** Con B3 ya abierto, `reabrir`
         aborta (la segunda puerta de un solo sentido). `RectificacionModel` sí opera sobre
         bimestres cerrados y regenera el ranking; como `fuePublicado(2)` es **`false`**,
@@ -1858,6 +2069,11 @@ WHERE id=25;`).
     - **Pendiente para DESPUÉS del cierre de B2 — opción B:** mover el guard de empates
       a después del bloqueo forzado, dentro de la transacción y con rollback. Es la
       corrección estructural correcta; no se estrena bajo presión en el cierre.
+      - ✅ **DESBLOQUEADA (17/08/2026): B2 se cerró el 10/08 y se publicó el 13-14/08**, así
+        que la condición que la difería ya se cumplió. **Sigue sin implementar.** El cierre
+        de B2 no la necesitó —0 bloqueos forzados, capturado en prod—, pero eso fue el
+        dataset, no el diseño: lo que hoy suple al guard es una **regla operativa humana**
+        («termómetro en 0 antes de pulsar Cerrar»), no código. Hacerla **antes de cerrar B3**.
 - ~~**Retorno de grado de BALTAZAR SHALOM CRISTEL — BLOQUEARÁ EL CIERRE DE B2.**~~
   **RESUELTO PARA B2 (verificado el 04/08/2026):** la alerta de evaluación incompleta
   de B2 da **0** y la matrícula **692 ya no aparece** en el detalle por alumno. El
@@ -1868,6 +2084,36 @@ WHERE id=25;`).
     ya está en producción (04/08) → **si alguna vez se REABRE B1, no se podrá volver a cerrar**
     hasta resolver esos 12. Tenerlo presente antes de reabrir B1 para una
     rectificación. Ver "Efecto colateral del guard P4" en Pendientes de desarrollo.
+    - ✅ **MEDIDOS UNO A UNO EL 17/08/2026 con el motor real
+      (`alertasEvaluacionIncompleta(1)`) — y salen MUCHO más baratos de lo que decía esta
+      línea: son 12 alumnos con UN blanco cada uno, 12 en total.** El «692 con 69 blancos»
+      quedó obsoleto (era la medición del 27/07, previa al filtro `ca.estado='activa'` del
+      fix `af72ac7`). **B2 y B3 dan 0.**
+
+      | Matrícula | Alumno | Ubicación |
+      |---|---|---|
+      | 692 | BALTAZAR PINTO, Shalom Cristel | Primaria 1.º B |
+      | 548 | PANTOJA LAZARO, Jaziel Joaquin | Primaria 2.º B |
+      | 424 | MAGUIÑA SALAZAR, Joseft Paulo | Primaria 3.º A |
+      | 504 | PEÑA PILLACA, Vannya Maurina | Primaria 3.º A |
+      | 259 | DIEGO LOPEZ, Adrian Abraham | Primaria 4.º A |
+      | 690 | ÑIQUEN PAJUELO, Xoana Antonella | Primaria 4.º A |
+      | 339 | GALICIA MENDOZA, Nayara Aeysha | Primaria 4.º B |
+      | 691 | RAMIREZ HUAMAN, Itzel Samantha | Primaria 5.º B |
+      | 696 | MORALES YANAC, Yeremi Miguel | Secundaria 3.º A |
+      | 694 | SANTAMARIA RODRIGUEZ, Jakeline | Secundaria 3.º A |
+      | 695 | GONZALEZ RIBERA, Jeanfranco Nuriel | Secundaria 5.º B |
+      | 693 | RIMAC CIRIACO, Azahí Fernanda | Secundaria 5.º B |
+
+    - 🔴 **NO SE PUEDEN PRE-RESOLVER, y conviene saberlo antes de intentarlo:** B1 está
+      cerrado, así que `periodoEstaBloqueado` rechaza registrar la nota o la omisión; y la
+      **calificación extraordinaria tampoco sirve**, porque `alertasEvaluacionIncompleta`
+      filtra `cr.extraordinario = 0` y no vería el criterio (es lo mismo que se verificó
+      con la 050: sus 275 notas no movieron esta alerta). **La única secuencia posible es
+      reabrir → resolver los 12 → re-cerrar**, y reabrir es la puerta de un solo sentido.
+    - **7 de los 12 son los que llegaron con el año empezado** (690, 691, 692, 693, 694,
+      695, 696): los mismos del plan de registro retroactivo. Resolver aquel plan
+      resolvería más de la mitad de esta lista.
   - Se conserva el diagnóstico completo porque el patrón (evaluación registrada en las
     cargas del grado oficial en vez de las del operativo) puede repetirse en B3/B4.
 
@@ -1893,8 +2139,20 @@ WHERE id=25;`).
     medir con `ControlOperativoModel::alertasEvaluacionIncompleta(2)` antes de cerrar.
 - **Re-subir firma/sello del Director EBR** solo si se recrea el entorno
   (se pierden únicamente si se borra el directorio externo `~/siga_uploads/`).
-- **Decisión del colegio pendiente:** regenerar (o no) el ranking B1 tras el
-  cambio de umbrales del 10/06 (desempates `num_alto IN (15,16)` y `num_16`).
+  - ℹ️ **No es un pendiente: es una nota condicional** (reclasificada el 17/08/2026). No hay
+    nada que hacer mientras `~/siga_uploads/` exista; el auto-deploy no lo toca.
+- ~~**Decisión del colegio pendiente:** regenerar (o no) el ranking B1~~ ✅ **DECIDIDO EL
+  17/08/2026: NO SE REGENERA. Pendiente CERRADO.** Estaba abierta desde el **10/06**, cuando
+  los umbrales literales cambiaron (AD pasó de 17 a 18) y se dejaron sin tocar los
+  desempates `num_alto IN (15,16)` y `num_16`.
+  - **Decisión del usuario:** B1 ya se entregó a las familias con esos puestos; el snapshot
+    oficial de **528 filas es definitivo**.
+  - **La decisión llega cuando ya casi no había alternativa:** B1 está publicado desde el
+    22/07, así que el candado 046 hace **inmutable** su snapshot oficial. Regenerar ya no
+    podía tocar el documento entregado — habría escrito una versión no oficial en
+    `orden_merito_rectificado`, visible solo en `/admin/control`.
+  - **Los desempates `num_alto`/`num_16` se quedan como están.** Si algún día se tocan, no
+    afectan a B1 retroactivamente: sus lectores usan el snapshot, no el cálculo en vivo.
 
 ## Eventos con fecha
 - ✅ **11/08/2026 — EN PRODUCCIÓN: la guarda de roster ya no bloquea la versión
@@ -1950,6 +2208,9 @@ WHERE id=25;`).
     **13/08 19:00** (`publica_en` de primaria). El candado es por PERIODO, no por nivel: esa
     hora bloquea también el oficial de secundaria. Después, toda corrección de B2 va a
     `orden_merito_rectificado`.
+    - ✅ **VENTANA CERRADA — verificado el 17/08/2026.** Ocurrió tal cual y sin intervención:
+      `fuePublicado(2)` es `true` desde esa hora. Toda corrección de B2 va ya a
+      `orden_merito_rectificado` (aún en 0 filas).
   - 🔧 **`database/sincronizar_roster_snapshot.php`** — recoge las divergencias ANTERIORES
     al código, que ningún acto futuro tocaría. **Producción está justo en ese estado**
     (B2 con 524 filas incluyendo a una alumna ya `trasladado`), así que **sin este script el

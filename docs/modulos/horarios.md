@@ -155,7 +155,16 @@ ser por columna/día, no una fila uniforme). Se analizará al final.
   `sh.seccion_id != ca.seccion_id`, sin IDs hardcodeados) y recalcula
   `horas_semanales` (mismo UPDATE de 030). Idempotente.
 - Resultado: 3°B quedó con su horario completo; 11 cargas de 1°A secundaria
-  quedaron "sin horario propio" — **PENDIENTE digitar el horario real de 1°A**.
+  quedaron "sin horario propio" — ~~**PENDIENTE digitar el horario real de 1°A**~~
+  ✅ **CERRADO EL 17/08/2026: ya está digitado.** Medido sobre la copia local sincronizada
+  con prod: **0 áreas huérfanas** en todo el año. Quedan 43 cargas activas sin horario
+  propio, pero las 43 están **cubiertas por otra carga de su misma área en la misma
+  sección** — es la *regla general* de arriba, no un defecto (subáreas de Matemática y CyT
+  de primaria 1°-3°, y la subárea Economía de CCSS en las 11 secciones de secundaria).
+  - ⚠️ **Para volver a medirlo, el área se resuelve con `COALESCE(sa.area_id, ca.area_id)`.**
+    Una carga puede colgar de una SUBÁREA, y entonces `ca.area_id` es NULL: un
+    `INNER JOIN areas ON ca.area_id` pierde las 43 en silencio y devuelve un 0 tranquilizador
+    (pasó al cerrar este pendiente). Misma trampa que `CLAUDE.md` documenta para competencias.
 - **Solape real preexistente — RESUELTO EN PROD EL 29/07/2026.** Lo corrigió el usuario
   desde la UI y confirmó que el horario quedó bien. El diagnóstico se conserva abajo
   porque el patrón (un bloque creado FUERA de la grilla) puede reaparecer y esta es la
