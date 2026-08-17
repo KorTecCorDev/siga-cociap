@@ -1,7 +1,9 @@
 # Rediseño del Orden de mérito y Ranking por sección — IMPLEMENTADO (25-26/07/2026)
 
-> **ESTADO: las 6 fases están IMPLEMENTADAS y probadas en navegador (26/07/2026),
-> en la rama `dev` — pendiente de deploy a `main`.** Este archivo se conserva como
+> **ESTADO: las 6 fases están EN PRODUCCIÓN desde el 04/08/2026** (deploy `de449e2`).
+> Implementadas y probadas en navegador el 26/07/2026.
+> *(Hasta el 17/08 esta línea decía «en la rama `dev` — pendiente de deploy a `main`»:
+> se escribió al implementar y nadie volvió a ella al desplegar.)* Este archivo se conserva como
 > registro del DISEÑO aprobado; el estado vigente del módulo vive en
 > `orden-merito.md` y el avance con fecha en `ESTADO.md`. Las secciones 1-5 de
 > abajo son el plan tal como se aprobó; la **§8 (al final) registra lo que
