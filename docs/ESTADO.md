@@ -66,6 +66,49 @@ vez de NULL. Ninguno muerde hoy; los tres siguen abiertos.
   eventos posteriores de este mismo archivo ya los daban por desplegados: eran las cabeceras
   las que no se actualizaron.
 
+## ✅ DEUDA DE DOCUMENTACIÓN — BLOQUE CERRADO EL 17/08/2026
+
+Los 3 pendientes de documentación se cerraron atacando la causa, no la etiqueta.
+
+**DC-1 — `CLAUDE.md` anunciaba como plan sin implementar lo que ya corría.** De sus 5 filas
+con `(PLAN, sin implementar)`, **3 eran falsas** (boleta con todas las competencias, consulta
+de notas ampliada y transversales: las tres en producción desde el 05-07/08), 1 parcial
+(registro retroactivo: su F1 ya está desplegada) y solo 1 correcta. Verificado comprobando que
+los 5 commits de deploy citados son ancestros de `origin/main`, no fiándose de este archivo.
+- 🔎 **CAUSA RAÍZ, y por eso no bastaba corregir las etiquetas:** una tabla que **enruta por
+  TEMA** cargaba un **ESTADO**, que caduca en cada despliegue. Peor: la línea 201 del propio
+  `CLAUDE.md` ya ordenaba que «pendientes, migraciones y planes con fecha se registran SOLO
+  en `docs/ESTADO.md`». **El archivo incumplía su propia regla de mantenimiento.**
+- **Arreglo (decisión del usuario):** el estado sale de la tabla. Las filas describen el tema
+  y nada más, con un aviso explícito que prohíbe reintroducirlo. El estado se responde aquí.
+
+**DC-2 — cuatro docs de módulo llevaban su estado de nacimiento**, uno más de los tres
+detectados en el barrido: se sumó `orden-merito-rediseno.md`, que decía «en la rama `dev` —
+pendiente de deploy a `main`» llevando en producción desde el **04/08** (`de449e2`).
+Corregidos también `boleta-competencias-completas.md` (decía SIN DESPLEGAR y que faltaba el
+checklist de impresión, cerrado el 10/08), `consulta-notas-ampliada.md` (título y cuerpo) y
+el título de `transversales-visibilidad-tutor.md`. Más dos marcas internas: la F1 de
+`registro-retroactivo-notas.md` y la condición de arranque de `cierre-cuatro-registros.md`,
+que ya se cumplió.
+- 🔎 **EL PATRÓN ES UN HUECO DE PROCESO, no seis descuidos:** los seis casos dicen «en `dev`»
+  o «sin desplegar». **El doc se escribe al IMPLEMENTAR y nadie vuelve a él al DESPLEGAR** —
+  el deploy actualiza este archivo (que tiene sección Git) y jamás la cabecera del módulo.
+  Iba a repetirse con cada función futura, así que se añadió la regla a las **Reglas de
+  mantenimiento de la red** de `CLAUDE.md`.
+
+**DC-3 — el plan de cambio de sección se portó a `docs/modulos/cambio-seccion.md`** y ganó su
+fila en la tabla. Vivía solo en memoria, sin versionar. Se verificó contra el código que la
+función **sigue sin existir** (0 rutas, sin `CambioSeccionModel`, sin tablas
+`cambios_seccion*`, sin ningún `UPDATE` de `matriculas.seccion_id`), así que el plan vale
+íntegro. **Su migración se renumeró de la `039` a la `053`:** la 039 la ocupó
+`039_areas_codigo_siagie.sql` el 12/07, tres días después de escribirse el plan.
+- **Por qué merecía versionarse:** guarda una intuición que no es derivable del código — los
+  bloqueos son **por carga, no por alumno**, así que un `UPDATE seccion_id` a secas hace
+  **reaparecer en la boleta** las notas de la sección origen y **duplica** la competencia si
+  el destino ya calificó.
+- **Queda UNA decisión abierta** (la única del plan): qué hacer al revertir si la sección
+  destino ya cargó notas — archivar simétricamente o descartar.
+
 ## ✅ PENDIENTES OPERATIVOS — BLOQUE CERRADO ENTERO EL 17/08/2026
 
 Los 8 pendientes operativos se revisaron uno a uno contra la BD. **Los 8 quedaron cerrados
