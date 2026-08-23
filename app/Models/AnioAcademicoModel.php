@@ -491,11 +491,18 @@ class AnioAcademicoModel extends BaseModel
         ", [$periodoId]);
 
         // 2) Agregados por estudiante (promedio + nº de C) → riesgo e histograma.
+        //
+        // "En riesgo" y "nº de C" son la MISMA pregunta: estar por debajo de B. El
+        // umbral sale de `NOTA_MIN_B` (helpers.php), igual que el bloque 1 de este
+        // mismo método — hasta el 22/08/2026 estos dos estaban hardcodeados en 11 y
+        // quedaban fuera del inventario de excepciones de CLAUDE.md, así que un
+        // cambio de escala (ya hubo uno el 10/06) los habría desincronizado en
+        // silencio mientras el resto del panel se movía.
         $alumnos = $this->query("
             SELECT
                 n.id AS nivel_id,
-                COUNT(*)                       AS total_estudiantes,
-                SUM(prom.promedio < 11)        AS en_riesgo,
+                COUNT(*)                                    AS total_estudiantes,
+                SUM(prom.promedio < " . NOTA_MIN_B . ")     AS en_riesgo,
                 SUM(prom.num_c = 1)            AS c1,
                 SUM(prom.num_c = 2)            AS c2,
                 SUM(prom.num_c = 3)            AS c3,
@@ -505,8 +512,8 @@ class AnioAcademicoModel extends BaseModel
                 SELECT
                     m.id        AS matricula_id,
                     s.grado_id,
-                    AVG(cal.nota_numerica)        AS promedio,
-                    SUM(cal.nota_numerica < 11)   AS num_c
+                    AVG(cal.nota_numerica)                          AS promedio,
+                    SUM(cal.nota_numerica < " . NOTA_MIN_B . ")     AS num_c
                 FROM calificaciones cal
                 INNER JOIN matriculas m      ON m.id    = cal.matricula_id
                 INNER JOIN secciones s       ON s.id    = m.seccion_id

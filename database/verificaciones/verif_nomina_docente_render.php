@@ -125,20 +125,50 @@ if ($hayCerrado) {
 }
 
 // ── 3. El rotulo del merito no nombra un bimestre sin publicar.
+//
+// 🔴 DOS DEFECTOS CORREGIDOS EL 22/08/2026, los dos daban FUGA falsa:
+//
+//   1. "SIN PUBLICAR" no es "no es el ultimo publicado".
+//      Se restaban los nombres de `ultimoPeriodoPublicadoPorNivel`, que devuelve
+//      UNO por nivel — el ultimo. Con B1 y B2 ambos publicados, B1 caia en la
+//      lista de "sin publicar" pese a estarlo desde el 22/07. La pregunta
+//      correcta es "¿este bimestre tiene ALGUN nivel publicado?", y para eso
+//      esta `periodosConAlgunNivelPublicado()`.
+//
+//   2. El matching era por SUBCADENA, sin frontera.
+//      `str_contains($html, 'I Bimestre (')` encuentra "I Bimestre (" DENTRO de
+//      "II Bimestre (Primaria)". Bastaba con que el rotulo nombrara el II para
+//      que el I se diera por fugado. Ahora se compara con lookaround de letra,
+//      asi que "I Bimestre" ya no matchea dentro de "II Bimestre".
+//
+// Ademas se acota la busqueda AL ROTULO en vez de a todo el HTML: es lo que este
+// bloque dice comprobar, y buscar en la pagina entera daria falso positivo el
+// dia que se liste un bimestre por cualquier otro motivo (un selector, una card).
 $anioId = (int) $pdo->query("SELECT id FROM anios_academicos WHERE estado='activo' ORDER BY anio DESC LIMIT 1")->fetchColumn();
-$publicados = (new App\Models\PublicacionBoletaModel())->ultimoPeriodoPublicadoPorNivel($anioId);
-$nombresPublicados = array_column($publicados, 'nombre_display');
+$publicadosSet = (new App\Models\PublicacionBoletaModel())->periodosConAlgunNivelPublicado();
 
-$sinPublicar = $pdo->query("
-    SELECT p.nombre_display FROM periodos p
-    WHERE p.anio_id = {$anioId} AND p.estado = 'cerrado'
-")->fetchAll(PDO::FETCH_COLUMN);
-$sinPublicar = array_diff($sinPublicar, $nombresPublicados);
+$sinPublicar = [];
+foreach ($pdo->query("SELECT p.id, p.nombre_display FROM periodos p
+                       WHERE p.anio_id = {$anioId} AND p.estado = 'cerrado'") as $p) {
+    if (!isset($publicadosSet[(int) $p['id']])) {
+        $sinPublicar[] = $p['nombre_display'];
+    }
+}
+
+// El rotulo del merito, aislado del resto de la pagina.
+$rotulo = '';
+if (preg_match('/Orden de mérito vigente:.{0,240}/us', $html, $mRot)) {
+    $rotulo = preg_replace('/\s+/', ' ', strip_tags($mRot[0]));
+}
+$ok($rotulo !== '', 'el rotulo del merito esta presente en la pagina',
+    $rotulo !== '' ? mb_substr($rotulo, 0, 70) : 'NO SE ENCONTRO EL ROTULO');
 
 $fugado = [];
 foreach ($sinPublicar as $nombre) {
-    if (str_contains($html, 'Orden de mérito vigente: ' . $nombre)
-        || str_contains($html, $nombre . ' (')) {
+    // Frontera de letra a ambos lados: "I Bimestre" no puede casar dentro de
+    // "II Bimestre" ni de "I Bimestres".
+    $re = '/(?<!\p{L})' . preg_quote($nombre, '/') . '(?!\p{L})/u';
+    if ($rotulo !== '' && preg_match($re, $rotulo)) {
         $fugado[] = $nombre;
     }
 }

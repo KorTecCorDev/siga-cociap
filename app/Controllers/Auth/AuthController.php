@@ -164,12 +164,20 @@ class AuthController extends BaseController
      */
     private function redirigirPorRol(string $rol): never
     {
+        // Las claves son códigos de `roles.codigo`. Un rol sin entrada propia cae
+        // en el dashboard por el `??` de abajo, que es un destino válido.
+        //
+        // Retirada el 22/08/2026 la entrada `'secretaria' => 'secretaria/matriculas'`:
+        // estaba doblemente muerta. Su destino apuntaba a un controlador que no
+        // existe en el repositorio (la ruta se retiró de `routes/web.php` el mismo
+        // día), y su clave no correspondía a ningún rol real — los códigos en la
+        // base son `secretaria_academica` y `secretaria_administrativa`, así que
+        // esta rama nunca llegó a ejecutarse. Ambos roles llegan hoy al dashboard.
         $destinos = [
             'admin'             => url('dashboard'),
             'registro_academico'=> url('dashboard'),
             'director_general'  => url('director/anios'),
             'director_ebr'      => url('director/anios'),
-            'secretaria'        => url('secretaria/matriculas'),
             'docente'           => url('docente/inicio'),
             'padre'             => url('padre/inicio'),
         ];

@@ -1,7 +1,79 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **17/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **22/08/2026**.
+
+## 🏁 CIERRE DE LA VERSIÓN 1.0 — 22/08/2026
+
+Auditoría de cierre completa (código, BD y documentación) y corrección de sus
+tres hallazgos accionables. **La batería del repo quedó en 21/21 por primera vez.**
+El detalle del alcance de la versión está en `CHANGELOG.md`; aquí solo el saldo.
+
+**LO QUE LA AUDITORÍA MIDIÓ EN VERDE** (medición ejecutada, no leída de este archivo):
+214 archivos PHP sin error de sintaxis · **195 rutas** con el invariante de orden
+intacto · **83/83** rutas POST validando CSRF · **33/33** controladores con guard de
+acceso · **0** puntos de inyección SQL (las 30 interpolaciones son listas blancas,
+enteros acotados o literales fijos) · **0** salidas sin escapar de 1 996 impresiones
+en vistas · **0** marcas `TODO`/`FIXME` reales · el invariante de la boleta
+(`INNER JOIN bloqueos_competencia` en `getBoletaAlumno`) intacto.
+
+**H1 — LOS TRES ROJOS DE LA BATERÍA ERAN DEL VERIFICADOR, NO DEL SISTEMA.** Es el
+hallazgo que más costaba ignorar: una red que cría falsos positivos deja de leerse.
+- 🔎 **CAUSA DOMINANTE, y es la de siempre: una regla copiada fuera de su punto
+  único.** `verif_estructura_boleta` y `verif_asistencia_boleta` tenían **cada uno su
+  copia** de la compuerta de publicación, y era **media regla** —filtraban por
+  `primera_publicacion_en IS NOT NULL`—, mientras `periodosPublicados()` corta por
+  `publica_en <= ahora` y **ni siquiera mira ese sello**. La divergencia estuvo
+  **latente** mientras todas las publicaciones fueron INMEDIATAS (con ellas ambas
+  ramas coinciden) y se activó al vencer la primera **PROGRAMADA** (B2, 13-14/08).
+  Ahora los dos **preguntan al modelo** en vez de replicar la regla.
+- `verif_asistencia_boleta` replicaba además **2 de las 3** condiciones de
+  `sin_registro`: le faltaba `tieneRegistroUnion`, que nació para no imprimir
+  «0 faltas» de un bimestre no cursado. Daba por hecho que el bimestre en curso
+  tiene asistencia registrada, y **B3 no tiene ni una fila**.
+- `verif_nomina_docente_render` trataba «no es el último publicado» como «sin
+  publicar» (acusaba a B1, publicado desde el 22/07) y comparaba **por subcadena**:
+  `'I Bimestre'` casaba dentro de `'II Bimestre'`. Ahora usa
+  `periodosConAlgunNivelPublicado()`, acota al rótulo y compara con frontera de letra.
+- ✅ **Control ejecutado**, para no confundir «arreglado» con «silenciado»: la fuente
+  nueva **discrimina** viajando en el tiempo con el parámetro `$ahora` (un minuto
+  antes y después de la hora de publicación del nivel del alumno), la regla vieja
+  **pierde B2**, y el matching con frontera **sigue detectando una fuga real**.
+- ⚠️ Se añadió un **AVISO explícito** (no fallo) cuando el bimestre en curso no tiene
+  asistencia: ese paso pasa pero **no discrimina**, y decirlo vale más que un verde
+  que no significa nada.
+
+**H2 — DIEZ RUTAS VIVAS HACIA TRES CONTROLADORES QUE NO EXISTEN.** `Secretaria\
+MatriculaController`, `Director\MatriculaController` y `Director\SeccionController`.
+No reventaban (el router comprueba `class_exists` y devuelve 404 limpio), pero eran
+superficie registrada en producción y **4 figuraban como POST sin CSRF** en cualquier
+auditoría. Retiradas.
+- 🔎 **De paso apareció una entrada DOBLEMENTE muerta** en
+  `AuthController::redirigirPorRol`: `'secretaria' => url('secretaria/matriculas')`.
+  Su destino era una de esas rutas inexistentes **y su clave no corresponde a ningún
+  rol real** —los códigos son `secretaria_academica` y `secretaria_administrativa`—,
+  así que la rama **nunca llegó a ejecutarse**. Ambos roles caen en el dashboard por
+  el fallback, que es un destino válido.
+
+**H3 — DOS UMBRALES DE LA ESCALA FUERA DEL INVENTARIO DOCUMENTADO.**
+`AnioAcademicoModel` calculaba «en riesgo» y «nº de C» con un **11 hardcodeado**, en
+el mismo método que 30 líneas antes ya interpolaba `NOTA_MIN_AD/A/B`. La excepción de
+`CLAUDE.md` solo acota los umbrales a mano a las **dos consultas de
+`OrdenMeritoModel`**, así que estos dos no estaban advertidos en ninguna parte.
+Sustituidos por `NOTA_MIN_B`, **verificando que es una identidad** (ambas consultas
+devuelven exactamente lo mismo). Hoy no mordía; el colegio ya movió la escala una vez
+(10/06) y el panel del Director habría seguido midiendo con la vieja en silencio.
+
+**H4 — 8 estilos en línea estáticos** (de 29 `style=`; los otros 21 inyectan un valor
+calculado y son legítimos). **NO se tocaron:** cosméticos y en páginas de impresión
+aisladas. Quedan como deuda menor.
+
+**H5 — LA COPIA LOCAL NO ESTABA DONDE ESTE ARCHIVO DECÍA.** El repaso del 17/08
+registró «copia local al día» con `snap_b2 = 520`; la medición del 22/08 sobre esa
+misma base da **524 filas**, con `generado_en` del 10/08 17:28 (anterior a la
+sincronización de roster del 11/08). No es un defecto del sistema, pero **ese marcador
+no sirve como referencia**: ninguna cifra de producción debería citarse sin re-medirla
+allí. Las conclusiones de CÓDIGO sí valen para prod, porque el código es el mismo.
 
 ## 🔴 REVISIÓN DEL 17/08/2026 — EL CANDADO 046 SE CERRÓ SOLO Y NADIE LO ANOTÓ
 
@@ -252,9 +324,20 @@ periodo final** (tope 05/10/2026).
     0 correlativos duplicados, libro del año con sus 6 constancias vigentes, 25 notas del
     I Bimestre y snapshot de 528 filas intactos, y la batería del repo en **18/21** sin
     rojos nuevos.
-  - ⏳ **PENDIENTE EN PRODUCCIÓN.** El punto a verificar allí es el correlativo: si alguien
-    reusó a mano el 52, el veredicto sale `NO_TOCAR_CORRELATIVO_EN_USO` y el script no
-    escribe nada. En local no se reutilizó (las siguientes tomaron 53 y 54).
+  - ✅ **APLICADA EN PRODUCCIÓN el 22/08/2026**, por SSH, en el servidor `br-asc-web1308`
+    (el mismo host donde se aplicó la `052`). Recorrido completo: **ensayo con ROLLBACK**
+    (`SIMULACION CORRECTA`, 1 fila afectada) → corrida con `--confirmar` → **COMMIT** →
+    PASO 4 en **conexión nueva**: `RESULTADO: APLICADA. La constancia esta VIGENTE y la
+    matricula intacta.`
+    - Ese resultado final es en sí mismo la verificación: el script **sale con código 1**
+      si el veredicto no es `PUEDE_REACTIVARSE`, si las filas afectadas no son
+      exactamente 1, si el cambio dejara correlativos duplicados, o si al releer en
+      conexión nueva la constancia no está `vigente` **y** la matrícula no sigue
+      `desactivado` + `trasladado`. Que imprima `APLICADA` implica las cuatro cosas.
+  - **El correlativo no estaba reusado en prod.** Era el único punto que podía diferir de
+    local (una constancia anulada **libera** su número y `correlativoDisponible()` permite
+    reusarlo a mano); el veredicto `PUEDE_REACTIVARSE` del ensayo lo descartó allí mismo.
+    En local tampoco se reutilizó: las siguientes tomaron 53 y 54.
   - ★ **VÍA: `database/aplicar_054_revertir_anulacion.php`, por SSH — NO phpMyAdmin.**
     Simula por defecto (ensayo real + ROLLBACK); `--confirmar` aplica. El `.sql` tiene
     veredicto y UPDATE como sentencias sueltas, así que pegarlo entero ejecuta el cambio
@@ -2650,6 +2733,26 @@ La competencia **C57** (área 24) nunca fue ensayo: la crea la migración `036`.
     verificarlo ANTES de empezar a editar, no al ir a commitear.
   - **Los 2 commits van separados por contenido:** `1709abe` (`fix(areas)`: migración +
     aplicador) y `9986899` (`docs(estado)`: el cierre del bloque operativo).
+- **22/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `0d7c030` a `ae7295f`** (merge
+  `--no-ff`, autorizado por el usuario). **6 commits, 11 archivos, CERO código de runtime.**
+  - **Qué entró:** la migración **`054`** (la constancia de traslado `052` vuelve a estar
+    vigente) con su aplicador `database/aplicar_054_revertir_anulacion.php`, su entrada en
+    el control de migraciones, y los **5 commits de documentación** que llevaban sin
+    desplegar desde el 17/08 (cierre del bloque de deuda documental, la tabla de la red
+    enrutando por tema y el plan de cambio de sección versionado).
+  - **Mismo patrón que el 17/08: el deploy es el MEDIO.** Lo que había que hacer era una
+    corrección de DATOS en producción, y el script vive en el repo — sin desplegarlo antes,
+    el `php database/...` responde `Could not open input file`, porque el auto-deploy borra
+    todo lo no versionado. El segundo acto fue correr el script por SSH.
+  - **Verificado antes de pushear:** el diff contra `origin/main` **no toca `app/`,
+    `core/`, `routes/`, `resources/`, `public/` ni `config/`** (comprobado con
+    `git diff --name-only`), así que no hacía falta `gulp build` ni había riesgo de CSS
+    desincronizado. `php -l` limpio, batería del repo en **18/21** (los 3 rojos son los
+    falsos positivos ya diagnosticados, no regresiones).
+  - **`main` local estaba AL DÍA con `origin/main`** antes del merge — verificado con
+    `git rev-list --left-right --count`. Es el gotcha del 04/08, que esta vez no se dio.
+  - **Los 2 commits propios van separados por tema:** `e68b3f7` (`fix(traslados)`: migración
+    + aplicador) y `88634b8` (`docs(estado)`: el registro en el control de migraciones).
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
