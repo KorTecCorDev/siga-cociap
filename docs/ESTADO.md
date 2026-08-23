@@ -252,9 +252,20 @@ periodo final** (tope 05/10/2026).
     0 correlativos duplicados, libro del año con sus 6 constancias vigentes, 25 notas del
     I Bimestre y snapshot de 528 filas intactos, y la batería del repo en **18/21** sin
     rojos nuevos.
-  - ⏳ **PENDIENTE EN PRODUCCIÓN.** El punto a verificar allí es el correlativo: si alguien
-    reusó a mano el 52, el veredicto sale `NO_TOCAR_CORRELATIVO_EN_USO` y el script no
-    escribe nada. En local no se reutilizó (las siguientes tomaron 53 y 54).
+  - ✅ **APLICADA EN PRODUCCIÓN el 22/08/2026**, por SSH, en el servidor `br-asc-web1308`
+    (el mismo host donde se aplicó la `052`). Recorrido completo: **ensayo con ROLLBACK**
+    (`SIMULACION CORRECTA`, 1 fila afectada) → corrida con `--confirmar` → **COMMIT** →
+    PASO 4 en **conexión nueva**: `RESULTADO: APLICADA. La constancia esta VIGENTE y la
+    matricula intacta.`
+    - Ese resultado final es en sí mismo la verificación: el script **sale con código 1**
+      si el veredicto no es `PUEDE_REACTIVARSE`, si las filas afectadas no son
+      exactamente 1, si el cambio dejara correlativos duplicados, o si al releer en
+      conexión nueva la constancia no está `vigente` **y** la matrícula no sigue
+      `desactivado` + `trasladado`. Que imprima `APLICADA` implica las cuatro cosas.
+  - **El correlativo no estaba reusado en prod.** Era el único punto que podía diferir de
+    local (una constancia anulada **libera** su número y `correlativoDisponible()` permite
+    reusarlo a mano); el veredicto `PUEDE_REACTIVARSE` del ensayo lo descartó allí mismo.
+    En local tampoco se reutilizó: las siguientes tomaron 53 y 54.
   - ★ **VÍA: `database/aplicar_054_revertir_anulacion.php`, por SSH — NO phpMyAdmin.**
     Simula por defecto (ensayo real + ROLLBACK); `--confirmar` aplica. El `.sql` tiene
     veredicto y UPDATE como sentencias sueltas, así que pegarlo entero ejecuta el cambio
@@ -2650,6 +2661,26 @@ La competencia **C57** (área 24) nunca fue ensayo: la crea la migración `036`.
     verificarlo ANTES de empezar a editar, no al ir a commitear.
   - **Los 2 commits van separados por contenido:** `1709abe` (`fix(areas)`: migración +
     aplicador) y `9986899` (`docs(estado)`: el cierre del bloque operativo).
+- **22/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `0d7c030` a `ae7295f`** (merge
+  `--no-ff`, autorizado por el usuario). **6 commits, 11 archivos, CERO código de runtime.**
+  - **Qué entró:** la migración **`054`** (la constancia de traslado `052` vuelve a estar
+    vigente) con su aplicador `database/aplicar_054_revertir_anulacion.php`, su entrada en
+    el control de migraciones, y los **5 commits de documentación** que llevaban sin
+    desplegar desde el 17/08 (cierre del bloque de deuda documental, la tabla de la red
+    enrutando por tema y el plan de cambio de sección versionado).
+  - **Mismo patrón que el 17/08: el deploy es el MEDIO.** Lo que había que hacer era una
+    corrección de DATOS en producción, y el script vive en el repo — sin desplegarlo antes,
+    el `php database/...` responde `Could not open input file`, porque el auto-deploy borra
+    todo lo no versionado. El segundo acto fue correr el script por SSH.
+  - **Verificado antes de pushear:** el diff contra `origin/main` **no toca `app/`,
+    `core/`, `routes/`, `resources/`, `public/` ni `config/`** (comprobado con
+    `git diff --name-only`), así que no hacía falta `gulp build` ni había riesgo de CSS
+    desincronizado. `php -l` limpio, batería del repo en **18/21** (los 3 rojos son los
+    falsos positivos ya diagnosticados, no regresiones).
+  - **`main` local estaba AL DÍA con `origin/main`** antes del merge — verificado con
+    `git rev-list --left-right --count`. Es el gotcha del 04/08, que esta vez no se dio.
+  - **Los 2 commits propios van separados por tema:** `e68b3f7` (`fix(traslados)`: migración
+    + aplicador) y `88634b8` (`docs(estado)`: el registro en el control de migraciones).
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial
