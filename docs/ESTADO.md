@@ -223,6 +223,44 @@ confirmar el `limite_notas` de B3; y luego el siguiente hito con fecha, la **reg
 periodo final** (tope 05/10/2026).
 
 ## Migraciones
+- **`054_revertir_anulacion_constancia_traslado`** (22/08): corrección de DATOS (no toca
+  esquema). Devuelve a `vigente` la constancia de traslado **N° 052-2026-CAVVG-DA** (4.º A
+  de secundaria → IEP LAS AMERICAS SCHOOL, 07/07/2026) y deja sus tres campos `anulado_*`
+  en NULL, de modo que la fila queda como una constancia que nunca se anuló. El traslado
+  está consumado y el libro oficial vuelve a decirlo.
+  - **NO toca la matrícula** —sigue `desactivado` + `trasladado`— ni `calificaciones`,
+    `bloqueos_competencia`, `inasistencias`, `conducta`, `orden_merito_snapshot` o
+    `boletas_publicas`. La boleta pública se queda con `activa = 0`: al trasladado se le
+    omite el QR **a propósito** (su token está muerto) y reactivarla publicaría un enlace
+    que lleva a «no encontrado».
+  - 🔎 **La tabla `traslados` NO participa en el flujo de la boleta** — 0 referencias en
+    `BoletaModel`, `BoletaPublicaModel` y `Boleta\BoletaController` (verificado el 22/08).
+    Lo que decide el trato es la pareja `matriculas.estado` + `matriculas.tipo`, y el
+    trasladado consumado ya recibe su **última boleta OFICIAL de archivo** (con firma, sin
+    QR, ignorando la compuerta 044 por ser documento administrativo de staff). Un
+    `desactivado` por otra causa caería en BORRADOR forzado, sin firma.
+  - **Anclaje:** DNI del estudiante + `correlativo`. **Nunca** por `traslados.id` ni
+    `matricula_id` (difieren entre entornos), y **nunca** por `numero_constancia`, que
+    lleva «N°» no-ASCII y resolvería 0 filas en silencio — lección de la 050.
+  - **Tres guards duros en el WHERE**, probados uno a uno en sus ramas de aborto con
+    ROLLBACK: correlativo libre entre vigentes (una constancia anulada **libera** su
+    número y `correlativoDisponible()` permite reusarlo a mano), matrícula todavía
+    trasladada, e idempotencia (segunda corrida = 0 filas).
+  - ✅ **APLICADA EN LOCAL el 22/08/2026** — huella del PASO 0: `siga_cociap` ·
+    `root@localhost` · `KORTECCORPC` · **MariaDB 10.4.32** · Win64. Verificado allí:
+    `matriculas.updated_at` **sin moverse** (07/07 09:49:26, la hora de la baja original),
+    0 correlativos duplicados, libro del año con sus 6 constancias vigentes, 25 notas del
+    I Bimestre y snapshot de 528 filas intactos, y la batería del repo en **18/21** sin
+    rojos nuevos.
+  - ⏳ **PENDIENTE EN PRODUCCIÓN.** El punto a verificar allí es el correlativo: si alguien
+    reusó a mano el 52, el veredicto sale `NO_TOCAR_CORRELATIVO_EN_USO` y el script no
+    escribe nada. En local no se reutilizó (las siguientes tomaron 53 y 54).
+  - ★ **VÍA: `database/aplicar_054_revertir_anulacion.php`, por SSH — NO phpMyAdmin.**
+    Simula por defecto (ensayo real + ROLLBACK); `--confirmar` aplica. El `.sql` tiene
+    veredicto y UPDATE como sentencias sueltas, así que pegarlo entero ejecuta el cambio
+    **aunque el veredicto salga en rojo** — lección de la 048.
+  - La **`053` está RESERVADA** para `cambio_seccion` (ver `docs/modulos/cambio-seccion.md`),
+    por eso esta corrección toma la `054`.
 - **`052_alias_huerfano_etica_secundaria`** (17/08): corrección de DATOS (no toca esquema).
   Pone en NULL el `alias_boleta` «(Ética y Valores)» del área **Ed. Religiosa de
   SECUNDARIA**. Es el **paso 3 del plan de encendido de Ética del 07/07**, que este archivo
