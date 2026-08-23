@@ -1,4 +1,4 @@
-# Transversales: bloqueos fantasma del cierre + visibilidad del tutor (PLAN)
+# Transversales: bloqueos fantasma del cierre + visibilidad del tutor
 
 > **Estado: LAS CUATRO FASES EN PRODUCCIÓN (deploy `cf8bdb2`, 06/08/2026), y la
 > migración `051` de F2 APLICADA ALLÍ el mismo día, después del deploy.**

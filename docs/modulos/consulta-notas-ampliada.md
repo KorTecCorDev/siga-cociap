@@ -1,6 +1,6 @@
-# Consulta de calificaciones — transversales y conducta (PLAN, sin implementar)
+# Consulta de calificaciones — transversales y conducta
 
-> **Estado: IMPLEMENTADO EN `dev` EL 07/08/2026 — las tres fases, sin desplegar.**
+> **Estado: EN PRODUCCIÓN desde el 07/08/2026** (deploy `2242ec7`) — las tres fases.
 > Sin migración y sin métodos de modelo nuevos, como prometía el plan.
 > **Qué se construyó, las desviaciones y las cifras: §9, que manda sobre §5 y §7.**
 > Amplía `/consulta-notas`

@@ -1,8 +1,12 @@
 # Plan — Los cuatro registros del bimestre y el contrato del cierre
 
 > **Estado: PLAN APROBADO EN SUS DECISIONES, SIN IMPLEMENTAR.** Redactado el
-> **04/08/2026**. Se ejecuta **después de cerrar y publicar el II Bimestre**, para que
-> el primer bimestre bajo las reglas nuevas sea el **III**.
+> **04/08/2026**. Se ejecutaba **después de cerrar y publicar el II Bimestre**, para que
+> el primer bimestre bajo las reglas nuevas fuera el **III**.
+> ✅ **ESA CONDICIÓN YA SE CUMPLIÓ: B2 se cerró el 10/08 y se publicó el 13-14/08/2026,
+> así que el plan está DESBLOQUEADO desde el 14/08.** Sigue sin implementar.
+> ⚠️ Empezar por **F1 (punto único de «carga dueña»)**: es prerrequisito duro y lo comparten
+> la regla del periodo final (tope **05/10/2026**) y el panel de transversales diferido.
 > Estado vivo: `docs/ESTADO.md`. Runbook del cierre: `docs/runbooks/cierre-de-bimestre.md`.
 
 ## 1. De dónde sale este plan

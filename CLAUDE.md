@@ -188,17 +188,29 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | Producción, seguridad, despliegue, secretos, setup SQL desde cero | `docs/infraestructura.md` |
 | Decisiones diferidas (suspensiones, compuerta de publicación, capacitación) | `docs/decisiones-diferidas.md` |
 | **CERRAR un bimestre en producción** (secuencia, consultas, verificación) | `docs/runbooks/cierre-de-bimestre.md` |
-| Compuerta temporal de edición y los 4 registros del bimestre (PLAN, sin implementar) | `docs/modulos/cierre-cuatro-registros.md` |
-| Boleta con TODAS las competencias del plan + guion (PLAN, sin implementar) | `docs/modulos/boleta-competencias-completas.md` |
-| **Notas de bimestres cerrados para quien llegó después** (PLAN, sin implementar) | `docs/modulos/registro-retroactivo-notas.md` |
-| **Consulta de notas con transversales y conducta** (PLAN, sin implementar) | `docs/modulos/consulta-notas-ampliada.md` |
-| **Bloqueos fantasma del cierre + visibilidad del tutor** (PLAN, sin implementar) | `docs/modulos/transversales-visibilidad-tutor.md` |
+| Compuerta temporal de edición y los 4 registros del bimestre | `docs/modulos/cierre-cuatro-registros.md` |
+| Boleta con todas las competencias del plan y guion donde no hay dato | `docs/modulos/boleta-competencias-completas.md` |
+| **Notas de bimestres cerrados para quien llegó después** | `docs/modulos/registro-retroactivo-notas.md` |
+| **Consulta de notas con transversales y conducta** | `docs/modulos/consulta-notas-ampliada.md` |
+| **Bloqueos fantasma del cierre + visibilidad del tutor** | `docs/modulos/transversales-visibilidad-tutor.md` |
+| **Cambio de sección a mitad de bimestre** (mudanza, convalidación, reversión) | `docs/modulos/cambio-seccion.md` |
 | **Estado vivo: pendientes, migraciones, planes con fecha** | `docs/ESTADO.md` |
+
+> ⚠️ **Esta tabla enruta por TEMA, nunca por ESTADO.** No añadir «(PLAN, sin implementar)»,
+> «en dev» ni «desplegado» a una fila: eso caduca en cada despliegue y se lee al revés de la
+> realidad. **Si un módulo está construido, a medias o solo planeado se responde en
+> `docs/ESTADO.md`**, y el detalle en la cabecera de su propio doc. Hasta el 17/08/2026 cinco
+> filas llevaban esa etiqueta y **tres eran falsas** — anunciaban como plan sin implementar
+> cosas que llevaban diez días en producción, justo en el archivo que se carga en cada sesión.
 
 ### Reglas de mantenimiento de la red
 - Al terminar un cambio de módulo, actualiza SU archivo en `docs/` (no CLAUDE.md).
 - CLAUDE.md solo cambia si nace un invariante global o un módulo nuevo (fila en la tabla).
 - Pendientes, migraciones y planes con fecha se registran SOLO en `docs/ESTADO.md`.
+- **AL DESPLEGAR, actualiza la CABECERA del doc del módulo, no solo `ESTADO.md`.** Es el
+  hueco de proceso que dejó cuatro docs afirmando «en `dev`» o «sin desplegar» meses después
+  de estar en producción: el doc se escribe al IMPLEMENTAR y nadie vuelve a él al DESPLEGAR.
+  El registro del deploy va en `ESTADO.md` (sección Git); el estado del módulo, en su doc.
 - NUNCA usar la sintaxis de import `@ruta` en CLAUDE.md — auto-carga el archivo
   en cada sesión y anula el ahorro de contexto. Referenciar siempre por ruta simple.
 

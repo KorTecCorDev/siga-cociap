@@ -66,6 +66,49 @@ vez de NULL. Ninguno muerde hoy; los tres siguen abiertos.
   eventos posteriores de este mismo archivo ya los daban por desplegados: eran las cabeceras
   las que no se actualizaron.
 
+## ✅ DEUDA DE DOCUMENTACIÓN — BLOQUE CERRADO EL 17/08/2026
+
+Los 3 pendientes de documentación se cerraron atacando la causa, no la etiqueta.
+
+**DC-1 — `CLAUDE.md` anunciaba como plan sin implementar lo que ya corría.** De sus 5 filas
+con `(PLAN, sin implementar)`, **3 eran falsas** (boleta con todas las competencias, consulta
+de notas ampliada y transversales: las tres en producción desde el 05-07/08), 1 parcial
+(registro retroactivo: su F1 ya está desplegada) y solo 1 correcta. Verificado comprobando que
+los 5 commits de deploy citados son ancestros de `origin/main`, no fiándose de este archivo.
+- 🔎 **CAUSA RAÍZ, y por eso no bastaba corregir las etiquetas:** una tabla que **enruta por
+  TEMA** cargaba un **ESTADO**, que caduca en cada despliegue. Peor: la línea 201 del propio
+  `CLAUDE.md` ya ordenaba que «pendientes, migraciones y planes con fecha se registran SOLO
+  en `docs/ESTADO.md`». **El archivo incumplía su propia regla de mantenimiento.**
+- **Arreglo (decisión del usuario):** el estado sale de la tabla. Las filas describen el tema
+  y nada más, con un aviso explícito que prohíbe reintroducirlo. El estado se responde aquí.
+
+**DC-2 — cuatro docs de módulo llevaban su estado de nacimiento**, uno más de los tres
+detectados en el barrido: se sumó `orden-merito-rediseno.md`, que decía «en la rama `dev` —
+pendiente de deploy a `main`» llevando en producción desde el **04/08** (`de449e2`).
+Corregidos también `boleta-competencias-completas.md` (decía SIN DESPLEGAR y que faltaba el
+checklist de impresión, cerrado el 10/08), `consulta-notas-ampliada.md` (título y cuerpo) y
+el título de `transversales-visibilidad-tutor.md`. Más dos marcas internas: la F1 de
+`registro-retroactivo-notas.md` y la condición de arranque de `cierre-cuatro-registros.md`,
+que ya se cumplió.
+- 🔎 **EL PATRÓN ES UN HUECO DE PROCESO, no seis descuidos:** los seis casos dicen «en `dev`»
+  o «sin desplegar». **El doc se escribe al IMPLEMENTAR y nadie vuelve a él al DESPLEGAR** —
+  el deploy actualiza este archivo (que tiene sección Git) y jamás la cabecera del módulo.
+  Iba a repetirse con cada función futura, así que se añadió la regla a las **Reglas de
+  mantenimiento de la red** de `CLAUDE.md`.
+
+**DC-3 — el plan de cambio de sección se portó a `docs/modulos/cambio-seccion.md`** y ganó su
+fila en la tabla. Vivía solo en memoria, sin versionar. Se verificó contra el código que la
+función **sigue sin existir** (0 rutas, sin `CambioSeccionModel`, sin tablas
+`cambios_seccion*`, sin ningún `UPDATE` de `matriculas.seccion_id`), así que el plan vale
+íntegro. **Su migración se renumeró de la `039` a la `053`:** la 039 la ocupó
+`039_areas_codigo_siagie.sql` el 12/07, tres días después de escribirse el plan.
+- **Por qué merecía versionarse:** guarda una intuición que no es derivable del código — los
+  bloqueos son **por carga, no por alumno**, así que un `UPDATE seccion_id` a secas hace
+  **reaparecer en la boleta** las notas de la sección origen y **duplica** la competencia si
+  el destino ya calificó.
+- **Queda UNA decisión abierta** (la única del plan): qué hacer al revertir si la sección
+  destino ya cargó notas — archivar simétricamente o descartar.
+
 ## ✅ PENDIENTES OPERATIVOS — BLOQUE CERRADO ENTERO EL 17/08/2026
 
 Los 8 pendientes operativos se revisaron uno a uno contra la BD. **Los 8 quedaron cerrados
@@ -80,7 +123,7 @@ Detalle en cada entrada de la sección "Pendientes operativos"; aquí solo el sa
 | 4 | Los 12 alumnos de B1 con blancos | ✅ **Medidos y nombrados.** 1 blanco cada uno, no 69. **No se pueden pre-resolver** con B1 cerrado: queda como restricción documentada de reapertura |
 | 5 | Talleres sin hoja en el SIAGIE | ✅ **Bloqueado fuera de SIGA** (UGEL Huaraz), decisión firme. Alcance re-medido: **1332 notas**, no 321 |
 | 6 | Limpiar datos de ensayo en local | ✅ **Nada que limpiar**, y la receta se retiró: sus ids apuntaban ya a datos REALES |
-| 7 | Alias huérfano del área 14 | ✅ **Migración `052`**, aplicada en LOCAL. ⏳ Falta importarla en PROD |
+| 7 | Alias huérfano del área 14 | ✅ **Migración `052`, aplicada y verificada en LOS DOS ENTORNOS** el mismo día |
 | 8 | Re-subir firma/sello del Director | ✅ **No era un pendiente**: nota condicional, reclasificada |
 
 **Los dos hallazgos que justificaron medir antes de ejecutar:**
@@ -95,10 +138,10 @@ Detalle en cada entrada de la sección "Pendientes operativos"; aquí solo el sa
    **subárea**. La trampa del `COALESCE` que `CLAUDE.md` documenta para competencias
    **vale igual para cargas**.
 
-**Lo único que queda de este bloque:** importar la migración **`052`** en producción
-(phpMyAdmin, PASO 1 primero — debe dar 1 fila `PUEDE_LIMPIARSE`). No es un pendiente
-operativo sino un paso de despliegue: el cambio de datos ya está decidido, escrito, ensayado
-con ROLLBACK y aplicado en local.
+✅ **NO QUEDA NADA DE ESTE BLOQUE.** La migración `052` se aplicó en producción el mismo
+**17/08/2026 a las 12:12:34**, con la huella del servidor y el PASO 4 en conexión nueva
+capturados allí (deploy `481bbe7 → 0d7c030` primero, script por SSH después). Los ocho
+pendientes operativos quedan cerrados y sin cola.
 
 ## ✅ CICLO CERRADO EL 12/08/2026 — el mérito exige matrícula aprobada
 
@@ -180,13 +223,68 @@ confirmar el `limite_notas` de B3; y luego el siguiente hito con fecha, la **reg
 periodo final** (tope 05/10/2026).
 
 ## Migraciones
+- **`054_revertir_anulacion_constancia_traslado`** (22/08): corrección de DATOS (no toca
+  esquema). Devuelve a `vigente` la constancia de traslado **N° 052-2026-CAVVG-DA** (4.º A
+  de secundaria → IEP LAS AMERICAS SCHOOL, 07/07/2026) y deja sus tres campos `anulado_*`
+  en NULL, de modo que la fila queda como una constancia que nunca se anuló. El traslado
+  está consumado y el libro oficial vuelve a decirlo.
+  - **NO toca la matrícula** —sigue `desactivado` + `trasladado`— ni `calificaciones`,
+    `bloqueos_competencia`, `inasistencias`, `conducta`, `orden_merito_snapshot` o
+    `boletas_publicas`. La boleta pública se queda con `activa = 0`: al trasladado se le
+    omite el QR **a propósito** (su token está muerto) y reactivarla publicaría un enlace
+    que lleva a «no encontrado».
+  - 🔎 **La tabla `traslados` NO participa en el flujo de la boleta** — 0 referencias en
+    `BoletaModel`, `BoletaPublicaModel` y `Boleta\BoletaController` (verificado el 22/08).
+    Lo que decide el trato es la pareja `matriculas.estado` + `matriculas.tipo`, y el
+    trasladado consumado ya recibe su **última boleta OFICIAL de archivo** (con firma, sin
+    QR, ignorando la compuerta 044 por ser documento administrativo de staff). Un
+    `desactivado` por otra causa caería en BORRADOR forzado, sin firma.
+  - **Anclaje:** DNI del estudiante + `correlativo`. **Nunca** por `traslados.id` ni
+    `matricula_id` (difieren entre entornos), y **nunca** por `numero_constancia`, que
+    lleva «N°» no-ASCII y resolvería 0 filas en silencio — lección de la 050.
+  - **Tres guards duros en el WHERE**, probados uno a uno en sus ramas de aborto con
+    ROLLBACK: correlativo libre entre vigentes (una constancia anulada **libera** su
+    número y `correlativoDisponible()` permite reusarlo a mano), matrícula todavía
+    trasladada, e idempotencia (segunda corrida = 0 filas).
+  - ✅ **APLICADA EN LOCAL el 22/08/2026** — huella del PASO 0: `siga_cociap` ·
+    `root@localhost` · `KORTECCORPC` · **MariaDB 10.4.32** · Win64. Verificado allí:
+    `matriculas.updated_at` **sin moverse** (07/07 09:49:26, la hora de la baja original),
+    0 correlativos duplicados, libro del año con sus 6 constancias vigentes, 25 notas del
+    I Bimestre y snapshot de 528 filas intactos, y la batería del repo en **18/21** sin
+    rojos nuevos.
+  - ⏳ **PENDIENTE EN PRODUCCIÓN.** El punto a verificar allí es el correlativo: si alguien
+    reusó a mano el 52, el veredicto sale `NO_TOCAR_CORRELATIVO_EN_USO` y el script no
+    escribe nada. En local no se reutilizó (las siguientes tomaron 53 y 54).
+  - ★ **VÍA: `database/aplicar_054_revertir_anulacion.php`, por SSH — NO phpMyAdmin.**
+    Simula por defecto (ensayo real + ROLLBACK); `--confirmar` aplica. El `.sql` tiene
+    veredicto y UPDATE como sentencias sueltas, así que pegarlo entero ejecuta el cambio
+    **aunque el veredicto salga en rojo** — lección de la 048.
+  - La **`053` está RESERVADA** para `cambio_seccion` (ver `docs/modulos/cambio-seccion.md`),
+    por eso esta corrección toma la `054`.
 - **`052_alias_huerfano_etica_secundaria`** (17/08): corrección de DATOS (no toca esquema).
   Pone en NULL el `alias_boleta` «(Ética y Valores)» del área **Ed. Religiosa de
   SECUNDARIA**. Es el **paso 3 del plan de encendido de Ética del 07/07**, que este archivo
   daba por ejecutado el 05/08 y **nunca se ejecutó** (verificado el 17/08 sobre la copia
   local ya sincronizada con prod).
-  ✅ **APLICADA EN LOCAL el 17/08/2026** (1 fila; verificación en conexión nueva).
-  ⏳ **PENDIENTE DE APLICAR EN PRODUCCIÓN.**
+  ✅ **APLICADA EN LOS DOS ENTORNOS EL 17/08/2026**, con la salida capturada en cada uno
+  (local por la mañana; **PRODUCCIÓN a las 12:12:34** hora de Lima, vía SSH).
+  - **Evidencia capturada EN PROD** — huella del PASO 0: `u761410128_siga_cociap` ·
+    `u761410128_ktcdev@localhost` · `br-asc-web1308.main-hosting.eu` · **MariaDB
+    11.8.8-log** · Linux · `/var/lib/mysql/`, o sea la misma huella que se capturó el 10/08
+    con el snapshot de B2. **Es lo que convierte esto en una verificación de PROD y no de
+    una copia** (regla de la 048).
+  - **Recorrido completo allí:** ensayo previo a las **12:08** con ROLLBACK (`PUEDE_LIMPIARSE`,
+    1 fila, idempotencia 0, y la conexión nueva confirmando que el alias volvía) → corrida
+    definitiva con `--confirmar` a las **12:12** → **COMMIT** → PASO 4 **en conexión nueva**:
+    `alias_actual=NULL`, veredicto `YA_LIMPIO`, áreas con alias **3 → 2**, y el área 24
+    (Tutoría TOE) intacta con su `nombre_boleta='Ética y Valores'` +
+    `alias_boleta='(Educación Religiosa)'` y sus 11 cargas. `codigo_siagie` siguió en `035`.
+  - **El pendiente era real en prod:** allí también estaba el alias puesto y las mismas 3
+    áreas con alias, o sea que el paso 3 del plan de encendido tampoco se había ejecutado
+    en producción. No era una divergencia de la copia local.
+  - 🔎 **El `NOT EXISTS` se comporta igual en MariaDB 11.8 que en 10.4** — verificado en el
+    ensayo sobre la propia producción, no supuesto. Era la duda legítima que dejó la 050:
+    un ensayo local prueba la LÓGICA, no el plan del optimizador.
   - ★ **VÍA: `database/aplicar_052_alias_huerfano.php`, por SSH — NO phpMyAdmin.**
     Simula por defecto (ensayo real + ROLLBACK) y escribe con `--confirmar`, igual que
     `sincronizar_roster_snapshot.php`. **Evita las tres trampas ya documentadas:** imprime
@@ -2532,6 +2630,26 @@ La competencia **C57** (área 24) nunca fue ensayo: la crea la migración `036`.
   - ⚠️ **El deploy era condición para IMPRIMIR, no para cerrar.** Producción venía con la
     conclusión a dos líneas: sin este lote, las boletas de secundaria de B2 se habrían
     entregado con las firmas en una segunda hoja.
+- **17/08/2026 — DEPLOY EJECUTADO: `origin/main` pasó de `481bbe7` a `0d7c030`** (commit de
+  merge, autorizado por el usuario). **2 commits, 4 archivos, CERO código de runtime.**
+  - **Qué entró:** la migración **`052`** (alias huérfano de Ética en secundaria), su
+    aplicador `database/aplicar_052_alias_huerfano.php`, y la documentación del cierre
+    íntegro del bloque de pendientes operativos.
+  - **El deploy fue el MEDIO, no el fin.** Lo que había que hacer era una reparación de
+    DATOS en producción, y el script vive en el repo: sin desplegarlo antes, el `php
+    database/...` responde `Could not open input file` porque el auto-deploy borra todo lo
+    no versionado. **El auto-deploy publica CÓDIGO, no repara DATOS** — el segundo acto fue
+    correr el script por SSH, y sin él el deploy no habría cambiado nada.
+  - **Verificado antes de pushear:** el lote **no toca `app/`, `routes/`, `public/`,
+    `core/`, `config/` ni `resources/`** (comprobado con el diff contra `origin/main`), así
+    que no hacía falta `gulp build` ni había riesgo de CSS desincronizado; `php -l` limpio
+    en el único PHP del lote; árbol de `main` idéntico al de `dev`.
+  - ⚠️ **El trabajo se había hecho estando en `main`.** Se movió a `dev` con un `checkout`
+    tras comprobar que `git diff main dev` estaba vacío (árboles idénticos), así que los
+    cambios sin commitear viajaron sin conflicto. **La rama de trabajo es `dev`**: conviene
+    verificarlo ANTES de empezar a editar, no al ir a commitear.
+  - **Los 2 commits van separados por contenido:** `1709abe` (`fix(areas)`: migración +
+    aplicador) y `9986899` (`docs(estado)`: el cierre del bloque operativo).
 
 ## Scripts que escriben en la BD — cuidado (26-27/07/2026)
 - **`database/verificaciones/verif_fase_b_orden_merito.php` BORRABA el snapshot oficial

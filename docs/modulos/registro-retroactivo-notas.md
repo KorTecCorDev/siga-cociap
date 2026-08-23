@@ -161,7 +161,7 @@ UNION ALL SELECT 'notas_autoriz',    COUNT(*) FROM notas_autorizadas_siagie;
 - **Alguna > 0** → **PARAR**. Hay que añadir a la migración el traslado de esas filas al
   modelo nuevo, y `DROP TABLE notas_externas` deja de ser seguro.
 
-### F1 · Asistencia con guion — ✅ **IMPLEMENTADA EN `dev` EL 07/08/2026, SIN MIGRACIÓN**
+### F1 · Asistencia con guion — ✅ **EN PRODUCCIÓN desde el 07/08/2026** (deploy `c8fa4fd`), SIN MIGRACIÓN
 
 > Se hizo tal cual el plan (los dos archivos, el método por unión, la vista intacta).
 > Resultado y cifras en **`docs/modulos/boletas.md`**, sección "El tercer motivo: sin FILA

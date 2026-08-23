@@ -1,8 +1,9 @@
 # La boleta muestra TODAS las competencias del plan, con guion donde no hay dato
 
-> **Estado: IMPLEMENTADO Y VERIFICADO EN LOCAL (05/08/2026), SIN DESPLEGAR.**
-> Falta el checklist de impresión en navegador (§8.3), que es lo único que prueba
-> el requisito de UNA hoja A4.
+> **Estado: EN PRODUCCIÓN desde el 05/08/2026** (deploy `c8681da`). Implementado y
+> verificado en local ese mismo día. **El checklist de impresión de §8.3 quedó CERRADO
+> el 10/08/2026:** se probó en papel, secundaria no cabía, y se arregló pasando la
+> conclusión descriptiva de 2 líneas a 1 (deploy `992a350`). Validado por el usuario.
 > **Manda la §10** (lo que se construyó y en qué se desvió); §1-§7 son el plan
 > original, útil como registro de por qué se decidió cada cosa.
 > Módulo relacionado: `docs/modulos/boletas.md`.
