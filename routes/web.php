@@ -109,9 +109,9 @@ $router->post('/director/periodos/{id}/reabrir', 'Director\PeriodoController@rea
 $router->get( '/director/periodos/{id}/stats',   'Director\PeriodoController@stats');
 
 // ─── Secciones y cargas ──────────────────────────────────────
-$router->get( '/director/secciones',          'Director\SeccionController@index');
-$router->get( '/director/secciones/crear',    'Director\SeccionController@create');
-$router->post('/director/secciones/crear',    'Director\SeccionController@store');
+// Las secciones se administran en /admin/secciones (Admin\SeccionController).
+// Aquí vivían 3 rutas a un `Director\SeccionController` que no existe en el
+// repositorio; se retiraron el 22/08/2026 (ver el bloque de Matrícula).
 $router->get( '/director/cargas',                          'Director\CargaAcademicaController@index');
 $router->get( '/director/cargas/crear',                    'Director\CargaAcademicaController@create');
 $router->post('/director/cargas/crear',                    'Director\CargaAcademicaController@store');
@@ -127,13 +127,17 @@ $router->get( '/director/cargas/{id}/reemplazos', 'Director\ReemplazoDocenteCont
 $router->get( '/director/reemplazos/{id}/snapshot', 'Director\ReemplazoDocenteController@verSnapshot');
 
 // ─── Matrícula ───────────────────────────────────────────────
-$router->get( '/secretaria/matriculas',             'Secretaria\MatriculaController@index');
-$router->get( '/secretaria/matriculas/crear',       'Secretaria\MatriculaController@create');
-$router->post('/secretaria/matriculas/crear',       'Secretaria\MatriculaController@store');
-$router->get( '/secretaria/matriculas/{id}',        'Secretaria\MatriculaController@show');
-$router->post('/secretaria/matriculas/{id}/estado', 'Secretaria\MatriculaController@updateEstado');
-$router->get( '/director/matriculas/{id}/aprobar',  'Director\MatriculaController@aprobar');
-$router->post('/director/matriculas/{id}/aprobar',  'Director\MatriculaController@confirmarAprobacion');
+// RUTAS FANTASMA RETIRADAS EL 22/08/2026 (auditoría de cierre de la 1.0).
+// Aquí había 7 rutas a `Secretaria\MatriculaController` y `Director\
+// MatriculaController`, más 3 a `Director\SeccionController` arriba: diez en
+// total hacia tres controladores que NO existen en el repositorio.
+//   * No reventaban —el router comprueba `class_exists`, registra el fallo y
+//     devuelve un 404 limpio—, pero eran superficie registrada en producción,
+//     y 4 de ellas figuraban como rutas POST sin CSRF en cualquier auditoría.
+//   * El módulo de matrículas REAL es el de abajo (`Matricula\...`), que cubre
+//     alta, aprobación y cambio de estado para admin y registro académico.
+// Se retiró con ellas la entrada muerta del rol 'secretaria' en
+// `AuthController::redirigirPorRol` — ver el comentario allí.
 
 // ─── Módulo de Matrículas ────────────────────────────────────
 // Las rutas literales (crear) van ANTES del patrón {id} para que el router
