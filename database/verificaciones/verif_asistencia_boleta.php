@@ -110,24 +110,80 @@ $verPeriodo = $activo ? (int) $activo['id'] : (int) $cerrados[0]['id'];
 echo "   boleta pedida para el periodo id={$verPeriodo}\n\n";
 
 // Publicados: [periodo_id] con publicacion vigente para el nivel del alumno.
-$pubs = $pdo->prepare("
-    SELECT DISTINCT pp.periodo_id
-    FROM periodos_publicacion pp
-    INNER JOIN grados g   ON g.nivel_id = pp.nivel_id
-    INNER JOIN secciones s ON s.grado_id = g.id
-    WHERE s.id = ? AND pp.primera_publicacion_en IS NOT NULL
-      AND pp.suspendida_en IS NULL AND pp.despublicada_en IS NULL
+// Se pregunta al MISMO punto que usa la boleta (`BoletaModel` linea ~99) en vez
+// de replicar la regla aqui.
+//
+// 🔴 POR QUE SE DELEGA, Y NO SE COPIA (22/08/2026): este bloque tenia su propia
+// copia de la compuerta —`primera_publicacion_en IS NOT NULL`— que NO es la
+// regla que aplica la boleta. `periodosPublicados()` corta por `publica_en <=
+// ahora` y ni siquiera mira ese sello. La divergencia estuvo LATENTE mientras
+// todas las publicaciones fueron INMEDIATAS y se activo en cuanto vencio la
+// primera publicacion PROGRAMADA (B2, 13 y 14 de agosto), cuyas filas conservan
+// `primera_publicacion_en` en NULL. Mismo fallo, misma causa y mismo dia que en
+// `verif_estructura_boleta.php`: eran DOS copias de la misma regla incompleta.
+$ctx = $pdo->prepare("
+    SELECT g.nivel_id, m.anio_id
+    FROM matriculas m
+    INNER JOIN secciones s ON s.id = m.seccion_id
+    INNER JOIN grados    g ON g.id = s.grado_id
+    WHERE m.id = ?
 ");
-$pubs->execute([(int) $mat['seccion_id']]);
-$publicados = array_map('intval', array_column($pubs->fetchAll(), 'periodo_id'));
+$ctx->execute([$matriculaId]);
+$ctxAlumno = $ctx->fetch();
+if (!$ctxAlumno) {
+    fwrite(STDERR, "ABORTA: no se pudo resolver el nivel del alumno de prueba.\n");
+    exit(1);
+}
+$publicados = array_keys((new App\Models\PublicacionBoletaModel())->periodosPublicados(
+    (int) $ctxAlumno['anio_id'],
+    (int) $ctxAlumno['nivel_id']
+));
+
+// Bimestres en los que el alumno TIENE registro de asistencia de verdad. Es la
+// TERCERA condicion de `sin_registro` en `BoletaModel` (~linea 199), la que se
+// resuelve con `AsistenciaModel::tieneRegistroUnion`.
+//
+// 🔴 POR QUE SE ANADE (22/08/2026): el esperado replicaba solo las DOS primeras
+// condiciones del modelo (el umbral y el estado 'pendiente') y daba por hecho
+// que un bimestre ACTIVO ya tiene asistencia registrada. No es cierto: el
+// bimestre en curso puede no tener ni una fila en `inasistencias`, y entonces la
+// boleta lo marca `sin_registro` con toda la razon. El verificador acusaba a un
+// guard que funcionaba. La tercera condicion NACIO para corregir un dato FALSO
+// —un alumno que llego despues del bimestre tenia impreso "0 faltas" de un
+// bimestre que no curso, medido en la matricula 694— y este esperado se habia
+// quedado en la version anterior de la regla.
+//
+// Se consulta con la matricula sola: la de prueba NO participa en ningun retorno
+// de grado (comprobado abajo), asi que sus `fuentes` son exactamente ella.
+$enRetorno = $pdo->prepare("
+    SELECT COUNT(*) FROM retornos_grado
+    WHERE matricula_oficial_id = ? OR matricula_operativa_id = ?
+");
+$enRetorno->execute([$matriculaId, $matriculaId]);
+if ((int) $enRetorno->fetchColumn() > 0) {
+    fwrite(STDERR, "ABORTA: la matricula de prueba {$matriculaId} participa en un retorno de\n"
+        . "grado, asi que sus fuentes de asistencia son la UNION de dos matriculas y este\n"
+        . "esperado (que consulta solo una) mentiria. Elegir otra matricula de prueba.\n");
+    exit(1);
+}
+
+$asistenciaModel = new App\Models\AsistenciaModel();
+$conRegistro = [];
+foreach ($periodos as $p) {
+    if ($asistenciaModel->tieneRegistroUnion([$matriculaId], (int) $p['id'])) {
+        $conRegistro[] = (int) $p['id'];
+    }
+}
 
 /**
  * Firma ESPERADA: SIEMPRE una columna por bimestre del anio (estructura anual
  * completa, parte del modelo oficial). Lleva ':sin_registro' la que no aporta a
- * este umbral o aun no puede tener registro ('pendiente').
+ * este umbral, la que aun no puede tener registro ('pendiente') y la que no
+ * tiene ni una fila de asistencia — las tres condiciones del modelo.
  * @param array<int> $hitoA ids de periodo a los que se les simula el Hito A.
  */
-$espera = static function (string $modo, array $publicados, array $periodos, array $hitoA = []): string {
+$espera = static function (string $modo, array $publicados, array $periodos, array $hitoA = [])
+    use ($conRegistro): string {
     $out = [];
     foreach ($periodos as $p) {
         $aprob  = in_array((int) $p['id'], $hitoA, true) ? '2026-01-01 00:00:00' : $p['boletas_aprobadas_en'];
@@ -138,7 +194,9 @@ $espera = static function (string $modo, array $publicados, array $periodos, arr
             'borrador' => $estado !== 'registro',
             'todos'    => true,
         };
-        $sinRegistro = !$aporta || $p['estado'] === 'pendiente';
+        $sinRegistro = !$aporta
+                    || $p['estado'] === 'pendiente'
+                    || !in_array((int) $p['id'], $conRegistro, true);
         $out[] = $p['numero'] . ($sinRegistro ? ':sin_registro' : '');
     }
     return implode(' ', $out);
@@ -155,7 +213,7 @@ $check("'archivo'  aporta solo cerrados",
     $espera('archivo', $publicados, $periodos), $firma($boletas->armar($matriculaId, $verPeriodo, 'archivo')));
 
 echo "\n=== 3. 'todos' (vista previa de RA) = aporta todo lo que existe ===\n";
-$check("'todos'    solo 'pendiente' queda sin registro",
+$check("'todos'    sin registro solo si no hay dato que mostrar",
     $espera('todos', $publicados, $periodos), $firma($boletas->armar($matriculaId, $verPeriodo, 'todos')));
 
 echo "\n=== 3b. TODOS los umbrales dibujan las " . count($periodos) . " columnas ===\n";
@@ -189,6 +247,19 @@ if (!$activo) {
         ->execute([(int) $activo['id']]);
 
     $hitoA = [(int) $activo['id']];
+
+    // ⚠️ AVISO DE ALCANCE, no fallo: este paso solo DISCRIMINA si el bimestre en
+    // curso tiene asistencia registrada. Si no la tiene, la tercera condicion de
+    // `sin_registro` lo apaga igual y la asercion pasa sin probar que el Hito A
+    // suma el bimestre en curso. Se dice en voz alta en vez de dar un verde que
+    // no significa nada — es el mismo criterio del "control" de los pasos 0 de
+    // los verificadores del merito.
+    if (!in_array((int) $activo['id'], $conRegistro, true)) {
+        printf("  %-5s %-52s %s\n", 'AVISO',
+            'el bimestre en curso no tiene asistencia registrada',
+            'este paso pasa pero NO discrimina');
+    }
+
     $check("'borrador' CON Hito A = suma el bimestre en curso",
         $espera('borrador', $publicados, $periodos, $hitoA), $firma($boletas->armar($matriculaId, $verPeriodo, 'borrador')));
 

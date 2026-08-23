@@ -83,16 +83,40 @@ $periodos = $pdo->query("
 ")->fetchAll();
 $totalPeriodos = count($periodos);
 
-$pubs = $pdo->prepare("
-    SELECT DISTINCT pp.periodo_id
-    FROM periodos_publicacion pp
-    INNER JOIN grados g    ON g.nivel_id = pp.nivel_id
-    INNER JOIN secciones s ON s.grado_id = g.id
-    WHERE s.id = ? AND pp.primera_publicacion_en IS NOT NULL
-      AND pp.suspendida_en IS NULL AND pp.despublicada_en IS NULL
+// Periodos PUBLICADOS para el nivel de este alumno. Se pregunta al MISMO punto
+// que usa la boleta (`BoletaModel` línea ~99) en vez de replicar la regla aquí.
+//
+// 🔴 POR QUÉ SE DELEGA, Y NO SE COPIA (22/08/2026): este bloque tenía su propia
+// copia de la compuerta —`primera_publicacion_en IS NOT NULL`— que NO es la
+// regla que aplica la boleta. `periodosPublicados()` corta por `publica_en <=
+// ahora` y ni siquiera mira ese sello. La divergencia estuvo LATENTE mientras
+// todas las publicaciones fueron INMEDIATAS (con ellas ambas ramas coinciden) y
+// se activó en cuanto venció la primera publicación PROGRAMADA —B2, el 13 y 14
+// de agosto—, cuyas filas conservan `primera_publicacion_en` en NULL: el
+// verificador daba por NO publicado un bimestre que las familias ya veían, y
+// acusaba de fuga a un guard que funcionaba.
+//
+// Que el esperado salga del mismo modelo NO debilita esta verificación: aquí se
+// prueba el GUARD DE DATOS de la boleta (que 'oficial' deje pasar solo cerrados
+// Y publicados), no la compuerta en sí. La compuerta tiene su propio verificador
+// con escenarios forzados: `verif_merito_nomina_compuerta.php`.
+$ctx = $pdo->prepare("
+    SELECT g.nivel_id, m.anio_id
+    FROM matriculas m
+    INNER JOIN secciones s ON s.id = m.seccion_id
+    INNER JOIN grados    g ON g.id = s.grado_id
+    WHERE m.id = ?
 ");
-$pubs->execute([(int) $mat['seccion_id']]);
-$publicados = array_map('intval', array_column($pubs->fetchAll(), 'periodo_id'));
+$ctx->execute([$matriculaId]);
+$ctxAlumno = $ctx->fetch();
+if (!$ctxAlumno) {
+    fwrite(STDERR, "ABORTA: no se pudo resolver el nivel del alumno de prueba.\n");
+    exit(1);
+}
+$publicados = array_keys((new App\Models\PublicacionBoletaModel())->periodosPublicados(
+    (int) $ctxAlumno['anio_id'],
+    (int) $ctxAlumno['nivel_id']
+));
 
 // Bimestres que REALMENTE tienen notas de este alumno en la BD. Sin esto, el
 // umbral 'todos' esperaria los 4 y fallaria por los que nadie califico todavia:
