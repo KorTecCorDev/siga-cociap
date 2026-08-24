@@ -7,6 +7,7 @@ use App\Models\CalificacionModel;
 use App\Models\ConductaModel;
 use App\Models\DirectorEbrModel;
 use App\Models\EstudianteModel;
+use App\Models\HorarioModel;
 use App\Models\OrdenMeritoModel;
 use App\Models\PublicacionBoletaModel;
 use App\Models\TransversalModel;
@@ -22,6 +23,7 @@ class PanelController extends BaseController
     private CalificacionModel $calModel;
     private TransversalModel  $transModel;
     private ConductaModel     $conductaModel;
+    private HorarioModel      $horarioModel;
 
     public function __construct()
     {
@@ -29,6 +31,7 @@ class PanelController extends BaseController
         $this->calModel      = new CalificacionModel();
         $this->transModel    = new TransversalModel();
         $this->conductaModel = new ConductaModel();
+        $this->horarioModel  = new HorarioModel();
     }
 
     /**
@@ -437,135 +440,15 @@ class PanelController extends BaseController
             );
         }
 
-        // Días fijos lunes-viernes (la BD no maneja fin de semana).
-        $dias = [
-            'lunes'     => 'Lunes',
-            'martes'    => 'Martes',
-            'miercoles' => 'Miércoles',
-            'jueves'    => 'Jueves',
-            'viernes'   => 'Viernes',
-        ];
-
-        // Duración de la hora académica según la configuración de horario del
-        // año activo (no se hardcodea; fallback 45 si falta la configuración).
-        $anio = $this->getAnioActivo();
-        $cfg  = $anio ? $this->calModel->queryOne(
-            "SELECT duracion_hora_min FROM configuracion_horario WHERE anio_id = ? LIMIT 1",
-            [(int) $anio['id']]
-        ) : null;
-        $duracionHora = (int) ($cfg['duracion_hora_min'] ?? 0) ?: 45;
-
-        // Eje de tiempo por PUNTOS DE CORTE: se reúnen todos los inicios y
-        // fines distintos de las sesiones y se ordenan. Cada par consecutivo de
-        // puntos define un segmento (fila mínima) de la grilla. Un bloque que
-        // abarca varios segmentos se fusiona luego con rowspan, de modo que un
-        // bloque largo de un día y dos bloques cortos de otro día quedan
-        // ALINEADOS en el mismo eje (corrige la desalineación por franja exacta).
-        $puntosSet = [];
-        foreach ($sesiones as $s) {
-            $puntosSet[$s['hora_inicio']] = true;
-            $puntosSet[$s['hora_fin']]    = true;
-        }
-        $puntos = array_keys($puntosSet);
-        sort($puntos, SORT_STRING); // "HH:MM:SS" ordena cronológicamente como texto
-        $indice = array_flip($puntos); // hora → índice de punto
-
-        // Color por SECCIÓN + MATERIA: la misma materia dictada en una misma
-        // sección comparte color aunque esté repartida en más de una carga o en
-        // varios bloques (p. ej. Trigonometría en dos cargas distintas de la
-        // misma sección). Primero se agrupan y ORDENAN por grado (primaria
-        // 1°-6°, luego secundaria 1°-5°, sección y materia); el color se asigna
-        // en ese orden para que la leyenda quede correlativa.
-        $grupos     = [];
-        $totalHoras = 0;
-        foreach ($sesiones as $s) {
-            $key = $s['seccion_id'] . '|' . $s['area_nombre'];
-            if (!isset($grupos[$key])) {
-                $grupos[$key] = [
-                    'key'            => $key,
-                    'nivel_codigo'   => $s['nivel_codigo'],
-                    'grado_numero'   => (int) $s['grado_numero'],
-                    'seccion_nombre' => $s['seccion_nombre'],
-                    'seccion'        => $s['grado_nombre'] . ' ' . $s['seccion_nombre'],
-                    'area'           => $s['area_nombre'],
-                    'horas'          => 0,
-                ];
-            }
-            // Horas académicas del bloque: cada bloque cuenta
-            // round(duración / hora académica) horas (con hora de 45 min:
-            // 45→1, 90→2, 180→4; un doble de 95 min → 2). La duración de la
-            // hora sale de configuracion_horario del año activo. Contar
-            // bloques sobreestimaba los dobles.
-            $minutos = (int) round(
-                (strtotime($s['hora_fin']) - strtotime($s['hora_inicio'])) / 60
-            );
-            $horasBloque = (int) round($minutos / $duracionHora);
-            $grupos[$key]['horas'] += $horasBloque;
-            $totalHoras            += $horasBloque;
-        }
-
-        // Orden: primaria antes que secundaria, luego grado 1→N, sección y materia.
-        $nivelOrden = ['prim' => 0, 'sec' => 1];
-        usort($grupos, function ($a, $b) use ($nivelOrden) {
-            return [$nivelOrden[$a['nivel_codigo']] ?? 9, $a['grado_numero'],
-                    $a['seccion_nombre'], $a['area']]
-               <=> [$nivelOrden[$b['nivel_codigo']] ?? 9, $b['grado_numero'],
-                    $b['seccion_nombre'], $b['area']];
-        });
-
-        // Asignar color en el orden ya definido y armar la leyenda. El tono se
-        // calcula con el angulo aureo (137.508 deg): cada grupo seccion+materia
-        // recibe un color claramente distinto y SIN repetir, sea cual sea la
-        // cantidad de grupos del docente. Saturacion/luminosidad fijas para
-        // mantener fondos claros legibles con texto oscuro.
-        $colorPorGrupo = [];
-        $leyenda       = [];
-        foreach ($grupos as $i => $g) {
-            $hue   = (int) round(fmod($i * 137.508, 360));
-            $color = "hsl({$hue}, 70%, 82%)";
-            $colorPorGrupo[$g['key']] = $color;
-            $leyenda[] = [
-                'color'   => $color,
-                'nivel'   => $g['nivel_codigo'],
-                'seccion' => $g['seccion'],
-                'areas'   => [$g['area']],
-                'horas'   => $g['horas'],
-            ];
-        }
-
-        // Ubicación de cada bloque en el eje de segmentos, con su rowspan.
-        // $startAt[dia][fila] = celda que ARRANCA en esa fila (con rowspan).
-        // $covered[dia][fila] = fila ocupada por un bloque (inicio o
-        // continuación) → en las filas continuadas no se dibuja <td>.
-        $startAt = [];
-        $covered = [];
-        foreach ($sesiones as $s) {
-            $dia  = $s['dia_semana'];
-            $r0   = $indice[$s['hora_inicio']];
-            $r1   = $indice[$s['hora_fin']];
-            $span = $r1 - $r0;
-            if ($span < 1) {
-                continue; // salvaguarda: fin <= inicio (no debería ocurrir)
-            }
-            $key = $s['seccion_id'] . '|' . $s['area_nombre'];
-            $startAt[$dia][$r0] = [
-                'area'    => $s['area_nombre'],
-                'seccion' => $s['grado_nombre'] . ' ' . $s['seccion_nombre'],
-                'nivel'   => $s['nivel_codigo'],
-                'color'   => $colorPorGrupo[$key],
-                'rowspan' => $span,
-            ];
-            for ($r = $r0; $r < $r1; $r++) {
-                $covered[$dia][$r] = true;
-            }
-        }
-
-        // Filas de la grilla: un segmento por cada par de puntos consecutivos.
-        $segmentos = [];
-        $n = count($puntos);
-        for ($i = 0; $i < $n - 1; $i++) {
-            $segmentos[] = ['inicio' => $puntos[$i], 'fin' => $puntos[$i + 1]];
-        }
+        // Grilla armada por HorarioModel — PUNTO ÚNICO compartido con el
+        // horario por sección. Hasta el 24/08/2026 estas ~130 líneas vivían
+        // aquí inline, y era la razón por la que no había horario por sección.
+        $anio    = $this->getAnioActivo();
+        $horario = $this->horarioModel->armarGrilla(
+            $sesiones,
+            $this->horarioModel->duracionHoraAcademica($anio ? (int) $anio['id'] : null),
+            'seccion'
+        );
 
         // Documento → nombre legal completo del docente (no el nombre corto).
         $docente = trim(
@@ -584,12 +467,12 @@ class PanelController extends BaseController
             'titulo'      => 'Horario — ' . $docente,
             'docente'     => $docente,
             'anio'        => $anio,
-            'dias'        => $dias,
-            'segmentos'   => $segmentos,
-            'startAt'     => $startAt,
-            'covered'     => $covered,
-            'leyenda'     => array_values($leyenda),
-            'totalHoras'  => $totalHoras,
+            'dias'        => $horario['dias'],
+            'segmentos'   => $horario['segmentos'],
+            'startAt'     => $horario['startAt'],
+            'covered'     => $horario['covered'],
+            'leyenda'     => $horario['leyenda'],
+            'totalHoras'  => $horario['totalHoras'],
             'directorEbr' => $directorEbr,
         ]);
     }
@@ -877,28 +760,13 @@ class PanelController extends BaseController
         ", $params);
     }
 
-    /** Sesiones de horario del docente, ordenadas por día y bloque. */
+    /**
+     * Sesiones de horario del docente. Delega en `HorarioModel` — PUNTO ÚNICO
+     * desde el 24/08/2026. La consulta vivía aquí, privada dentro del
+     * controlador, y por eso el horario POR SECCIÓN no podía reutilizarla.
+     */
     private function getHorario(int $docenteId): array
     {
-        return $this->calModel->query("
-            SELECT bh.dia_semana, bh.numero_bloque, bh.hora_inicio, bh.hora_fin,
-                   s.id AS seccion_id,
-                   g.nombre_display AS grado_nombre, g.numero AS grado_numero,
-                   n.codigo AS nivel_codigo,
-                   s.nombre AS seccion_nombre,
-                   CASE WHEN s.es_unidocente = 1 THEN a.nombre
-                        ELSE COALESCE(sa.nombre, a.nombre) END AS area_nombre
-            FROM sesiones_horario sh
-            INNER JOIN bloques_horario bh ON bh.id = sh.bloque_id
-            INNER JOIN cargas_academicas ca ON ca.id = sh.carga_id AND ca.estado = 'activa'
-            INNER JOIN secciones s ON s.id = sh.seccion_id
-            INNER JOIN grados g    ON g.id = s.grado_id
-            INNER JOIN niveles n   ON n.id = g.nivel_id
-            LEFT  JOIN subareas sa ON sa.id = ca.subarea_id
-            LEFT  JOIN areas a     ON a.id  = COALESCE(ca.area_id, sa.area_id)
-            WHERE sh.docente_id = ?
-            ORDER BY FIELD(bh.dia_semana,'lunes','martes','miercoles','jueves','viernes'),
-                     bh.hora_inicio, bh.hora_fin
-        ", [$docenteId]);
+        return $this->horarioModel->getSesionesDocente($docenteId);
     }
 }
