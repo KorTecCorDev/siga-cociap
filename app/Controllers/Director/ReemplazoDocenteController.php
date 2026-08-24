@@ -15,7 +15,19 @@ use Core\Session;
  */
 class ReemplazoDocenteController extends BaseController
 {
-    private const ROLES = ['admin', 'director_general'];
+    /**
+     * Quien ESCRIBE. Los directores entran a este controlador y VEN, pero
+     * desde el 24/08/2026 no operan: su rol es de supervision en solo
+     * lectura. Se valida en cada metodo de escritura, NO ocultando el boton
+     * en la vista: esconder la UI no es control de acceso.
+     */
+    private const ROLES_ESCRIBEN = ['admin', 'registro_academico'];
+
+    // Quien ENTRA (el historial y el snapshot son de lectura). `registro_academico`
+    // se suma el 24/08/2026 (decision D2): antes solo estaban `admin` y el
+    // Director General, y al retirarle la escritura al director el reemplazo de
+    // docente habria quedado solo en `admin`. Los tres directores entran a VER.
+    private const ROLES = ['admin', 'registro_academico', ...ROLES_DIRECCION];
 
     private CargaAcademicaModel    $cargas;
     private ReemplazoDocenteModel  $reemplazos;
@@ -30,6 +42,7 @@ class ReemplazoDocenteController extends BaseController
     /** GET /director/cargas/{id}/reemplazar — formulario de reemplazo. */
     public function form(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $id    = (int) $id;
         $carga = $this->cargas->findById($id);
         if (!$carga) {
@@ -52,6 +65,7 @@ class ReemplazoDocenteController extends BaseController
     /** POST /director/cargas/{id}/reemplazar — ejecuta el reemplazo. */
     public function reemplazar(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $id = (int) $id;
 

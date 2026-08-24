@@ -131,6 +131,38 @@ $extraordinarias = $extraordinarias ?? [];
         </table>
     </div>
 
+    <?php
+    // ── Descripciones de los criterios (24/08/2026) ──────────────────────
+    // El dato ya viajaba en getResumenCompetencia y ya se pintaba... pero solo
+    // como `title=` de la cabecera: invisible en celular y en impresion. Aqui
+    // se muestra completo.
+    //
+    // ⚠️ SOLO se listan los criterios que TIENEN descripcion. Medido el
+    // 24/08/2026 en produccion: 555 de 5533 criterios la llenan — el 10 %. Un
+    // bloque que enumerara los 5533 saldria vacio nueve de cada diez veces.
+    $conDescripcion = array_values(array_filter(
+        $criterios,
+        fn($c) => trim((string) ($c['descripcion'] ?? '')) !== ''
+    ));
+    ?>
+    <?php if (!empty($conDescripcion)): ?>
+        <div class="criterios-descripcion">
+            <p class="criterios-descripcion__titulo">
+                Descripción de los criterios
+                <span class="text-muted text-sm">
+                    (<?= count($conDescripcion) ?> de <?= count($criterios) ?>
+                    <?= count($criterios) === 1 ? 'criterio la tiene' : 'criterios la tienen' ?> registrada)
+                </span>
+            </p>
+            <dl class="criterios-descripcion__lista">
+                <?php foreach ($conDescripcion as $c): ?>
+                    <dt class="criterios-descripcion__nombre"><?= e($c['nombre']) ?></dt>
+                    <dd class="criterios-descripcion__texto"><?= e($c['descripcion']) ?></dd>
+                <?php endforeach; ?>
+            </dl>
+        </div>
+    <?php endif; ?>
+
     <?php if (!empty($extraordinarias)): ?>
         <!-- Calificaciones extraordinarias: NO salen del registro ordinario
              del docente; las registró RA con autorización (motivo abajo). -->

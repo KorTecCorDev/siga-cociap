@@ -17,9 +17,18 @@
     background: $brand-mid;
     user-select: none;
 
+    // Los TRES directores comparten color: tienen las mismas atribuciones y se
+    // leen como un solo estamento (decision del usuario, 24/08/2026). Sin la
+    // tercera linea, `director_academico` caia al `background` por defecto
+    // ($brand-mid) y salia pintado igual que un docente.
+    //
+    // ⚠️ Esta lista es la UNICA copia de ROLES_DIRECCION que no puede leer la
+    // constante de PHP: SASS no ve el codigo. Al tocar la constante, revisar
+    // aqui tambien.
     &--admin                              { background: $color-error;   }
     &--director_general,
-    &--director_ebr                       { background: $color-warning;  }
+    &--director_ebr,
+    &--director_academico                 { background: $color-warning;  }
     &--registro_academico,
     &--secretaria                         { background: $color-info;     }
     &--docente                            { background: $brand-mid;      }

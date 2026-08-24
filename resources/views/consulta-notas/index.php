@@ -17,6 +17,12 @@
             Para corregir, usa <a href="<?= url('rectificaciones') ?>">Rectificación</a>.
         </p>
     </div>
+    <?php // Segundo eje de navegacion (24/08/2026): el mismo universo, entrando
+          // por DOCENTE en vez de por seccion. ?>
+    <?php if (!empty($periodo)): ?>
+        <a href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/docentes') ?>"
+           class="btn btn--secondary">Ver por docente</a>
+    <?php endif; ?>
 </div>
 
 <div class="card mb-md">

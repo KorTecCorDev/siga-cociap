@@ -115,6 +115,7 @@ $badgeSeveridad = static fn(string $sev): string => match ($sev) {
                     desde Año Académico para oficializarlas. Las familias seguirán sin verlas
                     hasta que las publiques abajo.
                 </p>
+                <?php if ($puedeEscribir): ?>
                 <form method="POST"
                       action="<?= url('admin/control/' . (int) $periodo['id'] . '/anular-aprobacion') ?>"
                       onsubmit="return confirm('¿Revertir la aprobación? Las boletas borrador dejarán de mostrarse a los docentes.');">
@@ -124,6 +125,7 @@ $badgeSeveridad = static fn(string $sev): string => match ($sev) {
                         Revertir aprobación
                     </button>
                 </form>
+                <?php endif; ?>
             <?php else: /* en registro */ ?>
                 <?php $sinBloquear = count($chequeos['competencias']['items'] ?? []); ?>
                 <p>
@@ -136,6 +138,7 @@ $badgeSeveridad = static fn(string $sev): string => match ($sev) {
                         ⚠ Hay <?= $sinBloquear ?> sección(es) con competencias sin bloquear: se forzarán al aprobar.
                     </p>
                 <?php endif; ?>
+                <?php if ($puedeEscribir): ?>
                 <form method="POST"
                       action="<?= url('admin/control/' . (int) $periodo['id'] . '/aprobar-bimestre') ?>"
                       onsubmit="return confirm('¿Bloquear y aprobar el bimestre? Se generan las boletas borrador y se fuerza el bloqueo de lo pendiente.');">
@@ -145,6 +148,7 @@ $badgeSeveridad = static fn(string $sev): string => match ($sev) {
                         Bloquear y aprobar el bimestre
                     </button>
                 </form>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>

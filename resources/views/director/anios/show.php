@@ -45,13 +45,15 @@ $toLocalInput = function (?string $dt): string {
     </div>
 
     <div class="btn-group">
-        <?php if ($anio['estado'] === 'planificado'): ?>
+        <?php /* Acciones del AÑO: solo para quien escribe. El director las ve
+                 reflejadas en el badge de estado, pero no las opera. */ ?>
+        <?php if ($puedeEscribir && $anio['estado'] === 'planificado'): ?>
             <form method="POST" action="<?= url('director/anios/' . $anio['id'] . '/activar') ?>"
                   data-confirm="¿Activar el año académico <?= e($anio['anio']) ?>? Cualquier otro año activo se cerrará.">
                 <?= csrf_field() ?>
                 <button type="submit" class="btn btn--primary">Activar año</button>
             </form>
-        <?php elseif ($anio['estado'] === 'activo'): ?>
+        <?php elseif ($puedeEscribir && $anio['estado'] === 'activo'): ?>
             <form method="POST" action="<?= url('director/anios/' . $anio['id'] . '/cerrar') ?>"
                   data-confirm="¿Cerrar el año académico <?= e($anio['anio']) ?>? No podrás reabrirlo.">
                 <?= csrf_field() ?>
@@ -94,6 +96,7 @@ $toLocalInput = function (?string $dt): string {
         </dl>
 
         <div class="bimestre-card__acciones">
+            <?php if ($puedeEscribir): ?>
             <button type="button"
                     class="btn btn--sm btn--secondary"
                     onclick="abrirModalFechas(this)"
@@ -124,12 +127,13 @@ $toLocalInput = function (?string $dt): string {
                     <button type="submit" class="btn btn--sm btn--primary">Cerrar bimestre</button>
                 </form>
             <?php endif; ?>
+            <?php endif; /* $puedeEscribir — fin de las acciones del bimestre */ ?>
 
             <?php if ($estado === 'cerrado'): ?>
                 <a href="<?= url('director/periodos/' . $p['id'] . '/stats') ?>" class="btn btn--sm btn--secondary">
                     Ver indicadores
                 </a>
-                <?php if ($anio['estado'] !== 'cerrado' && !$hayActivo): ?>
+                <?php if ($puedeEscribir && $anio['estado'] !== 'cerrado' && !$hayActivo): ?>
                 <button type="button" class="btn btn--sm btn--warning"
                         onclick="abrirModalReabrir(this)"
                         data-periodo-id="<?= e($p['id']) ?>"

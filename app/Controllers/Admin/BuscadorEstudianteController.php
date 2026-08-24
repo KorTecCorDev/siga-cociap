@@ -13,12 +13,14 @@ class BuscadorEstudianteController extends BaseController
 
     public function __construct()
     {
+        // El rol fósil 'secretaria' salió el 24/08/2026: no corresponde a ningún
+        // `roles.codigo` real (los de la base son `secretaria_academica` y
+        // `secretaria_administrativa`), así que nunca concedió acceso a nadie.
+        // Mismo caso que el destino muerto retirado de AuthController el 22/08.
         $this->requireRole([
             'admin',
             'registro_academico',
-            'secretaria',
-            'director_general',
-            'director_ebr',
+            ...ROLES_DIRECCION,
         ]);
         $this->model            = new EstudianteModel();
         $this->ordenMeritoModel = new OrdenMeritoModel();

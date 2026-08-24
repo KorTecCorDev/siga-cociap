@@ -4,14 +4,25 @@ namespace App\Controllers\Director;
 
 use App\Controllers\BaseController;
 use App\Models\CargaAcademicaModel;
+use App\Models\DirectorEbrModel;
+use App\Models\HorarioModel;
 use Core\Session;
+use Core\View;
 
 class CargaAcademicaController extends BaseController
 {
+    /**
+     * Quien ESCRIBE. Los directores entran a este controlador y VEN, pero desde
+     * el 24/08/2026 no operan: su rol es de supervision en solo lectura. Se
+     * valida en cada metodo de escritura (no ocultando el boton en la vista):
+     * esconder la UI no es control de acceso.
+     */
+    private const ROLES_ESCRIBEN = ['admin', 'registro_academico'];
+
     private CargaAcademicaModel $model;
 
     private const DIAS  = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
-    private const ROLES = ['admin', 'director_general', 'director_ebr', 'registro_academico'];
+    private const ROLES = ['admin', 'registro_academico', ...ROLES_DIRECCION];
 
     public function __construct()
     {
@@ -31,6 +42,7 @@ class CargaAcademicaController extends BaseController
         $this->view('director/cargas/index', [
             'titulo'   => 'Cargas Académicas',
             'porNivel' => $porNivel,
+            'puedeEscribir' => has_role(self::ROLES_ESCRIBEN),
         ]);
     }
 
@@ -73,6 +85,8 @@ class CargaAcademicaController extends BaseController
         }
 
         $this->view('director/cargas/seccion', [
+            // Vista de SOLO LECTURA para los directores: sin controles.
+            'puedeEscribir' => has_role(self::ROLES_ESCRIBEN),
             'titulo'  => 'Cargas — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
             'seccion' => $seccion,
             'cargas'  => $cargas,
@@ -80,9 +94,65 @@ class CargaAcademicaController extends BaseController
         ]);
     }
 
+    /**
+     * GET /director/cargas/seccion/{seccion_id}/horario
+     *
+     * Horario semanal de la SECCIÓN en grilla de doble entrada (24/08/2026).
+     * Hasta hoy `/director/cargas/seccion/{id}` solo mostraba `horario_resumen`,
+     * un string por carga: la grilla por sección no existía para ningún rol,
+     * aunque las 23 secciones tienen horario cargado (444 sesiones).
+     *
+     * Consume `HorarioModel` y el parcial `shared/_horario-grilla.php`, los
+     * MISMOS que el horario del docente. Es lectura: la ven también los
+     * directores.
+     */
+    public function horarioSeccion(string $seccionId): void
+    {
+        $seccionId = (int) $seccionId;
+        $seccion   = $this->model->findSeccion($seccionId);
+
+        if (!$seccion) {
+            $this->redirectWithError(url('director/cargas'), 'Sección no encontrada.');
+        }
+
+        $horarioModel = new HorarioModel();
+        $anio         = $this->model->queryOne(
+            "SELECT id, anio FROM anios_academicos WHERE estado = 'activo' LIMIT 1"
+        );
+
+        $sesiones = $horarioModel->getSesionesSeccion($seccionId);
+        $grilla   = $horarioModel->armarGrilla(
+            $sesiones,
+            $horarioModel->duracionHoraAcademica($anio ? (int) $anio['id'] : null),
+            'docente'
+        );
+
+        View::setLayout('print');
+        $this->view('director/horario-seccion', array_merge($grilla, [
+            'titulo'  => 'Horario — ' . $seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre'],
+            'seccion' => [
+                'id'             => $seccionId,
+                'grado_nombre'   => $seccion['grado_nombre'],
+                'seccion_nombre' => $seccion['seccion_nombre'],
+                'nivel_nombre'   => $seccion['nivel_nombre'] ?? '',
+                // findSeccion devuelve el tutor en TRES columnas sueltas, no
+                // compuesto: se arma aqui (vacio si la seccion no tiene tutor).
+                'tutor_nombre'   => trim($seccion['tutor_id'] ?? null
+                    ? ($seccion['tutor_paterno'] ?? '') . ' ' . ($seccion['tutor_materno'] ?? '')
+                      . ', ' . ($seccion['tutor_nombres'] ?? '')
+                    : ''),
+            ],
+            'anio'        => $anio,
+            'directorEbr' => $anio
+                ? (new DirectorEbrModel())->getVigenteEnFecha((int) $anio['id'])
+                : null,
+        ]));
+    }
+
     // GET /director/cargas/crear
     public function create(): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $preselSeccionId = (int) ($_GET['seccion_id'] ?? 0);
         $preselDocenteId = 0;
 
@@ -104,6 +174,7 @@ class CargaAcademicaController extends BaseController
     // POST /director/cargas/crear
     public function store(): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
 
         [$datosCarga, $sesiones, $error] = $this->procesarFormulario();
@@ -147,6 +218,7 @@ class CargaAcademicaController extends BaseController
     // GET /director/cargas/{id}/editar
     public function edit(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $carga = $this->model->findById((int) $id);
         if (!$carga) {
             $this->redirectWithError(url('director/cargas'), 'Carga no encontrada.');
@@ -175,6 +247,7 @@ class CargaAcademicaController extends BaseController
     // POST /director/cargas/{id}/editar
     public function update(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $id = (int) $id;
 
@@ -237,6 +310,7 @@ class CargaAcademicaController extends BaseController
     // POST /director/cargas/{id}/estado
     public function toggleEstado(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $id = (int) $id;
 

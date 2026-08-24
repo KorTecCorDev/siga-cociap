@@ -23,9 +23,14 @@
     </div>
 </div>
 
-<?php // Registros de nivel SECCION (no cuelgan de ninguna carga). Solo aparecen
-      // cuando estan oficialmente cerrados; si no, su ruta responde 404. ?>
-<?php if ($seccion && ($tieneTransversales || $tieneConducta)): ?>
+<?php // Registros de nivel SECCION (no cuelgan de ninguna carga). Transversales
+      // y conducta solo aparecen cuando estan oficialmente cerrados; si no, su
+      // ruta responde 404.
+      //
+      // ASISTENCIA es la excepcion (24/08/2026): se muestra EN VIVO y por eso
+      // su tarjeta esta SIEMPRE. Una inasistencia ya ocurrio: no es una nota
+      // sujeta a aprobacion del docente. ?>
+<?php if ($seccion): ?>
     <ul class="consulta-cargas mb-lg">
         <?php if ($tieneTransversales): ?>
             <li>
@@ -51,6 +56,16 @@
                 </a>
             </li>
         <?php endif; ?>
+        <li>
+            <a class="consulta-carga"
+               href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id'] . '/asistencia') ?>">
+                <span>
+                    <span class="consulta-carga__area">Asistencia</span>
+                    <span class="consulta-carga__docente">Faltas y tardanzas del bimestre — en vivo</span>
+                </span>
+                <span class="consulta-carga__meta">Ver &rarr;</span>
+            </a>
+        </li>
     </ul>
 <?php endif; ?>
 

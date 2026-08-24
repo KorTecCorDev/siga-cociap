@@ -20,7 +20,12 @@ class DirectorEbrController extends BaseController
 
     public function __construct()
     {
-        $this->requireRole('admin');
+        // `registro_academico` se suma el 24/08/2026 (decision D4). Registrar la
+        // firma y el sello del Director EBR NO le corresponde al propio Director
+        // EBR —seria firmarse a si mismo—: es un acto administrativo. El anclaje
+        // de quien PUEDE ser firmante sigue siendo 'director_ebr' en singular
+        // (ver asignar(), mas abajo, y DirectorEbrModel::listarCandidatos).
+        $this->requireRole(['admin', 'registro_academico']);
         $this->model = new DirectorEbrModel();
     }
 

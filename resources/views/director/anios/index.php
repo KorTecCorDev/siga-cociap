@@ -24,7 +24,9 @@ $labelAnio = fn(string $estado): string => match ($estado) {
         <h1 class="page-title">Año académico</h1>
         <p class="page-subtitle">Gestiona los años escolares y sus bimestres</p>
     </div>
+<?php if ($puedeEscribir): ?>
     <a href="<?= url('director/anios/crear') ?>" class="btn btn--primary">+ Nuevo año</a>
+<?php endif; ?>
 </div>
 
 <?php if (empty($anios)): ?>
@@ -32,7 +34,9 @@ $labelAnio = fn(string $estado): string => match ($estado) {
         <div class="card__body">
             <div class="empty-state">
                 <p>No hay años académicos registrados.</p>
+<?php if ($puedeEscribir): ?>
                 <a href="<?= url('director/anios/crear') ?>" class="btn btn--primary btn--sm">Crear el primero</a>
+<?php endif; ?>
             </div>
         </div>
     </div>

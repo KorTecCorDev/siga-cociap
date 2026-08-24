@@ -11,6 +11,14 @@ use Core\Session;
 
 class BloqueoController extends BaseController
 {
+    /**
+     * Quien ESCRIBE. Los directores entran a este controlador y VEN, pero
+     * desde el 24/08/2026 no operan: su rol es de supervision en solo
+     * lectura. Se valida en cada metodo de escritura, NO ocultando el boton
+     * en la vista: esconder la UI no es control de acceso.
+     */
+    private const ROLES_ESCRIBEN = ['admin', 'registro_academico'];
+
     private CalificacionModel $calModel;
     private TransversalModel  $transModel;
     private ConductaModel     $conductaModel;
@@ -18,7 +26,12 @@ class BloqueoController extends BaseController
 
     public function __construct()
     {
-        $this->requireRole(['admin', 'director_general', 'director_ebr']);
+        // `registro_academico` ENTRA desde el 24/08/2026 (decision D1). Antes el
+        // dashboard le ofrecia la card "Bloqueos del bimestre" y el controlador
+        // le devolvia 403: la card mentia. Y al retirar la escritura a los
+        // directores, sin RA este panel —la herramienta con la que se opera cada
+        // cierre de bimestre— habria quedado solo en manos de `admin`.
+        $this->requireRole(['admin', 'registro_academico', ...ROLES_DIRECCION]);
         $this->calModel        = new CalificacionModel();
         $this->transModel      = new TransversalModel();
         $this->conductaModel   = new ConductaModel();
@@ -222,6 +235,8 @@ class BloqueoController extends BaseController
         }
 
         $this->view('director/bloqueos/index', [
+            // Vista de SOLO LECTURA para los directores: sin controles.
+            'puedeEscribir' => has_role(self::ROLES_ESCRIBEN),
             'titulo'             => 'Gestión de bloqueos',
             'periodos'           => $periodos,
             'periodoId'          => $periodoId,
@@ -283,6 +298,7 @@ class BloqueoController extends BaseController
 
     public function desbloquear(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $id   = (int) $id;
         $user = Session::user();
@@ -379,6 +395,7 @@ class BloqueoController extends BaseController
      */
     public function limpiarBloqueosCierre(): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
 
         $periodoId = (int) $this->input('periodo_id');
@@ -439,6 +456,7 @@ class BloqueoController extends BaseController
      */
     public function bloquear(): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
 
         $cargaId       = (int) $this->input('carga_id');
@@ -475,6 +493,7 @@ class BloqueoController extends BaseController
      */
     public function cerrarTransversal(string $seccionId): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $seccionId = (int) $seccionId;
         $periodoId = (int) $this->input('periodo_id');
@@ -535,6 +554,7 @@ class BloqueoController extends BaseController
      */
     public function reabrirTransversal(string $seccionId): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $seccionId = (int) $seccionId;
         $periodoId = (int) $this->input('periodo_id');
@@ -587,6 +607,7 @@ class BloqueoController extends BaseController
      */
     public function liberarTransversalCompetencia(string $bloqueoId): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $id   = (int) $bloqueoId;
         $user = Session::user();
@@ -663,6 +684,7 @@ class BloqueoController extends BaseController
      */
     public function bloquearConducta(string $seccionId): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $seccionId = (int) $seccionId;
         $periodoId = (int) $this->input('periodo_id');
@@ -694,6 +716,7 @@ class BloqueoController extends BaseController
      */
     public function cerrarConducta(string $seccionId): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $seccionId = (int) $seccionId;
         $periodoId = (int) $this->input('periodo_id');
@@ -719,6 +742,7 @@ class BloqueoController extends BaseController
      */
     public function reabrirConducta(string $seccionId): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $seccionId = (int) $seccionId;
         $periodoId = (int) $this->input('periodo_id');
@@ -758,6 +782,7 @@ class BloqueoController extends BaseController
      */
     public function bloquearAsistencia(string $seccionId): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $seccionId = (int) $seccionId;
         $periodoId = (int) $this->input('periodo_id');
@@ -787,6 +812,7 @@ class BloqueoController extends BaseController
      */
     public function reabrirAsistencia(string $seccionId): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $seccionId = (int) $seccionId;
         $periodoId = (int) $this->input('periodo_id');

@@ -66,3 +66,41 @@
     &__docente { font-size: $font-size-sm; color: $text-muted; display: block; }
     &__meta    { font-size: $font-size-sm; color: $text-secondary; white-space: nowrap; }
 }
+
+// ── Descripciones de los criterios (24/08/2026) ──────────────────
+// Antes la descripcion solo existia como `title=` de la cabecera de columna:
+// invisible en celular y al imprimir. Se lista debajo de la grilla, y SOLO
+// para los criterios que la tienen llena (en produccion, 1 de cada 10).
+.criterios-descripcion {
+    margin-top: $spacing-md;
+    padding: $spacing-md;
+    border: 1px solid $border-color;
+    border-left: 3px solid $brand-mid;
+    border-radius: $border-radius-sm;
+    background: $bg-secondary;
+
+    &__titulo {
+        margin: 0 0 $spacing-sm;
+        font-weight: 700;
+        font-size: $font-size-sm;
+        color: $text-primary;
+    }
+
+    &__lista {
+        margin: 0;
+    }
+
+    &__nombre {
+        font-weight: 600;
+        font-size: $font-size-sm;
+        color: $text-primary;
+    }
+
+    &__texto {
+        margin: 0 0 $spacing-sm;
+        font-size: $font-size-sm;
+        color: $text-muted;
+        line-height: 1.5;
+        white-space: pre-line;   // respeta los saltos que escribio el docente
+    }
+}

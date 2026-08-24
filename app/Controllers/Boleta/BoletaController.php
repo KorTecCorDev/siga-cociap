@@ -243,7 +243,7 @@ class BoletaController extends BaseController
      */
     public function verDigitalMatricula($matriculaId): void
     {
-        $this->requireRole(['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa']);
+        $this->requireRole(['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa', ...ROLES_DIRECCION]);
         $matriculaId = (int) $matriculaId;
         $res         = $this->resolverBoletaGestion($matriculaId);
 
@@ -257,7 +257,7 @@ class BoletaController extends BaseController
      */
     public function verImprimirMatricula($matriculaId): void
     {
-        $this->requireRole(['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa']);
+        $this->requireRole(['admin', 'registro_academico', 'secretaria_academica', 'secretaria_administrativa', ...ROLES_DIRECCION]);
         $matriculaId = (int) $matriculaId;
         $res         = $this->resolverBoletaGestion($matriculaId);
 

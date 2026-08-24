@@ -29,6 +29,11 @@ $router->post('/admin/curriculum/areas/{id}/mover',                'Admin\Curric
 $router->post('/admin/curriculum/subareas/{id}/editar',            'Admin\CurriculumController@guardarSubarea');
 $router->post('/admin/curriculum/competencias/{id}/editar',        'Admin\CurriculumController@guardarCompetencia');
 
+// ─── Admin — Cuadros estadisticos (tablero de direccion) ────
+// Solo lectura. COMPONE los indicadores que ya calculan otros modelos; no
+// tiene consultas propias ni reimplementa ninguna regla de negocio.
+$router->get( '/admin/cuadros',               'Admin\CuadrosEstadisticosController@index');
+
 // ─── Admin — Centro de Control Operativo ────────────────────
 $router->get( '/admin/control',               'Admin\ControlOperativoController@index');
 // Orden de merito RECTIFICADO (no oficial, no publicado): vista de solo lectura.
@@ -115,6 +120,8 @@ $router->get( '/director/periodos/{id}/stats',   'Director\PeriodoController@sta
 $router->get( '/director/cargas',                          'Director\CargaAcademicaController@index');
 $router->get( '/director/cargas/crear',                    'Director\CargaAcademicaController@create');
 $router->post('/director/cargas/crear',                    'Director\CargaAcademicaController@store');
+// La de 5 segmentos va ANTES que la de 4: el router ancla por orden de registro.
+$router->get( '/director/cargas/seccion/{seccion_id}/horario', 'Director\CargaAcademicaController@horarioSeccion');
 $router->get( '/director/cargas/seccion/{seccion_id}',     'Director\CargaAcademicaController@porSeccion');
 $router->get( '/director/cargas/{id}/editar',              'Director\CargaAcademicaController@edit');
 $router->post('/director/cargas/{id}/editar', 'Director\CargaAcademicaController@update');
@@ -205,8 +212,14 @@ $router->get('/consulta-notas',                                   'Consulta\Cons
 // primero, el router ancla por orden de registro.
 $router->get('/consulta-notas/{periodo_id}/seccion/{seccion_id}/transversales', 'Consulta\ConsultaNotasController@transversales');
 $router->get('/consulta-notas/{periodo_id}/seccion/{seccion_id}/conducta',      'Consulta\ConsultaNotasController@conducta');
+$router->get('/consulta-notas/{periodo_id}/seccion/{seccion_id}/asistencia',    'Consulta\ConsultaNotasController@asistencia');
 $router->get('/consulta-notas/{periodo_id}/seccion/{seccion_id}', 'Consulta\ConsultaNotasController@seccion');
 $router->get('/consulta-notas/{periodo_id}/carga/{carga_id}',     'Consulta\ConsultaNotasController@carga');
+// Eje POR DOCENTE (24/08/2026). La literal /docentes va ANTES que el patron
+// /docente/{id}: son prefijos distintos, pero el router ancla por orden de
+// registro y conviene no depender de eso.
+$router->get('/consulta-notas/{periodo_id}/docentes',             'Consulta\ConsultaNotasController@docentes');
+$router->get('/consulta-notas/{periodo_id}/docente/{docente_id}', 'Consulta\ConsultaNotasController@docente');
 
 // ─── Constancias de traslado (registro oficial) ──────────────
 $router->get( '/traslados',                'Matricula\TrasladoController@index');

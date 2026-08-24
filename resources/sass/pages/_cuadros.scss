@@ -1,0 +1,35 @@
+// ============================================================
+// _cuadros.scss — Cuadros estadisticos (tablero de direccion)
+// ============================================================
+// Solo lectura: rejilla de KPIs + tablas por nivel/grado. Reusa
+// .tabla-resumen para el detalle; aqui solo viven las cajas de cifra.
+
+.cuadros-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: $spacing-md;
+}
+
+.cuadros-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: $spacing-md;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    background: $bg-white;
+    text-align: center;
+
+    &__n {
+        font-size: 1.6rem;
+        font-weight: 700;
+        line-height: 1.1;
+        color: $text-primary;
+    }
+
+    &__t {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        line-height: 1.3;
+    }
+}

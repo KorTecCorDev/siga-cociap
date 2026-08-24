@@ -188,6 +188,34 @@ const NOTA_MIN_A  = 14;
 const NOTA_MIN_B  = 11;
 
 /**
+ * Roles de DIRECCIÓN — PUNTO ÚNICO DE VERDAD.
+ *
+ * Los tres tipos de director tienen EXACTAMENTE las mismas atribuciones
+ * (decisión del usuario, 24/08/2026): supervisión en SOLO LECTURA sobre los dos
+ * niveles. No hay alcance por nivel — no existe mapeo usuario→nivel en el
+ * sistema y se decidió que no lo habrá.
+ *
+ * Nació porque estos códigos estaban escritos a mano en 44 literales repartidos
+ * por 16 archivos: sumar un tercer director obligaba a tocarlos uno por uno, que
+ * es el patrón con el que ya divergieron cuatro reglas en este repositorio.
+ * Cualquier control de acceso que hable de "los directores" se apoya en esta
+ * constante; nunca se vuelve a listar los códigos a mano.
+ *
+ * ⚠️ DOS EXCEPCIONES DELIBERADAS, y NO son un olvido — son el par que sostiene
+ * el invariante "solo el Director EBR firma":
+ *   - `DirectorEbrModel::listarCandidatos()`  — LISTA los candidatos a firmante.
+ *   - `Admin\DirectorEbrController::asignar()` — REVALIDA en servidor al asignar.
+ * Las dos anclan a `'director_ebr'` en singular a propósito. Si esta constante
+ * se cuela en cualquiera de ellas, un Director General o Académico podría quedar
+ * asignado como firmante de boletas, actas y reportes de mérito.
+ *
+ * ⚠️ Al buscar estos códigos en el repositorio, hacerlo SIEMPRE entre comillas:
+ * la cadena `director_ebr` también es parte del nombre de la tabla
+ * `director_ebr_historial`, y un reemplazo masivo la corrompe en silencio.
+ */
+const ROLES_DIRECCION = ['director_general', 'director_ebr', 'director_academico'];
+
+/**
  * Colación de ordenamiento alfabético en ESPAÑOL — PUNTO ÚNICO DE VERDAD.
  *
  * Las columnas de `personas` son `utf8mb4_unicode_ci`, que equipara Ñ ≡ N: al

@@ -80,11 +80,37 @@ class MatriculaController extends BaseController
     /** Grupo "al menos uno": basta cualquiera de estos DNI de apoderado. */
     private const DOCS_DNI_APODERADO = ['dni_padre', 'dni_madre', 'dni_apoderado'];
 
+    /**
+     * Quien MATRICULA. Es EXACTAMENTE la lista que tenia el constructor antes
+     * del 24/08/2026, movida aqui sin quitar ni sumar a nadie: las secretarias
+     * siguen dando de alta matriculas, registrando apoderados, subiendo
+     * documentos y anotando notas externas, igual que hasta ahora.
+     *
+     * Existe porque al abrir el constructor a los directores (solo lectura)
+     * habia CUATRO metodos de escritura sin guarda propia. Guardarlos con esta
+     * constante deja el permiso donde estaba y cierra la puerta a los nuevos.
+     */
+    private const ROLES_MATRICULAN = [
+        'admin', 'registro_academico',
+        'secretaria_academica', 'secretaria_administrativa',
+    ];
+
     public function __construct()
     {
+        // Los DIRECTORES entran desde el 24/08/2026, en SOLO LECTURA: consultan
+        // la grilla, el detalle y el resumen, y abren la boleta interna de
+        // gestion igual que las secretarias.
+        //
+        // ⚠️ ABRIR ESTE CONSTRUCTOR NO ALCANZA. Cuatro metodos de ESCRITURA de
+        // esta clase no tenian guarda propia y confiaban solo en el: `store`
+        // (crear matricula), `storeApoderado`, `storeDocumentos` y
+        // `storeNotasExternas`. Sumar roles aqui sin guardarlos les habria dado
+        // el alta de matriculas. Llevan su requireRole desde el mismo commit,
+        // junto con los 4 formularios GET que los alimentan.
         $this->requireRole([
             'admin', 'registro_academico',
             'secretaria_academica', 'secretaria_administrativa',
+            ...ROLES_DIRECCION,
         ]);
         $this->model       = new MatriculaModel();
         $this->apoderados  = new ApoderadoModel();
@@ -137,6 +163,8 @@ class MatriculaController extends BaseController
 
         $this->view('matriculas/index', [
             'titulo'      => 'Matrículas',
+            // Los directores consultan la grilla; el alta es de quien matricula.
+            'puedeMatricular' => has_role(self::ROLES_MATRICULAN),
             'matriculas'  => $matriculas,
             'filtros'     => $filtros,
             'anios'       => $this->model->listarAnios(),
@@ -191,7 +219,10 @@ class MatriculaController extends BaseController
      */
     public function resumenImprimir(): void
     {
-        $this->requireRole(['admin', 'registro_academico']);
+        // Los DIRECTORES se suman el 24/08/2026. Este documento es, en palabras
+        // de su propio docblock, "para el comite directivo": eran justo el
+        // destinatario que no podia abrirlo.
+        $this->requireRole(['admin', 'registro_academico', ...ROLES_DIRECCION]);
 
         $anioActivo = $this->estudiantes->anioActivo();
         $anioFiltro = (int) ($this->query('anio_id') ?: ($anioActivo['id'] ?? 0));
@@ -348,6 +379,7 @@ class MatriculaController extends BaseController
     // ── GET /matriculas/crear ────────────────────────────────────
     public function create(): void
     {
+        $this->requireRole(self::ROLES_MATRICULAN);
         $anioActivo = $this->estudiantes->anioActivo();
         if (!$anioActivo) {
             $this->redirectWithError(url('matriculas'), 'No hay un año académico activo.');
@@ -386,6 +418,7 @@ class MatriculaController extends BaseController
     // ── POST /matriculas/crear ───────────────────────────────────
     public function store(): void
     {
+        $this->requireRole(self::ROLES_MATRICULAN);
         $this->validateCsrf();
 
         $anioActivo = $this->estudiantes->anioActivo();
@@ -544,6 +577,7 @@ class MatriculaController extends BaseController
     // ── GET /matriculas/{id}/apoderado ───────────────────────────
     public function apoderado(string $id): void
     {
+        $this->requireRole(self::ROLES_MATRICULAN);
         $matricula = $this->requireMatricula((int) $id);
 
         $dni       = trim((string) $this->query('dni', ''));
@@ -563,6 +597,7 @@ class MatriculaController extends BaseController
     // ── POST /matriculas/{id}/apoderado ──────────────────────────
     public function storeApoderado(string $id): void
     {
+        $this->requireRole(self::ROLES_MATRICULAN);
         $this->validateCsrf();
         $matricula    = $this->requireMatricula((int) $id);
         $estudianteId = (int) $matricula['estudiante_id'];
@@ -638,6 +673,7 @@ class MatriculaController extends BaseController
     // ── GET /matriculas/{id}/documentos ──────────────────────────
     public function documentos(string $id): void
     {
+        $this->requireRole(self::ROLES_MATRICULAN);
         $matricula = $this->requireMatricula((int) $id);
         $requeridos = $matricula['tipo'] === 'nuevo' ? self::DOCS_NUEVO : self::DOCS_CONTINUADOR;
 
@@ -666,6 +702,7 @@ class MatriculaController extends BaseController
     // ── POST /matriculas/{id}/documentos ─────────────────────────
     public function storeDocumentos(string $id): void
     {
+        $this->requireRole(self::ROLES_MATRICULAN);
         $this->validateCsrf();
         $matricula  = $this->requireMatricula((int) $id);
         $usuarioId  = (int) (Session::user()['id'] ?? 0);
@@ -758,6 +795,11 @@ class MatriculaController extends BaseController
         // roles de gestión; el registro va a Admin\ExoneracionController con el
         // candado de notas vivas).
         $puedeGestionar = has_role(['admin', 'registro_academico']);
+        // Apoderados, documentos y notas externas los tocan TAMBIEN las
+        // secretarias, asi que no caben bajo $puedeGestionar (admin/RA). Sin
+        // este flag, los directores —que desde el 24/08/2026 entran a ver el
+        // detalle— verian esos tres botones y se toparian con un 403.
+        $puedeMatricular = has_role(self::ROLES_MATRICULAN);
 
         $this->view('matriculas/show', [
             'titulo'       => 'Detalle de matrícula',
@@ -769,6 +811,7 @@ class MatriculaController extends BaseController
             'retorno'      => $retorno,
             'traslado'     => $this->traslados->getUltimaPorMatricula((int) $id),
             'puedeGestionar' => $puedeGestionar,
+            'puedeMatricular' => $puedeMatricular,
             'exoneraciones'  => $this->exoneraciones->getVigentesPorMatricula((int) $id),
             'opcionesExoneracion' => $puedeGestionar
                 ? $this->exoneraciones->getOpcionesParaSeccion(
@@ -1125,6 +1168,7 @@ class MatriculaController extends BaseController
     // ── GET /matriculas/{id}/notas-externas ──────────────────────
     public function notasExternas(string $id): void
     {
+        $this->requireRole(self::ROLES_MATRICULAN);
         $matricula = $this->requireMatricula((int) $id);
         if ($matricula['tipo'] !== 'nuevo') {
             $this->redirectWithError(url('matriculas/' . $id),
@@ -1141,6 +1185,7 @@ class MatriculaController extends BaseController
     // ── POST /matriculas/{id}/notas-externas ─────────────────────
     public function storeNotasExternas(string $id): void
     {
+        $this->requireRole(self::ROLES_MATRICULAN);
         $this->validateCsrf();
         $matricula = $this->requireMatricula((int) $id);
 

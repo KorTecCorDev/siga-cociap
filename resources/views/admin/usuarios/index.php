@@ -4,10 +4,13 @@
  * @var array  $auth_user
  */
 
-$badgeRol = fn(string $codigo): string => match($codigo) {
-    'admin'                             => 'badge--error',
-    'director_general', 'director_ebr'  => 'badge--warning',
-    default                             => 'badge--info',
+// Los tres directores comparten badge: tienen las mismas atribuciones y se leen
+// como un solo estamento. El listado de códigos sale de ROLES_DIRECCION
+// (helpers.php) para que un director nuevo no quede con el badge por defecto.
+$badgeRol = fn(string $codigo): string => match(true) {
+    $codigo === 'admin'                       => 'badge--error',
+    in_array($codigo, ROLES_DIRECCION, true)  => 'badge--warning',
+    default                                   => 'badge--info',
 };
 ?>
 

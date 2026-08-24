@@ -141,7 +141,9 @@ $labelDoc = [
                 </div>
             <?php endforeach; endif; ?>
             <div class="btn-group">
+                <?php if ($puedeMatricular): ?>
                 <a href="<?= url('matriculas/' . $mid . '/apoderado') ?>" class="btn btn--secondary btn--sm">Gestionar apoderados</a>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -168,7 +170,9 @@ $labelDoc = [
                 </div>
             <?php endif; ?>
             <div class="btn-group">
+                <?php if ($puedeMatricular): ?>
                 <a href="<?= url('matriculas/' . $mid . '/documentos') ?>" class="btn btn--secondary btn--sm">Editar documentos</a>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -198,7 +202,9 @@ $labelDoc = [
                 </div>
             <?php endif; ?>
             <div class="btn-group">
+                <?php if ($puedeMatricular): ?>
                 <a href="<?= url('matriculas/' . $mid . '/notas-externas') ?>" class="btn btn--secondary btn--sm">Registrar notas externas</a>
+                <?php endif; ?>
             </div>
         </div>
     </div>

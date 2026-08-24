@@ -3,6 +3,7 @@
 namespace App\Controllers\Consulta;
 
 use App\Controllers\BaseController;
+use App\Models\AsistenciaModel;
 use App\Models\CalificacionModel;
 use App\Models\OmisionCriterioModel;
 use App\Models\ExoneracionModel;
@@ -31,15 +32,17 @@ class ConsultaNotasController extends BaseController
     private ExoneracionModel     $exoModel;
     private TransversalModel     $transModel;
     private ConductaModel        $conductaModel;
+    private AsistenciaModel      $asistenciaModel;
 
     public function __construct()
     {
-        $this->requireRole(['admin', 'registro_academico', 'director_general', 'director_ebr']);
+        $this->requireRole(['admin', 'registro_academico', ...ROLES_DIRECCION]);
         $this->calModel      = new CalificacionModel();
         $this->omisionModel  = new OmisionCriterioModel();
         $this->exoModel      = new ExoneracionModel();
         $this->transModel    = new TransversalModel();
         $this->conductaModel = new ConductaModel();
+        $this->asistenciaModel = new AsistenciaModel();
     }
 
     /**
@@ -405,6 +408,178 @@ class ConsultaNotasController extends BaseController
             'alumnos'   => $alumnos,
             'criterios' => $esLegado ? [] : $this->conductaModel->getCriterios($nivelId),
             'esLegado'  => $esLegado,
+        ]);
+    }
+
+    /**
+     * GET /consulta-notas/{periodo_id}/docentes
+     *
+     * EJE POR DOCENTE (24/08/2026). La pantalla solo navegaba
+     * periodo -> seccion -> carga; para responder "que registro este docente"
+     * habia que recorrer las 23 secciones a mano.
+     *
+     * Sin metodos de modelo nuevos: se agrupa la misma lista de competencias
+     * oficiales que ya alimenta el resto del controlador.
+     */
+    public function docentes(string $periodoId): void
+    {
+        $periodoId = (int) $periodoId;
+        $periodo   = $this->getPeriodo($periodoId);
+        if (!$periodo) {
+            $this->notFound();
+        }
+
+        $porDocente = [];
+        foreach ($this->competenciasOficiales($periodoId) as $c) {
+            $did = (int) $c['docente_id'];
+            if (!isset($porDocente[$did])) {
+                $porDocente[$did] = [
+                    'docente_id'   => $did,
+                    'nombre'       => $this->nombreDocente($c),
+                    'cargas'       => [],
+                    'competencias' => 0,
+                    'secciones'    => [],
+                ];
+            }
+            $porDocente[$did]['cargas'][(int) $c['carga_id']] = true;
+            $porDocente[$did]['secciones'][(int) $c['seccion_id']] = true;
+            $porDocente[$did]['competencias']++;
+        }
+
+        foreach ($porDocente as &$d) {
+            $d['n_cargas']    = count($d['cargas']);
+            $d['n_secciones'] = count($d['secciones']);
+            unset($d['cargas'], $d['secciones']);
+        }
+        unset($d);
+
+        // Alfabetico por el nombre ya compuesto (apellidos primero).
+        usort($porDocente, fn($a, $b) => strcoll($a['nombre'], $b['nombre']));
+
+        $this->view('consulta-notas/docentes', [
+            'titulo'   => 'Docentes — ' . $periodo['nombre_display'],
+            'periodo'  => $periodo,
+            'docentes' => array_values($porDocente),
+        ]);
+    }
+
+    /**
+     * GET /consulta-notas/{periodo_id}/docente/{docente_id}
+     * Cargas oficiales de un docente en el periodo. Enlaza a la MISMA vista de
+     * carga del eje por seccion: es el mismo destino por otro camino.
+     */
+    public function docente(string $periodoId, string $docenteId): void
+    {
+        $periodoId = (int) $periodoId;
+        $docenteId = (int) $docenteId;
+
+        $periodo = $this->getPeriodo($periodoId);
+        if (!$periodo) {
+            $this->notFound();
+        }
+
+        $filas = array_values(array_filter(
+            $this->competenciasOficiales($periodoId),
+            fn($c) => (int) $c['docente_id'] === $docenteId
+        ));
+        if (empty($filas)) {
+            $this->notFound();
+        }
+
+        $cargas = [];
+        foreach ($filas as $c) {
+            $cid = (int) $c['carga_id'];
+            if (!isset($cargas[$cid])) {
+                $cargas[$cid] = [
+                    'carga_id'       => $cid,
+                    'area_nombre'    => $c['area_nombre'],
+                    'subarea_nombre' => $c['subarea_nombre'] ?? null,
+                    'grado_nombre'   => $c['grado_nombre'],
+                    'seccion_nombre' => $c['seccion_nombre'],
+                    'nivel_nombre'   => $c['nivel_nombre'],
+                    'grado_numero'   => (int) $c['grado_numero'],
+                    'competencias'   => 0,
+                ];
+            }
+            $cargas[$cid]['competencias']++;
+        }
+
+        $cargas = array_values($cargas);
+        usort($cargas, fn($a, $b) => [$a['nivel_nombre'], $a['grado_numero'], $a['seccion_nombre'], $a['area_nombre']]
+                                 <=> [$b['nivel_nombre'], $b['grado_numero'], $b['seccion_nombre'], $b['area_nombre']]);
+
+        $this->view('consulta-notas/docente', [
+            'titulo'  => 'Cargas de ' . $this->nombreDocente($filas[0]),
+            'periodo' => $periodo,
+            'docente' => ['id' => $docenteId, 'nombre' => $this->nombreDocente($filas[0])],
+            'cargas'  => $cargas,
+        ]);
+    }
+
+    /**
+     * GET /consulta-notas/{periodo_id}/seccion/{seccion_id}/asistencia
+     *
+     * Asistencia de la sección en SOLO LECTURA (24/08/2026). Cierra el cuarto
+     * registro del bimestre: hasta hoy la asistencia solo existía en
+     * `/admin/asistencia`, que es la pantalla de ESCRITURA de Registro
+     * Académico — dirección no tenía ninguna forma de consultarla.
+     *
+     * ⚠️ A DIFERENCIA de transversales y conducta, esta vista NO exige cierre:
+     * se muestra EN VIVO (decisión del usuario, 24/08/2026). El criterio del
+     * resto de la pantalla es "solo el dato aprobado y bloqueado", pero una
+     * inasistencia no es una calificación sujeta a aprobación docente — ya
+     * ocurrió. El estado del cierre se muestra como dato, no como candado.
+     *
+     * El roster sale de `AsistenciaModel::getEstudiantesConIncidencias`, que es
+     * el MISMO de la grilla de notas (`getAlumnosSeccion`): sin filtrar por
+     * `estado` y con las exclusiones de retorno de grado. No se reescribe ese
+     * filtro a mano — así nacieron los bugs de asistencia del 04/08.
+     */
+    public function asistencia(string $periodoId, string $seccionId): void
+    {
+        $periodoId = (int) $periodoId;
+        $seccionId = (int) $seccionId;
+
+        $periodo = $this->getPeriodo($periodoId);
+        if (!$periodo) {
+            $this->notFound();
+        }
+
+        // La sección debe pertenecer al periodo (mismo anclaje que conducta).
+        $filas = array_values(array_filter(
+            $this->competenciasOficiales($periodoId),
+            fn($c) => (int) $c['seccion_id'] === $seccionId
+        ));
+        if (empty($filas)) {
+            $this->notFound();
+        }
+        $primera = $filas[0];
+
+        $alumnos = $this->asistenciaModel->getEstudiantesConIncidencias($seccionId, $periodoId);
+
+        // Totales de la sección, para la cabecera.
+        $totales = ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0, 'registrados' => 0];
+        foreach ($alumnos as $a) {
+            foreach (['faltas', 'faltas_justificadas', 'tardanzas', 'tardanzas_justificadas'] as $k) {
+                $totales[$k] += (int) $a['incidencias'][$k];
+            }
+            if (!empty($a['incidencias']['registrado'])) {
+                $totales['registrados']++;
+            }
+        }
+
+        $this->view('consulta-notas/asistencia', [
+            'titulo'  => 'Asistencia — ' . $primera['grado_nombre'] . ' ' . $primera['seccion_nombre'],
+            'periodo' => $periodo,
+            'seccion' => [
+                'seccion_id'     => $seccionId,
+                'seccion_nombre' => $primera['seccion_nombre'],
+                'grado_nombre'   => $primera['grado_nombre'],
+                'nivel_nombre'   => $primera['nivel_nombre'],
+            ],
+            'alumnos' => $alumnos,
+            'totales' => $totales,
+            'cierre'  => $this->asistenciaModel->getCierreDetalle($seccionId, $periodoId),
         ]);
     }
 

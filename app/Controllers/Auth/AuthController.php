@@ -174,10 +174,13 @@ class AuthController extends BaseController
         // base son `secretaria_academica` y `secretaria_administrativa`, así que
         // esta rama nunca llegó a ejecutarse. Ambos roles llegan hoy al dashboard.
         $destinos = [
+            // Los TRES directores salieron el 24/08/2026 y caen al dashboard por
+            // el `??` de abajo. Aterrizaban en `/director/anios`, que no enlaza a
+            // ningun otro modulo, y cuyo boton "← Dashboard" los devolvia ahi
+            // mismo: un bucle. De los nueve modulos que tenian permitidos solo
+            // alcanzaban uno; el resto habia que escribirlo a mano en la barra.
             'admin'             => url('dashboard'),
             'registro_academico'=> url('dashboard'),
-            'director_general'  => url('director/anios'),
-            'director_ebr'      => url('director/anios'),
             'docente'           => url('docente/inicio'),
             'padre'             => url('padre/inicio'),
         ];
