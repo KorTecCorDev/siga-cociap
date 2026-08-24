@@ -24,21 +24,45 @@ spl_autoload_register(function (string $c): void {
     }
 });
 
-// ── Reconstruir el algoritmo VIEJO desde git HEAD ────────────────
-$head = (string) shell_exec(
-    'git -C ' . escapeshellarg(ROOT_PATH) . ' show HEAD:app/Controllers/Docente/PanelController.php'
-);
+// ── Reconstruir el algoritmo VIEJO desde el historial ────────────
+//
+// El contraste necesita el codigo ANTERIOR a la extraccion. No se puede pedir a
+// HEAD: en cuanto el refactor se commitea, HEAD ya trae el codigo nuevo y el
+// contraste se queda sin referencia (paso el mismo 24/08/2026, minutos despues
+// del commit). Se recorre el historial del archivo hasta dar con la ultima
+// version que todavia contenia el bloque inline.
 $ini = "        // D\u{00ED}as fijos lunes-viernes (la BD no maneja fin de semana).";
 $fin = "        // Documento \u{2192} nombre legal completo del docente (no el nombre corto).";
-$p0  = strpos($head, $ini);
-$p1  = strpos($head, $fin);
 
-if ($p0 === false || $p1 === false || $p1 <= $p0) {
-    fwrite(STDERR, "FALLO: no se pudo extraer el bloque viejo de git HEAD\n");
+$commits = array_filter(explode("\n", trim((string) shell_exec(
+    'git -C ' . escapeshellarg(ROOT_PATH)
+    . ' log --format=%H -- app/Controllers/Docente/PanelController.php'
+))));
+
+$bloqueViejo = null;
+$refCommit   = null;
+foreach ($commits as $sha) {
+    $src = (string) shell_exec(
+        'git -C ' . escapeshellarg(ROOT_PATH)
+        . ' show ' . escapeshellarg(trim($sha) . ':app/Controllers/Docente/PanelController.php')
+    );
+    $p0 = strpos($src, $ini);
+    $p1 = strpos($src, $fin);
+
+    if ($p0 !== false && $p1 !== false && $p1 > $p0) {
+        $bloqueViejo = substr($src, $p0, $p1 - $p0);
+        $refCommit   = substr(trim($sha), 0, 7);
+        break;
+    }
+}
+
+if ($bloqueViejo === null) {
+    fwrite(STDERR, "FALLO: ninguna version del historial conserva el bloque inline.\n"
+        . "Si el historial se reescribio, este contraste ya no es aplicable.\n");
     exit(1);
 }
 
-$bloqueViejo = substr($head, $p0, $p1 - $p0);
+echo "Referencia del codigo viejo: commit {$refCommit}\n";
 // El bloque viejo lee $anio y $this->calModel para la duracion; se la inyectamos
 // ya resuelta para aislar EXACTAMENTE el algoritmo de armado.
 $bloqueViejo = preg_replace(
