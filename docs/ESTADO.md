@@ -1,7 +1,70 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **22/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **24/08/2026**.
+
+## 🟡 USUARIOS DE DIRECCIÓN — EN `dev`, SIN PROBAR EN NAVEGADOR (24/08/2026)
+
+Las **7 fases están implementadas** y las **5 verificaciones automáticas en
+verde**, pero **nadie ha abierto todavía una sola pantalla**. Reglas, decisiones y
+gotchas del módulo: **`docs/modulos/usuarios-direccion.md`**.
+
+### 🔴 BLOQUEANTE ANTES DEL MERGE A `main`
+
+1. **Aplicar la migración `055_rol_director_academico.sql` en PRODUCCIÓN a mano**,
+   como la 044 y la 045. Es un `INSERT` de catálogo, idempotente, sin cambio de
+   esquema. En LOCAL ya está aplicada (rol id 9). Verificación:
+   `SELECT COUNT(*) FROM roles;` debe dar **9**.
+2. **`public/css/app.css` va regenerado** en este lote. Si hay conflicto al
+   mergear, **no resolverlo a mano**: tomar un lado y `npx gulp build`.
+
+### PENDIENTE — pruebas en navegador (no se hizo ninguna)
+
+Orden sugerido; los puntos 1 y 4 son los que más fácil se rompen:
+
+1. **`/docente/horario/imprimir`** con un docente real — es la prueba de que la
+   extracción de `HorarioModel` no cambió nada. Debe salir **idéntico** al de
+   antes (grilla alineada, colores, horas/sem y total).
+2. **Crear un usuario con rol Director académico** (en prod no existe ninguno; en
+   local tampoco se creó — falta decidir DNI y nombre).
+3. Como director: las **10 cards** · `/matriculas` sin «+ Nueva matrícula» ·
+   `/director/bloqueos` sin botones · la boleta desde una matrícula.
+4. **Como `admin` y como Registro Académico: que SÍ vean todos sus botones.** Es
+   la rama de la guarda que se rompe sin avisar (ya pasó una vez en esta sesión:
+   el flag del Centro de Control se insertó en la rama equivocada).
+5. `/admin/cuadros` · `/consulta-notas/{p}/seccion/{s}/asistencia` · el eje por
+   docente · `/director/cargas/seccion/{id}/horario`.
+
+### PENDIENTE — 4 recomendaciones medidas, NO implementadas
+
+Se informaron y **no** se ejecutaron, por la regla de alcance del proyecto:
+
+- **`&--secretaria` en `_admin.scss` es un rol fósil**: `secretaria_academica` y
+  `secretaria_administrativa` salen pintadas con el **color de docente**. 2 líneas.
+- **La descripción del rol `director_ebr` en la BD ahora es FALSA** — dice
+  «Supervisión de su nivel educativo» y se decidió que los tres ven los dos
+  niveles. Un `UPDATE` de una fila.
+- **La consulta de periodos (`activo`+`cerrado`) está copiada a mano en 3
+  controladores** (`ConsultaNotas`, `Bloqueo`, `OrdenMerito`) teniendo el método
+  en `ControlOperativoModel::getPeriodos()`. Los Cuadros ya lo reusan; los otros
+  tres no. Es la misma familia de fallo que este repo arrastra.
+- **`MatriculaController::nominaImprimir` NO se abrió a los directores** — no se
+  discutió. Decidir si la nómina imprimible entra en «grilla completa».
+
+### PENDIENTE — bug preexistente, sigue abierto
+
+- **La card «Usuarios» del dashboard se le muestra a `registro_academico`**
+  (`dashboard/index.php`), pero `Admin\UsuarioController` exige `admin` → **403
+  seguro**. Detectado el 24/08 al inventariar el dashboard; no se tocó porque está
+  fuera del alcance de este módulo. (El caso gemelo de la card de bloqueos SÍ se
+  corrigió, sumando RA al controlador.)
+
+### Al cerrar: `verif_horario_modelo.php` es TEMPORAL
+
+Reconstruye el algoritmo VIEJO desde `git HEAD` para contrastarlo con el nuevo.
+En cuanto esto se mergee a `main`, HEAD traerá el código nuevo y el contraste
+dejará de probar nada. **Es un verificador de la migración, no permanente**:
+retirarlo o reescribirlo tras el merge.
 
 ## 🏁 CIERRE DE LA VERSIÓN 1.0 — 22/08/2026
 

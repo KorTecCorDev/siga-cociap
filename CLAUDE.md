@@ -183,6 +183,7 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | Horarios, cargas académicas, solapes, Tutoría TOE | `docs/modulos/horarios.md` |
 | Orden de mérito, snapshot, desempates, rectificaciones | `docs/modulos/orden-merito.md` |
 | Usuarios, secciones/tutores, Director EBR, panel de bloqueos, conducta | `docs/modulos/admin.md` |
+| **Usuarios de Dirección** (los 3 directores, solo lectura, `ROLES_DIRECCION`) | `docs/modulos/usuarios-direccion.md` |
 | Exportación de notas al SIAGIE (llenado de Excel oficiales) | `docs/modulos/export-siagie.md` |
 | UI: wayfinding, dashboard docente, botón Cerrar, tablas sticky | `docs/modulos/ui.md` |
 | Producción, seguridad, despliegue, secretos, setup SQL desde cero | `docs/infraestructura.md` |
@@ -317,6 +318,16 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   (versión no oficial, visible solo en `/admin/control`). PUNTO ÚNICO:
   `OrdenMeritoModel::registrarRanking` (lo usan `cerrar` y la rectificación);
   `generarSnapshot` directo NO honra el candado (solo backfill/reconstrucción).
+- **Los TRES directores son SOLO LECTURA y salen de `ROLES_DIRECCION`**
+  (`helpers.php`; 24/08/2026). Nunca listar sus códigos a mano — eran 44 literales
+  en 16 archivos. **DOS excepciones deliberadas, que NO se deben "arreglar":**
+  `DirectorEbrModel::listarCandidatos` y `Admin\DirectorEbrController::asignar`
+  anclan a `'director_ebr'` **en singular** porque **solo el Director EBR firma**
+  boletas, actas y reportes. La escritura se guarda POR MÉTODO
+  (`ROLES_ESCRIBEN`), no en el constructor: el director entra a VER. ⚠️ Al buscar
+  estos códigos, hacerlo **entre comillas** — `director_ebr` también es parte de
+  la tabla `director_ebr_historial`. La única copia que no puede leer la constante
+  es el color del avatar en `_admin.scss`. Ver `docs/modulos/usuarios-direccion.md`.
 - **PDO preparado siempre**; `cargas_academicas` y `criterios` NO tienen UNIQUE KEY →
   proteger duplicados con `WHERE NOT EXISTS`.
 - **NUNCA CSS inline en PHP** — todo en SASS bajo `resources/sass/` + `gulp build`.
