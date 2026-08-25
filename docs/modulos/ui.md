@@ -461,6 +461,14 @@ reducido a la clase de color (`nota-numeral--a`). Un color no es legible para qu
 no distingue esos tonos, y el **imprimible oficial ya estampa `17 (A)`**: la
 pantalla decía menos que el papel.
 
-Ahora la celda lleva **numeral y literal**, uno al lado del otro. 🔴 El literal se
+Ahora hay **dos columnas**: Nota y Literal, como en `/conducta`. 🔴 El literal se
 **sumó**, no sustituyó al numeral — hay un aserto que falla si alguien «simplifica»
-quitando cualquiera de los dos.
+quitando cualquiera de los dos, y otro que comprueba sobre el **DOM** que son dos
+`<td>` y no dos `<span>` en la misma celda (contar clases no distingue una cosa de
+la otra).
+
+Las dos van marcadas con **`col-resultado`**, la zona de resultado del sistema: son
+columnas **calculadas** a partir de los Sí/No, igual que el promedio y el literal de
+las demás grillas. ⚠️ Al aplicarla hubo que **retirar el `border-left` manual** que
+`conducta-th-nota` traía para separarse de los criterios: `col-resultado--inicio` ya
+dibuja ese separador, y mantener los dos daba doble línea.

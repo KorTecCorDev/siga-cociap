@@ -233,5 +233,37 @@ if ($conNota === 0) {
     $chk('y muestra tambien el LITERAL', substr_count($htmlDir, 'nota-literal') >= $conNota);
 }
 
+// 🔴 EL LITERAL VA EN COLUMNA PROPIA, no como segundo valor de la celda de nota.
+// Se mide sobre el DOM: contar clases no distingue "dos <td>" de "un <td> con
+// dos <span>", que es exactamente el cambio que se pidio.
+$doc = new DOMDocument();
+libxml_use_internal_errors(true);
+$doc->loadHTML('<meta charset="utf-8"><div>' . $htmlDir . '</div>');
+libxml_clear_errors();
+$xp = new DOMXPath($doc);
+
+$thLiteral = $xp->query("//th[contains(concat(' ', normalize-space(@class), ' '), ' conducta-th-literal ')]");
+$tdLiteral = $xp->query("//td[contains(concat(' ', normalize-space(@class), ' '), ' conducta-td-literal ')]");
+$tdNota    = $xp->query("//td[contains(concat(' ', normalize-space(@class), ' '), ' conducta-td-nota ')]");
+printf("       columnas: 1 cabecera Literal? %s · celdas literal: %d · celdas nota: %d\n",
+    $thLiteral->length === 1 ? 'si' : 'NO(' . $thLiteral->length . ')',
+    $tdLiteral->length, $tdNota->length);
+
+$chk('hay UNA cabecera "Literal" propia', $thLiteral->length === 1);
+$chk('hay una celda de literal por estudiante', $tdLiteral->length === count($estudiantes));
+$chk('y sigue habiendo una celda de nota por estudiante', $tdNota->length === count($estudiantes));
+
+// La otra rama de la separacion: la celda de NOTA ya no lleva dentro el literal.
+$notaConLiteral = 0;
+foreach ($tdNota as $td) {
+    if (str_contains($doc->saveHTML($td), 'nota-literal')) { $notaConLiteral++; }
+}
+$chk('la celda de nota ya NO contiene el literal dentro', $notaConLiteral === 0);
+
+// Y las dos columnas calculadas van en la zona de resultado del sistema.
+$chk('Nota y Literal estan en la zona de resultado',
+    $thLiteral->length === 1
+    && str_contains($thLiteral->item(0)->getAttribute('class'), 'col-resultado'));
+
 echo "\n", $ok ? "TODO OK\n" : "HAY FALLOS\n";
 exit($ok ? 0 : 1);

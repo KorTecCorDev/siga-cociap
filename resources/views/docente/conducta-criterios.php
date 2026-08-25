@@ -87,7 +87,13 @@ $tituloClase = $tituloClase ?? 'page-title page-title--wf page-title--conducta';
                         <span class="competencia-card__codigo competencia-card__codigo--solo"><?= e($c['codigo']) ?></span>
                     </th>
                 <?php endforeach; ?>
-                <th class="conducta-th-nota" title="Nota de Registro Académico (Sí ÷ <?= $total ?> × 20)">Nota</th>
+                <?php // Nota y Literal son columnas CALCULADAS (derivadas de los Si/No),
+                      // asi que llevan la zona de resultado del sistema: el separador
+                      // `--inicio` las despega de los criterios y el hover ya no las borra.
+                      // Ver docs/modulos/ui.md. ?>
+                <th class="conducta-th-nota col-resultado col-resultado--inicio"
+                    title="Nota de Registro Académico (Sí ÷ <?= $total ?> × 20)">Nota</th>
+                <th class="conducta-th-literal col-resultado">Literal</th>
             </tr>
         </thead>
         <tbody>
@@ -118,15 +124,21 @@ $tituloClase = $tituloClase ?? 'page-title page-title--wf page-title--conducta';
                         </td>
                     <?php endforeach; ?>
 
-                    <td class="conducta-td-nota">
-                        <?php // El LITERAL se muestra, no solo se insinua con el color del
-                              // numeral: el color no es legible para quien no distingue esos
-                              // tonos, y el imprimible oficial ya lo estampa como "17 (A)".
-                              // La columna numeral NO se toca — se suma, no se sustituye. ?>
+                    <?php // El LITERAL va en su PROPIA columna, no dentro de la nota: el
+                          // color del numeral no es legible para quien no distingue esos
+                          // tonos, y asi la grilla se lee igual que /conducta. La columna
+                          // numeral NO se toca — el literal se suma, no la sustituye. ?>
+                    <td class="conducta-td-nota col-resultado col-resultado--inicio">
                         <?php if ($notaRa !== null): ?>
                             <span class="nota-numeral nota-numeral--<?= strtolower($litRa) ?>">
                                 <?= fmt_nota($notaRa) ?>
                             </span>
+                        <?php else: ?>
+                            <span class="text-muted" title="Registro incompleto">—</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="conducta-td-literal col-resultado">
+                        <?php if ($litRa !== null): ?>
                             <span class="nota-literal nota-literal--<?= strtolower($litRa) ?>"><?= e($litRa) ?></span>
                         <?php else: ?>
                             <span class="text-muted" title="Registro incompleto">—</span>

@@ -93,19 +93,22 @@
         text-align: center;
         cursor: help;
     }
-    // La nota muestra numeral Y literal, uno al lado del otro.
-    th.conducta-th-nota     { min-width: 104px; text-align: center; }
+    th.conducta-th-nota    { min-width: 84px; text-align: center; }
+    // El literal en columna propia, como en /conducta.
+    th.conducta-th-literal { min-width: 72px; text-align: center; }
 
-    td.conducta-td-crit { text-align: center; padding: $spacing-xs; }
-    td.conducta-td-nota { text-align: center; font-weight: 600; }
+    td.conducta-td-crit    { text-align: center; padding: $spacing-xs; }
+    td.conducta-td-nota    { text-align: center; font-weight: 600; }
+    td.conducta-td-literal { text-align: center; }
 
     // Separador vertical entre columnas de criterios para no confundir el Si/No
     th.conducta-th-crit,
     td.conducta-td-crit { border-left: 1px solid $border-color; }
 
-    // Cierra la ultima columna de criterios contra la columna de nota
-    th.conducta-th-nota,
-    td.conducta-td-nota { border-left: 1px solid $border-color; }
+    // ⚠️ El borde que cierra los criterios contra la zona calculada YA NO se
+    // dibuja aqui: lo pone `.col-resultado--inicio`, el separador del sistema que
+    // usan todas las grillas. Mantener los dos daria doble linea, y el manual era
+    // mas fino, asi que la que se veria seria la de abajo.
 }
 
 // Toggle Si/No por criterio
