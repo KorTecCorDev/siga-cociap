@@ -63,15 +63,18 @@ $grupos = eval('return ' . rtrim($mm[1], ';') . ';');
 $cards = [];
 foreach ($grupos as $g) { foreach ($g as $mod) { $cards[$mod['url']] = $mod['roles']; } }
 
+// La 11.a entro el 24/08 con el explorador de criterios. La asercion compara la
+// LISTA EXACTA, no el numero: si manana se cuela una card de escritura, o falta
+// una de estas, sigue fallando igual.
 $esperadasDirector = [
     'director/anios', 'director/cargas', 'matriculas', 'admin/buscar-estudiante',
-    'admin/control', 'consulta-notas', 'admin/cuadros', 'director/bloqueos',
-    'director/orden-merito', 'director/ranking-seccion',
+    'admin/control', 'consulta-notas', 'consulta-notas/criterios', 'admin/cuadros',
+    'director/bloqueos', 'director/orden-merito', 'director/ranking-seccion',
 ];
 foreach (ROLES_DIRECCION as $rol) {
     $suyas = array_keys(array_filter($cards, fn($r) => in_array($rol, $r, true)));
     sort($suyas); $esp = $esperadasDirector; sort($esp);
-    $chk("$rol ve las 10 cards previstas", $suyas === $esp, count($suyas) . ' cards');
+    $chk("$rol ve las 11 cards previstas", $suyas === $esp, count($suyas) . ' cards');
 }
 $chk('ninguna card de ESCRITURA se le coló al director',
     empty(array_intersect(array_keys(array_filter($cards, fn($r) => in_array('director_ebr', $r, true))),
@@ -87,6 +90,9 @@ foreach ([
     '/consulta-notas/{periodo_id}/docente/{docente_id}',
     '/director/cargas/seccion/{seccion_id}/horario',
     '/admin/cuadros',
+    '/consulta-notas/{periodo_id}/criterios',
+    '/consulta-notas/{periodo_id}/criterios/imprimir',
+    '/consulta-notas/criterios',
 ] as $r) {
     $chk("ruta registrada: $r", str_contains($rutas, "'$r'"));
 }
@@ -95,13 +101,32 @@ $chk('el horario por seccion se registra ANTES que /seccion/{id}',
     strpos($rutas, "'/director/cargas/seccion/{seccion_id}/horario'")
     < strpos($rutas, "'/director/cargas/seccion/{seccion_id}'"));
 
-$tabla = $leer('/resources/views/consulta-notas/_tabla.php');
-$chk('la descripcion del criterio se pinta, no solo como title', str_contains($tabla, 'criterios-descripcion__texto'));
-$chk('solo se listan los criterios CON descripcion', str_contains($tabla, "trim((string) (\$c['descripcion'] ?? '')) !== ''"));
+// El literal de 2 segmentos y el /imprimir van ANTES que el patron que podria
+// tragarselos (el router ancla por orden de registro).
+$chk('/consulta-notas/criterios se registra ANTES que {periodo_id}/criterios',
+    strpos($rutas, "'/consulta-notas/criterios'")
+    < strpos($rutas, "'/consulta-notas/{periodo_id}/criterios'"));
+$chk('/criterios/imprimir se registra ANTES que /criterios',
+    strpos($rutas, "'/consulta-notas/{periodo_id}/criterios/imprimir'")
+    < strpos($rutas, "'/consulta-notas/{periodo_id}/criterios'"));
+
+// El imprimible NO puede reusar el arbol de la pantalla: un <details> cerrado
+// no imprime su contenido.
+//
+// Se miran los TOKENS, no el texto: el docblock de la vista NOMBRA la etiqueta
+// a proposito (documenta por que no la usa), y un str_contains daria un rojo
+// falso. Solo cuenta el HTML que la vista emite (T_INLINE_HTML).
+$htmlPrint = '';
+foreach (token_get_all($leer('/resources/views/consulta-notas/criterios-imprimir.php')) as $tk) {
+    if (is_array($tk) && $tk[0] === T_INLINE_HTML) { $htmlPrint .= $tk[1]; }
+}
+$chk('el imprimible de criterios no emite <details>', !str_contains($htmlPrint, '<details'));
 
 $css = $leer('/public/css/app.css');
+// `criterio-item__desc` era la lista por competencia, retirada el 24/08 con el
+// rediseno de lectura; la clase vigente del cuerpo de la carga es la tabla.
 $chk('el SASS nuevo esta compilado en app.css',
-    str_contains($css, 'criterios-descripcion__texto') && str_contains($css, 'cuadros-kpi__n'));
+    str_contains($css, 'criterios-tabla') && str_contains($css, 'cuadros-kpi__n'));
 
 // ── FASE 7 — render real ────────────────────────────────────────
 echo "\nFASE 7 — el tablero compone (render real)\n";
