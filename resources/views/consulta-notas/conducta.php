@@ -119,34 +119,52 @@
                 <?php endforeach; ?>
             </tbody>
         </table>
+    </div>
 
-        <?php if (!$esLegado): ?>
-            <?php // Estas explicaciones vivian solo en `title`, o sea un tooltip: no
-                  // existe en movil ni con teclado. Y aqui pesan mas que en otras
-                  // tablas — son tres columnas numericas seguidas que se confunden. ?>
-            <p class="tabla-leyenda">
-                <span class="tabla-leyenda__item"><strong>Sí / total</strong> criterios respondidos con Sí</span>
-                <span class="tabla-leyenda__item"><strong>Nota auxiliar</strong> derivada de las respuestas registradas</span>
-                <span class="tabla-leyenda__item"><strong>Nota tutor</strong> la que registra el tutor de la sección</span>
-                <span class="tabla-leyenda__item tabla-leyenda__item--bloque">
+    <?php if (!$esLegado): ?>
+        <?php // 🔴 EL PIE VA FUERA DEL WRAPPER. Dentro se desplazaba con el scroll
+              // horizontal y el `overflow: hidden` del card lo recortaba en las
+              // esquinas redondeadas. Ver `.tabla-pie` en components/_tables.scss.
+              //
+              // Estas explicaciones vivian solo en `title`, o sea un tooltip: no
+              // existe en movil ni con teclado. Y aqui pesan mas que en otras
+              // tablas — son tres columnas numericas seguidas que se confunden. ?>
+        <div class="tabla-pie">
+            <p class="tabla-pie__leyenda">
+                <span class="tabla-pie__item"><strong>Sí / total</strong> criterios respondidos con Sí</span>
+                <span class="tabla-pie__item"><strong>Nota auxiliar</strong> derivada de las respuestas registradas</span>
+                <span class="tabla-pie__item"><strong>Nota tutor</strong> la que registra el tutor de la sección</span>
+                <span class="tabla-pie__item tabla-pie__item--bloque">
                     <strong>Final</strong> y <strong>Literal</strong> son la nota que va a la boleta.
                 </span>
             </p>
-        <?php endif; ?>
-    </div>
+        </div>
+    <?php endif; ?>
 </div>
 
 <?php if (!$esLegado && !empty($criterios)): ?>
     <div class="card mb-lg">
         <div class="card__header">
             <h2 class="card__title">Criterios evaluados (<?= count($criterios) ?>)</h2>
+            <?php // La grilla Si/No por alumno NO cabe en esta pantalla (10 columnas
+                  // mas el roster). Vive en su propia vista, en solo lectura. ?>
+            <a class="btn btn--secondary btn--sm"
+               href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id'] . '/conducta/criterios') ?>">
+                Ver la grilla Sí / No &rarr;
+            </a>
         </div>
         <div class="card__body">
-            <ol class="text-sm">
+            <?php // El CODIGO va delante, y sale del modelo: es el mismo que rotula las
+                  // columnas del imprimible y de la grilla, asi que el director puede
+                  // cruzar el papel con la pantalla. Nunca recalcularlo aqui. ?>
+            <ul class="criterios-codigos">
                 <?php foreach ($criterios as $cr): ?>
-                    <li><?= e($cr['texto']) ?></li>
+                    <li>
+                        <span class="competencia-card__codigo"><?= e($cr['codigo']) ?></span>
+                        <?= e($cr['texto']) ?>
+                    </li>
                 <?php endforeach; ?>
-            </ol>
+            </ul>
         </div>
     </div>
 <?php endif; ?>

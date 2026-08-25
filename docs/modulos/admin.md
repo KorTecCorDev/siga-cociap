@@ -527,3 +527,27 @@ tabla desplazada a la derecha, **saltar de fila** es un error caro.
   el input porque es el elemento que recibe el foco y al que el navegador desplaza.
 - En la vista de Dirección **no se activa nunca**: en solo lectura el partial no
   pinta inputs, y sin nada enfocable no hay `:focus-within`.
+
+## Conducta: código de criterio y grilla Sí/No compartida (25/08/2026)
+
+- **`criterios_conducta.codigo`** (migración **056**). Las grillas rotulan sus
+  columnas `C1`, `C2`… y ese código se calculaba a mano como `$i + 1` en **dos**
+  vistas, a punto de ser tres. Ahora `ConductaModel::getCriterios()` lo devuelve
+  como un campo más, con **fallback posicional** si un criterio nace sin código.
+- 🔴 **Por qué una columna y no seguir con la posición.** Si se reordena o se borra
+  un criterio de en medio, **todos los códigos siguientes se corren** y los
+  registros ya impresos y firmados dejan de cuadrar, sin error visible. Y hay un
+  segundo motivo: `getCriterios($nivelId)` **filtra por nivel**; hoy los 10
+  criterios son globales, pero en cuanto exista uno por nivel la misma posición
+  significaría criterios distintos en primaria y en secundaria.
+- **La migración no cambió nada de lo impreso**: medido antes de escribirla, los 10
+  criterios vigentes tienen `orden` 1..10 **sin huecos**, así que `C{posición}` y
+  `C{orden}` daban el mismo valor. El verificador ancla esa coincidencia.
+- **La grilla Sí/No la comparten TUTOR y DIRECCIÓN.** `/consulta-notas/{p}/seccion/{s}/conducta/criterios`
+  **reusa `docente/conducta-criterios.php`**, que ya existía y ya era solo lectura
+  —su docblock la declaraba «espejo de `admin/conducta/seccion.php` en su estado
+  bloqueado»—. Escribir otra habría sido la tercera copia de la misma grilla.
+  Lo único que cambia es el chrome: `$volverUrl` y `$tituloClase`, con default
+  para el tutor. La vista **no sabe quién la mira**.
+- Mismo gate que la pantalla de conducta: las **dos etapas** cumplidas y sin
+  anular, o 404 — esconder el enlace no basta, la URL queda en marcadores.

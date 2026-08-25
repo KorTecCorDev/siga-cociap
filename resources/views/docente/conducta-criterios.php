@@ -16,12 +16,20 @@
 
 $total = count($criterios);
 $pid   = (int) $periodo['id'];
+
+// 🔴 ESTA VISTA LA COMPARTEN DOS ROLES (25/08/2026): el TUTOR, desde su panel, y
+// DIRECCION, desde /consulta-notas. Es la misma pantalla porque es el mismo dato
+// en solo lectura; duplicarla habria sido la tercera copia de la grilla Si/No.
+// Lo unico que cambia es el chrome, y viaja por estas dos variables — el que
+// llama decide, la vista no sabe quien la mira.
+$volverUrl   = $volverUrl   ?? url('docente/conducta/' . $pid);
+$tituloClase = $tituloClase ?? 'page-title page-title--wf page-title--conducta';
 ?>
 
 <div class="page-header">
-    <a href="<?= url('docente/conducta/' . $pid) ?>" class="btn btn--secondary btn--sm">← Volver</a>
+    <a href="<?= $volverUrl ?>" class="btn btn--secondary btn--sm">← Volver</a>
     <div>
-        <h1 class="page-title page-title--wf page-title--conducta">
+        <h1 class="<?= e($tituloClase) ?>">
             Criterios de conducta — Sección <?= e($seccion['nombre']) ?>
         </h1>
         <p class="page-subtitle">
@@ -58,7 +66,7 @@ $pid   = (int) $periodo['id'];
     <summary>Ver los <?= $total ?> criterios (✓ = cumple · ✗ = no cumple)</summary>
     <ol class="conducta-criterios-lista">
         <?php foreach ($criterios as $c): ?>
-            <li><?= e($c['texto']) ?></li>
+            <li><strong><?= e($c['codigo']) ?></strong> — <?= e($c['texto']) ?></li>
         <?php endforeach; ?>
     </ol>
 </details>
@@ -70,7 +78,7 @@ $pid   = (int) $periodo['id'];
                 <th class="col-num">N°</th>
                 <th class="col-nombre">Apellidos y Nombres</th>
                 <?php foreach ($criterios as $i => $c): ?>
-                    <th class="conducta-th-crit" title="<?= e($c['texto']) ?>">C<?= $i + 1 ?></th>
+                    <th class="conducta-th-crit" title="<?= e($c['texto']) ?>"><?= e($c['codigo']) ?></th>
                 <?php endforeach; ?>
                 <th class="conducta-th-nota" title="Nota de Registro Académico (Sí ÷ <?= $total ?> × 20)">Nota</th>
             </tr>

@@ -157,7 +157,7 @@ echo "\n5) Las grillas de datos comparten UNA leyenda\n";
 // que no son leyendas de grilla y no deben unificarse con esta. Lo que se ancla
 // es el refactor concreto: asistencia y conducta usan la MISMA, y la copia que
 // habia en asistencia no vuelve.
-$chk('`.tabla-leyenda` existe en el CSS servido', str_contains($css, '.tabla-leyenda'));
+$chk('`.tabla-pie__leyenda` existe en el CSS servido', str_contains($css, '.tabla-pie__leyenda'));
 $chk('la copia `asistencia-leyenda` ya no existe en el CSS',
     !str_contains($css, 'asistencia-leyenda'));
 
@@ -166,8 +166,34 @@ foreach ([
     'consulta-notas/conducta.php',
 ] as $rel) {
     $html = file_get_contents(ROOT_PATH . '/resources/views/' . $rel);
-    $chk("{$rel} usa la leyenda del sistema", str_contains($html, 'class="tabla-leyenda"'));
+    $chk("{$rel} usa la leyenda del sistema", str_contains($html, 'class="tabla-pie__leyenda"'));
 }
+
+echo "\n6) La leyenda de pantalla NO pisa la del imprimible\n";
+// 🔴 ESTO NACE DE UN FALLO REAL. La leyenda de pantalla se llamo `.tabla-leyenda`
+// el 25/08/2026 sin comprobar que el nombre estuviera libre — y NO lo estaba:
+// `pages/_registro-cierre.scss` ya lo usaba para una <table> de los imprimibles
+// (`admin/conducta/imprimir.php`). Como ese parcial se importa DESPUES, el
+// `display:flex` de la de pantalla caia sobre la <table> del papel, y el
+// `font-size: 6.5pt` del papel sobre las leyendas de pantalla. Rompia en las dos
+// direcciones y sin ningun error visible.
+$declara = function (string $clase) use ($css): int {
+    // Cuenta bloques que declaran la clase como selector propio (no como parte
+    // de un descendiente ni de un modificador mas largo).
+    return preg_match_all('/(?:^|[};,])\s*\.' . preg_quote($clase, '/') . '\s*[{,]/', $css);
+};
+printf("       bloques que declaran .tabla-leyenda: %d\n", $declara('tabla-leyenda'));
+$chk('`.tabla-leyenda` sigue siendo SOLO la tabla del imprimible (un declarante)',
+    $declara('tabla-leyenda') === 1);
+$chk('la del imprimible conserva su `table-layout` (no la piso un flex)',
+    (bool) preg_match('/\.tabla-leyenda\{[^}]*table-layout/', $css));
+$chk('la de pantalla es flex y vive aparte',
+    (bool) preg_match('/\.tabla-pie__leyenda\{[^}]*flex/', $css));
+
+// Y la vista del imprimible no debe haberse migrado por error al nombre nuevo.
+$impr = file_get_contents(ROOT_PATH . '/resources/views/admin/conducta/imprimir.php');
+$chk('el imprimible conserva <table class="tabla-leyenda">',
+    str_contains($impr, '<table class="tabla-leyenda">'));
 
 echo "\n", $ok ? "TODO OK\n" : "HAY FALLOS\n";
 exit($ok ? 0 : 1);

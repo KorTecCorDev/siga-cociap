@@ -145,10 +145,10 @@
 }
 
 // ── Leyenda de asistencia ───────────────────────────────────
-// El layout es `.tabla-leyenda` (components/_tables.scss), compartido con las
+// El layout es `.tabla-pie__leyenda` (components/_tables.scss), compartido con las
 // demas tablas: aqui solo vive lo PROPIO de asistencia. Si esto vuelve a
 // declarar display/gap/color, es una copia que acabara divergiendo.
-.tabla-leyenda__item--registrada {
+.tabla-pie__item--registrada {
     padding-left: $spacing-sm;
     border-left: 3px solid rgba($color-success, .45);
 }

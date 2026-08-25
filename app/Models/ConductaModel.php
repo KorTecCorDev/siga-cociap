@@ -70,20 +70,39 @@ class ConductaModel extends BaseModel
     public function getCriterios(?int $nivelId = null): array
     {
         if ($nivelId === null) {
-            return $this->query("
-                SELECT id, texto, orden, nivel_id
+            $filas = $this->query("
+                SELECT id, codigo, texto, orden, nivel_id
                 FROM criterios_conducta
                 WHERE eliminado_en IS NULL
                 ORDER BY orden, id
             ");
+        } else {
+            $filas = $this->query("
+                SELECT id, codigo, texto, orden, nivel_id
+                FROM criterios_conducta
+                WHERE eliminado_en IS NULL
+                  AND (nivel_id IS NULL OR nivel_id = ?)
+                ORDER BY orden, id
+            ", [$nivelId]);
         }
-        return $this->query("
-            SELECT id, texto, orden, nivel_id
-            FROM criterios_conducta
-            WHERE eliminado_en IS NULL
-              AND (nivel_id IS NULL OR nivel_id = ?)
-            ORDER BY orden, id
-        ", [$nivelId]);
+
+        // 🔴 EL CODIGO SALE DE AQUI, NO DE LAS VISTAS. Se rotulaba a mano como
+        // `C{$i + 1}` en el imprimible y en la grilla del tutor: dos copias de la
+        // misma regla, y a punto de ser tres. Ahora es un campo mas de la fila.
+        //
+        // El fallback POSICIONAL cubre un criterio que nazca sin codigo (la
+        // columna admite NULL): es exactamente como se rotulaba antes de la
+        // migracion 056, asi que no cambia el comportamiento historico.
+        //
+        // ⚠️ El fallback depende de la POSICION en ESTA lista, que esta filtrada
+        // por nivel. Por eso el codigo de la columna es el bueno: un criterio con
+        // `nivel_id` haria que la misma posicion significara criterios distintos
+        // en primaria y en secundaria.
+        foreach ($filas as $i => $f) {
+            $codigo = trim((string) ($f['codigo'] ?? ''));
+            $filas[$i]['codigo'] = $codigo !== '' ? $codigo : 'C' . ($i + 1);
+        }
+        return $filas;
     }
 
     /** Total de criterios vigentes que aplican a un nivel (para la formula y completitud). */

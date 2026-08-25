@@ -230,11 +230,43 @@ thead .col-resultado {
     border-left: 2px solid #cbd5e1;
 }
 
+// ── Pie de grilla ────────────────────────────────────────────
+// Contenedor estándar de lo que va DEBAJO de una tabla: leyendas, notas al pie,
+// totales en texto. Formaliza el patrón para que no se improvise otra vez.
+//
+// 🔴 VA FUERA DE `.tabla-notas-wrapper`, NUNCA DENTRO. El wrapper es el área de
+// scroll (`overflow-x: auto`), así que un pie metido ahí:
+//   · se DESPLAZA con la tabla al hacer scroll horizontal y se va de la pantalla;
+//   · queda pegado al borde, sin margen;
+//   · y si la grilla está en un `.card` —que lleva `overflow: hidden` con
+//     esquinas redondeadas— sale RECORTADO por la curva.
+// Los tres fallos a la vez es lo que pasó en la grilla de conducta el 25/08/2026.
+//
+// El pie es hermano del wrapper, no su hijo:
+//   <div class="tabla-notas-wrapper"><table>…</table></div>
+//   <div class="tabla-pie"> … </div>
+.tabla-pie {
+    padding: $spacing-sm $spacing-md;
+    border-top: 1px solid $border-color;
+    background: $bg-white;
+
+    > :last-child { margin-bottom: 0; }
+
+    // Suelto (sin card alrededor) no necesita el borde: la tabla ya termina.
+    &--suelto {
+        padding-left: 0;
+        padding-right: 0;
+        border-top: none;
+        background: transparent;
+    }
+}
+
 // ── Leyenda de una tabla ─────────────────────────────────────
 // Explica bajo la tabla lo que las cabeceras solo dicen con `title`: un tooltip
 // no existe en móvil ni para quien navega con teclado. Vive aquí, con las
 // tablas, para que no nazca una leyenda distinta por cada pantalla.
-.tabla-leyenda {
+// Su contenedor natural es `.tabla-pie`.
+.tabla-pie__leyenda {
     display: flex;
     flex-wrap: wrap;
     gap: $spacing-xs $spacing-md;

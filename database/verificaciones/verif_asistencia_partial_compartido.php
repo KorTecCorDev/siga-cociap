@@ -114,7 +114,7 @@ $chk('modo solo lectura pinta los valores como texto',
 // La leyenda sale del partial, asi que la tienen las DOS vistas por construccion.
 foreach (['editable' => $htmlEdit, 'solo lectura' => $htmlRead] as $modo => $html) {
     $chk("modo {$modo} incluye la leyenda de abreviaturas",
-        str_contains($html, 'tabla-leyenda'));
+        str_contains($html, 'tabla-pie__leyenda'));
     $chk("modo {$modo} incluye los totales de la seccion",
         str_contains($html, 'asistencia-totales'));
 }

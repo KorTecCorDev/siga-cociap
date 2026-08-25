@@ -251,3 +251,27 @@
     &--ok    { background: $color-success; color: $text-white; }
     &--error { background: $color-error;   color: $text-white; }
 }
+
+// ── Panel de criterios con su codigo (25/08/2026) ───────────────────────────
+// Lista del panel "Criterios evaluados" de la consulta de Direccion. El codigo
+// va delante como ancla, con el chip de codigo del sistema
+// (`.competencia-card__codigo`), y por eso la lista NO lleva numeracion propia:
+// duplicar "1." junto a "C1" es ruido, y ademas invita a confundir la posicion
+// con el codigo, que desde la migracion 056 son cosas distintas.
+.criterios-codigos {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: $font-size-sm;
+
+    li {
+        display: flex;
+        align-items: baseline;
+        gap: $spacing-xs;
+        padding: $spacing-xs 0;
+        color: $text-secondary;
+        line-height: 1.5;
+
+        &:not(:last-child) { border-bottom: 1px solid $border-color; }
+    }
+}

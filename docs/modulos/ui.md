@@ -393,7 +393,22 @@ usan **seis vistas**: `consulta-notas/{conducta,transversales,_tabla}` y
   **propiedad** —que el escalón sobreviva al hover— y no un color concreto: fijar
   el valor convertiría cualquier retoque de la paleta en un fallo.
 
-### `.tabla-leyenda`: una sola leyenda para las grillas de datos
+### `.tabla-pie`: el pie de grilla, formalizado (25/08/2026)
+
+Contenedor estándar de lo que va **debajo** de una tabla: leyendas, notas al pie,
+totales en texto. Dentro va `.tabla-pie__leyenda` con sus `__item`.
+
+- 🔴 **VA FUERA DE `.tabla-notas-wrapper`, NUNCA DENTRO.** El wrapper es el área de
+  scroll (`overflow-x: auto`). Un pie metido ahí falla de **tres** formas a la vez:
+  se **desplaza** con la tabla al hacer scroll horizontal y se va de la pantalla,
+  queda **pegado al borde** sin margen, y si la grilla está en un `.card` —que
+  lleva `overflow: hidden` con esquinas redondeadas— sale **recortado** por la
+  curva. Los tres pasaron en la grilla de conducta.
+- El pie es **hermano** del wrapper, no su hijo:
+  `<div class="tabla-notas-wrapper"><table>…</table></div>` + `<div class="tabla-pie">`.
+- `--suelto` para cuando no hay card alrededor (quita borde y fondo).
+
+### `.tabla-pie__leyenda`: una sola leyenda para las grillas de datos
 
 Explica bajo la tabla lo que las cabeceras solo dicen con `title` — un tooltip **no
 existe en móvil ni para quien navega con teclado**, que es justo donde trabajan los
@@ -402,6 +417,14 @@ auxiliares. Vive en `components/_tables.scss`, con las tablas.
 - La usan el partial de asistencia (F/FJ/T/TJ) y la grilla de conducta (las tres
   notas y el `Sí / total`). Nació como `.asistencia-leyenda` el mismo día y se
   extrajo al raíz **antes de que hubiera una segunda copia**.
+- 🔴 **NO se llama `.tabla-leyenda`, y el motivo importa.** Ese nombre se usó unas
+  horas y **ya estaba ocupado**: `pages/_registro-cierre.scss` lo tiene para una
+  `<table>` de los imprimibles (`admin/conducta/imprimir.php`). Como ese parcial se
+  importa **después**, el `display:flex` de la de pantalla caía sobre la tabla del
+  papel y el `font-size: 6.5pt` del papel sobre las leyendas de pantalla: rompía en
+  las **dos** direcciones y sin ningún error visible. Antes de bautizar una clase,
+  buscarla en TODO `resources/sass/` — y buscarla también anidada (`&__x`), que es
+  como se escapó `competencia-card__codigo` el mismo día.
 - Cada página aporta solo su modificador (p. ej. `--registrada` en asistencia).
   Si una hoja de `pages/` vuelve a declarar `display`/`gap`/`color` para una
   leyenda propia, es la copia que se quería evitar.

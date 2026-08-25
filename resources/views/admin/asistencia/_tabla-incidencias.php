@@ -120,16 +120,20 @@ $abreviaturas = [
     </table>
 </div>
 
-<?php // `.tabla-leyenda` es del sistema (components/_tables.scss), no de esta
-      // pantalla: la misma leyenda la usa la grilla de conducta. ?>
-<p class="tabla-leyenda">
+<?php // `.tabla-pie` y `.tabla-pie__leyenda` son del sistema (components/_tables.scss),
+      // no de esta pantalla: la grilla de conducta usa las mismas. El pie va FUERA
+      // del wrapper de scroll a proposito — dentro se desplaza con la tabla y lo
+      // recorta el `overflow: hidden` del card. Aqui no hay card, de ahi --suelto. ?>
+<div class="tabla-pie tabla-pie--suelto">
+<p class="tabla-pie__leyenda">
     <?php foreach ($abreviaturas as $campo => [$corta, $larga]): ?>
-        <span class="tabla-leyenda__item">
+        <span class="tabla-pie__item">
             <strong><?= e($corta) ?></strong> <?= e($larga) ?>
         </span>
     <?php endforeach; ?>
-    <span class="tabla-leyenda__item tabla-leyenda__item--bloque tabla-leyenda__item--registrada">
+    <span class="tabla-pie__item tabla-pie__item--bloque tabla-pie__item--registrada">
         Fila resaltada: estudiante <strong>con registro</strong> guardado.
         Sin resaltar se muestra en cero, que no es lo mismo que cero incidencias confirmadas.
     </span>
 </p>
+</div>

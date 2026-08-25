@@ -429,6 +429,78 @@ class ConsultaNotasController extends BaseController
     }
 
     /**
+     * GET /consulta-notas/{periodo_id}/seccion/{seccion_id}/conducta/criterios
+     * La grilla Si/No por alumno, aprobada y bloqueada, en SOLO LECTURA.
+     *
+     * 🔴 REUSA `docente/conducta-criterios.php` — la vista que ya existia para el
+     * tutor. Es exactamente el mismo dato en solo lectura, y su propio docblock
+     * ya la declaraba "espejo de admin/conducta/seccion.php en su estado
+     * bloqueado": escribir otra habria sido la TERCERA copia de la misma grilla.
+     * Lo unico que cambia es el chrome (volver + clase del titulo), que viaja
+     * como variables; la vista no sabe quien la mira.
+     *
+     * Mismo gate que la pantalla de conducta: las DOS etapas cumplidas y sin
+     * anular. Sin eso no hay registro aprobado que ensenar, y la ruta responde
+     * 404 — no basta con esconder el enlace: la URL queda en marcadores.
+     */
+    public function conductaCriterios(string $periodoId, string $seccionId): void
+    {
+        $periodoId = (int) $periodoId;
+        $seccionId = (int) $seccionId;
+
+        $periodo = $this->getPeriodo($periodoId);
+        if (!$periodo) {
+            $this->notFound();
+        }
+
+        $cierre = $this->conductaModel->getCierreDetalle($seccionId, $periodoId);
+        if (!$cierre || empty($cierre['ra_bloqueado_en']) || empty($cierre['tutor_cerrado_en'])) {
+            $this->notFound();
+        }
+
+        $filas = array_values(array_filter(
+            $this->competenciasOficiales($periodoId),
+            fn($c) => (int) $c['seccion_id'] === $seccionId
+        ));
+        if (empty($filas)) {
+            $this->notFound();
+        }
+        $primera = $filas[0];
+        $nivelId = (int) $primera['nivel_id'];
+
+        $estudiantes = $this->conductaModel->getEstudiantesParaRegistro($seccionId, $periodoId);
+
+        // B1 legado (literal directo): no existe matriz de respuestas que mostrar.
+        $hayRespuestas = false;
+        foreach ($estudiantes as $e) {
+            if (!empty($e['respuestas'])) {
+                $hayRespuestas = true;
+                break;
+            }
+        }
+
+        $this->view('docente/conducta-criterios', [
+            'titulo'  => 'Criterios de conducta — ' . $primera['grado_nombre'] . ' ' . $primera['seccion_nombre'],
+            'seccion' => [
+                'id'           => $seccionId,
+                'nombre'       => $primera['seccion_nombre'],
+                'grado_nombre' => $primera['grado_nombre'],
+                'nivel_nombre' => $primera['nivel_nombre'],
+                'nivel_id'     => $nivelId,
+            ],
+            'periodo'       => $periodo,
+            'cierre'        => $cierre,
+            'criterios'     => $this->conductaModel->getCriterios($nivelId),
+            'estudiantes'   => $estudiantes,
+            'hayRespuestas' => $hayRespuestas,
+            // El chrome de ESTA entrada: se vuelve a la conducta de la seccion, y
+            // el titulo va sin el wayfinding del panel del docente.
+            'volverUrl'     => url('consulta-notas/' . $periodoId . '/seccion/' . $seccionId . '/conducta'),
+            'tituloClase'   => 'page-title',
+        ]);
+    }
+
+    /**
      * GET /consulta-notas/{periodo_id}/docentes
      *
      * EJE POR DOCENTE (24/08/2026). La pantalla solo navegaba
