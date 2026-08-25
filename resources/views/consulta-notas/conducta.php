@@ -56,14 +56,19 @@
                     <th class="col-num">N°</th>
                     <th class="col-nombre">Apellidos y nombres</th>
                     <?php if ($esLegado): ?>
-                        <th class="col-literal col-resultado text-center">Literal</th>
+                        <?php // Tambien aqui la zona se abre con el separador, aunque sea de una
+                              // sola columna: la regla es la misma en las dos ramas. ?>
+                        <th class="col-literal col-resultado col-resultado--inicio text-center">Literal</th>
                     <?php else: ?>
-                        <th class="col-numeral col-resultado col-resultado--inicio text-center"
-                            title="Derivada de las respuestas registradas">Nota auxiliar</th>
+                        <?php // El DETALLE va antes y la ZONA DE RESULTADO cierra la fila: el
+                              // separador de `col-resultado--inicio` abre un bloque que no debe
+                              // quedar interrumpido por una columna suelta a su derecha. La
+                              // leyenda de abajo explica las tres notas y el Si/total. ?>
+                        <th class="text-center">Sí / total</th>
+                        <th class="col-numeral col-resultado col-resultado--inicio text-center">Nota auxiliar</th>
                         <th class="col-numeral col-resultado text-center">Nota tutor</th>
                         <th class="col-numeral col-resultado text-center">Final</th>
                         <th class="col-literal col-resultado text-center">Literal</th>
-                        <th class="text-center" title="Criterios respondidos con Sí sobre el total">Sí / total</th>
                     <?php endif; ?>
                 </tr>
             </thead>
@@ -75,7 +80,7 @@
                         <td class="col-nombre"><?= e($a['nombre_completo']) ?></td>
 
                         <?php if ($esLegado): ?>
-                            <td class="col-literal col-resultado text-center">
+                            <td class="col-literal col-resultado col-resultado--inicio text-center">
                                 <?php if ($lit !== null): ?>
                                     <span class="nota-literal nota-literal--<?= strtolower($lit) ?>"><?= e($lit) ?></span>
                                 <?php else: ?>
@@ -83,6 +88,10 @@
                                 <?php endif; ?>
                             </td>
                         <?php else: ?>
+                            <?php // Mismo orden que el thead: detalle primero, resultado al final. ?>
+                            <td class="text-center text-sm text-muted">
+                                <?= (int) $a['si'] ?> / <?= count($criterios) ?>
+                            </td>
                             <td class="col-numeral col-resultado col-resultado--inicio text-center">
                                 <?= $a['nota_ra'] !== null ? fmt_nota((int) $a['nota_ra']) : '<span class="text-muted">—</span>' ?>
                             </td>
@@ -105,14 +114,25 @@
                                     <span class="text-muted">—</span>
                                 <?php endif; ?>
                             </td>
-                            <td class="text-center text-sm text-muted">
-                                <?= (int) $a['si'] ?> / <?= count($criterios) ?>
-                            </td>
                         <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
+
+        <?php if (!$esLegado): ?>
+            <?php // Estas explicaciones vivian solo en `title`, o sea un tooltip: no
+                  // existe en movil ni con teclado. Y aqui pesan mas que en otras
+                  // tablas — son tres columnas numericas seguidas que se confunden. ?>
+            <p class="tabla-leyenda">
+                <span class="tabla-leyenda__item"><strong>Sí / total</strong> criterios respondidos con Sí</span>
+                <span class="tabla-leyenda__item"><strong>Nota auxiliar</strong> derivada de las respuestas registradas</span>
+                <span class="tabla-leyenda__item"><strong>Nota tutor</strong> la que registra el tutor de la sección</span>
+                <span class="tabla-leyenda__item tabla-leyenda__item--bloque">
+                    <strong>Final</strong> y <strong>Literal</strong> son la nota que va a la boleta.
+                </span>
+            </p>
+        <?php endif; ?>
     </div>
 </div>
 

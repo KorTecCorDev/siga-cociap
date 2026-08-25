@@ -364,3 +364,46 @@ en medio del apellido y no compite contra una N en la misma posición.
 `orden_alfabetico()`. Nunca ordenar por `p.apellido_paterno` a secas ni por un alias
 `CONCAT(...)` — el alias hereda la colación de la columna y reintroduce el problema (era
 el caso de `ControlOperativoModel::alertasEvaluacionIncompleta`, que ordenaba por `alumno`).
+
+
+## Zona de resultado: el hover no puede borrarla (25/08/2026)
+
+`.col-resultado` marca las columnas **calculadas** (promedio, nota final, literal)
+para que no se confundan con las de origen. Vive en `components/_tables.scss` y la
+usan **seis vistas**: `consulta-notas/{conducta,transversales,_tabla}` y
+`docente/{conducta,resumen-competencia,tutoria}`.
+
+- 🔴 **Su fondo era `#f8fafc`, el MISMO valor literal que `$bg-secondary`**, que es
+  el color del hover de fila. Al pasar por una fila, toda ella tomaba ese gris y la
+  zona de resultado **desaparecía** — justo cuando se está señalando la fila, y
+  justo la función para la que la clase existe.
+- **La solución es el ESCALÓN, no un color**: en hover la zona sube un tono
+  (`#eef2f7`, el que ya usa `thead .col-resultado`) y la diferencia relativa se
+  conserva en los dos estados. No entra ningún color nuevo al sistema.
+- ⚠️ **Va por ESPECIFICIDAD, no por orden**: `.tabla-{notas,resumen} tr:hover td`
+  es **(0,2,2)** y la regla de la zona es **(0,3,2)**. Y se escriben **las dos
+  familias** de tabla porque cada una define su propio hover; un
+  `tr:hover .col-resultado` suelto (0,2,1) no bastaría.
+- **La zona de resultado CIERRA la fila.** En `consulta-notas/conducta.php` el
+  orden pasó a `N° | Nombre | Sí/total | ┃ Nota auxiliar | Nota tutor | Final |
+  Literal`: el separador `col-resultado--inicio` abre un bloque que no debe quedar
+  interrumpido por una columna suelta a su derecha. La regla vale para **las dos
+  ramas** de esa vista (el bimestre legado también abre su zona con el separador).
+- Verificado en `database/verificaciones/verif_zona_resultado.php`, que mide la
+  **propiedad** —que el escalón sobreviva al hover— y no un color concreto: fijar
+  el valor convertiría cualquier retoque de la paleta en un fallo.
+
+### `.tabla-leyenda`: una sola leyenda para las grillas de datos
+
+Explica bajo la tabla lo que las cabeceras solo dicen con `title` — un tooltip **no
+existe en móvil ni para quien navega con teclado**, que es justo donde trabajan los
+auxiliares. Vive en `components/_tables.scss`, con las tablas.
+
+- La usan el partial de asistencia (F/FJ/T/TJ) y la grilla de conducta (las tres
+  notas y el `Sí / total`). Nació como `.asistencia-leyenda` el mismo día y se
+  extrajo al raíz **antes de que hubiera una segunda copia**.
+- Cada página aporta solo su modificador (p. ej. `--registrada` en asistencia).
+  Si una hoja de `pages/` vuelve a declarar `display`/`gap`/`color` para una
+  leyenda propia, es la copia que se quería evitar.
+- ⚠️ **Esto NO gobierna todas las clases `*-leyenda` del sistema**: las de boleta
+  impresa, horario y el donut de bloqueos son de otro contexto y no se unifican.

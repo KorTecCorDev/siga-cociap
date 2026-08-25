@@ -120,13 +120,15 @@ $abreviaturas = [
     </table>
 </div>
 
-<p class="asistencia-leyenda">
+<?php // `.tabla-leyenda` es del sistema (components/_tables.scss), no de esta
+      // pantalla: la misma leyenda la usa la grilla de conducta. ?>
+<p class="tabla-leyenda">
     <?php foreach ($abreviaturas as $campo => [$corta, $larga]): ?>
-        <span class="asistencia-leyenda__item">
+        <span class="tabla-leyenda__item">
             <strong><?= e($corta) ?></strong> <?= e($larga) ?>
         </span>
     <?php endforeach; ?>
-    <span class="asistencia-leyenda__item asistencia-leyenda__item--registrada">
+    <span class="tabla-leyenda__item tabla-leyenda__item--bloque tabla-leyenda__item--registrada">
         Fila resaltada: estudiante <strong>con registro</strong> guardado.
         Sin resaltar se muestra en cero, que no es lo mismo que cero incidencias confirmadas.
     </span>
