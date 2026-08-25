@@ -178,5 +178,75 @@ $esperados = ['bloquear', 'guardar', 'imprimir', 'index', 'seccion'];
 $chk('no nacio ningun metodo publico sin decidir su rol: ' . implode(', ', $publicos),
     $publicos === $esperados);
 
+echo "\n6) La fila enfocada gana al hover, y por ESPECIFICIDAD\n";
+// Se mide sobre el CSS SERVIDO, no sobre el SCSS: lo que decide en el navegador
+// es el selector compilado. Y se compara la ESPECIFICIDAD, no el orden en el
+// archivo: confiar en el orden es lo que hacia que `tr:hover` -que vive en otro
+// parcial- borrase el verde de una fila registrada.
+$css = file_get_contents(ROOT_PATH . '/public/css/app.css');
+
+/** Especificidad [clases+pseudoclases+atributos, elementos] de un selector simple. */
+$espec = function (string $sel): array {
+    $clases    = preg_match_all('/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+/', $sel);
+    $elementos = preg_match_all('/(?:^|\s|>|\+|~)([a-z]+)(?=[.\[:\s]|$)/', $sel);
+    return [$clases, $elementos];
+};
+
+/**
+ * El selector INDIVIDUAL del CSS que contiene el fragmento dado.
+ *
+ * ⚠️ Parte el grupo por comas a proposito: la especificidad se calcula por
+ * selector, NO por el grupo. Sass compila `.col-num` y `.col-nombre` juntos, y
+ * medir el grupo entero daba el doble de clases en ambos lados — un aserto que
+ * comparaba manzanas con dos manzanas y acusaba al codigo de un fallo inexistente.
+ */
+$buscarSelector = function (string $fragmento) use ($css): ?string {
+    if (!preg_match('/(?:^|[};])([^{};]*' . preg_quote($fragmento, '/') . '[^{};]*)\{/', $css, $m)) {
+        return null;
+    }
+    foreach (explode(',', $m[1]) as $sel) {
+        if (str_contains($sel, $fragmento)) {
+            return trim($sel);
+        }
+    }
+    return null;
+};
+
+$selHover = $buscarSelector('.tabla-notas tr:hover .col-num');
+$selFoco  = $buscarSelector('.asistencia-fila:focus-within td.col-num');
+$selReg   = $buscarSelector('.asistencia-fila.asistencia-fila--registrada td.col-num');
+$selCamb  = $buscarSelector('.asistencia-fila.asistencia-fila--con-cambios td.col-num');
+
+foreach (['hover' => $selHover, 'foco' => $selFoco, 'registrada' => $selReg, 'con-cambios' => $selCamb] as $q => $s) {
+    printf("       %-12s %s\n", $q . ':', $s ?? '(NO ENCONTRADO)');
+}
+
+if ($selHover === null || $selFoco === null || $selReg === null || $selCamb === null) {
+    $chk('se encontraron los cuatro selectores en el CSS servido', false);
+} else {
+    [$cHover, $eHover] = $espec($selHover);
+    foreach (['foco' => $selFoco, 'registrada' => $selReg, 'con-cambios' => $selCamb] as $q => $sel) {
+        [$c, $e] = $espec($sel);
+        // Gana si tiene mas clases, o las mismas y mas elementos.
+        $gana = $c > $cHover || ($c === $cHover && $e > $eHover);
+        $chk(sprintf('%s (%d clases) gana al hover (%d clases)', $q, $c, $cHover), $gana);
+    }
+}
+
+// La decision de diseno: el foco usa un CANAL PROPIO. Si algun dia se le anade
+// `background`, vuelve a competir con el verde y el ambar — que es justo lo que
+// se evito. El aserto protege la decision, no el valor concreto.
+if ($selFoco !== null) {
+    preg_match('/' . preg_quote($selFoco, '/') . '\{([^}]*)\}/', $css, $m);
+    $reglas = $m[1] ?? '';
+    $chk('el foco NO pinta background (canal separado del estado del dato)',
+        !str_contains($reglas, 'background'));
+    $chk('el foco marca la columna N° con una barra (box-shadow inset)',
+        str_contains($reglas, 'inset'));
+}
+
+$chk('el input reserva margen para que el teclado no lo tape (scroll-margin)',
+    (bool) preg_match('/\.asistencia-input\{[^}]*scroll-margin-block/', $css));
+
 echo "\n", $ok ? "TODO OK\n" : "HAY FALLOS\n";
 exit($ok ? 0 : 1);
