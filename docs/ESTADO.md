@@ -49,14 +49,47 @@ Orden sugerido; los puntos 1 y 4 son los que más fácil se rompen:
    (el `&mdash;` escapado, la lectura en tabla y la retirada del buscador).
    Falta probar: **las dos cabeceras fijas** al hacer scroll dentro de una
    sección larga —es lo más frágil del lote— y el **imprimible en papel**.
+   🆕 **25/08 — cascada de los 4 filtros, sin probar en navegador.** Nivel
+   recorta Grado; Nivel+Grado recortan Sección; los tres recortan Docente por
+   pertenencia. De paso se corrigió que el grado se identificaba por
+   `grados.numero`, que **colisiona entre niveles** (`?grado=1` mezclaba
+   primaria con secundaria). Servidor verificado con
+   `verif_criterios_filtros_cascada.php`; **el JS de la cascada no lo ha visto
+   nadie en un navegador todavía**. Detalle en `docs/modulos/usuarios-direccion.md`.
+   🆕 **25/08 — chip con el `codigo_minedu`** delante del nombre de cada
+   competencia, en pantalla y en el imprimible. Falta verlo en navegador y en
+   papel (que el chip no descuadre la columna ni parta la fila).
+   🆕 **25/08 — el selector de bimestre auto-aplica y el salto LIMPIA los 4
+   filtros** (deroga el «conservando los filtros» del 24/08), más una guarda que
+   descarta el filtro que no exista en el catálogo del periodo. Con esto queda
+   **cerrado** el pendiente del filtro que sobrevivía al salto de bimestre.
+   Falta en navegador: que al cambiar de bimestre no se recargue dos veces y que
+   **Aplicar siga filtrando** con el bimestre sin tocar — es la rama que se
+   rompe sin avisar.
+   🆕 **25/08 — nomenclatura de las DOS caras de las transversales.** Los
+   promedios del tutor y el registro del docente se llamaban igual en 3
+   pantallas; ahora son «Promedios de Competencias Transversales» y
+   «Competencias Transversales — Registro del docente», y `seccion.php` lleva
+   encabezados de grupo. Verificado en `verif_consulta_notas_ampliada.php` (F5).
+   Detalle en `docs/modulos/transversales-visibilidad-tutor.md` §7. Falta verlo
+   en navegador: **se prueba en B1 o B2**, donde las 23 secciones tienen cierre
+   transversal vigente; **en B3 la tarjeta no sale** —0 cierres— y eso es
+   correcto, no un fallo del renombrado.
    🔶 **Decisión abierta, planteada al usuario y sin responder:** al filtrar por
    UNA sección, ¿se conserva el acordeón de sección o se pinta en plano,
    ahorrando un nivel visual? Ver `docs/modulos/usuarios-direccion.md`.
 
-### PENDIENTE — 4 recomendaciones medidas, NO implementadas
+### PENDIENTE — 5 recomendaciones medidas, NO implementadas
 
 Se informaron y **no** se ejecutaron, por la regla de alcance del proyecto:
 
+- **`resources/sass/components/_dashboard.scss` es un archivo MUERTO**: no se
+  importa desde `app.scss` ni desde ningún otro SCSS, pero contiene una copia
+  idéntica de `.competencia-card` (incluido el chip `&__codigo`). La vigente es
+  la de `pages/_dashboard.scss`. Riesgo real: alguien edita la copia muerta,
+  recompila y no ve ningún cambio. Detectado el 25/08 al unificar el chip de
+  código de competencia; borrarlo es un `rm`, pero conviene confirmar antes que
+  nada más lo referencie.
 - **`&--secretaria` en `_admin.scss` es un rol fósil**: `secretaria_academica` y
   `secretaria_administrativa` salen pintadas con el **color de docente**. 2 líneas.
 - **La descripción del rol `director_ebr` en la BD ahora es FALSA** — dice

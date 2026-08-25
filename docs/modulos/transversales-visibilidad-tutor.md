@@ -379,3 +379,40 @@ El bloque de equivalencia es el que impide que el defecto vuelva: compara el uni
   muestran que 64 cargas lo aprovechan.
 - **No se toca `/admin/control`** más allá de que su aviso deje de dispararse: el texto
   es correcto para el caso que sí describe (un docente que de verdad no bloqueó).
+
+---
+
+## 7. Nomenclatura: las DOS caras de las transversales (25/08/2026)
+
+Las transversales existen en el sistema como **dos objetos distintos**, y hasta el
+25/08/2026 los dos se llamaban **«Competencias Transversales»** en tres pantallas.
+
+| Objeto | Quién lo produce | Dónde se ve | Rótulo |
+|---|---|---|---|
+| **Registro por carga** (insumo) | cada **docente**, en su carga | separador dentro de `consulta-notas/carga.php`; contador de la tarjeta en `seccion.php` | **Competencias Transversales — Registro del docente** |
+| **Promedio de la sección** (resultado) | el **tutor**, al cerrar | `consulta-notas/transversales.php` y su enlace en `seccion.php` | **Promedios de Competencias Transversales** |
+
+- 🔴 **El rótulo va en el TÍTULO, no solo en el subtítulo.** La distinción ya estaba
+  escrita —y bien— en las líneas secundarias de las tres pantallas, pero el título
+  era idéntico. Diferenciar con la letra chica funciona cuando tienes las dos cosas
+  delante; no funciona cuando las ves en momentos distintos, que es el caso real del
+  director.
+- **El término no se inventó**: `docente/tutoria.php` ya rotulaba el bloque del tutor
+  como «Promedios C. Transversales». La consulta ahora habla como la pantalla donde
+  nace el dato. *(La forma abreviada se conserva allí: va en la cabecera de una tabla
+  estrecha, y es una restricción de espacio, no una decisión de nomenclatura.)*
+- ⚠️ **El enlace y su destino deben decir lo MISMO.** Renombrar solo el enlace de
+  `seccion.php` habría dejado al director aterrizando en una página titulada distinto
+  — empeorando el wayfinding en vez de arreglarlo.
+- **`seccion.php` lleva dos encabezados de grupo** (`dash-grupo__titulo`, el patrón de
+  `admin/cuadros`): **«Registros de la sección»** y **«Áreas y cargas»**. Esa frontera
+  —lo que es de la sección vs. lo que es por carga— es exactamente la que separa las
+  dos caras, así que ubicar las listas ya desambigua antes de leer ningún rótulo.
+- **Verificado en `verif_consulta_notas_ampliada.php` (bloque F5)**, que comprueba la
+  **propiedad** —los dos títulos son distintos y el enlace coincide con su destino—
+  y **no** el texto literal: fijar la cadena convertiría cualquier reescritura legítima
+  del rótulo en un fallo. Se probó su rama roja (con los dos títulos iguales, sale
+  `RESULTADO: 1 FALLO(S)` y código de salida 1) y se revirtió.
+- ⚠️ **El área en BD sigue llamándose «Competencias Transversales»** (y «Comp. Transv.»
+  en secundaria): son nombres de DATO, no rótulos de UI. `verif_universo_merito.php` y
+  `boleta/alumno.php` dependen de ellos — no renombrarlos por coherencia visual.

@@ -202,6 +202,119 @@ criterio que son **frases de 70 caracteres** (hasta 100) y competencias de hasta
 - **Cuatro filtros estructurales.** Los catálogos se calculan **antes** de filtrar
   —si no, el propio filtro vaciaría su selector y no habría cómo volver atrás— y
   salen de las mismas filas, sin consulta extra.
+
+#### Cascada de los cuatro filtros (25/08/2026)
+
+Los cuatro selectores eran **listas planas e independientes**: con Nivel =
+Secundaria, Grado seguía ofreciendo 6.º, Sección las 23 del colegio y Docente
+los 35. Al arreglarlo apareció un fallo mayor debajo.
+
+- 🔴 **EL GRADO SE IDENTIFICA POR `grados.id`, NUNCA POR `grados.numero`.** El
+  número **colisiona entre niveles**: 1.º de primaria y 1.º de secundaria son
+  los dos `1`. El catálogo se indexaba por número, así que **los 11 grados
+  reales se fundían en 6 opciones** y `?grado=1` devolvía a la vez 1.ºA/B de
+  primaria y 1.ºA/B/C de secundaria — **5 secciones de dos niveles**. El
+  imprimible remataba estampando «1.º» sin decir de cuál. Por eso la etiqueta
+  del selector lleva el nivel («1.º Secundaria»): con Nivel en «Todos» el
+  nombre por sí solo tampoco distingue. Obligó a añadir `g.id AS grado_id` a
+  `CalificacionModel::getCompetenciasPorPeriodo()` (aditivo; sus otros dos
+  consumidores leen por clave nombrada).
+- ⚠️ **UN DOCENTE NO PERTENECE A UN NIVEL**: **2 de los 35** con carga activa
+  dictan en primaria **y** en secundaria. Su selector se recorta por
+  **pertenencia** —aparece si al menos una de sus secciones sobrevive a los
+  demás filtros—, y por eso cada opción viaja con su **conjunto** de secciones
+  (`data-secciones`). Con un atributo único («el nivel del docente») esos 2
+  desaparecerían del selector en uno de los dos niveles y **sin ningún síntoma**.
+- **La cascada es DESCENDENTE**: nivel → grado → sección → docente. Elegir un
+  docente **no** recorta los de arriba (decisión explícita, no un olvido).
+- **Se resuelve en el cliente** (`resources/js/criterios.js`), sin recarga y sin
+  un segundo bloque de datos: el nivel y el grado de cada sección ya viajan en
+  sus propias `<option>`, y el mapa se lee de ahí. Va **fuera** del guard de
+  `#criterios-arbol` —el formulario existe también en la pantalla vacía, que es
+  justo donde hace falta rectificar la combinación— y usa `option.hidden`, no
+  `style.display`, que no es fiable para ocultar opciones.
+- **Un filtro que queda inválido se limpia solo y en silencio** (vuelve a
+  «Todos»), como ya hace `cargas.js` con las áreas. `recortar()` devuelve el
+  valor **vigente** tras el posible reseteo: los eslabones siguientes tienen que
+  encadenarse sobre ese valor, no sobre el que acaba de invalidarse.
+- **Los catálogos siguen calculándose antes de filtrar**: la cascada solo decide
+  qué se *ve*, nunca qué *existe*. Verificado en
+  `database/verificaciones/verif_criterios_filtros_cascada.php`, que ejercita
+  `arbolCriterios()` real por reflexión y contrasta contra SQL independiente
+  (incluidas **las dos ramas** del grado ambiguo: 1.º primaria → 2 secciones,
+  1.º secundaria → 3).
+
+#### Cambiar de bimestre limpia la consulta (25/08/2026)
+
+El selector de bimestre **auto-aplica** (`onchange="this.form.submit()"`, el
+mismo patrón que las otras 9 vistas del repo) y **el salto limpia los cuatro
+filtros**. Deroga la decisión del 24/08 de arrastrarlos.
+
+- **Por qué se derogó**: los catálogos se recalculan por bimestre. B1 y B2 tienen
+  catálogo idéntico (2 niveles · 11 grados · 23 secciones · 35 docentes), pero un
+  bimestre **en curso** es mucho más pequeño —B3 tenía 1 de cada el 25/08—, así
+  que arrastrar la consulta de B2 a B3 dejaba la pantalla vacía **con los
+  selectores en «Todas»**: el `<option>` filtrado ya no se pintaba. Se cambia de
+  bimestre para ver el bimestre, no para repetir la búsqueda.
+- 🔴 **Se limpia SOLO cuando el bimestre CAMBIA** (`$destino !== $periodoId`). Si
+  se limpiara en cada envío, el botón **Aplicar borraría los filtros que el
+  usuario acaba de elegir** y la pantalla no volvería a filtrar nunca. Es la
+  trampa de este cambio.
+- **La regla vive en el SERVIDOR** (el redirect de `criterios()`); el `onchange`
+  solo dispara el envío. Si la limpieza estuviera en el JS habría dos reglas para
+  lo mismo. Sin JS, el botón Aplicar hace exactamente lo mismo.
+- **Guarda de existencia en `arbolCriterios`**: además, cualquier filtro cuyo
+  valor **no esté en el catálogo de ese periodo** se descarta, y el método
+  devuelve los **filtros efectivos** (clave `filtros`) que la pantalla y el
+  imprimible usan para marcar los selectores. Cierra el caso de la URL escrita a
+  mano o el marcador guardado de otro bimestre. ⚠️ Valida **existencia, no
+  coherencia**: que el grado pertenezca al nivel elegido lo resuelve la cascada
+  del cliente, y duplicar esa regla aquí sería la enésima copia.
+- **Caso residual conocido**: una URL a mano con dos valores que existen pero no
+  casan (`?nivel=1&grado=7`, 1.º de *secundaria* bajo *primaria*) pasa la guarda
+  de existencia; la cascada la limpia en el cliente al cargar, pero el servidor
+  ya filtró con ella. Solo alcanzable escribiendo la URL.
+
+#### Chip con el código de la competencia (25/08/2026)
+
+La columna «Competencia» repite el **nombre completo** (hasta 185 caracteres) y
+varias competencias del mismo área empiezan igual. Ahora cada una lleva delante
+su **`codigo_minedu`** (C1…C57) como chip.
+
+- **Va DELANTE del nombre, no detrás**: con nombres de 185 caracteres, un chip al
+  final del párrafo no sirve de ancla. Delante se alinea entre filas y la columna
+  se escanea de un vistazo. Misma decisión en pantalla y en el imprimible.
+- **Sin casos borde**: las 59 competencias tienen código y los 59 son distintos
+  (medido), así que el chip no puede salir vacío ni ambiguo. El `if` que lo
+  envuelve es defensivo, porque la columna admite NULL.
+- 🔴 **El chip es `.competencia-card__codigo`, el del PROYECTO — no uno propio.**
+  Ese es el chip de código de competencia del sistema y ya se usa en otras 5
+  vistas (`docente/calificaciones`, `docente/resumen-competencia`,
+  `docente/historial-carga`, `padre/notas`, `consulta-notas/carga`). Su
+  `margin-right` ya asume que va **delante** del nombre. El imprimible usa el
+  mismo chip y solo le ajusta la métrica al A4 desde `.criterios-print`; colores
+  y forma **no** se redefinen, para que un cambio del chip los alcance a todos.
+  *(Nació un `criterios-chip--codigo` propio y se retiró el mismo día: se veía
+  igual y habría divergido en el siguiente retoque.)*
+- ⚠️ **Al buscar ese estilo, cuidado con dos trampas.** Está escrito como
+  `&__codigo` anidado dentro de `.competencia-card`, así que **`grep
+  "competencia-card__codigo"` sobre el SCSS no lo encuentra** — hay que buscar el
+  bloque padre. Y existe una copia idéntica en `components/_dashboard.scss` que
+  **no se importa desde ningún sitio**: editar esa no cambia nada en pantalla.
+  La vigente es la de `pages/_dashboard.scss`.
+- ⚠️ **La clave `codigo` se rellena en las DOS ramas del árbol**: las académicas
+  desde `getCompetenciasPorPeriodo` (columna nueva `competencia_codigo`) y las
+  transversales desde `transversalesConContenido`, que ya la traía. Se llaman
+  igual para que la vista no tenga que saber de qué rama salió cada competencia.
+  El verificador comprueba **cada rama por separado**: una de las dos podía
+  quedarse sin código sin ningún síntoma visible.
+- 🔴 **B1 NO sirve para probar la rama transversal**: allí las transversales
+  cuelgan de 23 cargas `estado='inactiva'`, que el explorador excluye a
+  propósito, y el árbol de ese periodo sale con **0** transversales. Por eso el
+  verificador recorre **todos** los periodos (B2 aporta 690) y trata «la rama es
+  observable» como una aserción más — si deja de haberlas, avisa en vez de pasar
+  en verde sin haber probado nada.
+
 - **Se despliega solo en cuanto acotas**: elegir una sección (~119 criterios) o un
   docente (~135) abre TODO para leerlo de corrido, porque el objetivo es *mostrar*,
   no esconder tras clics. El tope `CRITERIOS_ABRIR_TODO` (200) cubre esas dos
