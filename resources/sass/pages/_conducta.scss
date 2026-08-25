@@ -87,11 +87,14 @@
 // ── Grilla de criterios ─────────────────────────────────────────────────────
 .conducta-grilla {
     th.conducta-th-crit {
-        min-width: 56px;
+        // Sube de 56 a 64: la cabecera pasa de texto suelto al chip del sistema,
+        // que lleva su propio relleno. Con 56 el chip de "C10" tocaba los bordes.
+        min-width: 64px;
         text-align: center;
         cursor: help;
     }
-    th.conducta-th-nota     { min-width: 84px; text-align: center; }
+    // La nota muestra numeral Y literal, uno al lado del otro.
+    th.conducta-th-nota     { min-width: 104px; text-align: center; }
 
     td.conducta-td-crit { text-align: center; padding: $spacing-xs; }
     td.conducta-td-nota { text-align: center; font-weight: 600; }

@@ -485,6 +485,14 @@
         padding: 2px 8px;
         border-radius: 20px;
         margin-right: $spacing-sm;
+
+        // El chip va normalmente DELANTE de un nombre, de ahi el margen derecho.
+        // Cuando el codigo va SOLO —una cabecera de columna, por ejemplo— ese
+        // margen lo descentra: este modificador lo quita.
+        &--solo {
+            margin-right: 0;
+            padding: 2px 6px;
+        }
     }
 
     &__nombre {

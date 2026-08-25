@@ -203,5 +203,35 @@ $chk('las dos pintan la misma grilla', str_contains($htmlTutor, 'conducta-grilla
 $chk('las cabeceras de criterio usan el codigo del modelo',
     str_contains($htmlDir, '>' . $criterios[0]['codigo'] . '<'));
 
+echo "\n5) La grilla Si/No cumple el estandar de codigo y conserva la nota\n";
+// Se mide sobre el HTML RENDERIZADO, no sobre el fuente: lo que importa es lo
+// que llega al navegador.
+$chipsCod = substr_count($htmlDir, 'competencia-card__codigo');
+printf("       chips de codigo en la grilla: %d (criterios: %d)\n", $chipsCod, $total);
+// Uno por cabecera y uno por linea de la leyenda desplegable.
+$chk('los codigos usan el chip del sistema, no texto suelto', $chipsCod >= $total);
+$chk('las cabeceras usan el modificador que centra el chip',
+    str_contains($htmlDir, 'competencia-card__codigo--solo'));
+$chk('el chip `--solo` existe en el CSS servido',
+    str_contains(file_get_contents(ROOT_PATH . '/public/css/app.css'),
+                 '.competencia-card__codigo--solo'));
+
+// 🔴 LO QUE EL USUARIO PIDIO NO PERDER. El literal se anadio JUNTO al numeral,
+// no en su lugar: si alguien "simplifica" quitando uno de los dos, esto lo dice.
+// Se cuentan las filas con nota calculada, para no exigir literal donde el
+// registro esta incompleto y la celda muestra un guion.
+$conNota = 0;
+foreach ($estudiantes as $e) {
+    $resp = $e['respuestas'] ?? [];
+    if ($total > 0 && count($resp) >= $total) { $conNota++; }
+}
+printf("       estudiantes con nota calculable: %d de %d\n", $conNota, count($estudiantes));
+if ($conNota === 0) {
+    echo "       [--] ningun registro completo: la celda de nota no es observable\n";
+} else {
+    $chk('la grilla conserva el NUMERAL', substr_count($htmlDir, 'nota-numeral') >= $conNota);
+    $chk('y muestra tambien el LITERAL', substr_count($htmlDir, 'nota-literal') >= $conNota);
+}
+
 echo "\n", $ok ? "TODO OK\n" : "HAY FALLOS\n";
 exit($ok ? 0 : 1);

@@ -65,8 +65,13 @@ $tituloClase = $tituloClase ?? 'page-title page-title--wf page-title--conducta';
 <details class="conducta-criterios-leyenda">
     <summary>Ver los <?= $total ?> criterios (✓ = cumple · ✗ = no cumple)</summary>
     <ol class="conducta-criterios-lista">
+        <?php // El chip de codigo del sistema, el mismo que usa el panel de
+              // "Criterios evaluados" de la consulta. Ver docs/modulos/ui.md. ?>
         <?php foreach ($criterios as $c): ?>
-            <li><strong><?= e($c['codigo']) ?></strong> — <?= e($c['texto']) ?></li>
+            <li>
+                <span class="competencia-card__codigo"><?= e($c['codigo']) ?></span>
+                <?= e($c['texto']) ?>
+            </li>
         <?php endforeach; ?>
     </ol>
 </details>
@@ -78,7 +83,9 @@ $tituloClase = $tituloClase ?? 'page-title page-title--wf page-title--conducta';
                 <th class="col-num">N°</th>
                 <th class="col-nombre">Apellidos y Nombres</th>
                 <?php foreach ($criterios as $i => $c): ?>
-                    <th class="conducta-th-crit" title="<?= e($c['texto']) ?>"><?= e($c['codigo']) ?></th>
+                    <th class="conducta-th-crit" title="<?= e($c['texto']) ?>">
+                        <span class="competencia-card__codigo competencia-card__codigo--solo"><?= e($c['codigo']) ?></span>
+                    </th>
                 <?php endforeach; ?>
                 <th class="conducta-th-nota" title="Nota de Registro Académico (Sí ÷ <?= $total ?> × 20)">Nota</th>
             </tr>
@@ -112,10 +119,15 @@ $tituloClase = $tituloClase ?? 'page-title page-title--wf page-title--conducta';
                     <?php endforeach; ?>
 
                     <td class="conducta-td-nota">
+                        <?php // El LITERAL se muestra, no solo se insinua con el color del
+                              // numeral: el color no es legible para quien no distingue esos
+                              // tonos, y el imprimible oficial ya lo estampa como "17 (A)".
+                              // La columna numeral NO se toca — se suma, no se sustituye. ?>
                         <?php if ($notaRa !== null): ?>
                             <span class="nota-numeral nota-numeral--<?= strtolower($litRa) ?>">
                                 <?= fmt_nota($notaRa) ?>
                             </span>
+                            <span class="nota-literal nota-literal--<?= strtolower($litRa) ?>"><?= e($litRa) ?></span>
                         <?php else: ?>
                             <span class="text-muted" title="Registro incompleto">—</span>
                         <?php endif; ?>

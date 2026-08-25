@@ -430,3 +430,37 @@ auxiliares. Vive en `components/_tables.scss`, con las tablas.
   leyenda propia, es la copia que se quería evitar.
 - ⚠️ **Esto NO gobierna todas las clases `*-leyenda` del sistema**: las de boleta
   impresa, horario y el donut de bloqueos son de otro contexto y no se unifican.
+
+
+## El chip de código, y su modificador `--solo` (25/08/2026)
+
+`.competencia-card__codigo` es **el** chip de código del sistema. Su nombre está
+anclado a `competencia-card` por historia, pero 4 de sus 6 usos ya estaban fuera de
+ese bloque: el proyecto lo trata como global.
+
+Marca el código de **competencias** (`codigo_minedu`: C1…C57) y el de **criterios
+de conducta** (`criterios_conducta.codigo`, migración 056), que son numeraciones
+distintas y no se cruzan — cada una vive en su pantalla.
+
+- **`--solo`**: el chip lleva `margin-right` porque normalmente va **delante de un
+  nombre**. Cuando el código va solo —una cabecera de columna— ese margen lo
+  descentra. El modificador lo quita y aprieta el relleno.
+- ⚠️ **Al usarlo en una cabecera, revisar el `min-width` de la columna**: el chip
+  trae su propio relleno. En la grilla de conducta hubo que subir
+  `th.conducta-th-crit` de 56 a 64 px, o el chip de `C10` tocaba los bordes.
+- ⚠️ **Buscarlo en el SCSS por su bloque padre.** Está escrito como `&__codigo`
+  anidado dentro de `.competencia-card`, así que `grep "competencia-card__codigo"`
+  sobre `resources/sass/` **no lo encuentra** — y hay una copia idéntica en
+  `components/_dashboard.scss`, que **no se importa desde ningún sitio**. La
+  vigente es la de `pages/_dashboard.scss`.
+
+### El literal se muestra, no se insinúa con el color
+
+En la grilla Sí/No de conducta la nota mostraba solo el **numeral**, con el literal
+reducido a la clase de color (`nota-numeral--a`). Un color no es legible para quien
+no distingue esos tonos, y el **imprimible oficial ya estampa `17 (A)`**: la
+pantalla decía menos que el papel.
+
+Ahora la celda lleva **numeral y literal**, uno al lado del otro. 🔴 El literal se
+**sumó**, no sustituyó al numeral — hay un aserto que falla si alguien «simplifica»
+quitando cualquiera de los dos.
