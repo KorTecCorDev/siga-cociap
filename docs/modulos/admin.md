@@ -497,3 +497,33 @@ de RA para el historial de bimestres cerrados.
 - ⚠️ Camino de error conocido: si `imprimir()` falla su gate (sin cierre vigente)
   redirige a `/admin/asistencia`, que para un director es 403. No es alcanzable desde
   la UI —el botón solo aparece con cierre vigente— pero está ahí.
+
+### Fila enfocada: canal propio, separado del estado del dato (25/08/2026)
+
+Nace del flujo de los auxiliares: transcriben su cuaderno en el celular y, con la
+tabla desplazada a la derecha, **saltar de fila** es un error caro.
+
+- ❌ **Se descartó repetir el N° como última columna.** `col-num` y `col-nombre` ya
+  son `sticky`, así que la identidad de la fila **no se pierde** al desplazarse; y
+  añadir columna empeora justo lo que duele: la tabla mide **646 px** y en un móvil
+  de ~390 px, con 240 px de columnas fijas, **solo se ven 2 de los 4 contadores**.
+- 🔴 **DOS CANALES INDEPENDIENTES.** El **fondo** dice el estado del DATO (verde =
+  guardado, ámbar = sin guardar); la **barra en la columna N°** dice dónde está el
+  FOCO. Si el foco usara también el fondo, mientras se escribe habría que tapar el
+  ámbar de «sin guardar» —la señal que no se puede perder— o al revés. **No añadir
+  `background` a la regla de `:focus-within`**: hay un aserto que lo impide.
+- La barra vive en `col-num`, que es **sticky**: sigue en pantalla aunque se esté
+  escribiendo en TJ. Mismo recurso que `.fila-pendiente` en `tabla-resumen`, y el
+  mismo azul (`$brand-mid`) con que ya se marca el foco del propio input — el
+  naranja se descartó por confundirse con el ámbar de `--con-cambios`.
+- 🔴 **VA POR ESPECIFICIDAD, NO POR ORDEN.** `.tabla-notas tr:hover .col-num` es
+  **(0,3,1)** y ganaba a `.asistencia-fila--registrada td.col-num` **(0,2,1)**: al
+  pasar el ratón, una fila registrada **perdía su verde por completo** (defecto
+  preexistente, arreglado aquí). Las reglas se anclan a `.asistencia-tabla` y
+  doblan la clase de fila → **(0,4,1)**. El hover vive en OTRO parcial, así que
+  confiar en el orden de `@import` no bastaba. Si se sacan de ahí, vuelve el fallo.
+- **`scroll-margin-block` en `.asistencia-input`**: el teclado virtual tapa la mitad
+  inferior de la pantalla y la fila recién enfocada quedaba pegada al borde. Va en
+  el input porque es el elemento que recibe el foco y al que el navegador desplaza.
+- En la vista de Dirección **no se activa nunca**: en solo lectura el partial no
+  pinta inputs, y sin nada enfocable no hay `:focus-within`.

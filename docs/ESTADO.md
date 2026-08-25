@@ -175,15 +175,22 @@ problema real, pero repetir el N° es una solución de PAPEL aplicada a una pant
   móvil de ~390 px, con 240 px ocupados por las dos columnas fijas, **se ven 2 de
   los 4 contadores a la vez**. Repetir el N° lo lleva a 686 px.
 
-Lo que sí ataca la causa, por orden de impacto:
+Lo que sí ataca la causa:
 
-1. **Layout de tarjeta en móvil** (una tarjeta por estudiante con sus 4 contadores):
-   elimina el scroll horizontal. Es lo coherente con el requisito 2, que es el
-   requisito que hoy no cumple ninguna pantalla del sistema.
-2. **Resaltar la fila enfocada** (`:focus-within`): al tocar un input se marca la
-   fila entera. Barato y muy eficaz contra el salto de fila.
-3. **Entrada por estudiante** (buscar/elegir uno y registrar sus 4 contadores en una
-   pantalla), que es como se transcribe desde un cuaderno: alumno por alumno.
+1. ❌ **Layout de tarjeta en móvil** — **DESCARTADO por el usuario el 25/08/2026.**
+   La grilla se mantiene a propósito: es lo que da accesibilidad útil al auxiliar
+   que ya domina la herramienta o que viene de subir su asistencia en **SIAGIE**,
+   donde el formato es de rejilla. No re-proponerlo.
+2. ✅ **Resaltar la fila enfocada** — **IMPLEMENTADO el 25/08/2026** (commit
+   `137676b`). Barra azul en la columna N°, que es sticky y por tanto sigue en
+   pantalla con la tabla desplazada. Canal separado del fondo, que sigue diciendo
+   el estado del dato. Incluye `scroll-margin-block` para que el teclado virtual
+   no tape la fila recién enfocada. Ver `docs/modulos/admin.md`.
+3. 🔵 **Entrada por estudiante** (buscar/elegir uno y registrar sus 4 contadores en
+   una pantalla), que es como se transcribe desde un cuaderno: alumno por alumno.
+   **Sin decidir.** Es la única de las tres que sigue abierta, y la que más se
+   acerca al requisito 2 sin renunciar a la grilla: convivirían como dos entradas
+   a lo mismo.
 
 ⚠️ Cualquiera de las tres toca `admin/asistencia/_tabla-incidencias.php`, que desde
 el 25/08/2026 es **partial compartido con la consulta de Dirección**: el cambio se
