@@ -9,10 +9,11 @@
  * @var array  $secciones mismo arbol que la pantalla
  * @var int    $total
  * @var array  $filtros      { nivel, grado, seccion, docente } — se imprimen
- * @var array  $niveles
- * @var array  $grados
- * @var array  $seccionesCat
- * @var array  $docentes
+ * @var array  $niveles      [id => nombre]
+ * @var array  $grados       [grado_id => { etiqueta, ... }]  — la etiqueta lleva el
+ *                           nivel: "1°" a secas era ambiguo (colisiona entre niveles)
+ * @var array  $seccionesCat [seccion_id => { etiqueta, ... }]
+ * @var array  $docentes     [docente_id => { nombre, secciones[] }]
  */
 ?>
 <div class="criterios-print">
@@ -33,9 +34,9 @@
         // es parcial se lee como el listado completo.
         $activos = [];
         if (!empty($filtros['nivel'])   && isset($niveles[$filtros['nivel']]))     { $activos[] = $niveles[$filtros['nivel']]; }
-        if (!empty($filtros['grado'])   && isset($grados[$filtros['grado']]))      { $activos[] = $grados[$filtros['grado']]; }
+        if (!empty($filtros['grado'])   && isset($grados[$filtros['grado']]))      { $activos[] = $grados[$filtros['grado']]['etiqueta']; }
         if (!empty($filtros['seccion']) && isset($seccionesCat[$filtros['seccion']])) { $activos[] = $seccionesCat[$filtros['seccion']]['etiqueta']; }
-        if (!empty($filtros['docente']) && isset($docentes[$filtros['docente']]))  { $activos[] = $docentes[$filtros['docente']]; }
+        if (!empty($filtros['docente']) && isset($docentes[$filtros['docente']]))  { $activos[] = $docentes[$filtros['docente']]['nombre']; }
         ?>
         <?php if ($activos): ?>
             <span><strong>Filtro:</strong> <?= e(implode(' · ', $activos)) ?></span>
@@ -80,6 +81,11 @@
                                 <tr>
                                     <?php if ($i === 0): ?>
                                         <td class="col-comp" rowspan="<?= $filas ?>">
+                                            <?php // Mismo chip y mismo orden que la pantalla; el A4 solo le ajusta
+                                                  // la metrica desde `.criterios-print` (ver _consulta-notas.scss). ?>
+                                            <?php if (!empty($comp['codigo'])): ?>
+                                                <span class="competencia-card__codigo"><?= e($comp['codigo']) ?></span>
+                                            <?php endif; ?>
                                             <?= e($comp['nombre']) ?>
                                             <?php if (!empty($comp['es_transversal'])): ?>
                                                 <span class="criterios-print__tag">transversal</span>

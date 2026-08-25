@@ -274,6 +274,15 @@
     }
 }
 
+// ⚠️ El codigo MINEDU de la competencia NO tiene chip propio aqui: usa
+// `.competencia-card__codigo`, el chip de codigo de competencia del proyecto
+// (definido en `pages/_dashboard.scss` y ya en uso en otras 5 vistas). Si vuelve
+// a aparecer un `criterios-chip--codigo`, es una copia que acabara divergiendo.
+//
+// 🔴 Al buscarlo, OJO: hay una copia identica en `components/_dashboard.scss`
+// que NO se importa desde ningun sitio — es un archivo muerto. Editar esa copia
+// no cambia nada en pantalla.
+
 // (Aqui vivia `.criterios-hit`, el resaltado del buscador de texto. El buscador
 // se retiro el 24/08/2026: el director no conoce los criterios que redactan sus
 // docentes, asi que buscarlos por su texto no era una forma de navegar que el
@@ -368,6 +377,16 @@
         border-radius: $border-radius-sm;
         color: $color-info;
         font-size: 9px;
+    }
+
+    // El chip de codigo es el MISMO del proyecto (`.competencia-card__codigo`):
+    // aqui solo se le ajusta la metrica al A4, que va mucho mas apretado que la
+    // pantalla. Colores y forma NO se redefinen a proposito — si el chip cambia
+    // en el sistema, este debe cambiar con el.
+    .competencia-card__codigo {
+        padding: 0 4px;
+        font-size: 8pt;
+        white-space: nowrap;
     }
 }
 

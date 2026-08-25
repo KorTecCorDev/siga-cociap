@@ -749,34 +749,88 @@ class ConsultaNotasController extends BaseController
         // vaciaria su selector y no habria como volver atras.
         $niveles = $grados = $seccionesCat = $docentes = [];
         foreach ($filas as $c) {
-            $niveles[(int) $c['nivel_id']]    = $c['nivel_nombre'];
-            $grados[(int) $c['grado_numero']] = $c['grado_nombre'];
-            $docentes[(int) $c['docente_id']] = $this->nombreDocente($c);
+            $niveles[(int) $c['nivel_id']] = $c['nivel_nombre'];
+
+            // 🔴 EL GRADO SE IDENTIFICA POR SU ID, NUNCA POR `numero`: el numero
+            // COLISIONA entre niveles —1° de primaria y 1° de secundaria son los
+            // dos `1`—, asi que indexar por numero fundia los 11 grados reales en
+            // 6 opciones y `?grado=1` devolvia a la vez 1°A/B de primaria y
+            // 1°A/B/C de secundaria. La etiqueta lleva el nivel porque el nombre
+            // por si solo tampoco distingue con el selector de nivel en "Todos".
+            $grados[(int) $c['grado_id']] = [
+                'etiqueta' => $c['grado_nombre'] . ' ' . $c['nivel_nombre'],
+                'nivel_id' => (int) $c['nivel_id'],
+                'orden'    => [(int) $c['nivel_id'], (int) $c['grado_numero']],
+            ];
+
+            // ⚠️ UN DOCENTE NO PERTENECE A UN NIVEL: 2 de los 35 con carga activa
+            // dictan en primaria Y en secundaria. Por eso se guarda el CONJUNTO de
+            // secciones donde dicta y la cascada resuelve por PERTENENCIA; con un
+            // atributo unico ("el nivel del docente") esos 2 desaparecerian del
+            // selector en uno de los dos niveles y sin ningun sintoma.
+            $did = (int) $c['docente_id'];
+            if (!isset($docentes[$did])) {
+                $docentes[$did] = ['nombre' => $this->nombreDocente($c), 'secciones' => []];
+            }
+            $docentes[$did]['secciones'][(int) $c['seccion_id']] = true;
+
             $seccionesCat[(int) $c['seccion_id']] = [
                 'etiqueta' => $c['grado_nombre'] . ' ' . $c['seccion_nombre'] . ' — ' . $c['nivel_nombre'],
                 'nivel_id' => (int) $c['nivel_id'],
-                'grado'    => (int) $c['grado_numero'],
+                'grado_id' => (int) $c['grado_id'],
                 'orden'    => [(int) $c['nivel_id'], (int) $c['grado_numero'], $c['seccion_nombre']],
             ];
         }
         ksort($niveles);
-        ksort($grados);
+        // Los grados se ordenan por [nivel, numero], no por su id: el id sigue el
+        // orden de carga de la tabla y no tiene por que ser el pedagogico.
+        uasort($grados, fn($a, $b) => $a['orden'] <=> $b['orden']);
         uasort($seccionesCat, fn($a, $b) => $a['orden'] <=> $b['orden']);
         // Alfabetico por el nombre ya compuesto (apellidos primero), igual que
         // el eje por docente. `orden_alfabetico()` NO sirve aqui: genera SQL.
-        uasort($docentes, fn($a, $b) => strcoll($a, $b));
+        uasort($docentes, fn($a, $b) => strcoll($a['nombre'], $b['nombre']));
+        // Las secciones de cada docente viajan a la vista como LISTA (se juntaron
+        // como claves para deduplicar sin coste).
+        foreach ($docentes as $id => $d) {
+            $docentes[$id]['secciones'] = array_keys($d['secciones']);
+        }
 
         // Filtros estructurados: reducen el universo ANTES de armar el arbol.
         $fNivel   = (int) ($filtros['nivel']   ?? 0);
         $fGrado   = (int) ($filtros['grado']   ?? 0);
         $fSeccion = (int) ($filtros['seccion'] ?? 0);
         $fDocente = (int) ($filtros['docente'] ?? 0);
+
+        // 🔴 UN FILTRO QUE NO EXISTE EN EL CATALOGO DE ESTE PERIODO SE DESCARTA.
+        // Los catalogos se recalculan por bimestre: un valor traido de otro
+        // —un enlace viejo, un marcador guardado, la URL editada a mano— no
+        // llega a pintarse como <option>, asi que el selector muestra "Todas"
+        // MIENTRAS la consulta sigue filtrando por el valor invisible: pantalla
+        // vacia y ningun filtro a la vista que la explique. Se cae aqui, en el
+        // punto unico, y los filtros ya saneados se devuelven al controlador
+        // para que la vista marque exactamente lo que se esta filtrando.
+        //
+        // ⚠️ Esto valida EXISTENCIA, no coherencia entre filtros: que el grado
+        // pertenezca al nivel elegido lo resuelve la cascada del cliente, y
+        // duplicar esa regla aqui es el patron de fallo que arrastra el repo.
+        if ($fNivel   && !isset($niveles[$fNivel]))         { $fNivel   = 0; }
+        if ($fGrado   && !isset($grados[$fGrado]))          { $fGrado   = 0; }
+        if ($fSeccion && !isset($seccionesCat[$fSeccion]))  { $fSeccion = 0; }
+        if ($fDocente && !isset($docentes[$fDocente]))      { $fDocente = 0; }
+
+        $filtros = [
+            'nivel'   => $fNivel,
+            'grado'   => $fGrado,
+            'seccion' => $fSeccion,
+            'docente' => $fDocente,
+        ];
+
         if ($fNivel || $fGrado || $fSeccion || $fDocente) {
             $filas = array_values(array_filter($filas, fn($c) =>
-                (!$fNivel   || (int) $c['nivel_id']     === $fNivel)
-             && (!$fGrado   || (int) $c['grado_numero'] === $fGrado)
-             && (!$fSeccion || (int) $c['seccion_id']   === $fSeccion)
-             && (!$fDocente || (int) $c['docente_id']   === $fDocente)
+                (!$fNivel   || (int) $c['nivel_id']   === $fNivel)
+             && (!$fGrado   || (int) $c['grado_id']   === $fGrado)
+             && (!$fSeccion || (int) $c['seccion_id'] === $fSeccion)
+             && (!$fDocente || (int) $c['docente_id'] === $fDocente)
             ));
         }
 
@@ -817,6 +871,7 @@ class ConsultaNotasController extends BaseController
             $secciones[$sid]['cargas'][$cid]['competencias'][] = [
                 'competencia_id'   => (int) $c['competencia_id'],
                 'nombre'           => $c['competencia_nombre'],
+                'codigo'           => $c['competencia_codigo'],
                 'bloqueado_en'     => $c['bloqueado_en'],
                 'es_transversal'   => false,
                 'criterios'        => $porPar[$cid . '-' . (int) $c['competencia_id']] ?? [],
@@ -834,6 +889,10 @@ class ConsultaNotasController extends BaseController
                 $secciones[$sid]['cargas'][$cid]['competencias'][] = [
                     'competencia_id' => (int) $t['competencia_id'],
                     'nombre'         => $t['nombre_completo'],
+                    // Las transversales vienen por otra consulta, que YA traia el
+                    // codigo: la clave se llama igual para que la vista no tenga
+                    // que saber de que rama salio cada competencia.
+                    'codigo'         => $t['codigo_minedu'],
                     'bloqueado_en'   => $t['bloqueado_en'],
                     'es_transversal' => true,
                     'criterios'      => $porPar[$cid . '-' . (int) $t['competencia_id']] ?? [],
@@ -905,6 +964,11 @@ class ConsultaNotasController extends BaseController
             'grados'          => $grados,
             'seccionesCat'    => $seccionesCat,
             'docentes'        => $docentes,
+            // Los filtros EFECTIVOS, ya sin los valores que no existen en este
+            // periodo. Quien pinta la pantalla debe usar estos y no los que
+            // llegaron por la URL, o el selector volveria a decir una cosa
+            // mientras la consulta hace otra.
+            'filtros'         => $filtros,
         ];
     }
 
@@ -944,18 +1008,26 @@ class ConsultaNotasController extends BaseController
         ];
 
         // El bimestre viaja en la RUTA, pero el selector del formulario lo manda
-        // como query (`?periodo_id=`): al cambiarlo se salta a la ruta que toca,
-        // conservando los filtros. Asi funcionan sin una linea de JS.
+        // como query (`?periodo_id=`): al cambiarlo se salta a la ruta que toca.
+        //
+        // 🔴 CAMBIAR DE BIMESTRE LIMPIA LOS CUATRO FILTROS (25/08/2026). Antes
+        // los arrastraba, y eso mantenia vigente una consulta pensada para OTRO
+        // periodo: al saltar a un bimestre en curso —donde el universo es mucho
+        // menor— la pantalla salia vacia con los selectores en "Todas". Se
+        // cambia de bimestre para ver el bimestre, no para repetir la busqueda.
+        //
+        // ⚠️ SOLO cuando el bimestre CAMBIA (`!== $periodoId`). Si se limpiara
+        // en cada envio, el boton Aplicar borraria los filtros que el usuario
+        // acaba de elegir y no volveria a filtrar nunca.
         $destino = (int) ($this->query('periodo_id') ?? 0);
         if ($destino > 0 && $destino !== $periodoId) {
-            $qs = array_filter($filtros);
-            redirect(url(
-                'consulta-notas/' . $destino . '/criterios'
-                . ($qs ? '?' . http_build_query($qs) : '')
-            ));
+            redirect(url('consulta-notas/' . $destino . '/criterios'));
         }
 
         $arbol = $this->arbolCriterios($periodoId, $filtros);
+        // Los filtros EFECTIVOS: `arbolCriterios` ya descarto los que no existen
+        // en este periodo. La vista tiene que marcar estos.
+        $filtros = $arbol['filtros'];
 
         // ── Cuanto se despliega solo ─────────────────────────────────
         // El objetivo de la pantalla es MOSTRAR los criterios, no esconderlos
@@ -1009,7 +1081,9 @@ class ConsultaNotasController extends BaseController
             'seccion' => (int) ($this->query('seccion') ?? 0),
             'docente' => (int) ($this->query('docente') ?? 0),
         ];
-        $arbol = $this->arbolCriterios($periodoId, $filtros);
+        $arbol   = $this->arbolCriterios($periodoId, $filtros);
+        // Mismos filtros efectivos que la pantalla: el papel dice lo que filtro.
+        $filtros = $arbol['filtros'];
 
         View::setLayout('print');
         $this->view('consulta-notas/criterios-imprimir', [

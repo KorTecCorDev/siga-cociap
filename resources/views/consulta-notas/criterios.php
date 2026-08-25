@@ -18,10 +18,10 @@
  * @var int    $total
  * @var int    $conDescripcion
  * @var array  $niveles      [id => nombre]      catalogos de los selectores
- * @var array  $grados       [numero => nombre]
- * @var array  $seccionesCat [id => { etiqueta, ... }]
- * @var array  $docentes     [id => nombre]
- * @var array  $filtros      { nivel, grado, seccion, docente }
+ * @var array  $grados       [grado_id => { etiqueta, nivel_id, ... }]
+ * @var array  $seccionesCat [seccion_id => { etiqueta, nivel_id, grado_id, ... }]
+ * @var array  $docentes     [docente_id => { nombre, secciones[] }]
+ * @var array  $filtros      { nivel, grado, seccion, docente } — grado es grado_id
  * @var bool   $abrirTodo       cabe entero: se despliega solo
  * @var bool   $abrirSecciones  demasiado: solo secciones abiertas
  *
@@ -55,7 +55,12 @@ $qs = array_filter($filtros);
         <form method="GET" action="<?= url('consulta-notas/' . (int) $periodo['id'] . '/criterios') ?>" class="criterios-filtros">
             <div class="criterios-filtros__campo">
                 <label class="form-label" for="periodo_id">Bimestre</label>
-                <select id="periodo_id" name="periodo_id" class="form-input">
+                <?php // Auto-aplica al cambiar, igual que las otras 9 vistas del repo
+                      // (incluida consulta-notas/index.php). El servidor limpia los
+                      // cuatro filtros al saltar de bimestre; aqui solo se dispara el
+                      // envio, para no tener la misma regla escrita en dos sitios.
+                      // Sin JS sigue funcionando con el boton Aplicar. ?>
+                <select id="periodo_id" name="periodo_id" class="form-input" onchange="this.form.submit()">
                     <?php foreach ($periodos as $p): ?>
                         <option value="<?= (int) $p['id'] ?>" <?= (int) $p['id'] === (int) $periodo['id'] ? 'selected' : '' ?>>
                             <?= e($p['nombre_display']) ?> <?= e($p['anio']) ?>
@@ -77,8 +82,9 @@ $qs = array_filter($filtros);
                 <label class="form-label" for="grado">Grado</label>
                 <select id="grado" name="grado" class="form-input">
                     <option value="0">Todos</option>
-                    <?php foreach ($grados as $num => $nom): ?>
-                        <option value="<?= (int) $num ?>" <?= (int) $filtros['grado'] === (int) $num ? 'selected' : '' ?>><?= e($nom) ?></option>
+                    <?php foreach ($grados as $id => $g): ?>
+                        <option value="<?= (int) $id ?>" data-nivel-id="<?= (int) $g['nivel_id'] ?>"
+                            <?= (int) $filtros['grado'] === (int) $id ? 'selected' : '' ?>><?= e($g['etiqueta']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -87,7 +93,9 @@ $qs = array_filter($filtros);
                 <select id="seccion" name="seccion" class="form-input">
                     <option value="0">Todas</option>
                     <?php foreach ($seccionesCat as $id => $s): ?>
-                        <option value="<?= (int) $id ?>" <?= (int) $filtros['seccion'] === (int) $id ? 'selected' : '' ?>><?= e($s['etiqueta']) ?></option>
+                        <option value="<?= (int) $id ?>"
+                            data-nivel-id="<?= (int) $s['nivel_id'] ?>" data-grado-id="<?= (int) $s['grado_id'] ?>"
+                            <?= (int) $filtros['seccion'] === (int) $id ? 'selected' : '' ?>><?= e($s['etiqueta']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -95,8 +103,11 @@ $qs = array_filter($filtros);
                 <label class="form-label" for="docente">Docente</label>
                 <select id="docente" name="docente" class="form-input">
                     <option value="0">Todos</option>
-                    <?php foreach ($docentes as $id => $nom): ?>
-                        <option value="<?= (int) $id ?>" <?= (int) $filtros['docente'] === (int) $id ? 'selected' : '' ?>><?= e($nom) ?></option>
+                    <?php foreach ($docentes as $id => $d): ?>
+                        <?php // Las secciones donde dicta: la cascada lo muestra si AL MENOS
+                              // una sobrevive a los otros filtros. Ver criterios.js. ?>
+                        <option value="<?= (int) $id ?>" data-secciones="<?= e(implode(',', $d['secciones'])) ?>"
+                            <?= (int) $filtros['docente'] === (int) $id ? 'selected' : '' ?>><?= e($d['nombre']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -188,6 +199,15 @@ $qs = array_filter($filtros);
                                             <tr>
                                                 <?php if ($i === 0): ?>
                                                     <td class="col-comp" rowspan="<?= $filas ?>">
+                                                        <?php // El codigo va DELANTE: los nombres de competencia llegan a
+                                                              // 185 caracteres, y un chip al final del parrafo no sirve de
+                                                              // ancla. Delante se alinea entre filas y la columna se escanea.
+                                                              // La clase es la del PROYECTO (`competencia-card__codigo`, ya en
+                                                              // otras 5 vistas): el chip de codigo de competencia es uno solo
+                                                              // en todo el sistema. Su `margin-right` ya asume esta posicion. ?>
+                                                        <?php if (!empty($comp['codigo'])): ?>
+                                                            <span class="competencia-card__codigo"><?= e($comp['codigo']) ?></span>
+                                                        <?php endif; ?>
                                                         <?= e($comp['nombre']) ?>
                                                         <?php if (!empty($comp['es_transversal'])): ?>
                                                             <span class="badge badge--info">transversal</span>
