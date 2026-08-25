@@ -67,40 +67,315 @@
     &__meta    { font-size: $font-size-sm; color: $text-secondary; white-space: nowrap; }
 }
 
-// ── Descripciones de los criterios (24/08/2026) ──────────────────
-// Antes la descripcion solo existia como `title=` de la cabecera de columna:
-// invisible en celular y al imprimir. Se lista debajo de la grilla, y SOLO
-// para los criterios que la tienen llena (en produccion, 1 de cada 10).
-.criterios-descripcion {
-    margin-top: $spacing-md;
-    padding: $spacing-md;
+// ── Explorador de criterios (24/08/2026) ─────────────────────────
+// Arbol seccion -> carga -> competencia -> criterio. Colapsable con <details>
+// nativo: sin una linea de JS, y el navegador ya sabe abrirlo al buscar en la
+// pagina. El imprimible es una vista aparte porque un <details> cerrado no
+// imprime su contenido.
+
+.criterios-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: $spacing-md;
+
+    &__campo {
+        flex: 1 1 200px;
+
+        &--ancho { flex: 3 1 320px; }
+    }
+
+    &__acciones {
+        display: flex;
+        gap: $spacing-sm;
+    }
+}
+
+.criterios-barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-md;
+
+    &__acciones {
+        display: flex;
+        gap: $spacing-sm;
+    }
+}
+
+.criterios-resumen {
+    margin: 0;
+    font-size: $font-size-sm;
+    color: $text-secondary;
+
+    &__aviso {
+        margin-left: $spacing-sm;
+        color: $text-muted;
+        font-style: italic;
+    }
+}
+
+.criterios-arbol {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+}
+
+.criterios-seccion {
     border: 1px solid $border-color;
-    border-left: 3px solid $brand-mid;
-    border-radius: $border-radius-sm;
-    background: $bg-secondary;
+    border-left: 4px solid $brand-accent;
+    border-radius: $border-radius-lg;
+    background: $bg-white;
 
-    &__titulo {
-        margin: 0 0 $spacing-sm;
+    // La cabecera de SECCION se queda pegada arriba mientras se recorren sus
+    // ~119 criterios: sin esto se pierde el contexto de en que seccion estas.
+    &__cab {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: $spacing-md;
+        padding: $spacing-md;
+        border-radius: $border-radius-lg $border-radius-lg 0 0;
+        background: $bg-white;
+        cursor: pointer;
         font-weight: 700;
+
+        &:hover { background: $bg-secondary; }
+    }
+
+    &__nombre { font-size: $font-size-lg; }
+
+    &__nivel {
+        margin-left: $spacing-sm;
         font-size: $font-size-sm;
-        color: $text-primary;
+        font-weight: 400;
+        color: $text-muted;
     }
 
-    &__lista {
-        margin: 0;
-    }
-
-    &__nombre {
-        font-weight: 600;
+    &__meta {
         font-size: $font-size-sm;
-        color: $text-primary;
+        font-weight: 400;
+        color: $text-secondary;
+        white-space: nowrap;
+    }
+}
+
+.criterios-carga {
+    border-top: 1px solid $border-color;
+
+    // La de CARGA se pega justo debajo de la de seccion (que mide ~54px), asi
+    // que al bajar por la tabla siguen visibles las dos: donde estoy y de quien
+    // es la carga. z-index menor: la de seccion pasa por encima.
+    &__cab {
+        position: sticky;
+        top: 54px;
+        z-index: 2;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: $spacing-md;
+        padding: $spacing-sm $spacing-md $spacing-sm $spacing-lg;
+        background: $bg-white;
+        cursor: pointer;
+
+        &:hover { background: $bg-secondary; }
     }
 
-    &__texto {
-        margin: 0 0 $spacing-sm;
+    &__area    { font-weight: 600; }
+    &__docente {
+        margin-left: $spacing-sm;
         font-size: $font-size-sm;
         color: $text-muted;
+    }
+
+    &__meta {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        white-space: nowrap;
+    }
+
+    &__cuerpo {
+        padding: 0 $spacing-md $spacing-md $spacing-lg;
+    }
+
+    &__ver {
+        display: inline-block;
+        margin-top: $spacing-sm;
+        font-size: $font-size-sm;
+    }
+}
+
+// La TABLA de la carga sustituye a la lista por competencia (24/08/2026): los
+// "nombres" de criterio son frases de 70 caracteres de media, y apilarlas en
+// vertical era un muro. En tabla se escanean por columna, y la competencia se
+// agrupa con rowspan en vez de repetirse.
+.criterios-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-sm;
+
+    th, td {
+        border: 1px solid $border-color;
+        padding: $spacing-xs $spacing-sm;
+        vertical-align: top;
+        text-align: left;
+    }
+
+    // El thead NO se hace sticky: una carga tiene ~7 criterios y ya hay dos
+    // cabeceras pegadas arriba (seccion y carga). Una tercera solo se pisaria
+    // con ellas y comeria pantalla.
+    thead th {
+        background: $bg-secondary;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+    }
+
+    tbody tr:hover td { background: rgba(0, 0, 0, .02); }
+
+    .col-comp {
+        width: 28%;
+        font-weight: 600;
+        background: $bg-secondary;
+    }
+
+    .col-crit { width: 30%; }
+
+    .col-desc {
+        width: 42%;
+        color: $text-muted;
         line-height: 1.5;
-        white-space: pre-line;   // respeta los saltos que escribio el docente
+        white-space: pre-line;       // respeta los saltos que escribio el docente
+    }
+}
+
+// Contadores del encabezado de carga: el "N con descripcion" sustituye a las
+// 2233 lineas que decian "Sin descripcion" una por una.
+.criterios-chip {
+    display: inline-block;
+    margin-left: $spacing-xs;
+    padding: 1px $spacing-sm;
+    border: 1px solid $border-color;
+    border-radius: 999px;
+    background: $bg-white;
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    white-space: nowrap;
+
+    &--desc {
+        border-color: $brand-mid;
+        color: $brand-mid;
+    }
+}
+
+// (Aqui vivia `.criterios-hit`, el resaltado del buscador de texto. El buscador
+// se retiro el 24/08/2026: el director no conoce los criterios que redactan sus
+// docentes, asi que buscarlos por su texto no era una forma de navegar que el
+// pudiera usar. Se recorre por nivel, grado, seccion y docente.)
+
+// ── Criterios: imprimible A4 vertical ────────────────────────────
+.criterios-print {
+    padding: $spacing-md;
+    color: $text-primary;
+
+    &__head {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+        border-bottom: 2px solid $brand-accent;
+        padding-bottom: $spacing-sm;
+    }
+
+    &__logo { height: 56px; }
+
+    &__titulo {
+        h1 { margin: 0; font-size: $font-size-lg; }
+        p  { margin: 0; font-size: $font-size-sm; color: $text-secondary; }
+    }
+
+    &__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-md;
+        margin-top: $spacing-sm;
+        font-size: $font-size-sm;
+    }
+
+    &__nota {
+        margin: $spacing-sm 0 $spacing-md;
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &__seccion {
+        margin-bottom: $spacing-lg;
+        break-inside: auto;
+    }
+
+    &__seccion-tit {
+        margin: 0 0 $spacing-sm;
+        font-size: $font-size-base;
+        border-bottom: 1px solid $border-color;
+
+        span {
+            margin-left: $spacing-sm;
+            font-size: $font-size-sm;
+            font-weight: 400;
+            color: $text-secondary;
+        }
+    }
+
+    &__tabla {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: $spacing-md;
+        font-size: $font-size-sm;
+
+        caption {
+            text-align: left;
+            padding: $spacing-xs 0;
+            font-weight: 600;
+        }
+
+        th, td {
+            border: 1px solid $border-color;
+            padding: 3px 5px;
+            vertical-align: top;
+            text-align: left;
+        }
+
+        th { background: $bg-secondary; }
+
+        .col-comp { width: 26%; }
+        .col-crit { width: 24%; }
+        .col-desc { width: 50%; white-space: pre-line; }
+        .col-desc--vacia { color: $text-muted; }
+    }
+
+    &__area    { font-weight: 700; }
+    &__docente { margin-left: $spacing-sm; color: $text-secondary; font-weight: 400; }
+
+    &__tag {
+        margin-left: 4px;
+        padding: 0 4px;
+        border: 1px solid $color-info;
+        border-radius: $border-radius-sm;
+        color: $color-info;
+        font-size: 9px;
+    }
+}
+
+@media print {
+    .criterios-print {
+        padding: 0;
+
+        &__seccion  { break-inside: avoid-page; }
+        &__tabla tr { break-inside: avoid; }
     }
 }

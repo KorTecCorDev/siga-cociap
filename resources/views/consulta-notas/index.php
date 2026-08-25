@@ -22,6 +22,9 @@
     <?php if (!empty($periodo)): ?>
         <a href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/docentes') ?>"
            class="btn btn--secondary">Ver por docente</a>
+        <?php // Tercer eje (24/08/2026): el mismo universo visto por CRITERIO. ?>
+        <a href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/criterios') ?>"
+           class="btn btn--secondary">Ver criterios</a>
     <?php endif; ?>
 </div>
 

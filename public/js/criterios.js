@@ -1,0 +1,1 @@
+(()=>{var r=document.getElementById("criterios-arbol");r&&document.querySelectorAll("[data-arbol]").forEach(function(e){e.addEventListener("click",function(){var t="expandir"===e.dataset.arbol;r.querySelectorAll("details").forEach(function(e){e.open=t})})})})();

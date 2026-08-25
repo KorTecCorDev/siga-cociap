@@ -5,10 +5,13 @@ namespace App\Controllers\Consulta;
 use App\Controllers\BaseController;
 use App\Models\AsistenciaModel;
 use App\Models\CalificacionModel;
+use App\Models\CriterioModel;
 use App\Models\OmisionCriterioModel;
 use App\Models\ExoneracionModel;
 use App\Models\TransversalModel;
 use App\Models\ConductaModel;
+use App\Models\ControlOperativoModel;
+use Core\View;
 
 /**
  * ConsultaNotasController
@@ -27,17 +30,31 @@ use App\Models\ConductaModel;
  */
 class ConsultaNotasController extends BaseController
 {
+    /**
+     * Tope de criterios por debajo del cual un resultado FILTRADO se despliega
+     * entero, para leerlo de corrido sin abrir nada.
+     *
+     * Sale de la densidad real del dato: una SECCION completa tiene ~119
+     * criterios y un DOCENTE ~135, que son las dos unidades con las que trabaja
+     * el director; 200 las cubre a las dos. Un NIVEL entero (1325) se queda
+     * fuera a proposito: ahi se abren las secciones y las cargas siguen
+     * plegadas, o la pagina seria inabarcable.
+     */
+    private const CRITERIOS_ABRIR_TODO = 200;
+
     private CalificacionModel    $calModel;
     private OmisionCriterioModel $omisionModel;
     private ExoneracionModel     $exoModel;
     private TransversalModel     $transModel;
     private ConductaModel        $conductaModel;
     private AsistenciaModel      $asistenciaModel;
+    private CriterioModel        $criterioModel;
 
     public function __construct()
     {
         $this->requireRole(['admin', 'registro_academico', ...ROLES_DIRECCION]);
         $this->calModel      = new CalificacionModel();
+        $this->criterioModel = new CriterioModel();
         $this->omisionModel  = new OmisionCriterioModel();
         $this->exoModel      = new ExoneracionModel();
         $this->transModel    = new TransversalModel();
@@ -699,6 +716,312 @@ class ConsultaNotasController extends BaseController
             'carga'        => $carga,
             'competencias' => $competencias,
             'exonerados'   => $exonerados,
+        ]);
+    }
+
+    /**
+     * Arbol de criterios del periodo:
+     *   SECCION -> CARGA (area + docente) -> COMPETENCIA -> criterios.
+     *
+     * Mismo universo que el resto de la pantalla: SOLO competencias con bloqueo
+     * (`competenciasOficiales`), mas las TRANSVERSALES con contenido real. Sin
+     * ese segundo bloque el explorador se dejaria fuera 743 de los 2731
+     * criterios de un bimestre (27 %) sin decirlo: `getCompetenciasPorPeriodo`
+     * une competencia<->carga por el AREA de la carga y las transversales
+     * cuelgan de un area propia, asi que ese JOIN no puede alcanzarlas.
+     *
+     * ⚠️ NO hay filtro de TEXTO, y es deliberado (24/08/2026): el director no
+     * conoce los criterios —son de los docentes—, asi que buscarlos por su
+     * redaccion no es una forma de navegar que el pueda usar. La pantalla se
+     * recorre solo por lo que SI conoce: nivel, grado, seccion y docente.
+     *
+     * @param array $filtros nivel (id) | grado (numero) | seccion (id) |
+     *                       docente (id); 0 = sin filtrar.
+     * @return array{secciones: array, total: int, con_descripcion: int,
+     *               niveles: array, grados: array, seccionesCat: array, docentes: array}
+     */
+    private function arbolCriterios(int $periodoId, array $filtros = []): array
+    {
+        $filas = $this->competenciasOficiales($periodoId);
+
+        // Catalogos de los selectores: salen de las MISMAS filas, sin una
+        // consulta extra. Se calculan ANTES de filtrar, o el propio filtro
+        // vaciaria su selector y no habria como volver atras.
+        $niveles = $grados = $seccionesCat = $docentes = [];
+        foreach ($filas as $c) {
+            $niveles[(int) $c['nivel_id']]    = $c['nivel_nombre'];
+            $grados[(int) $c['grado_numero']] = $c['grado_nombre'];
+            $docentes[(int) $c['docente_id']] = $this->nombreDocente($c);
+            $seccionesCat[(int) $c['seccion_id']] = [
+                'etiqueta' => $c['grado_nombre'] . ' ' . $c['seccion_nombre'] . ' — ' . $c['nivel_nombre'],
+                'nivel_id' => (int) $c['nivel_id'],
+                'grado'    => (int) $c['grado_numero'],
+                'orden'    => [(int) $c['nivel_id'], (int) $c['grado_numero'], $c['seccion_nombre']],
+            ];
+        }
+        ksort($niveles);
+        ksort($grados);
+        uasort($seccionesCat, fn($a, $b) => $a['orden'] <=> $b['orden']);
+        // Alfabetico por el nombre ya compuesto (apellidos primero), igual que
+        // el eje por docente. `orden_alfabetico()` NO sirve aqui: genera SQL.
+        uasort($docentes, fn($a, $b) => strcoll($a, $b));
+
+        // Filtros estructurados: reducen el universo ANTES de armar el arbol.
+        $fNivel   = (int) ($filtros['nivel']   ?? 0);
+        $fGrado   = (int) ($filtros['grado']   ?? 0);
+        $fSeccion = (int) ($filtros['seccion'] ?? 0);
+        $fDocente = (int) ($filtros['docente'] ?? 0);
+        if ($fNivel || $fGrado || $fSeccion || $fDocente) {
+            $filas = array_values(array_filter($filas, fn($c) =>
+                (!$fNivel   || (int) $c['nivel_id']     === $fNivel)
+             && (!$fGrado   || (int) $c['grado_numero'] === $fGrado)
+             && (!$fSeccion || (int) $c['seccion_id']   === $fSeccion)
+             && (!$fDocente || (int) $c['docente_id']   === $fDocente)
+            ));
+        }
+
+        // Criterios vivos del periodo, indexados por "carga-competencia". Una
+        // sola consulta para todo el bimestre (ver CriterioModel).
+        $porPar = [];
+        foreach ($this->criterioModel->getCriteriosPorPeriodo($periodoId) as $cr) {
+            $porPar[(int) $cr['carga_id'] . '-' . (int) $cr['competencia_id']][] = $cr;
+        }
+
+        $secciones     = [];
+        $seccionDeCarga = [];
+
+        foreach ($filas as $c) {
+            $sid = (int) $c['seccion_id'];
+            $cid = (int) $c['carga_id'];
+            $seccionDeCarga[$cid] = $sid;
+
+            if (!isset($secciones[$sid])) {
+                $secciones[$sid] = [
+                    'seccion_id'     => $sid,
+                    'seccion_nombre' => $c['seccion_nombre'],
+                    'grado_nombre'   => $c['grado_nombre'],
+                    'nivel_nombre'   => $c['nivel_nombre'],
+                    'cargas'         => [],
+                ];
+            }
+            if (!isset($secciones[$sid]['cargas'][$cid])) {
+                $secciones[$sid]['cargas'][$cid] = [
+                    'carga_id'       => $cid,
+                    'area_nombre'    => $c['area_nombre'],
+                    'subarea_nombre' => $c['subarea_nombre'],
+                    'docente'        => $this->nombreDocente($c),
+                    'competencias'   => [],
+                ];
+            }
+
+            $secciones[$sid]['cargas'][$cid]['competencias'][] = [
+                'competencia_id'   => (int) $c['competencia_id'],
+                'nombre'           => $c['competencia_nombre'],
+                'bloqueado_en'     => $c['bloqueado_en'],
+                'es_transversal'   => false,
+                'criterios'        => $porPar[$cid . '-' . (int) $c['competencia_id']] ?? [],
+            ];
+        }
+
+        // Transversales: se anexan a su carga, despues de las academicas, igual
+        // que las pinta la vista de carga.
+        foreach ($this->transversalesConContenido(array_keys($seccionDeCarga), $periodoId) as $cid => $lista) {
+            $sid = $seccionDeCarga[$cid] ?? null;
+            if ($sid === null) {
+                continue;
+            }
+            foreach ($lista as $t) {
+                $secciones[$sid]['cargas'][$cid]['competencias'][] = [
+                    'competencia_id' => (int) $t['competencia_id'],
+                    'nombre'         => $t['nombre_completo'],
+                    'bloqueado_en'   => $t['bloqueado_en'],
+                    'es_transversal' => true,
+                    'criterios'      => $porPar[$cid . '-' . (int) $t['competencia_id']] ?? [],
+                ];
+            }
+        }
+
+        // Poda y contadores. Una competencia BLOQUEADA puede no tener ningun
+        // criterio (el cierre forzado bloquea igual): esos nodos se caen, o la
+        // pantalla se llenaria de cargas vacias.
+        $total   = 0;
+        $conDesc = 0;
+        $salida  = [];
+
+        foreach ($secciones as $s) {
+            $cargasVivas = [];
+
+            foreach ($s['cargas'] as $carga) {
+                $compsVivas = [];
+
+                foreach ($carga['competencias'] as $comp) {
+
+                    $comp['n_criterios'] = count($comp['criterios']);
+                    if ($comp['n_criterios'] === 0) {
+                        continue;
+                    }
+
+                    // El 82 % de los criterios NO tiene descripcion (2233 de 2731
+                    // en B2). La vista ya no pinta "Sin descripcion" en cada uno:
+                    // deja la celda vacia y ensena este contador por carga.
+                    $comp['n_con_desc'] = 0;
+                    foreach ($comp['criterios'] as $cr) {
+                        if (trim((string) $cr['descripcion']) !== '') {
+                            $conDesc++;
+                            $comp['n_con_desc']++;
+                        }
+                    }
+                    $total       += $comp['n_criterios'];
+                    $compsVivas[] = $comp;
+                }
+
+                if (empty($compsVivas)) {
+                    continue;
+                }
+
+                $carga['competencias']   = $compsVivas;
+                $carga['n_competencias'] = count($compsVivas);
+                $carga['n_criterios']    = array_sum(array_column($compsVivas, 'n_criterios'));
+                $carga['n_con_desc']     = array_sum(array_column($compsVivas, 'n_con_desc'));
+                $cargasVivas[]           = $carga;
+            }
+
+            if (empty($cargasVivas)) {
+                continue;
+            }
+
+            $s['cargas']      = $cargasVivas;
+            $s['n_cargas']    = count($cargasVivas);
+            $s['n_criterios'] = array_sum(array_column($cargasVivas, 'n_criterios'));
+            $s['n_con_desc']  = array_sum(array_column($cargasVivas, 'n_con_desc'));
+            $salida[]         = $s;
+        }
+
+        return [
+            'secciones'       => $salida,
+            'total'           => $total,
+            'con_descripcion' => $conDesc,
+            'niveles'         => $niveles,
+            'grados'          => $grados,
+            'seccionesCat'    => $seccionesCat,
+            'docentes'        => $docentes,
+        ];
+    }
+
+    /**
+     * GET /consulta-notas/criterios
+     * Entrada sin periodo (la card del dashboard): salta al bimestre por
+     * defecto. Reusa `ControlOperativoModel::getPeriodoPorDefecto()`, el mismo
+     * punto unico que usan los Cuadros estadisticos, en vez de decidir aqui
+     * cual es "el bimestre de hoy".
+     */
+    public function criteriosInicio(): void
+    {
+        $periodo = (new ControlOperativoModel())->getPeriodoPorDefecto();
+        if (!$periodo) {
+            $this->notFound();
+        }
+        redirect(url('consulta-notas/' . (int) $periodo['id'] . '/criterios'));
+    }
+
+    /**
+     * GET /consulta-notas/{periodo_id}/criterios
+     * Explorador de criterios de evaluacion del bimestre, en solo lectura.
+     */
+    public function criterios(string $periodoId): void
+    {
+        $periodoId = (int) $periodoId;
+        $periodo   = $this->getPeriodo($periodoId);
+        if (!$periodo) {
+            $this->notFound();
+        }
+
+        $filtros = [
+            'nivel'   => (int) ($this->query('nivel')   ?? 0),
+            'grado'   => (int) ($this->query('grado')   ?? 0),
+            'seccion' => (int) ($this->query('seccion') ?? 0),
+            'docente' => (int) ($this->query('docente') ?? 0),
+        ];
+
+        // El bimestre viaja en la RUTA, pero el selector del formulario lo manda
+        // como query (`?periodo_id=`): al cambiarlo se salta a la ruta que toca,
+        // conservando los filtros. Asi funcionan sin una linea de JS.
+        $destino = (int) ($this->query('periodo_id') ?? 0);
+        if ($destino > 0 && $destino !== $periodoId) {
+            $qs = array_filter($filtros);
+            redirect(url(
+                'consulta-notas/' . $destino . '/criterios'
+                . ($qs ? '?' . http_build_query($qs) : '')
+            ));
+        }
+
+        $arbol = $this->arbolCriterios($periodoId, $filtros);
+
+        // ── Cuanto se despliega solo ─────────────────────────────────
+        // El objetivo de la pantalla es MOSTRAR los criterios, no esconderlos
+        // detras de clics: en cuanto el director acota a algo concreto —una
+        // seccion, un docente— se abre TODO y puede leerlo de corrido. Sin
+        // acotar, el arbol hace de indice: 23 secciones plegadas con sus
+        // contadores, que es lo unico que cabe en una pantalla.
+        //
+        // El tope existe para el caso intermedio (un nivel entero son 1325
+        // criterios): ahi se abren las secciones y las cargas quedan plegadas.
+        $hayFiltro = (bool) array_filter($filtros);
+        $abrirTodo = $hayFiltro && $arbol['total'] <= self::CRITERIOS_ABRIR_TODO;
+        $abrirSecc = $hayFiltro && !$abrirTodo;
+
+        $this->view('consulta-notas/criterios', [
+            'titulo'         => 'Criterios de evaluacion — ' . $periodo['nombre_display'],
+            'periodo'        => $periodo,
+            'periodos'       => $this->listarPeriodos(),
+            'secciones'      => $arbol['secciones'],
+            'total'          => $arbol['total'],
+            'conDescripcion' => $arbol['con_descripcion'],
+            'niveles'        => $arbol['niveles'],
+            'grados'         => $arbol['grados'],
+            'seccionesCat'   => $arbol['seccionesCat'],
+            'docentes'       => $arbol['docentes'],
+            'filtros'        => $filtros,
+            'abrirTodo'      => $abrirTodo,
+            'abrirSecciones' => $abrirSecc,
+            'page_scripts'   => ['criterios'],
+        ]);
+    }
+
+    /**
+     * GET /consulta-notas/{periodo_id}/criterios/imprimir
+     * El mismo arbol en A4 vertical, con TODO desplegado: <details> cerrado no
+     * imprime su contenido, asi que el imprimible no puede reusar la vista.
+     */
+    public function criteriosImprimir(string $periodoId): void
+    {
+        $periodoId = (int) $periodoId;
+        $periodo   = $this->getPeriodo($periodoId);
+        if (!$periodo) {
+            $this->notFound();
+        }
+
+        // El imprimible hereda los MISMOS filtros que la pantalla: se imprime lo
+        // que se esta viendo, no el bimestre entero.
+        $filtros = [
+            'nivel'   => (int) ($this->query('nivel')   ?? 0),
+            'grado'   => (int) ($this->query('grado')   ?? 0),
+            'seccion' => (int) ($this->query('seccion') ?? 0),
+            'docente' => (int) ($this->query('docente') ?? 0),
+        ];
+        $arbol = $this->arbolCriterios($periodoId, $filtros);
+
+        View::setLayout('print');
+        $this->view('consulta-notas/criterios-imprimir', [
+            'titulo'       => 'Criterios de evaluacion — ' . $periodo['nombre_display'],
+            'periodo'      => $periodo,
+            'secciones'    => $arbol['secciones'],
+            'total'        => $arbol['total'],
+            'filtros'      => $filtros,
+            'niveles'      => $arbol['niveles'],
+            'grados'       => $arbol['grados'],
+            'seccionesCat' => $arbol['seccionesCat'],
+            'docentes'     => $arbol['docentes'],
         ]);
     }
 }

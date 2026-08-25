@@ -28,6 +28,7 @@ $grupos = [
         // solo desde /director/bloqueos y /rectificaciones. Con los directores
         // aterrizando en el dashboard, era un módulo suyo sin puerta de entrada.
         ['roles' => ['admin', 'registro_academico', ...ROLES_DIRECCION], 'url' => 'consulta-notas',        'icon' => 'lupa-look.svg',         'titulo' => 'Consulta de notas',    'desc' => 'Calificaciones, transversales, conducta y asistencia en solo lectura'],
+        ['roles' => ['admin', 'registro_academico', ...ROLES_DIRECCION], 'url' => 'consulta-notas/criterios', 'icon' => 'edit-pen.svg',      'titulo' => 'Criterios de evaluación', 'desc' => 'Criterios por sección, docente y competencia'],
         ['roles' => ['admin', 'registro_academico', ...ROLES_DIRECCION], 'url' => 'admin/cuadros',         'icon' => 'medal-ribbon-star.svg', 'titulo' => 'Cuadros estadísticos', 'desc' => 'Indicadores de matrícula, notas, mérito, conducta y asistencia'],
         ['roles' => ['admin', 'registro_academico'],                                     'url' => 'admin/actas-siagie',    'icon' => 'document-add.svg',      'titulo' => 'Actas SIAGIE',         'desc' => 'Volcar notas a las plantillas RegNotas del SIAGIE'],
         ['roles' => ['admin', 'registro_academico'],                                     'url' => 'admin/conducta',        'icon' => 'social-city.svg',   'titulo' => 'Conducta',             'desc' => 'Calificaciones de comportamiento - Auxiliares académicos'],

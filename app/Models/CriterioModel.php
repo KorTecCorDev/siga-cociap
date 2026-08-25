@@ -30,6 +30,32 @@ class CriterioModel extends BaseModel
     }
 
     /**
+     * Todos los criterios VIVOS de un periodo, en UNA sola consulta.
+     *
+     * Alimenta el explorador de criterios de /consulta-notas, que agrupa las
+     * filas por carga + competencia. Recorrer las ~400 cargas de un bimestre
+     * llamando a `getCriterios()` seria un N+1 de 400 consultas para pintar
+     * una sola pantalla.
+     *
+     * NO filtra por bloqueo A PROPOSITO: el gate del dato oficial vive en
+     * `ConsultaNotasController::competenciasOficiales()`, punto unico de toda
+     * esa superficie. Un segundo JOIN a `bloqueos_competencia` aqui seria otra
+     * copia de la misma regla — el patron con el que ya divergieron cuatro
+     * reglas en este repositorio.
+     */
+    public function getCriteriosPorPeriodo(int $periodoId): array
+    {
+        return $this->query("
+            SELECT id, carga_id, competencia_id, nombre, descripcion,
+                   orden, confirmado_en, extraordinario
+            FROM criterios
+            WHERE periodo_id   = ?
+              AND eliminado_en IS NULL
+            ORDER BY carga_id, competencia_id, orden, id
+        ", [$periodoId]);
+    }
+
+    /**
      * Crea un nuevo criterio y ajusta el orden automáticamente.
      */
     public function crear(

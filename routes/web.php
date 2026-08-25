@@ -208,6 +208,9 @@ $router->get( '/rectificaciones/matricula/{id}',  'Rectificacion\RectificacionCo
 // controlador). Literales primero; las sub-rutas con dos params no chocan con
 // la literal /consulta-notas por tener mas segmentos.
 $router->get('/consulta-notas',                                   'Consulta\ConsultaNotasController@index');
+// Literal de 2 segmentos: entrada del dashboard al explorador de criterios, que
+// salta al bimestre por defecto. Va ANTES de cualquier patron {periodo_id}.
+$router->get('/consulta-notas/criterios',                         'Consulta\ConsultaNotasController@criteriosInicio');
 // Las dos de nivel SECCION van ANTES que la de 4 segmentos: mas especificas
 // primero, el router ancla por orden de registro.
 $router->get('/consulta-notas/{periodo_id}/seccion/{seccion_id}/transversales', 'Consulta\ConsultaNotasController@transversales');
@@ -220,6 +223,10 @@ $router->get('/consulta-notas/{periodo_id}/carga/{carga_id}',     'Consulta\Cons
 // registro y conviene no depender de eso.
 $router->get('/consulta-notas/{periodo_id}/docentes',             'Consulta\ConsultaNotasController@docentes');
 $router->get('/consulta-notas/{periodo_id}/docente/{docente_id}', 'Consulta\ConsultaNotasController@docente');
+// Explorador de CRITERIOS: seccion -> carga (area + docente) -> competencia ->
+// criterio. /criterios/imprimir va ANTES que /criterios: mas segmentos primero.
+$router->get('/consulta-notas/{periodo_id}/criterios/imprimir',   'Consulta\ConsultaNotasController@criteriosImprimir');
+$router->get('/consulta-notas/{periodo_id}/criterios',            'Consulta\ConsultaNotasController@criterios');
 
 // ─── Constancias de traslado (registro oficial) ──────────────
 $router->get( '/traslados',                'Matricula\TrasladoController@index');
