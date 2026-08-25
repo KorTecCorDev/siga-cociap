@@ -25,8 +25,13 @@ Orden sugerido; los puntos 1 y 4 son los que más fácil se rompen:
 1. **`/docente/horario/imprimir`** con un docente real — es la prueba de que la
    extracción de `HorarioModel` no cambió nada. Debe salir **idéntico** al de
    antes (grilla alineada, colores, horas/sem y total).
-2. **Crear un usuario con rol Director académico** (en prod no existe ninguno; en
-   local tampoco se creó — falta decidir DNI y nombre).
+2. ~~**Crear un usuario con rol Director académico**~~ **HECHO EN LOCAL el
+   24/08/2026:** ESPINOZA JULIE CAROL, DNI `00000001`, usuario 41. **En PROD
+   sigue sin existir** y hay que decidir allí el DNI y el nombre reales.
+   *(Al crearlo cayó `verif_rol_director_academico`: afirmaba «0 usuarios con el
+   rol nuevo», una aserción que caducaba por diseño en cuanto se daba este paso.
+   Sustituida por una que no caduca: ningún NO-Director EBR figura como firmante
+   vigente.)*
 3. Como director: las **10 cards** · `/matriculas` sin «+ Nueva matrícula» ·
    `/director/bloqueos` sin botones · la boleta desde una matrícula.
 4. **Como `admin` y como Registro Académico: que SÍ vean todos sus botones.** Es
@@ -34,6 +39,19 @@ Orden sugerido; los puntos 1 y 4 son los que más fácil se rompen:
    el flag del Centro de Control se insertó en la rama equivocada).
 5. `/admin/cuadros` · `/consulta-notas/{p}/seccion/{s}/asistencia` · el eje por
    docente · `/director/cargas/seccion/{id}/horario`.
+6. **Explorador de criterios** (`/consulta-notas/{p}/criterios`, añadido el
+   24/08 después de las 7 fases): árbol sección → carga, tabla por carga, sus
+   4 filtros, el imprimible y la card nueva — el dashboard del director pasa de
+   10 a **11 cards**. En LOCAL renderiza 2 353 criterios en B1 y 2 731 en B2
+   (1 988 académicos + **743 transversales**), contrastados contra SQL
+   independiente; **B3 sale vacío a propósito** y lo explica en pantalla.
+   El usuario **ya lo vio en navegador** y de ahí salieron tres correcciones
+   (el `&mdash;` escapado, la lectura en tabla y la retirada del buscador).
+   Falta probar: **las dos cabeceras fijas** al hacer scroll dentro de una
+   sección larga —es lo más frágil del lote— y el **imprimible en papel**.
+   🔶 **Decisión abierta, planteada al usuario y sin responder:** al filtrar por
+   UNA sección, ¿se conserva el acordeón de sección o se pinta en plano,
+   ahorrando un nivel visual? Ver `docs/modulos/usuarios-direccion.md`.
 
 ### PENDIENTE — 4 recomendaciones medidas, NO implementadas
 

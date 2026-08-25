@@ -2,8 +2,11 @@
 
 > **Estado: EN `dev`, SIN DESPLEGAR ni PROBAR EN NAVEGADOR (24/08/2026).**
 > Las 7 fases están implementadas y las 5 verificaciones automáticas en verde,
-> pero **nadie ha abierto todavía una sola pantalla**. La migración **055** está
-> aplicada en LOCAL y **pendiente en producción**.
+> pero **nadie ha abierto todavía una sola pantalla**. La migración **055** ya
+> está aplicada en LOCAL (9 roles, `director_academico` = id 9) y sigue
+> **pendiente en producción**.
+> Después de las 7 fases se añadió el **explorador de criterios** (ver su sección):
+> también sin probar en navegador.
 
 ## Qué es
 
@@ -105,6 +108,7 @@ card ninguna —se llegaba solo desde bloqueos y rectificaciones—; ahora la ti
 | `/consulta-notas/{p}/docentes` y `/docente/{id}` | **Eje por docente** (antes solo periodo→sección→carga) |
 | `/director/cargas/seccion/{id}/horario` | **Grilla semanal por sección** (antes solo un string resumen) |
 | `/admin/cuadros` | **Cuadros estadísticos** — los 5 registros en un tablero |
+| `/consulta-notas/{p}/criterios` [+ `/imprimir`] | **Explorador de criterios** — árbol sección → carga → competencia → criterio |
 
 ### La regla del dato oficial
 
@@ -130,11 +134,84 @@ cualquier otra pantalla. Se extrajo **sin cambio funcional** (contraste contra
 `git HEAD`: 35/35 docentes idénticos) y la grilla vive en el parcial
 `resources/views/shared/_horario-grilla.php`, que ambos ejes consumen.
 
-### Criterios con descripción
+### Criterios con descripción — el intento descartado
 
-El dato ya viajaba y ya se pintaba… **solo como `title=`**: invisible en celular
-y al imprimir. Ahora se lista debajo de la grilla, y **solo para los criterios
-que la tienen llena** — medido en producción el 24/08: **555 de 5 533, el 10 %**.
+La descripción del criterio existía **solo como `title=`** de la cabecera de
+columna: invisible en celular y al imprimir. El primer intento la listó en un
+cuadro **debajo de la grilla**, dentro de `/consulta-notas/{p}/carga/{id}`.
+
+**Se retiró el 24/08/2026, el mismo día, por decisión del usuario**: no resolvía
+lo que hacía falta —ver **todos** los criterios organizados— y dejaba el dato
+repartido en dos sitios. En la cabecera sigue el `title=`; el lugar del dato es
+el explorador de abajo. *(El cuadro vivía en `consulta-notas/_tabla.php` con la
+clase `criterios-descripcion`: si aparece de nuevo, es una reintroducción.)*
+
+### Explorador de criterios (24/08/2026)
+
+`/consulta-notas/{periodo}/criterios` — **tercer eje** de la consulta, junto al de
+sección y al de docente: un árbol **sección → carga (área + docente) → competencia
+→ criterio**, con la descripción de cada uno. **Sustituye** al cuadro de arriba:
+aquel resolvía «que la descripción se vea» dentro de una carga, y lo que hacía
+falta era ver **todos** los criterios organizados.
+
+- **Mismo universo que el resto de la pantalla**: solo competencias con bloqueo
+  (`competenciasOficiales`). Consecuencia asumida: **en un bimestre en curso sale
+  vacío** (B3 tenía 0 de 1 el 24/08), y el estado vacío lo explica en vez de
+  parecer roto.
+- 🔴 **Las TRANSVERSALES no salen por la vía normal y hay que anexarlas aparte**:
+  `getCompetenciasPorPeriodo` une competencia↔carga por el **área de la carga**, y
+  las transversales cuelgan de un área propia. Son **743 de los 2 731 criterios de
+  B2, el 27 %** — omitirlas dejaba una pantalla que parecía completa y no lo estaba.
+  Se anexan con `transversalesConContenido()`, que además exige **contenido real**:
+  sin ese EXISTS aparecerían los bloques fantasma del cierre forzado.
+- **Un solo método de modelo nuevo**: `CriterioModel::getCriteriosPorPeriodo()`,
+  que **no filtra por bloqueo a propósito** — el gate vive en el controlador, punto
+  único. Es una consulta para todo el bimestre: recorrer las ~400 cargas llamando a
+  `getCriterios()` sería un N+1 de 400 consultas por pantalla.
+- **Colapsable con `<details>` nativo y filtro por GET**: cero JavaScript nuevo. El
+  selector de bimestre manda `?periodo_id=` y el controlador salta a la ruta que
+  toca conservando la búsqueda.
+- **El imprimible es una vista aparte a propósito**: un `<details>` cerrado **no
+  imprime su contenido**, así que reusar la pantalla habría producido hojas vacías.
+- La entrada sin periodo (`/consulta-notas/criterios`, la card del dashboard) reusa
+  `ControlOperativoModel::getPeriodoPorDefecto()`, el mismo punto único que Cuadros.
+
+#### Rediseño de lectura, el mismo día
+
+La primera versión tenía **tres** niveles de acordeón y una lista vertical por
+competencia. Al verla, el usuario la describió como *«muy cansada de leer»*, y las
+cifras le daban la razón: **17 cargas y ~119 criterios por sección**, «nombres» de
+criterio que son **frases de 70 caracteres** (hasta 100) y competencias de hasta
+**185**. Qué cambió:
+
+- **Dos niveles, no tres**: sección → carga, y dentro **una tabla**
+  (competencia con `rowspan` | criterio | descripción). Se escanea por columnas
+  en vez de leer frases apiladas.
+- 🔴 **Fuera los «Sin descripción»**: eran **2 233 de 2 731 (82 %)** — la mitad del
+  ruido de la pantalla. La celda queda vacía y cada carga lleva su contador
+  «N con descripción».
+- **Cabeceras fijas**: la de sección (`top: 0`) y la de carga (`top: 54px`) se
+  quedan pegadas al recorrer los criterios. El `thead` **no** es sticky a
+  propósito: una carga tiene ~7 filas y una tercera cabecera solo comería pantalla.
+- 🔴 **NO hay buscador de texto, y es deliberado.** Lo hubo unas horas y se retiró
+  el mismo día: *«el director no sabe cuáles son los criterios, así que no puede ser
+  una modalidad para la búsqueda»*. Los criterios los redacta cada docente; buscarlos
+  por su redacción exige conocerlos de antemano. **La pantalla se recorre solo por lo
+  que el director SÍ conoce: nivel, grado, sección y docente.** Si alguien propone
+  «añadir un buscador», esta es la razón por la que no está.
+- **Cuatro filtros estructurales.** Los catálogos se calculan **antes** de filtrar
+  —si no, el propio filtro vaciaría su selector y no habría cómo volver atrás— y
+  salen de las mismas filas, sin consulta extra.
+- **Se despliega solo en cuanto acotas**: elegir una sección (~119 criterios) o un
+  docente (~135) abre TODO para leerlo de corrido, porque el objetivo es *mostrar*,
+  no esconder tras clics. El tope `CRITERIOS_ABRIR_TODO` (200) cubre esas dos
+  unidades de trabajo y deja fuera el caso intermedio —un nivel entero son **1 325**
+  criterios—, donde se abren las secciones y las cargas siguen plegadas.
+- **JS mínimo y prescindible** (`resources/js/criterios.js`): solo los botones de
+  expandir/contraer. El árbol es `<details>` nativo — sin el script la pantalla
+  sigue siendo plenamente usable.
+- El **imprimible hereda los filtros y los declara** en su cabecera: un listado
+  parcial que no dice que lo es se lee como el listado completo.
 
 ### Cuadros estadísticos: compone, no calcula
 
