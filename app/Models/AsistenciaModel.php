@@ -106,6 +106,39 @@ class AsistenciaModel extends BaseModel
     }
 
     /**
+     * Los 4 contadores de incidencias, en el orden en que se muestran.
+     * PUNTO ÚNICO: lo usan el partial de la tabla, los totales y el imprimible.
+     */
+    public const CAMPOS = ['faltas', 'faltas_justificadas', 'tardanzas', 'tardanzas_justificadas'];
+
+    /**
+     * Suma los 4 contadores de un roster ya cargado, más cuántos tienen registro.
+     *
+     * Recibe la salida de `getEstudiantesConIncidencias` en vez de consultar otra
+     * vez: el total tiene que ser el de LAS FILAS QUE SE PINTAN, no el de una
+     * consulta paralela que podría aplicar otro roster. Es el mismo motivo por el
+     * que el roster de asistencia es el de notas y no uno propio.
+     *
+     * @param  array $alumnos salida de getEstudiantesConIncidencias()
+     * @return array{faltas:int,faltas_justificadas:int,tardanzas:int,tardanzas_justificadas:int,registrados:int}
+     */
+    public static function totalesIncidencias(array $alumnos): array
+    {
+        $totales = array_fill_keys(self::CAMPOS, 0) + ['registrados' => 0];
+
+        foreach ($alumnos as $a) {
+            $inc = $a['incidencias'] ?? [];
+            foreach (self::CAMPOS as $campo) {
+                $totales[$campo] += (int) ($inc[$campo] ?? 0);
+            }
+            if (!empty($inc['registrado'])) {
+                $totales['registrados']++;
+            }
+        }
+        return $totales;
+    }
+
+    /**
      * Estudiantes de una sección con sus incidencias del periodo activo.
      * Devuelve una fila por estudiante con los 4 contadores (en 0 si no hay registro).
      */

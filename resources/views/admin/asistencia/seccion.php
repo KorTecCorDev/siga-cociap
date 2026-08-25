@@ -11,14 +11,17 @@
  * @var bool        $soloLectura  true = periodo no editable (historial)
  * @var array|null  $cierre       cierre vigente del periodo mostrado o null
  * @var array       $estudiantes  [{ matricula_id, nombre_completo, incidencias{...} }]
+ * @var array       $totales      AsistenciaModel::totalesIncidencias($estudiantes)
  * @var int         $topeMax      valor máximo por contador (espejo del backend)
+ *
+ * La TABLA vive en `_tabla-incidencias.php`, compartida con la consulta de
+ * Direccion. Las variables de arriba son el contrato que ese partial espera.
  */
 
 $csrfToken = \Core\Session::csrfToken();
 $bloqueada = $cierre !== null;
 $editable  = !$soloLectura && !$bloqueada;
 $pidVer    = $periodoVer ? (int) $periodoVer['id'] : 0;
-$campos    = ['faltas', 'faltas_justificadas', 'tardanzas', 'tardanzas_justificadas'];
 ?>
 
 <div class="page-header">
@@ -86,67 +89,9 @@ $campos    = ['faltas', 'faltas_justificadas', 'tardanzas', 'tardanzas_justifica
     </div>
 <?php endif; ?>
 
-<div class="tabla-notas-wrapper">
-    <table class="tabla-notas asistencia-tabla">
-        <thead>
-            <tr>
-                <th class="col-num">N°</th>
-                <th class="col-nombre">Apellidos y Nombres</th>
-                <th class="asistencia-th-contador" title="Faltas">F</th>
-                <th class="asistencia-th-contador" title="Faltas justificadas">FJ</th>
-                <th class="asistencia-th-contador" title="Tardanzas">T</th>
-                <th class="asistencia-th-contador" title="Tardanzas justificadas">TJ</th>
-                <?php if ($editable): ?>
-                    <th class="asistencia-th-acciones">Acción</th>
-                <?php endif; ?>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($estudiantes as $i => $est):
-                $inc = $est['incidencias'];
-            ?>
-                <tr class="asistencia-fila<?= $inc['registrado'] ? ' asistencia-fila--registrada' : '' ?>"
-                    data-matricula-id="<?= (int) $est['matricula_id'] ?>"
-                    data-periodo-id="<?= $pidVer ?>"
-                    data-csrf="<?= e($csrfToken) ?>">
-                    <td class="col-num"><?= $i + 1 ?></td>
-                    <td class="col-nombre"><?= e($est['nombre_completo']) ?></td>
-
-                    <?php foreach ($campos as $campo):
-                        $val = (int) $inc[$campo];
-                    ?>
-                        <?php if ($editable): ?>
-                            <td class="asistencia-td-input">
-                                <input type="number"
-                                       class="asistencia-input"
-                                       name="<?= $campo ?>"
-                                       min="0"
-                                       max="<?= $topeMax ?>"
-                                       step="1"
-                                       inputmode="numeric"
-                                       autocomplete="off"
-                                       value="<?= $val ?>"
-                                       data-inicial="<?= $val ?>"
-                                       aria-label="<?= $campo ?> de <?= e($est['nombre_completo']) ?>">
-                            </td>
-                        <?php else: ?>
-                            <td class="asistencia-td-valor"><?= $val ?></td>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-
-                    <?php if ($editable): ?>
-                        <td class="asistencia-td-acciones">
-                            <button type="button" class="btn btn--primary btn--sm asistencia-guardar">
-                                Guardar
-                            </button>
-                            <span class="asistencia-status" aria-live="polite"></span>
-                        </td>
-                    <?php endif; ?>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-</div>
+<?php // La tabla es un PARTIAL COMPARTIDO con la consulta de Direccion: el mismo
+      // dato se pintaba en dos plantillas distintas. Ver _tabla-incidencias.php.
+      require VIEW_PATH . '/admin/asistencia/_tabla-incidencias.php'; ?>
 
 <?php if ($editable): ?>
     <form method="post" action="<?= url('admin/asistencia/' . (int) $seccion['id'] . '/bloquear') ?>"

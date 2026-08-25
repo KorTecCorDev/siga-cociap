@@ -6,13 +6,24 @@
  * transversales y conducta, NO exige cierre: se muestra EN VIVO. El estado del
  * cierre aparece como dato en la cabecera, no como candado.
  *
+ * 🔴 La TABLA es `admin/asistencia/_tabla-incidencias.php`, el partial que
+ * comparte con Registro Académico. Antes esta vista reimplementaba la tabla con
+ * `tabla-resumen` + `text-center`, sin ancho fijo en los contadores: el mismo
+ * dato con dos aspectos distintos y dos sitios que tocar. No reintroducir una
+ * tabla propia aquí.
+ *
  * @var array      $periodo
  * @var array      $seccion  { seccion_id, seccion_nombre, grado_nombre, nivel_nombre }
- * @var array      $alumnos  [{ matricula_id, nombre_completo, dni, incidencias{...} }]
- * @var array      $totales  { faltas, faltas_justificadas, tardanzas, tardanzas_justificadas, registrados }
- * @var array|null $cierre
+ * @var array      $alumnos  [{ matricula_id, nombre_completo, incidencias{...} }]
+ * @var array      $totales  AsistenciaModel::totalesIncidencias($alumnos)
+ * @var array|null $cierre   cierre vigente { ra_bloqueado_en, ra_nombre, ... } o null
  */
 $volver = url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id']);
+
+// Contrato del partial compartido: esta pantalla NUNCA edita.
+$estudiantes = $alumnos;
+$editable    = false;
+$pidVer      = (int) $periodo['id'];
 ?>
 
 <div class="page-header">
@@ -25,70 +36,50 @@ $volver = url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $se
             &middot; <?= e($periodo['nombre_display']) ?>
         </p>
     </div>
+    <span class="badge badge--activo">Solo lectura</span>
 </div>
 
-<div class="card">
-    <div class="card__body">
-        <p class="text-sm text-muted">
-            <?php if ($cierre && !empty($cierre['bloqueado_en'])): ?>
-                Registro <strong>cerrado</strong> el <?= e(fecha_es($cierre['bloqueado_en'])) ?>.
-            <?php else: ?>
-                Registro <strong>en curso</strong>: Registro Académico todavía puede modificarlo.
-            <?php endif; ?>
-            <?= (int) $totales['registrados'] ?> de <?= count($alumnos) ?> estudiantes con registro.
-            Vista de consulta — para modificar se usa <em>Asistencia</em> en el panel de Registro Académico.
-        </p>
-    </div>
-</div>
-
-<?php if (empty($alumnos)): ?>
-    <div class="card">
-        <div class="card__body">
-            <div class="empty-state"><p>Esta sección no tiene estudiantes en el roster.</p></div>
-        </div>
+<?php // 🔴 EL ESTADO SE LEE DE `ra_bloqueado_en`, que es como se llama la columna
+      // en `cierres_asistencia`. Hasta el 25/08/2026 esta vista preguntaba por
+      // `bloqueado_en`, una clave que NO existe: `empty()` no avisa de una clave
+      // ausente, asi que la pantalla decia SIEMPRE "en curso" — tambien en las 23
+      // secciones de B1 y B2 que estaban bloqueadas y aprobadas.
+      //
+      // Y va como `alert`, no como parrafo gris: es el mismo hecho que Registro
+      // Academico ensena con este patron, y era el dato mas importante de la
+      // pantalla puesto en el elemento mas debil. ?>
+<?php if ($cierre): ?>
+    <div class="alert alert--info">
+        <span class="btn-icon btn-icon--locked" aria-hidden="true"></span>
+        <span>
+            Asistencia <strong>bloqueada y aprobada por Registro Académico</strong>
+            el <?= e(fechaLima($cierre['ra_bloqueado_en'])) ?><?php
+                if (!empty($cierre['ra_nombre'])): ?> por <?= e($cierre['ra_nombre']) ?><?php
+                endif; ?>.
+        </span>
+        <a href="<?= url('admin/asistencia/' . (int) $seccion['seccion_id'] . '/imprimir/' . $pidVer) ?>"
+           target="_blank" rel="noopener" class="btn btn--secondary btn--sm alert__accion">
+            🖨 Imprimir registro
+        </a>
     </div>
 <?php else: ?>
-<div class="card">
-    <div class="card__body">
-        <div class="tabla-notas-wrapper">
-            <table class="tabla-resumen">
-                <thead>
-                    <tr>
-                        <th class="col-num">N°</th>
-                        <th class="col-nombre">Apellidos y nombres</th>
-                        <th class="text-center" title="Faltas">F</th>
-                        <th class="text-center" title="Faltas justificadas">FJ</th>
-                        <th class="text-center" title="Tardanzas">T</th>
-                        <th class="text-center" title="Tardanzas justificadas">TJ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($alumnos as $i => $a): $inc = $a['incidencias']; ?>
-                        <tr<?= empty($inc['registrado']) ? ' class="fila-pendiente"' : '' ?>>
-                            <td class="col-num"><?= $i + 1 ?></td>
-                            <td class="col-nombre"><?= e($a['nombre_completo']) ?></td>
-                            <td class="text-center"><?= (int) $inc['faltas'] ?></td>
-                            <td class="text-center"><?= (int) $inc['faltas_justificadas'] ?></td>
-                            <td class="text-center"><?= (int) $inc['tardanzas'] ?></td>
-                            <td class="text-center"><?= (int) $inc['tardanzas_justificadas'] ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-                <tfoot>
-                    <tr class="tabla-resumen__total">
-                        <td colspan="2"><strong>Total de la sección</strong></td>
-                        <td class="text-center"><strong><?= (int) $totales['faltas'] ?></strong></td>
-                        <td class="text-center"><strong><?= (int) $totales['faltas_justificadas'] ?></strong></td>
-                        <td class="text-center"><strong><?= (int) $totales['tardanzas'] ?></strong></td>
-                        <td class="text-center"><strong><?= (int) $totales['tardanzas_justificadas'] ?></strong></td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-        <p class="text-sm text-muted">
-            La fila resaltada indica estudiantes <strong>sin registro</strong> de asistencia en este bimestre
-            (se muestran en cero, que no es lo mismo que cero inasistencias confirmadas).
-        </p>
+    <div class="alert alert--warning">
+        <span class="btn-icon btn-icon--wait" aria-hidden="true"></span>
+        <span>
+            Registro <strong>en curso</strong>: Registro Académico todavía puede modificarlo.
+            Lo que se ve aquí es el estado de este momento, no un registro aprobado.
+        </span>
     </div>
-</div>
+<?php endif; ?>
+
+<?php if (empty($alumnos)): ?>
+    <div class="empty-state"><p>Esta sección no tiene estudiantes en el roster.</p></div>
+<?php else: ?>
+    <p class="text-sm text-muted mb-md">
+        <strong><?= (int) $totales['registrados'] ?></strong> de <?= count($alumnos) ?>
+        estudiantes con registro guardado.
+        Para modificar se usa <em>Asistencia</em> en el panel de Registro Académico.
+    </p>
+
+    <?php require VIEW_PATH . '/admin/asistencia/_tabla-incidencias.php'; ?>
 <?php endif; ?>

@@ -12,18 +12,29 @@ class AsistenciaController extends BaseController
     /** Tope duro por contador (HTML5 max + validación server). */
     private const TOPE_MAX = 99;
 
+    /**
+     * Quien OPERA el registro de asistencia: ve el índice, la grilla editable,
+     * guarda y bloquea. Cuando se cree el rol auxiliar_academico, se añade aquí.
+     *
+     * Los directores NO entran aquí: solo al imprimible (ver `imprimir`). Por eso
+     * el constructor admite el superconjunto y cada método se valida por separado
+     * — mismo patrón que `ControlOperativoController::ROLES_PUBLICAN`. Esconder
+     * el enlace no es control de acceso.
+     */
+    private const ROLES_REGISTRAN = ['admin', 'registro_academico'];
+
     private AsistenciaModel $model;
 
     public function __construct()
     {
-        // Cuando se cree el rol auxiliar_academico, se añade al array.
-        $this->requireRole(['admin', 'registro_academico']);
+        $this->requireRole([...self::ROLES_REGISTRAN, ...ROLES_DIRECCION]);
         $this->model = new AsistenciaModel();
     }
 
     // GET /admin/asistencia
     public function index(): void
     {
+        $this->requireRole(self::ROLES_REGISTRAN);
         $secciones = $this->model->listarSeccionesActivas();
         $periodos  = $this->model->listarPeriodosActivos();
 
@@ -68,6 +79,7 @@ class AsistenciaController extends BaseController
     // GET /admin/asistencia/{seccion_id}   (?periodo={id} = historial solo lectura)
     public function seccion(string $seccionId): void
     {
+        $this->requireRole(self::ROLES_REGISTRAN);
         $seccionId = (int) $seccionId;
         $periodos  = $this->model->listarPeriodosActivos();
 
@@ -135,6 +147,9 @@ class AsistenciaController extends BaseController
             'soloLectura'  => $soloLectura,
             'cierre'       => $cierre,
             'estudiantes'  => $estudiantes ?? [],
+            // Los totales salen del MISMO roster que se pinta (punto unico en el
+            // modelo), no de una consulta paralela que podria contar otras filas.
+            'totales'      => AsistenciaModel::totalesIncidencias($estudiantes ?? []),
             'topeMax'      => self::TOPE_MAX,
             'page_scripts' => ($soloLectura || $bloqueada) ? [] : ['asistencia'],
         ]);
@@ -143,6 +158,7 @@ class AsistenciaController extends BaseController
     // POST /admin/asistencia/{seccion_id}/bloquear  (RA bloquea/aprueba la seccion)
     public function bloquear(string $seccionId): void
     {
+        $this->requireRole(self::ROLES_REGISTRAN);
         $this->validateCsrf();
         $seccionId = (int) $seccionId;
 
@@ -223,6 +239,7 @@ class AsistenciaController extends BaseController
     // POST /admin/asistencia/guardar  (AJAX, batch por fila)
     public function guardar(): void
     {
+        $this->requireRole(self::ROLES_REGISTRAN);
         $this->validateCsrf();
 
         $matriculaId = (int) $this->input('matricula_id');

@@ -574,16 +574,10 @@ class ConsultaNotasController extends BaseController
 
         $alumnos = $this->asistenciaModel->getEstudiantesConIncidencias($seccionId, $periodoId);
 
-        // Totales de la sección, para la cabecera.
-        $totales = ['faltas' => 0, 'faltas_justificadas' => 0, 'tardanzas' => 0, 'tardanzas_justificadas' => 0, 'registrados' => 0];
-        foreach ($alumnos as $a) {
-            foreach (['faltas', 'faltas_justificadas', 'tardanzas', 'tardanzas_justificadas'] as $k) {
-                $totales[$k] += (int) $a['incidencias'][$k];
-            }
-            if (!empty($a['incidencias']['registrado'])) {
-                $totales['registrados']++;
-            }
-        }
+        // Totales de la seccion. PUNTO UNICO en el modelo: los calculaba a mano
+        // aqui, y la vista de Registro Academico no los tenia. Ahora las dos
+        // pantallas suman con la misma funcion sobre el mismo roster.
+        $totales = AsistenciaModel::totalesIncidencias($alumnos);
 
         $this->view('consulta-notas/asistencia', [
             'titulo'  => 'Asistencia — ' . $primera['grado_nombre'] . ' ' . $primera['seccion_nombre'],

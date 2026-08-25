@@ -114,10 +114,59 @@
 
     .asistencia-td-input    { text-align: center; }
 
+    // Modo SOLO LECTURA (historial de RA y consulta de Direccion). Sin esto los
+    // numeros quedaban a la izquierda bajo una cabecera centrada: la rejilla de
+    // contadores solo se lee de un vistazo si columna y cabecera coinciden.
+    .asistencia-td-valor {
+        width: 64px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+    }
+
     .asistencia-th-acciones { width: 150px; text-align: center; }
     .asistencia-td-acciones {
         text-align: center;
         white-space: nowrap;
+    }
+
+    // ── Totales de la seccion ───────────────────────────────
+    // En RA sirven para cuadrar el registro ANTES de bloquearlo; en la consulta,
+    // para leer la seccion de un golpe sin sumar a mano.
+    .asistencia-totales {
+        background: $bg-secondary;
+        font-weight: 700;
+
+        td {
+            border-top: 1.5px solid $border-color;
+            border-bottom: none;
+            color: $text-primary;
+        }
+    }
+}
+
+// ── Leyenda de las abreviaturas ─────────────────────────────
+// F / FJ / T / TJ solo se explicaban con `title`, o sea un tooltip: no existe
+// en movil ni para quien navega con teclado. Sale del mismo partial que la
+// tabla para que no puedan divergir.
+.asistencia-leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-xs $spacing-md;
+    margin-top: $spacing-sm;
+    font-size: $font-size-sm;
+    color: $text-muted;
+    line-height: 1.5;
+
+    &__item strong {
+        display: inline-block;
+        min-width: 1.5em;
+        color: $text-secondary;
+    }
+
+    &__item--registrada {
+        flex-basis: 100%;
+        padding-left: $spacing-sm;
+        border-left: 3px solid rgba($color-success, .45);
     }
 }
 
