@@ -52,13 +52,30 @@ $chk('listarRoles() incluye director_academico',
     in_array('director_academico', $codigosListados, true));
 $chk('listarRoles() no filtra ningun rol', count($codigosListados) === count($roles));
 
-echo "\n4) Nadie tiene el rol todavia (el INSERT no concede acceso por si solo)\n";
+echo "\n4) Quien tiene el rol NO firma documentos oficiales\n";
+//
+// ⚠️ Aqui vivia la asercion "0 usuarios con el rol nuevo", que CADUCABA por
+// diseno: en cuanto alguien crea el primer Director academico —el paso que hay
+// que dar— daba rojo sin que nada estuviera mal. Paso el 24/08/2026.
+//
+// Lo que si debe cumplirse siempre: solo el Director EBR firma boletas, actas y
+// reportes. El conteo se IMPRIME como dato, no se juzga.
 $n = $um->queryOne("
     SELECT COUNT(*) AS n FROM usuarios u
     INNER JOIN roles r ON r.id = u.rol_id
     WHERE r.codigo = 'director_academico'
 ");
-$chk('0 usuarios con el rol nuevo', (int) $n['n'] === 0);
+$firmantes = $um->queryOne("
+    SELECT COUNT(*) AS n
+    FROM director_ebr_historial h
+    INNER JOIN usuarios u ON u.id = h.usuario_id
+    INNER JOIN roles r    ON r.id = u.rol_id
+    WHERE r.codigo <> 'director_ebr'
+      AND h.hasta IS NULL
+");
+$chk('ningun NO-Director EBR figura como firmante vigente',
+    (int) $firmantes['n'] === 0,
+    (int) $n['n'] . ' usuario(s) con el rol director_academico');
 
 echo "\n5) Color compilado — los 3 directores en el mismo grupo\n";
 $css = file_get_contents(ROOT_PATH . '/public/css/app.css');
