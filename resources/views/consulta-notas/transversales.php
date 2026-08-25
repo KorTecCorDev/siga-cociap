@@ -19,7 +19,10 @@ $nivel = $seccion['nivel_codigo'] === 'prim' ? 'primaria' : 'secundaria';
     <a href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id']) ?>"
        class="btn btn--secondary btn--sm">← Áreas</a>
     <div>
-        <h1 class="page-title">Competencias Transversales</h1>
+        <?php // El h1 dice lo MISMO que el enlace que trae aqui (consulta-notas/seccion.php).
+              // Si dijera "Competencias Transversales" a secas, coincidiria con el separador
+              // del registro por carga, que es justo el dato distinto. ?>
+        <h1 class="page-title">Promedios de Competencias Transversales</h1>
         <p class="page-subtitle">
             <?= e($seccion['grado_nombre'] . ' ' . $seccion['seccion_nombre']) ?> ·
             <?= e($seccion['nivel_nombre']) ?> ·
@@ -30,8 +33,8 @@ $nivel = $seccion['nivel_codigo'] === 'prim' ? 'primaria' : 'secundaria';
 </div>
 
 <div class="flash flash--info">
-    Promedio agregado de todas las cargas de la sección — es el valor que aparece
-    en la boleta. Cerrado el
+    Promedio de todas las cargas de la sección, aprobado y bloqueado por el tutor:
+    es el valor que aparece en la boleta. Cerrado el
     <strong><?= fechaLima($cierre['cerrado_en'], 'd/m/Y H:i') ?></strong>
     por <?= e($cierre['cerrado_por_nombre'] ?? '—') ?>.
 </div>

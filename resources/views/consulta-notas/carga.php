@@ -43,7 +43,10 @@ $nivelCodigo = $carga['nivel_codigo'];
           // en su carga, pero no son del area — conviene que se lea de un vistazo.
           if ($esTransversal && !$transversalAbierto): $transversalAbierto = true; ?>
         <div class="transversales-separador">
-            <h2 class="transversales-separador__titulo">Competencias Transversales</h2>
+            <?php // "registro del docente" en el TITULO: sin eso, este bloque y los
+                  // promedios del tutor (consulta-notas/transversales.php) se llamaban
+                  // igual, y son datos distintos — este es el insumo, aquel el resultado. ?>
+            <h2 class="transversales-separador__titulo">Competencias Transversales — Registro del docente</h2>
             <p class="transversales-separador__desc">
                 TIC y Aprendizaje aut&oacute;nomo, registradas por este docente en su
                 carga. El promedio que llega a la boleta lo agrega el tutor al cerrar
