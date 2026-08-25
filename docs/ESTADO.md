@@ -488,6 +488,24 @@ confirmar el `limite_notas` de B3; y luego el siguiente hito con fecha, la **reg
 periodo final** (tope 05/10/2026).
 
 ## Migraciones
+- 🆕 **`056_codigo_criterios_conducta`** (25/08): añade `criterios_conducta.codigo`
+  (VARCHAR(8) NULL) y lo siembra como `CONCAT('C', orden)`. **APLICADA EN LOCAL,
+  PENDIENTE EN PRODUCCIÓN** — el auto-deploy publica código, no repara datos: hay
+  que ejecutarla a mano tras el push, o `getCriterios()` fallará al pedir una
+  columna que allí no existe.
+  - **Por qué**: las grillas rotulan `C1`, `C2`… y ese código se calculaba a mano
+    como `$i + 1` en dos vistas. Un código POSICIONAL se corre entero si alguien
+    reordena o borra un criterio, y los registros ya impresos y firmados dejan de
+    cuadrar sin ningún error visible. Segundo motivo: `getCriterios($nivelId)`
+    filtra por nivel, así que en cuanto exista un criterio por nivel la misma
+    posición significaría criterios distintos en primaria y en secundaria.
+  - **No cambia nada de lo ya impreso**: medido antes de escribirla, los 10
+    criterios vigentes tienen `orden` 1..10 **sin huecos**, así que `C{posición}`
+    y `C{orden}` daban el mismo valor. `verif_conducta_criterios.php` ancla esa
+    coincidencia y avisará el día que se rompa a propósito.
+  - **Idempotente** y con fallback en código: la columna admite NULL y
+    `ConductaModel::getCriterios()` cae a la posición si un criterio nace sin
+    código, que es como se rotulaba antes.
 - **`054_revertir_anulacion_constancia_traslado`** (22/08): corrección de DATOS (no toca
   esquema). Devuelve a `vigente` la constancia de traslado **N° 052-2026-CAVVG-DA** (4.º A
   de secundaria → IEP LAS AMERICAS SCHOOL, 07/07/2026) y deja sus tres campos `anulado_*`
