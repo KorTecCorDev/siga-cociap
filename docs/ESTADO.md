@@ -75,6 +75,18 @@ Orden sugerido; los puntos 1 y 4 son los que más fácil se rompen:
    en navegador: **se prueba en B1 o B2**, donde las 23 secciones tienen cierre
    transversal vigente; **en B3 la tarjeta no sale** —0 cierres— y eso es
    correcto, no un fallo del renombrado.
+   🆕 **25/08 — asistencia de la sección: bug + partial compartido.** La vista
+   decía «Registro en curso» SIEMPRE (leía `bloqueado_en`, clave inexistente;
+   la columna es `ra_bloqueado_en`) — con 23 cierres vigentes en B1 y 23 en B2
+   mostrando lo contrario. La tabla pasa a ser un partial único compartido con
+   Registro Académico (`admin/asistencia/_tabla-incidencias.php`), con totales
+   y leyenda F/FJ/T/TJ en las DOS vistas, y el imprimible oficial abierto a
+   Dirección. Verificado en `verif_asistencia_partial_compartido.php` (render
+   real de los dos modos). **Falta en navegador, y esto es lo delicado del
+   lote: que RA siga GUARDANDO** en `/admin/asistencia/{id}` —el partial
+   alimenta a `asistencia.js` y un gancho perdido no da error visible— y que
+   siga pudiendo **bloquear y aprobar**. La vista del director se prueba en
+   B1/B2, que tienen cierre. Detalle en `docs/modulos/admin.md`.
    🔶 **Decisión abierta, planteada al usuario y sin responder:** al filtrar por
    UNA sección, ¿se conserva el acordeón de sección o se pinta en plano,
    ahorrando un nivel visual? Ver `docs/modulos/usuarios-direccion.md`.
@@ -116,6 +128,66 @@ Reconstruye el algoritmo VIEJO desde `git HEAD` para contrastarlo con el nuevo.
 En cuanto esto se mergee a `main`, HEAD traerá el código nuevo y el contraste
 dejará de probar nada. **Es un verificador de la migración, no permanente**:
 retirarlo o reescribirlo tras el merge.
+
+## 🔵 PLAN — FLUJO PROPIO PARA LOS AUXILIARES (planteado 25/08/2026, SIN implementar)
+
+Requisitos del usuario, tal como los dio. **Nada de esto está construido.**
+
+1. Los auxiliares **no tienen formación técnica** y se les complican los
+   aplicativos web.
+2. **Usan el celular mucho más que una computadora.**
+3. Su **nombre debe aparecer en el espacio de firma**.
+4. Mismo flujo que el docente: marcan el dato de cada criterio, ven sus notas
+   finales, y **bloquean y aprueban** para confirmar.
+
+### Lo que ya existe y hay que reusar (medido el 25/08/2026)
+
+- 🔴 **El rol `auxiliar_academico` NO EXISTE**: la tabla `roles` tiene 9 y ninguno
+  es auxiliar. **Hoy el trabajo del auxiliar lo hace `registro_academico`** — así
+  está escrito en el código (`BloqueoController`: *«el auxiliar académico (hoy
+  Registro Académico)»*) y hay un TODO en `Admin\AsistenciaController`.
+- **El CONCEPTO sí está modelado**: conducta tiene dos etapas
+  (`cierres_conducta.ra_bloqueado_en` = etapa 1 «auxiliar», `tutor_cerrado_en` =
+  etapa 2 «tutor»), y `/admin/cuadros` ya cuenta `pend_auxiliar` («Esperan al
+  auxiliar»). El flujo del punto 4 **no se diseña desde cero**: se le pone rol
+  propio a una etapa que ya existe.
+- **La línea de firma ya está**: `admin/{asistencia,conducta}/imprimir.php` traen
+  dos bloques, «Auxiliar Responsable» y «Personal de Registro Académico», con la
+  línea EN BLANCO. El punto 3 es rellenarla — y el dato **ya está disponible**
+  (`$cierre['ra_nombre']`), sin esperar al rol nuevo.
+- ⚠️ **Incoherencia a resolver al hacerlo**: el mismo documento nombra a la misma
+  persona con dos cargos. La traza dice «bloqueado y aprobado por X **(Registro
+  Académico)**» y encima hay dos líneas de firma distintas. Hoy es ambiguo en cuál
+  de las dos firma X.
+
+### ¿Repetir el N° como última columna? — NO (respondido el 25/08/2026)
+
+El auxiliar lleva un registro manual, filtra justificaciones y luego transcribe a
+SIGACOCIAP; el miedo es **saltar de fila** al llegar al extremo derecho. Es un
+problema real, pero repetir el N° es una solución de PAPEL aplicada a una pantalla:
+
+- **`.tabla-notas` ya tiene `col-num` y `col-nombre` en `position: sticky`**
+  (`components/_tables.scss`), con sombra en el borde. Al desplazarse en horizontal
+  **el número y el nombre se quedan pegados**: la identidad de la fila nunca se
+  pierde, así que la columna repetida no añade información.
+- **Y empeora el problema donde más duele.** Ancho actual de la tabla editable:
+  40 (N°) + 200 (nombre) + 4×64 (contadores) + 150 (acción) = **646 px**. En un
+  móvil de ~390 px, con 240 px ocupados por las dos columnas fijas, **se ven 2 de
+  los 4 contadores a la vez**. Repetir el N° lo lleva a 686 px.
+
+Lo que sí ataca la causa, por orden de impacto:
+
+1. **Layout de tarjeta en móvil** (una tarjeta por estudiante con sus 4 contadores):
+   elimina el scroll horizontal. Es lo coherente con el requisito 2, que es el
+   requisito que hoy no cumple ninguna pantalla del sistema.
+2. **Resaltar la fila enfocada** (`:focus-within`): al tocar un input se marca la
+   fila entera. Barato y muy eficaz contra el salto de fila.
+3. **Entrada por estudiante** (buscar/elegir uno y registrar sus 4 contadores en una
+   pantalla), que es como se transcribe desde un cuaderno: alumno por alumno.
+
+⚠️ Cualquiera de las tres toca `admin/asistencia/_tabla-incidencias.php`, que desde
+el 25/08/2026 es **partial compartido con la consulta de Dirección**: el cambio se
+vería en las dos pantallas. Ver `docs/modulos/admin.md`.
 
 ## 🏁 CIERRE DE LA VERSIÓN 1.0 — 22/08/2026
 

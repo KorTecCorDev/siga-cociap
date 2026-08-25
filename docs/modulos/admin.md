@@ -442,3 +442,58 @@ y `/admin/asistencia`, con copia imprimible firmable. Migracion `043_cierres_asi
   secciones (registrados/esperados, estado, fecha) y acciones
   `POST /director/bloqueos/asistencia/{seccion_id}/{bloquear|reabrir}`
   (`AsistenciaModel::getResumenSeccionesPorPeriodo`, sin requisito de tutor).
+
+## Asistencia: la tabla de incidencias es UN partial compartido (25/08/2026)
+
+`resources/views/admin/asistencia/_tabla-incidencias.php` es la **fuente única** de
+la tabla de incidencias. La usan las dos pantallas que muestran ese registro:
+
+| Vista | Modo | Quién |
+|---|---|---|
+| `admin/asistencia/seccion.php` | editable + solo lectura (historial) | RA / admin |
+| `consulta-notas/asistencia.php` | solo lectura | los tres directores |
+
+Antes eran **dos tablas distintas para el mismo dato**: RA con `asistencia-tabla` y
+la consulta reimplementada con `tabla-resumen` + `text-center`, sin ancho fijo en los
+contadores. El modo solo lectura **no se inventó** para esto: ya existía en la vista
+de RA para el historial de bimestres cerrados.
+
+- 🔴 **EL MODO EDITABLE ALIMENTA A `public/js/asistencia.js`**, que engancha por
+  `.asistencia-fila`, `.asistencia-input`, `.asistencia-guardar`, `.asistencia-status`
+  y los `data-matricula-id` / `data-periodo-id` / `data-csrf`. Renombrar cualquiera de
+  esos rompe el guardado de RA **en silencio**: el JS deja de encontrar las filas y no
+  hay error visible. `verif_asistencia_partial_compartido.php` renderiza el partial de
+  verdad en los dos modos y comprueba los ganchos **leyéndolos del propio `.js`**, para
+  no fijar aquí una lista que se quede vieja.
+- **Los `data-*` solo se emiten en modo editable.** En solo lectura no hay script que
+  los lea, y así no se siembra el token CSRF en una página que nunca escribe.
+- **Totales y leyenda salen del partial**, así que los tienen las dos vistas por
+  construcción. Los totales cuadran el registro antes de bloquearlo; la leyenda
+  explica F/FJ/T/TJ, que hasta ahora solo se explicaban con `title` — un tooltip que
+  no existe en móvil ni con teclado.
+- **`AsistenciaModel::totalesIncidencias()` es el punto único** y recibe el roster ya
+  cargado, no consulta otra vez: el total debe ser el de **las filas que se pintan**.
+  `AsistenciaModel::CAMPOS` es el orden canónico de los 4 contadores.
+- **`asistencia-td-valor` no tenía estilo**: en solo lectura los números quedaban a la
+  izquierda bajo una cabecera centrada. Ahora centra y usa `tabular-nums`.
+- El **imprimible** (`admin/asistencia/imprimir.php`) sigue aparte a propósito: es
+  layout `print` con `.tabla-registro`, otro medio y otras restricciones.
+
+### El imprimible se abrió a Dirección (25/08/2026)
+
+`Admin\AsistenciaController` pasa al patrón de acceso mixto de
+`ControlOperativoController`: **el constructor admite el superconjunto**
+(`ROLES_REGISTRAN` + `ROLES_DIRECCION`) y **cada método se valida por separado**.
+
+- Solo `imprimir()` queda abierto a los directores — imprimir es una lectura y el
+  documento ya existe. `index`, `seccion`, `bloquear` y `guardar` llevan
+  `requireRole(self::ROLES_REGISTRAN)` como primera sentencia.
+- ⚠️ **La constante se llama `ROLES_REGISTRAN`, no `ROLES_ESCRIBEN`**, porque cubre
+  también `index` y `seccion`, que son lectura del panel de RA: llamarlas escritura
+  sería mentir. Por eso este controlador **no** entra en el plan de
+  `verif_direccion_solo_lectura.php` (que valida los 7 con `ROLES_ESCRIBEN`); lo
+  cubre `verif_asistencia_partial_compartido.php`, que además falla si nace un
+  método público nuevo sin decidir su rol.
+- ⚠️ Camino de error conocido: si `imprimir()` falla su gate (sin cierre vigente)
+  redirige a `/admin/asistencia`, que para un director es 403. No es alcanzable desde
+  la UI —el botón solo aparece con cierre vigente— pero está ahí.

@@ -146,6 +146,31 @@ repartido en dos sitios. En la cabecera sigue el `title=`; el lugar del dato es
 el explorador de abajo. *(El cuadro vivía en `consulta-notas/_tabla.php` con la
 clase `criterios-descripcion`: si aparece de nuevo, es una reintroducción.)*
 
+### Asistencia de la sección: la vista decía lo contrario de la verdad (25/08/2026)
+
+`/consulta-notas/{p}/seccion/{s}/asistencia` preguntaba por `$cierre['bloqueado_en']`.
+**Esa clave no existe**: la columna de `cierres_asistencia` se llama `ra_bloqueado_en`,
+y `getCierreDetalle` hace `SELECT ca.*`. Como `empty()` no avisa de una clave ausente,
+la condición caía siempre al `else` y la pantalla mostraba **«Registro en curso»
+incluso en registros bloqueados y aprobados**. Medido: 23 cierres vigentes en B1 y 23
+en B2 — las 23 secciones de ambos bimestres, todas mostrando lo contrario.
+
+- **El estado pasa a `alert`**, con el mismo patrón (`alert--info` + `btn-icon--locked`)
+  con que Registro Académico enseña ese mismo hecho. Era el dato más importante de la
+  pantalla puesto en el elemento más débil: un `text-sm text-muted` que además mezclaba
+  estado, conteo y una nota de a dónde ir para modificar.
+- **Se muestra quién aprobó**: `getCierreDetalle` ya devolvía `ra_nombre` y la vista lo
+  ignoraba. Sin cierre, un `alert--warning` avisa de que lo que se ve es el estado de
+  este momento, no un registro aprobado.
+- **La tabla es ahora el partial compartido con RA** — ver `docs/modulos/admin.md`,
+  §«Asistencia: la tabla de incidencias es UN partial compartido». Consecuencia
+  deliberada: la fila resaltada pasa a ser **la que SÍ tiene registro** (verde, el
+  lenguaje del proyecto), donde antes esta vista resaltaba en ámbar las que no lo
+  tenían. Una sola convención para las dos pantallas; la leyenda lo explica.
+- **El director puede imprimir el registro oficial** cuando hay cierre vigente. Es la
+  única puerta que se le abrió en `Admin\AsistenciaController`; los otros cuatro
+  métodos siguen cerrados.
+
 ### Explorador de criterios (24/08/2026)
 
 `/consulta-notas/{periodo}/criterios` — **tercer eje** de la consulta, junto al de
