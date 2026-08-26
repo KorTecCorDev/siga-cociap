@@ -35,75 +35,79 @@
           // pantalla: arriba lo que es de la SECCION, abajo lo que es por CARGA.
           // Es la misma frontera que distingue las dos caras de las transversales,
           // asi que ubicar las listas ya desambigua antes de leer ningun rotulo. ?>
-    <h2 class="dash-grupo__titulo">Registros de la sección</h2>
-    <ul class="consulta-cargas mb-lg">
-        <?php if ($tieneTransversales): ?>
+    <section class="dash-grupo" aria-labelledby="cn-grupo-seccion">
+        <h2 id="cn-grupo-seccion" class="dash-grupo__titulo">Registros de la sección</h2>
+        <ul class="consulta-cargas">
+            <?php if ($tieneTransversales): ?>
+                <li>
+                    <a class="consulta-carga"
+                       href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id'] . '/transversales') ?>">
+                        <span>
+                            <?php // "Promedios" en el TITULO, no solo en la linea de abajo: el
+                                  // registro crudo del docente se llamaba igual que esto, y la
+                                  // distincion relegada al subtitulo solo funciona cuando se
+                                  // ven las dos a la vez. Ver consulta-notas/carga.php. ?>
+                            <span class="consulta-carga__area">Promedios de Competencias Transversales</span>
+                            <span class="consulta-carga__docente">Aprobados y bloqueados por el tutor — es lo que va a la boleta</span>
+                        </span>
+                        <span class="consulta-carga__meta">Ver →</span>
+                    </a>
+                </li>
+            <?php endif; ?>
+            <?php if ($tieneConducta): ?>
+                <li>
+                    <a class="consulta-carga"
+                       href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id'] . '/conducta') ?>">
+                        <span>
+                            <span class="consulta-carga__area">Conducta</span>
+                            <span class="consulta-carga__docente">Cerrada por auxiliar y tutor</span>
+                        </span>
+                        <span class="consulta-carga__meta">Ver →</span>
+                    </a>
+                </li>
+            <?php endif; ?>
             <li>
                 <a class="consulta-carga"
-                   href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id'] . '/transversales') ?>">
+                   href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id'] . '/asistencia') ?>">
                     <span>
-                        <?php // "Promedios" en el TITULO, no solo en la linea de abajo: el
-                              // registro crudo del docente se llamaba igual que esto, y la
-                              // distincion relegada al subtitulo solo funciona cuando se
-                              // ven las dos a la vez. Ver consulta-notas/carga.php. ?>
-                        <span class="consulta-carga__area">Promedios de Competencias Transversales</span>
-                        <span class="consulta-carga__docente">Aprobados y bloqueados por el tutor — es lo que va a la boleta</span>
+                        <span class="consulta-carga__area">Asistencia</span>
+                        <span class="consulta-carga__docente">Faltas y tardanzas del bimestre — en vivo</span>
                     </span>
-                    <span class="consulta-carga__meta">Ver →</span>
+                    <span class="consulta-carga__meta">Ver &rarr;</span>
                 </a>
             </li>
-        <?php endif; ?>
-        <?php if ($tieneConducta): ?>
-            <li>
-                <a class="consulta-carga"
-                   href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id'] . '/conducta') ?>">
-                    <span>
-                        <span class="consulta-carga__area">Conducta</span>
-                        <span class="consulta-carga__docente">Cerrada por auxiliar y tutor</span>
-                    </span>
-                    <span class="consulta-carga__meta">Ver →</span>
-                </a>
-            </li>
-        <?php endif; ?>
-        <li>
-            <a class="consulta-carga"
-               href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id'] . '/asistencia') ?>">
-                <span>
-                    <span class="consulta-carga__area">Asistencia</span>
-                    <span class="consulta-carga__docente">Faltas y tardanzas del bimestre — en vivo</span>
-                </span>
-                <span class="consulta-carga__meta">Ver &rarr;</span>
-            </a>
-        </li>
-    </ul>
+        </ul>
+    </section>
 <?php endif; ?>
 
 <?php if (empty($cargas)): ?>
     <div class="empty-state"><p>Esta sección no tiene notas oficiales en este periodo.</p></div>
 <?php else: ?>
-    <h2 class="dash-grupo__titulo">Áreas y cargas</h2>
-    <ul class="consulta-cargas">
-        <?php foreach ($cargas as $c): ?>
-            <?php
-            $area = $c['subarea_nombre']
-                ? $c['area_nombre'] . ' — ' . $c['subarea_nombre']
-                : $c['area_nombre'];
-            $nTransv = (int) ($c['transversales'] ?? 0);
-            ?>
-            <li>
-                <a class="consulta-carga"
-                   href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/carga/' . (int) $c['carga_id']) ?>">
-                    <span>
-                        <span class="consulta-carga__area"><?= e($area) ?></span>
-                        <span class="consulta-carga__docente"><?= e($c['docente'] ?: 'Sin docente') ?></span>
-                    </span>
-                    <span class="consulta-carga__meta">
-                        <?php // "del docente": estas son las transversales CRUDAS que registro
-                              // este docente en su carga, no los promedios del tutor de arriba. ?>
-                        <?= (int) $c['competencias'] ?> competencia(s)<?= $nTransv > 0 ? ' · incl. ' . $nTransv . ' transv. del docente' : '' ?> →
-                    </span>
-                </a>
-            </li>
-        <?php endforeach; ?>
-    </ul>
+    <section class="dash-grupo" aria-labelledby="cn-grupo-cargas">
+        <h2 id="cn-grupo-cargas" class="dash-grupo__titulo">Áreas y cargas</h2>
+        <ul class="consulta-cargas">
+            <?php foreach ($cargas as $c): ?>
+                <?php
+                $area = $c['subarea_nombre']
+                    ? $c['area_nombre'] . ' — ' . $c['subarea_nombre']
+                    : $c['area_nombre'];
+                $nTransv = (int) ($c['transversales'] ?? 0);
+                ?>
+                <li>
+                    <a class="consulta-carga"
+                       href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/carga/' . (int) $c['carga_id']) ?>">
+                        <span>
+                            <span class="consulta-carga__area"><?= e($area) ?></span>
+                            <span class="consulta-carga__docente"><?= e($c['docente'] ?: 'Sin docente') ?></span>
+                        </span>
+                        <span class="consulta-carga__meta">
+                            <?php // "del docente": estas son las transversales CRUDAS que registro
+                                  // este docente en su carga, no los promedios del tutor de arriba. ?>
+                            <?= (int) $c['competencias'] ?> competencia(s)<?= $nTransv > 0 ? ' · incl. ' . $nTransv . ' transv. del docente' : '' ?> →
+                        </span>
+                    </a>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    </section>
 <?php endif; ?>

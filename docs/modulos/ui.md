@@ -443,6 +443,52 @@ El `page-header` es el encabezado de **79 vistas**. Su convención de marcado es
   `.page-header` / `.page-title`: `app.scss` no lo importa. Editar esa copia no cambia
   nada en pantalla — la buena es `pages/_dashboard.scss`.
 
+## `.dash-grupo`: el bloque de sección, no solo su rótulo (26/08/2026)
+
+El patrón «rótulo + lista» de las páginas internas es **un componente de dos piezas**
+(`pages/_dashboard.scss:67-82`) y casi nadie copia la primera:
+
+```scss
+.dash-grupo   { margin-bottom: $spacing-xl; &:last-child { margin-bottom: 0 } }
+.dash-grupo__titulo { margin: 0 0 $spacing-md; … }   // ← margin-top: 0
+```
+
+- 🔴 **El cierre de la sección lo da el CONTENEDOR, no el rótulo.** Como
+  `__titulo` no lleva `margin-top`, dos bloques con el rótulo suelto quedan a **0 px**:
+  la lista de arriba cierra en 0 y el h2 de abajo abre en 0. Pasó en
+  `consulta-notas/seccion.php`, donde «ÁREAS Y CARGAS» salía pegado a la última tarjeta
+  de «Registros de la sección». Se arregló envolviendo cada bloque en
+  `<section class="dash-grupo" aria-labelledby="…">`, sin tocar una línea de SASS.
+- El `:last-child { margin-bottom: 0 }` es la otra mitad que se pierde al copiar solo el
+  rótulo: sin él, la última sección arrastra hueco muerto al pie de la página.
+- El mismo arreglo se aplicó a `admin/cuadros/index.php` (5 bloques) el mismo día, y ahí
+  el defecto era **otro**: el `mb-lg` sí estaba vivo, pero el hueco lo ponía la clase del
+  CONTENIDO (`.tabla-responsive mb-lg`), que **solo existe en la rama con datos**. En las
+  dos ramas `empty-state` —bimestre sin calificaciones, grado sin ranking— la separación
+  caía a **0 px**, justo en la pantalla que se mira cuando algo falta.
+  🔴 **La separación entre bloques no puede colgar de una rama del contenido.** Con el
+  contenedor es la misma con datos y sin ellos.
+- Al envolver, los `mb-*` que **cerraban** bloque se quitan (si no, 24 + 32 = 56 px); los
+  **internos** —los que separan piezas dentro del bloque, como los KPIs de su párrafo—
+  se conservan. `dashboard/index.php` fue siempre el modelo: ya usaba el contenedor.
+
+### ⚠️ Una utilidad `.mb-*` puede estar MUERTA y no notarse
+
+En `consulta-notas/seccion.php` el hueco se pedía con `<ul class="consulta-cargas mb-lg">` y **nunca se
+aplicó**. `.mb-lg` (`pages/_dashboard.scss:1215`) y `.consulta-cargas`
+(`pages/_consulta-notas.scss:36`) tienen la **misma especificidad (0,1,0)**, y
+`.consulta-cargas` declara el margen inferior **dentro de un shorthand**
+(`margin: $spacing-md 0 0`). Manda el orden de `app.scss`, donde
+`pages/consulta-notas` (`:43`) va **después** de `pages/dashboard` (`:25`) → gana el `0`.
+
+- **No hay síntoma en el código**: la clase está escrita en la vista y la regla está en el
+  SASS. Solo se ve en el CSS compilado — `grep -o '\.mb-lg{[^}]*}' public/css/app.css` y
+  comparar la **posición** (`grep -bo`) con la del selector del componente.
+- **Regla: si existe el componente, usar el componente, no el utilitario.** Un `.mb-*`
+  sobre un elemento que ya define ese lado del margen es una apuesta al orden de imports.
+- Mismo patrón de fallo que el `.page-title { flex: 1 }` de arriba: una regla de layout
+  presente en el código, inerte en pantalla, durante meses.
+
 ---
 
 ### `.tabla-pie__leyenda`: una sola leyenda para las grillas de datos
