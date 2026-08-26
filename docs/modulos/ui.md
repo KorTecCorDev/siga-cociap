@@ -408,6 +408,43 @@ totales en texto. Dentro va `.tabla-pie__leyenda` con sus `__item`.
   `<div class="tabla-notas-wrapper"><table>…</table></div>` + `<div class="tabla-pie">`.
 - `--suelto` para cuando no hay card alrededor (quita borde y fondo).
 
+## `.page-header`: cómo se alinean las acciones a la derecha (26/08/2026)
+
+El `page-header` es el encabezado de **79 vistas**. Su convención de marcado es:
+
+```html
+<div class="page-header">
+    <a class="btn btn--secondary btn--sm">← Volver</a>   <!-- back-link -->
+    <div>                                                <!-- SIN CLASE: titulo + subtitulo -->
+        <h1 class="page-title">…</h1>
+        <p class="page-subtitle">…</p>
+    </div>
+    <div class="btn-group">…</div>                       <!-- acciones, a la derecha -->
+</div>
+```
+
+- **El `<div>` SIN CLASE es el que crece.** `pages/_dashboard.scss` lleva
+  `.page-header > div:not([class]) { flex: 1 1 auto; min-width: 0 }`. Es lo que empuja
+  a la derecha lo que venga detrás: botones, badges o un selector de periodo.
+- 🔴 **`.page-title { flex: 1 }` NO hace ese trabajo y no hay que creérselo.** En 72 de
+  las 79 vistas el `h1` cuelga del `<div>`, que es `display:block`, así que **no es un
+  item flex y su `flex-grow` no aplica**. Durante meses ningún hijo directo del header
+  creció: las acciones se pegaban al subtítulo y, con subtítulos largos, envolvían a una
+  línea propia **a la izquierda**. Se detectó en `/consulta-notas` y afectaba también a
+  matrículas, orden de mérito, `padre/notas` y actas SIAGIE.
+- **La regla se conserva igualmente**: hay 7 vistas donde el `h1` sí es hijo directo del
+  header, y en `docente/mis-cargas.php` y `padre/inicio.php` ese `flex: 1` está **vivo**
+  y es lo único que alinea sus badges. Es inerte —no dañino— en las otras 72.
+- ⚠️ **Si un header necesita DOS bloques, el segundo lleva clase.** Dos `<div>` sin clase
+  se reparten el ancho a partes iguales y el segundo queda flotando a mitad de fila. Para
+  botones, la clase es `.btn-group` (`components/_buttons.scss`), el agrupador oficial.
+  `admin/actas_siagie/index.php` era el único caso del repo y se corrigió así.
+- ⚠️ `resources/sass/components/_dashboard.scss` contiene una **copia muerta** de
+  `.page-header` / `.page-title`: `app.scss` no lo importa. Editar esa copia no cambia
+  nada en pantalla — la buena es `pages/_dashboard.scss`.
+
+---
+
 ### `.tabla-pie__leyenda`: una sola leyenda para las grillas de datos
 
 Explica bajo la tabla lo que las cabeceras solo dicen con `title` — un tooltip **no

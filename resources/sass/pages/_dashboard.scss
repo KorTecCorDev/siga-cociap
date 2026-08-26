@@ -1161,6 +1161,23 @@
     gap: $spacing-md;
     margin-bottom: $spacing-xl;
     flex-wrap: wrap;
+
+    // El <div> SIN CLASE es la convencion del envoltorio titulo+subtitulo en 72
+    // de las 79 vistas con page-header, y es lo que empuja a la derecha lo que
+    // venga detras (botones, badges, un selector).
+    //
+    // 🔴 `.page-title { flex: 1 }` de aqui abajo NO resuelve esto y no hay que
+    // creerselo: ese h1 cuelga del div, que es display:block, asi que no es un
+    // item flex y su flex-grow no aplica. Sin esta regla ningun hijo directo
+    // crecia y las acciones se pegaban al subtitulo, envolviendo a la izquierda.
+    //
+    // ⚠️ Si un page-header necesita DOS bloques, el segundo lleva clase
+    // (`.btn-group` para botones): dos divs sin clase se reparten el espacio a
+    // partes iguales y el segundo queda flotando a mitad de fila.
+    > div:not([class]) {
+        flex: 1 1 auto;
+        min-width: 0;   // el subtitulo largo envuelve en vez de desbordar
+    }
 }
 
 .page-title {
