@@ -66,6 +66,21 @@ Orden sugerido; los puntos 1 y 4 son los que más fácil se rompen:
    Falta en navegador: que al cambiar de bimestre no se recargue dos veces y que
    **Aplicar siga filtrando** con el bimestre sin tocar — es la rama que se
    rompe sin avisar.
+   🆕 **26/08 — VERIFICADO EN NAVEGADOR POR EL USUARIO.** El eje por docente y el
+   explorador de criterios dejaron de ser dos botones sueltos del `page-header`:
+   ahora hay un **conmutador de 3 pestañas** (Secciones · Docentes · Criterios) y
+   **un solo selector de bimestre**, común a las tres y por ENCIMA de la barra.
+   Con esto quedan **cerrados** los pendientes de arriba sobre el selector
+   (auto-aplicar, el salto que limpia los 4 filtros y que Aplicar siga filtrando):
+   el usuario los recorrió y confirmó que funcionan. Detalle en
+   `docs/modulos/consulta-notas-ampliada.md` §10.
+   De paso salió una **causa raíz que afectaba a las 79 vistas con `page-header`**:
+   `.page-title { flex: 1 }` no alineaba nada porque el `h1` cuelga de un `<div>`
+   de `display:block`, que no es contenedor flex. Regla nueva en
+   `pages/_dashboard.scss`; el porqué en `docs/modulos/ui.md`. **Sigue sin probar
+   en navegador el resto de headers con acciones** que esa regla mueve:
+   `/matriculas`, `/padre/notas`, `/director/orden-merito-periodo/...` y
+   `/admin/actas-siagie`.
    🆕 **25/08 — nomenclatura de las DOS caras de las transversales.** Los
    promedios del tutor y el registro del docente se llamaban igual en 3
    pantallas; ahora son «Promedios de Competencias Transversales» y
