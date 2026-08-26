@@ -50,25 +50,17 @@ $qs = array_filter($filtros);
     <?php endif; ?>
 </div>
 
+<?php $ejeActivo = 'criterios'; ?>
+<?php require VIEW_PATH . '/consulta-notas/_nav.php'; ?>
+
 <div class="card mb-md">
     <div class="card__body">
         <form method="GET" action="<?= url('consulta-notas/' . (int) $periodo['id'] . '/criterios') ?>" class="criterios-filtros">
-            <div class="criterios-filtros__campo">
-                <label class="form-label" for="periodo_id">Bimestre</label>
-                <?php // Auto-aplica al cambiar, igual que las otras 9 vistas del repo
-                      // (incluida consulta-notas/index.php). El servidor limpia los
-                      // cuatro filtros al saltar de bimestre; aqui solo se dispara el
-                      // envio, para no tener la misma regla escrita en dos sitios.
-                      // Sin JS sigue funcionando con el boton Aplicar. ?>
-                <select id="periodo_id" name="periodo_id" class="form-input" onchange="this.form.submit()">
-                    <?php foreach ($periodos as $p): ?>
-                        <option value="<?= (int) $p['id'] ?>" <?= (int) $p['id'] === (int) $periodo['id'] ? 'selected' : '' ?>>
-                            <?= e($p['nombre_display']) ?> <?= e($p['anio']) ?>
-                            (<?= $p['estado'] === 'activo' ? 'activo' : 'cerrado' ?>)
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
+            <?php // ⚠️ El BIMESTRE ya no es un campo de este formulario (26/08/2026):
+                  // es el ambito comun de las tres pestañas y vive en la card de
+                  // `_nav.php`, encima de la barra. Aqui solo quedan los filtros que
+                  // pertenecen a ESTA pestaña. El periodo viaja en el `action`, asi
+                  // que Aplicar y Limpiar siguen operando sobre el bimestre correcto. ?>
             <div class="criterios-filtros__campo">
                 <label class="form-label" for="nivel">Nivel</label>
                 <select id="nivel" name="nivel" class="form-input">

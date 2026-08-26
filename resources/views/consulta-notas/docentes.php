@@ -5,6 +5,7 @@
  * misma grilla criterio-a-criterio del eje por sección: solo cambia el camino.
  *
  * @var array $periodo
+ * @var array $periodos  selector de bimestre de la barra (_nav.php)
  * @var array $docentes [{ docente_id, nombre, n_cargas, n_secciones, competencias }]
  */
 ?>
@@ -19,6 +20,9 @@
         </p>
     </div>
 </div>
+
+<?php $ejeActivo = 'docentes'; ?>
+<?php require VIEW_PATH . '/consulta-notas/_nav.php'; ?>
 
 <?php if (empty($docentes)): ?>
     <div class="empty-state"><p>Ningún docente tiene competencias bloqueadas en este periodo.</p></div>

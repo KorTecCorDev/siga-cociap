@@ -67,6 +67,55 @@
     &__meta    { font-size: $font-size-sm; color: $text-secondary; white-space: nowrap; }
 }
 
+// ── Conmutador de ejes (26/08/2026) ──────────────────────────────
+// Los tres ejes —Secciones, Docentes, Criterios— recorren el MISMO universo por
+// caminos distintos. Antes eran dos botones sueltos en el `page-header` del
+// indice: pesaban lo mismo que el back-link, no marcaban donde estabas y
+// desaparecian al entrar a Docentes o Criterios.
+//
+// ⚠️ DEUDA CONOCIDA: este es el TERCER conmutador con estilo propio del repo
+// (`.curr-sidebar__tab` en `pages/_curriculum.scss`, `.periodo-tab` en
+// `pages/_registro-cierre.scss`). Resuelven lo mismo con CSS distinto. Antes de
+// escribir un CUARTO, extraer un componente global; aqui no se hizo para no
+// tocar dos modulos ajenos al cambio.
+.consulta-ejes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-xs;
+    border-bottom: 1px solid $border-color;
+
+    // Asimetrico a proposito: mas aire ARRIBA (la card del bimestre, que es el
+    // ambito de las tres pestañas) y menos ABAJO (el panel, que SI pertenece a la
+    // pestaña activa). Con 16px a ambos lados la barra flotaba entre dos cards
+    // identicas sin decir de cual era.
+    margin-top: $spacing-lg;
+    margin-bottom: $spacing-md;
+}
+
+.consulta-eje {
+    padding: $spacing-sm $spacing-md;
+    text-decoration: none;
+    color: $text-secondary;
+    font-weight: 600;
+    // 14px, el mismo cuerpo que tenian los botones que sustituye: es navegacion
+    // principal del modulo, no un control secundario.
+    font-size: $font-size-base;
+    border-bottom: 2px solid transparent;
+    transition: $transition;
+
+    &:hover:not(&--activo) {
+        background: $bg-secondary;
+        color: $text-primary;
+        text-decoration: none;
+    }
+
+    // El acento del modulo, el mismo de `.consulta-card` y `.criterios-seccion`.
+    &--activo {
+        color: $brand-accent;
+        border-bottom-color: $brand-accent;
+    }
+}
+
 // ── Explorador de criterios (24/08/2026) ─────────────────────────
 // Arbol seccion -> carga -> competencia -> criterio. Colapsable con <details>
 // nativo: sin una linea de JS, y el navegador ya sabe abrirlo al buscar en la

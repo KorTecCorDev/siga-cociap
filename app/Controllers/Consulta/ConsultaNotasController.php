@@ -91,6 +91,25 @@ class ConsultaNotasController extends BaseController
         ");
     }
 
+    /**
+     * Salto de bimestre desde el selector comun de la barra (`_nav.php`).
+     *
+     * En las pestañas Docentes y Criterios el periodo viaja en la RUTA, pero el
+     * <select> solo puede mandarlo como query. Si apunta a OTRO periodo se redirige
+     * a la MISMA pestaña con el periodo nuevo: cambiar de bimestre nunca cambia de
+     * eje. La regla vive aqui y solo aqui — son las 2 pestañas que la necesitan.
+     *
+     * ⚠️ SOLO cuando el bimestre CAMBIA (`!== $periodoId`): en un envio normal la
+     * query trae el periodo vigente y no se debe redirigir.
+     */
+    private function saltarDePeriodo(int $periodoId, string $ruta): void
+    {
+        $destino = (int) ($this->query('periodo_id') ?? 0);
+        if ($destino > 0 && $destino !== $periodoId) {
+            redirect(url('consulta-notas/' . $destino . '/' . $ruta));   // redirect() es `never`
+        }
+    }
+
     /** Nombre completo del docente desde una fila de getCompetenciasPorPeriodo. */
     private function nombreDocente(array $c): string
     {
@@ -517,6 +536,7 @@ class ConsultaNotasController extends BaseController
         if (!$periodo) {
             $this->notFound();
         }
+        $this->saltarDePeriodo($periodoId, 'docentes');
 
         $porDocente = [];
         foreach ($this->competenciasOficiales($periodoId) as $c) {
@@ -548,6 +568,7 @@ class ConsultaNotasController extends BaseController
         $this->view('consulta-notas/docentes', [
             'titulo'   => 'Docentes — ' . $periodo['nombre_display'],
             'periodo'  => $periodo,
+            'periodos' => $this->listarPeriodos(),   // selector comun de la barra
             'docentes' => array_values($porDocente),
         ]);
     }
@@ -1066,29 +1087,27 @@ class ConsultaNotasController extends BaseController
             $this->notFound();
         }
 
+        // 🔴 CAMBIAR DE BIMESTRE LIMPIA LOS CUATRO FILTROS (25/08/2026), y ese es
+        // el proposito del redirect: al soltar la query, los filtros no viajan al
+        // bimestre nuevo. Antes los arrastraba, y eso mantenia vigente una consulta
+        // pensada para OTRO periodo: al saltar a un bimestre en curso —donde el
+        // universo es mucho menor— la pantalla salia vacia con los selectores en
+        // "Todas". Se cambia de bimestre para ver el bimestre, no para repetir la
+        // busqueda. La mecanica del salto vive en `saltarDePeriodo()`, compartida
+        // con la pestaña Docentes.
+        //
+        // ⚠️ Desde el 26/08/2026 el <select> del bimestre ya NO esta en el
+        // formulario de filtros: vive en la card comun de `_nav.php`, encima de la
+        // barra de pestañas. Elegir el bimestre ya seleccionado no dispara `change`,
+        // asi que no hay forma de limpiar los filtros sin cambiar de bimestre.
+        $this->saltarDePeriodo($periodoId, 'criterios');
+
         $filtros = [
             'nivel'   => (int) ($this->query('nivel')   ?? 0),
             'grado'   => (int) ($this->query('grado')   ?? 0),
             'seccion' => (int) ($this->query('seccion') ?? 0),
             'docente' => (int) ($this->query('docente') ?? 0),
         ];
-
-        // El bimestre viaja en la RUTA, pero el selector del formulario lo manda
-        // como query (`?periodo_id=`): al cambiarlo se salta a la ruta que toca.
-        //
-        // 🔴 CAMBIAR DE BIMESTRE LIMPIA LOS CUATRO FILTROS (25/08/2026). Antes
-        // los arrastraba, y eso mantenia vigente una consulta pensada para OTRO
-        // periodo: al saltar a un bimestre en curso —donde el universo es mucho
-        // menor— la pantalla salia vacia con los selectores en "Todas". Se
-        // cambia de bimestre para ver el bimestre, no para repetir la busqueda.
-        //
-        // ⚠️ SOLO cuando el bimestre CAMBIA (`!== $periodoId`). Si se limpiara
-        // en cada envio, el boton Aplicar borraria los filtros que el usuario
-        // acaba de elegir y no volveria a filtrar nunca.
-        $destino = (int) ($this->query('periodo_id') ?? 0);
-        if ($destino > 0 && $destino !== $periodoId) {
-            redirect(url('consulta-notas/' . $destino . '/criterios'));
-        }
 
         $arbol = $this->arbolCriterios($periodoId, $filtros);
         // Los filtros EFECTIVOS: `arbolCriterios` ya descarto los que no existen

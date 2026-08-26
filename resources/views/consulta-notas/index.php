@@ -17,33 +17,14 @@
             Para corregir, usa <a href="<?= url('rectificaciones') ?>">Rectificación</a>.
         </p>
     </div>
-    <?php // Segundo eje de navegacion (24/08/2026): el mismo universo, entrando
-          // por DOCENTE en vez de por seccion. ?>
-    <?php if (!empty($periodo)): ?>
-        <a href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/docentes') ?>"
-           class="btn btn--secondary">Ver por docente</a>
-        <?php // Tercer eje (24/08/2026): el mismo universo visto por CRITERIO. ?>
-        <a href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/criterios') ?>"
-           class="btn btn--secondary">Ver criterios</a>
-    <?php endif; ?>
 </div>
 
-<div class="card mb-md">
-    <div class="card__body">
-        <form method="GET" action="<?= url('consulta-notas') ?>">
-            <label class="form-label" for="periodo_id">Periodo / Bimestre</label>
-            <select name="periodo_id" id="periodo_id" class="form-input" onchange="this.form.submit()">
-                <option value="">— Seleccionar periodo —</option>
-                <?php foreach ($periodos as $p): ?>
-                    <option value="<?= (int) $p['id'] ?>" <?= $periodoId === (int) $p['id'] ? 'selected' : '' ?>>
-                        <?= e($p['nombre_display']) ?> <?= e($p['anio']) ?>
-                        (<?= $p['estado'] === 'activo' ? 'activo' : 'cerrado' ?>)
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </form>
-    </div>
-</div>
+<?php // El selector de bimestre (el AMBITO, comun a las tres pestañas) y el
+      // conmutador de ejes viven juntos en `_nav.php`: salen del mismo mapa de
+      // rutas. La card va ENCIMA de las pestañas — debajo se leia como contenido
+      // de esta pestaña, cuando manda sobre las tres. ?>
+<?php $ejeActivo = 'secciones'; ?>
+<?php require VIEW_PATH . '/consulta-notas/_nav.php'; ?>
 
 <?php if ($periodo === null): ?>
     <div class="empty-state"><p>Selecciona un periodo para ver las secciones con notas oficiales.</p></div>
