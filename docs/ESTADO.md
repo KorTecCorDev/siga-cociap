@@ -56,6 +56,20 @@ Orden sugerido; los puntos 1 y 4 son los que más fácil se rompen:
    primaria con secundaria). Servidor verificado con
    `verif_criterios_filtros_cascada.php`; **el JS de la cascada no lo ha visto
    nadie en un navegador todavía**. Detalle en `docs/modulos/usuarios-direccion.md`.
+7. 🆕 **26/08 — gráficos de `/admin/cuadros` + su imprimible A4, sin probar en
+   navegador.** Cinco gráficos con Frappe Charts 1.6.2 (ya vendorizado; **no se
+   añadió ninguna librería**) y la ruta nueva `/admin/cuadros/imprimir`. Servidor
+   verificado con `verif_direccion_superficies.php`, ampliado con cuatro
+   aserciones: coherencia cruzada `getEvolucionAnual` ↔ `getResumenBimestre`
+   celda a celda, paralelismo de las series, validez del JSON que consume
+   `cuadros.js`, y render real de la vista A4.
+   ✅ **El usuario confirmó en navegador (26/08) que los gráficos se dibujan
+   correctamente** en `/admin/cuadros`. **Falta todavía**: (a) el **imprimible en
+   papel** — es el primer gráfico que este repo imprime, no hay precedente, y el
+   `max-width: 718px` de `.cuadros-print` existe porque Frappe le escribe al SVG
+   un `width` en px al instanciarlo; (b) que `/director/periodos/{id}/stats` siga
+   idéntica, porque `_panel-bimestre.php` **ahora tiene dos consumidores**.
+   Detalle en `docs/modulos/usuarios-direccion.md`.
    🆕 **25/08 — chip con el `codigo_minedu`** delante del nombre de cada
    competencia, en pantalla y en el imprimible. Falta verlo en navegador y en
    papel (que el chip no descuadre la columna ni parta la fila).

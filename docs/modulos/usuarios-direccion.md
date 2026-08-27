@@ -107,7 +107,8 @@ card ninguna —se llegaba solo desde bloqueos y rectificaciones—; ahora la ti
 | `/consulta-notas/{p}/seccion/{s}/asistencia` | 4.º registro del bimestre en lectura |
 | `/consulta-notas/{p}/docentes` y `/docente/{id}` | **Eje por docente** (antes solo periodo→sección→carga) |
 | `/director/cargas/seccion/{id}/horario` | **Grilla semanal por sección** (antes solo un string resumen) |
-| `/admin/cuadros` | **Cuadros estadísticos** — los 5 registros en un tablero |
+| `/admin/cuadros` | **Cuadros estadísticos** — los 5 registros en un tablero, con gráficos |
+| `/admin/cuadros/imprimir` | **Versión A4** del tablero (layout `print`, con sello del Director EBR) |
 | `/consulta-notas/{p}/criterios` [+ `/imprimir`] | **Explorador de criterios** — árbol sección → carga → competencia → criterio |
 
 ### La regla del dato oficial
@@ -363,6 +364,68 @@ Si hace falta un indicador que no existe, **se añade al modelo que lo posee**.
 El selector de bimestre sale de `ControlOperativoModel::getPeriodos()` /
 `getPeriodoPorDefecto()`: escribirlo aquí habría sido la **quinta** copia de esa
 consulta en el repositorio.
+
+### Gráficos del tablero (26/08/2026)
+
+Cinco visualizaciones con **Frappe Charts 1.6.2**, que ya estaba vendorizado en
+`public/js/frappe-charts.min.js` para `/matriculas/resumen`. No se añadió ninguna
+librería: es SVG (se imprime a la resolución de la impresora, no a 96 dpi), tiene
+líneas multi-serie y trae tooltips, y su CSS de tooltip (`.graph-svg-tip`) ya es
+global en `_matriculas.scss`.
+
+| # | Gráfico | De dónde sale | ¿Consulta nueva? |
+|---|---|---|---|
+| G1 | Donut AD/A/B/C, logro vs proceso, riesgo, histograma de C | `require` de `director/anios/_panel-bimestre.php` | no |
+| G2 | Evolución del % en logro por bimestre | `AnioAcademicoModel::getEvolucionAnual()` | **sí** |
+| G3 | Brecha por grado (1.er puesto vs último) | `merito.por_grado[].peores`, que se descartaba | no |
+| G4 | Embudo del cierre de conducta | `conducta.{cerradas,pend_tutor,pend_auxiliar}` | no |
+| G5 | Secciones con menor avance en conducta | `conducta_secciones`, el crudo que ya se consultaba | no |
+
+**Cuatro de los cinco no costaron una sola consulta**: la pantalla ya pedía a los
+modelos mucho más de lo que pintaba y tiraba el resto (`por_grado`/`por_seccion`
+de matrícula, `deg_*`/`hist`/`con_c` del resumen, `peores` del mérito, el detalle
+por sección de conducta).
+
+- **G1 se REUSA, no se repinta.** `_panel-bimestre.php` ya dibujaba estas reglas
+  en `/director/periodos/{id}/stats`. Es portátil porque `.bimestre-panel` y
+  `.bimestre-donut-bloque` están en la **raíz** de `_anio-academico.scss`, no
+  anidados bajo `.stats-layout`. ⚠️ Tiene **dos consumidores**: al tocarlo, probar
+  las dos pantallas.
+- **`getEvolucionAnual` es GEMELO del bloque 1 de `getResumenBimestre`** — mismo
+  universo y mismos umbrales, con `p.anio_id` en vez de `cal.periodo_id`. Se
+  duplicó a propósito (un bucle serían 8 consultas por render, y el controlador
+  acabaría decidiendo reglas de negocio), y lo que hace segura la duplicación es
+  la aserción de **coherencia cruzada** del verificador: compara celda a celda
+  ambos métodos contra datos reales, no contra el texto del SQL.
+- **`$chartData` se arma en la VISTA** (`admin/cuadros/_chart-data.php`, partial
+  compartido por la pantalla y el imprimible). No en el controlador: el
+  verificador duplica a mano las transformaciones del controlador, pero
+  **renderiza la vista de verdad**. Lo que vive en la vista queda cubierto; lo
+  que se mueva al controlador crea una tercera copia.
+- **Al eje X de G2 solo entran los bimestres COMPARABLES** (todos los niveles con
+  notas). Rellenar con `0` el nivel que aún no arrancó dibuja un desplome que no
+  ocurrió — pasó de verdad en B3, donde Secundaria tenía 72 notas y Primaria
+  ninguna. Rellenar con `null` dependería de que Frappe no haga aritmética con
+  los huecos; si los coerciona, el path se llena de `NaN` y desaparece la línea
+  entera. **Sin verificar en navegador: no usar `null` sin comprobarlo antes.**
+- **Dos paletas, y la distinción importa.** AD/A/B/C y el embudo de conducta son
+  **estados** → verde/azul/ámbar/rojo. Niveles, grados y secciones son
+  **categorías** → azul `#1e6fa8`, teal `#0d9488`, púrpura `#7c3aed`, naranja
+  `#e07b1a`. Por eso aquí sí aparecen rojo y ámbar pese a la regla de
+  `_variables.scss`, que los prohíbe **como identidad de categoría**.
+- **Los gráficos se AÑADEN, nunca reemplazan las tablas**: accesibilidad, que
+  Frappe es 100 % cliente (sin JS la página quedaría vacía) y que quitar tablas
+  encoge el HTML hasta rozar el `strlen > 2000` del verificador.
+
+#### El imprimible A4
+
+`print.php` **no procesa `$page_scripts`**, así que la librería y el JS se cargan
+con `<script src>` a mano en la vista, como hace `boleta/alumno.php` con el QR.
+
+🔴 `.cuadros-print` lleva **`max-width: 718px` y no es cosmético**: Frappe mide el
+contenedor al instanciar y le escribe un `width` en px al SVG. Con un contenedor
+fluido el gráfico nacería del ancho de la VENTANA y saldría cortado en la hoja.
+718px ≈ 19 cm = A4 (21 cm) menos el margen de 1 cm por lado de `@page`.
 
 ## Verificación
 

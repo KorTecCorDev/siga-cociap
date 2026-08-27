@@ -90,6 +90,7 @@ foreach ([
     '/consulta-notas/{periodo_id}/docente/{docente_id}',
     '/director/cargas/seccion/{seccion_id}/horario',
     '/admin/cuadros',
+    '/admin/cuadros/imprimir',
     '/consulta-notas/{periodo_id}/criterios',
     '/consulta-notas/{periodo_id}/criterios/imprimir',
     '/consulta-notas/criterios',
@@ -109,6 +110,8 @@ $chk('/consulta-notas/criterios se registra ANTES que {periodo_id}/criterios',
 $chk('/criterios/imprimir se registra ANTES que /criterios',
     strpos($rutas, "'/consulta-notas/{periodo_id}/criterios/imprimir'")
     < strpos($rutas, "'/consulta-notas/{periodo_id}/criterios'"));
+$chk('/admin/cuadros/imprimir se registra ANTES que /admin/cuadros',
+    strpos($rutas, "'/admin/cuadros/imprimir'") < strpos($rutas, "'/admin/cuadros'"));
 
 // El imprimible NO puede reusar el arbol de la pantalla: un <details> cerrado
 // no imprime su contenido.
@@ -149,9 +152,60 @@ $periodos = $anio->query("SELECT p.id, p.numero, p.nombre_display, p.estado, p.a
 foreach ($periodos as $p) {
     $pid = (int) $p['id'];
     $aid = (int) $p['anio_id'];
+    $etiquetaP = $p['nombre_display'] . ' ' . $p['anio'];
 
     $conducta = (new App\Models\ConductaModel())->getResumenSeccionesPorPeriodo($pid);
     $asis     = (new App\Models\AsistenciaModel())->getProgresoPorSeccion($pid);
+
+    // ── La evolucion anual NO puede divergir del resumen del bimestre ──
+    // getEvolucionAnual() duplica a proposito el SQL del bloque 1 de
+    // getResumenBimestre(). Esta asercion es lo que hace segura esa
+    // duplicacion: los compara CELDA A CELDA contra datos reales, no contra
+    // el texto de la consulta. Si alguien mueve un umbral o el universo en
+    // uno solo de los dos, aqui salta.
+    $evo     = $anio->getEvolucionAnual($aid);
+    $resumen = $anio->getResumenBimestre($pid);
+
+    $celdas = [];
+    foreach ($evo['niveles'] as $nv) {
+        foreach ($nv['serie'] as $celda) {
+            if ((int) $celda['periodo_id'] === $pid) {
+                $celdas[(int) $nv['nivel_id']] = $celda;
+            }
+        }
+    }
+
+    $descuadres = [];
+    foreach ($resumen['niveles'] as $nv) {
+        $celda = $celdas[(int) $nv['nivel_id']] ?? null;
+        if ($celda === null) {
+            $descuadres[] = $nv['nivel_nombre'] . ': la evolucion no trae este bimestre';
+            continue;
+        }
+        foreach (['ad', 'a', 'b', 'c', 'total_calif'] as $k) {
+            if ((int) $celda[$k] !== (int) $nv[$k]) {
+                $descuadres[] = $nv['nivel_nombre'] . ".$k: evolucion " . (int) $celda[$k]
+                    . ' vs resumen ' . (int) $nv[$k];
+            }
+        }
+    }
+    $chk("la evolucion anual cuadra con el resumen de $etiquetaP",
+        empty($descuadres),
+        $descuadres ? $descuadres[0] : count($resumen['niveles']) . ' nivel(es) contrastado(s)');
+
+    // Frappe Charts exige values.length === labels.length; un hueco desplaza
+    // la linea entera SIN dar error. El relleno lo hace el modelo, asi que
+    // se comprueba aqui y no en la vista.
+    $desparejas = [];
+    foreach ($evo['niveles'] as $nv) {
+        if (count($nv['serie']) !== count($evo['periodos'])) {
+            $desparejas[] = $nv['nivel_nombre'] . ': ' . count($nv['serie'])
+                . ' puntos para ' . count($evo['periodos']) . ' bimestres';
+        }
+    }
+    $chk("las series de la evolucion son paralelas al eje X ($etiquetaP)",
+        empty($desparejas),
+        $desparejas ? $desparejas[0] : count($evo['periodos']) . ' bimestre(s) en el eje');
 
     $resConducta = ['secciones' => count($conducta), 'cerradas' => 0, 'pend_tutor' => 0, 'pend_auxiliar' => 0, 'esperados' => 0, 'calificados' => 0];
     foreach ($conducta as $f) {
@@ -173,7 +227,11 @@ foreach ($periodos as $p) {
         'periodo'  => $p,
         'bloques'  => [
             'matricula'      => (new App\Models\MatriculaModel())->getResumen($aid),
-            'calificaciones' => $anio->getResumenBimestre($pid),
+            'calificaciones' => $resumen,
+            'evolucion'      => $evo,
+            // Detalle crudo por seccion: el controlador ya lo trae para
+            // resumirConducta() y la vista lo grafica sin consultar de nuevo.
+            'conducta_secciones' => $conducta,
             'merito'         => $anio->getStatsCierre($pid),
             'empates'        => (new App\Models\OrdenMeritoModel())->gradosConEmpatesPendientes($pid),
             'reaperturas'    => $anio->getReaperturas($pid),
@@ -183,7 +241,6 @@ foreach ($periodos as $p) {
     ];
 
     // Render REAL, capturando cualquier warning/notice como fallo.
-    $etiquetaP = $p['nombre_display'] . ' ' . $p['anio'];
     $errores = [];
     set_error_handler(function ($no, $str) use (&$errores) { $errores[] = $str; return true; });
     ob_start();
@@ -196,6 +253,73 @@ foreach ($periodos as $p) {
         empty($errores) && strlen($html) > 2000,
         $errores ? $errores[0] : strlen($html) . ' bytes · conducta ' . $resConducta['cerradas'] . '/' . $resConducta['secciones']
             . ' · asistencia ' . $resAsis['registrados'] . '/' . $resAsis['esperados']);
+
+    // ── El JSON que consume cuadros.js ────────────────────────────────
+    // Es el unico contrato de la pantalla que PHP no puede romper de forma
+    // visible: un desajuste entre labels y values no da error, solo dibuja
+    // un grafico corrido. Y con $chartData vacio, PHP serializa [] y el JS
+    // encontraria undefined sin que nadie se entere.
+    if (preg_match('~<script type="application/json" id="cuadros-data">(.*?)</script>~s', $html, $mJson)) {
+        $payload = json_decode($mJson[1], true);
+        $problemas = [];
+
+        if (!is_array($payload)) {
+            $problemas[] = 'json_decode fallo: ' . json_last_error_msg();
+        } else {
+            if (isset($payload['evolucion'])) {
+                $nLabels = count($payload['evolucion']['labels']);
+                foreach ($payload['evolucion']['datasets'] as $ds) {
+                    if (count($ds['values']) !== $nLabels) {
+                        $problemas[] = 'evolucion/' . $ds['name'] . ': ' . count($ds['values'])
+                            . ' valores para ' . $nLabels . ' etiquetas';
+                    }
+                }
+            }
+            foreach ([['brecha', ['mejor', 'peor']], ['conductaEmbudo', ['values']], ['conductaSecciones', ['values']]] as [$clave, $ejes]) {
+                if (!isset($payload[$clave])) {
+                    continue;
+                }
+                $nLabels = count($payload[$clave]['labels']);
+                foreach ($ejes as $eje) {
+                    if (count($payload[$clave][$eje]) !== $nLabels) {
+                        $problemas[] = "$clave/$eje: " . count($payload[$clave][$eje])
+                            . " valores para $nLabels etiquetas";
+                    }
+                }
+            }
+        }
+
+        $chk("el JSON de graficos de $etiquetaP es valido y esta cuadrado",
+            empty($problemas),
+            $problemas ? $problemas[0] : implode(', ', array_keys($payload)));
+    } else {
+        // Sin datos no se emite el tag: es correcto, pero que se vea.
+        $chk("cuadros omite el JSON de graficos en $etiquetaP (sin datos)", true, 'sin tag cuadros-data');
+    }
+
+    // ── La version A4 tambien se renderiza de verdad ──────────────────
+    // Comparte datos con la pantalla, pero es OTRA vista: sin esto, una
+    // clave que solo ella lea (directorEbr, por ejemplo) reventaria en
+    // produccion con el verificador en verde.
+    $datosPrint = [
+        'titulo'      => 'Cuadros estadisticos',
+        'periodo'     => $p,
+        'bloques'     => $datos['bloques'],
+        'directorEbr' => (new App\Models\DirectorEbrModel())->getVigenteEnFecha($aid),
+    ];
+
+    $erroresPrint = [];
+    set_error_handler(function ($no, $str) use (&$erroresPrint) { $erroresPrint[] = $str; return true; });
+    ob_start();
+    extract($datosPrint);
+    include ROOT_PATH . '/resources/views/admin/cuadros/imprimir.php';
+    $htmlPrint = ob_get_clean();
+    restore_error_handler();
+
+    $chk("el imprimible A4 renderiza $etiquetaP sin avisos",
+        empty($erroresPrint) && strlen($htmlPrint) > 2000,
+        $erroresPrint ? $erroresPrint[0] : strlen($htmlPrint) . ' bytes'
+            . ($datosPrint['directorEbr'] ? ' · con sello' : ' · sin director vigente'));
 }
 
 echo "\n", $ok ? "== FASES 4-7 EN VERDE ==\n" : "== HAY FALLOS ==\n";

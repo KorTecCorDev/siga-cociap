@@ -7,10 +7,16 @@
  *
  * @var array      $periodos
  * @var array|null $periodo
- * @var array|null $bloques  { matricula, calificaciones, merito, empates,
- *                             reaperturas, conducta, asistencia }
+ * @var array|null $bloques  { matricula, calificaciones, evolucion, merito,
+ *                             empates, reaperturas, conducta,
+ *                             conducta_secciones, asistencia }
  */
 $pct = static fn(int $parte, int $total): int => $total > 0 ? (int) round($parte / $total * 100) : 0;
+
+// Los datos de los graficos se arman en un partial COMPARTIDO con el
+// imprimible: si cada vista los calculara por su cuenta, el papel podria
+// dibujar algo distinto de la pantalla para el mismo bimestre.
+require VIEW_PATH . '/admin/cuadros/_chart-data.php';
 ?>
 
 <div class="page-header">
@@ -38,6 +44,12 @@ $pct = static fn(int $parte, int $total): int => $total > 0 ? (int) round($parte
             </select>
             <noscript><button type="submit" class="btn btn--primary btn--sm">Ver</button></noscript>
         </form>
+        <?php if ($periodo): ?>
+            <a href="<?= url('admin/cuadros/imprimir?periodo_id=' . (int) $periodo['id']) ?>"
+               class="btn btn--secondary btn--sm" target="_blank" rel="noopener">
+                &#128424; Imprimir
+            </a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -99,6 +111,34 @@ $pct = static fn(int $parte, int $total): int => $total > 0 ? (int) round($parte
             </tbody>
         </table>
     </div>
+
+    <?php
+    // G1 — Donut de literales, barra logro/proceso, riesgo e histograma de C.
+    // Se REUSA el panel de /director/periodos/{id}/stats en lugar de repintar
+    // las mismas reglas: recibe la misma variable $resumen y sus estilos viven
+    // en la raiz de _anio-academico.scss, no anidados, asi que es portatil.
+    $resumen = $bloques['calificaciones'];
+    ?>
+    <div class="cuadros-panel">
+        <?php require VIEW_PATH . '/director/anios/_panel-bimestre.php'; ?>
+    </div>
+
+    <?php if (isset($chartData['evolucion'])): ?>
+    <div class="cuadros-charts">
+        <div class="card cuadros-chart cuadros-chart--ancho">
+            <div class="card__header"><h3 class="card__title">Evolución del % en logro por bimestre</h3></div>
+            <div class="card__body">
+                <div id="chart-evolucion"></div>
+                <p class="cuadros-nota">
+                    Porcentaje de calificaciones en AD o A sobre el total del nivel.
+                    Solo aparecen los bimestres en los que <strong>todos</strong> los niveles ya
+                    tienen notas: incluir uno que recién arranca mostraría un salto que no es
+                    una mejora, sino una muestra todavía sin representatividad.
+                </p>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
     <?php endif; ?>
 </section>
 
@@ -138,6 +178,21 @@ $pct = static fn(int $parte, int $total): int => $total > 0 ? (int) round($parte
             </tbody>
         </table>
     </div>
+
+    <?php if (isset($chartData['brecha'])): ?>
+    <div class="cuadros-charts">
+        <div class="card cuadros-chart cuadros-chart--ancho">
+            <div class="card__header"><h3 class="card__title">Brecha interna de cada grado</h3></div>
+            <div class="card__body">
+                <div id="chart-brecha"></div>
+                <p class="cuadros-nota">
+                    Promedio del primer puesto frente al del último, por grado. La distancia
+                    entre ambas barras es la dispersión del grado, no su nivel.
+                </p>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
     <?php endif; ?>
 </section>
 
@@ -171,6 +226,34 @@ $pct = static fn(int $parte, int $total): int => $total > 0 ? (int) round($parte
             <span class="cuadros-kpi__t">Cobertura del registro de asistencia</span>
         </div>
     </div>
+    <?php if (isset($chartData['conductaEmbudo']) || isset($chartData['conductaSecciones'])): ?>
+    <div class="cuadros-charts">
+        <?php if (isset($chartData['conductaEmbudo'])): ?>
+        <div class="card cuadros-chart">
+            <div class="card__header"><h3 class="card__title">Etapa del cierre de conducta</h3></div>
+            <div class="card__body">
+                <div id="chart-conducta-embudo"></div>
+                <p class="cuadros-nota">
+                    Secciones por etapa: el auxiliar bloquea primero y el tutor cierra después.
+                </p>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if (isset($chartData['conductaSecciones'])): ?>
+        <div class="card cuadros-chart">
+            <div class="card__header"><h3 class="card__title">Secciones con menor avance en conducta</h3></div>
+            <div class="card__body">
+                <div id="chart-conducta-secciones"></div>
+                <p class="cuadros-nota">
+                    Porcentaje de estudiantes ya calificados en conducta. (P) primaria, (S) secundaria.
+                </p>
+            </div>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     <p class="text-sm text-muted">
         El detalle por sección está en <a href="<?= url('consulta-notas?periodo_id=' . (int) $periodo['id']) ?>">Consulta de notas</a>.
     </p>
@@ -184,6 +267,19 @@ $pct = static fn(int $parte, int $total): int => $total > 0 ? (int) round($parte
             <?= count($bloques['reaperturas']) ?> reapertura(s) registrada(s). Quedan auditadas con su motivo.
         </p>
     </section>
+<?php endif; ?>
+
+<?php
+// ── Datos y libreria de graficos ──────────────────────────────────────
+// Sin JS inline: el JSON viaja en un tag y cuadros.js lo lee, igual que en
+// /matriculas/resumen. JSON_HEX_TAG es OBLIGATORIO, no cosmetico: los
+// nombres de seccion y de tutor los escribe el usuario y un "</script>"
+// dentro de uno cerraria el bloque y romperia la pagina.
+?>
+<?php if ($chartData): ?>
+    <script type="application/json" id="cuadros-data"><?= json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?></script>
+    <script src="<?= url('js/frappe-charts.min.js') ?>"></script>
+    <script src="<?= url('js/cuadros.js') ?>"></script>
 <?php endif; ?>
 
 <?php endif; ?>

@@ -1,0 +1,214 @@
+<?php
+/**
+ * Cuadros estadísticos imprimibles (A4 portrait) — informe de Dirección.
+ * Layout: print. Comparte con index.php la composición de bloques (la hace el
+ * controlador) y el armado de los gráficos (_chart-data.php).
+ *
+ * ⚠ `print.php` NO procesa $page_scripts: la librería y el JS se cargan aquí
+ * a mano, igual que hace boleta/alumno.php con qrcode.min.js.
+ *
+ * @var array      $periodo
+ * @var array      $bloques
+ * @var array|null $directorEbr  { sello_path }
+ */
+$pct = static fn(int $parte, int $total): int => $total > 0 ? (int) round($parte / $total * 100) : 0;
+
+require VIEW_PATH . '/admin/cuadros/_chart-data.php';
+
+$k    = $bloques['matricula']['kpis'];
+$cond = $bloques['conducta'];
+$asis = $bloques['asistencia'];
+?>
+<div class="cuadros-print">
+
+    <header class="cuadros-print__head">
+        <img class="cuadros-print__logo" src="<?= url('assets/img/logo_cociap.png') ?>" alt="COCIAP">
+        <div class="cuadros-print__titulo">
+            <h1><?= e(config('institucion')) ?></h1>
+            <p>Cuadros estadísticos &middot; <?= e($periodo['nombre_display']) ?> <?= e((string) $periodo['anio']) ?></p>
+            <p class="cuadros-print__sub"><strong>Estado del bimestre:</strong> <?= e($periodo['estado']) ?></p>
+        </div>
+    </header>
+
+    <div class="cuadros-print__meta">
+        <span><strong>Fecha de impresión:</strong> <?= e(date('d/m/Y H:i')) ?></span>
+    </div>
+
+    <?php // ── 1. MATRÍCULA ────────────────────────────────────────── ?>
+    <section class="cuadros-print__bloque">
+        <h2 class="cuadros-print__h2">Matrícula del año</h2>
+        <div class="cuadros-kpis">
+            <div class="cuadros-kpi"><span class="cuadros-kpi__n"><?= (int) $k['aprobadas'] ?></span><span class="cuadros-kpi__t">Aprobadas</span></div>
+            <div class="cuadros-kpi"><span class="cuadros-kpi__n"><?= (int) $k['pendientes'] ?></span><span class="cuadros-kpi__t">Pendientes</span></div>
+            <div class="cuadros-kpi"><span class="cuadros-kpi__n"><?= (int) $k['desactivadas'] ?></span><span class="cuadros-kpi__t">Desactivadas</span></div>
+            <div class="cuadros-kpi"><span class="cuadros-kpi__n"><?= (int) $k['secciones'] ?></span><span class="cuadros-kpi__t">Secciones</span></div>
+            <div class="cuadros-kpi"><span class="cuadros-kpi__n"><?= e((string) $k['promedio_seccion']) ?></span><span class="cuadros-kpi__t">Promedio por sección</span></div>
+        </div>
+    </section>
+
+    <?php // ── 2. CALIFICACIONES ───────────────────────────────────── ?>
+    <section class="cuadros-print__bloque">
+        <h2 class="cuadros-print__h2">Calificaciones del bimestre</h2>
+
+        <?php if (empty($bloques['calificaciones']['niveles'])): ?>
+            <p class="cuadros-print__vacio">Este bimestre todavía no tiene calificaciones registradas.</p>
+        <?php else: ?>
+            <table class="tabla-resumen">
+                <thead>
+                    <tr>
+                        <th>Nivel</th>
+                        <th class="text-center">Calificaciones</th>
+                        <th class="text-center">AD</th>
+                        <th class="text-center">A</th>
+                        <th class="text-center">B</th>
+                        <th class="text-center">C</th>
+                        <th class="text-center">% en logro</th>
+                        <th class="text-center">Estudiantes</th>
+                        <th class="text-center">En riesgo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($bloques['calificaciones']['niveles'] as $n): ?>
+                        <tr>
+                            <td><strong><?= e($n['nivel_nombre']) ?></strong></td>
+                            <td class="text-center"><?= (int) $n['total_calif'] ?></td>
+                            <td class="text-center"><?= (int) $n['ad'] ?></td>
+                            <td class="text-center"><?= (int) $n['a'] ?></td>
+                            <td class="text-center"><?= (int) $n['b'] ?></td>
+                            <td class="text-center"><?= (int) $n['c'] ?></td>
+                            <td class="text-center"><strong><?= (int) $n['pct_logro'] ?>%</strong></td>
+                            <td class="text-center"><?= (int) $n['total_estudiantes'] ?></td>
+                            <td class="text-center"><?= (int) $n['en_riesgo'] ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <?php $resumen = $bloques['calificaciones']; ?>
+            <div class="cuadros-panel">
+                <?php require VIEW_PATH . '/director/anios/_panel-bimestre.php'; ?>
+            </div>
+
+            <?php if (isset($chartData['evolucion'])): ?>
+                <div class="cuadros-print__chart">
+                    <h3 class="cuadros-print__h3">Evolución del % en logro por bimestre</h3>
+                    <div id="chart-evolucion"></div>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
+    </section>
+
+    <?php // ── 3. ORDEN DE MÉRITO ──────────────────────────────────── ?>
+    <section class="cuadros-print__bloque">
+        <h2 class="cuadros-print__h2">Orden de mérito</h2>
+
+        <?php if (!empty($bloques['empates'])): ?>
+            <p class="cuadros-print__aviso">
+                Hay <?= count($bloques['empates']) ?> grado(s) con empates sin resolver:
+                el orden todavía no es oficializable.
+            </p>
+        <?php endif; ?>
+
+        <?php if (empty($bloques['merito']['por_grado'])): ?>
+            <p class="cuadros-print__vacio">Este bimestre todavía no tiene ranking.</p>
+        <?php else: ?>
+            <table class="tabla-resumen">
+                <thead>
+                    <tr>
+                        <th>Grado</th>
+                        <th>Nivel</th>
+                        <th class="text-center">Estudiantes</th>
+                        <th>Primer puesto</th>
+                        <th class="text-center">Promedio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($bloques['merito']['por_grado'] as $g): ?>
+                        <tr>
+                            <td><strong><?= e($g['grado']['nombre_display']) ?></strong></td>
+                            <td><?= e($g['grado']['nivel_nombre']) ?></td>
+                            <td class="text-center"><?= (int) $g['total'] ?></td>
+                            <td><?= e($g['mejor']['nombre_completo'] ?? '—') ?></td>
+                            <td class="text-center"><?= e((string) ($g['mejor']['promedio_general'] ?? '—')) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <?php if (isset($chartData['brecha'])): ?>
+                <div class="cuadros-print__chart">
+                    <h3 class="cuadros-print__h3">Brecha interna de cada grado</h3>
+                    <div id="chart-brecha"></div>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
+    </section>
+
+    <?php // ── 4. CONDUCTA y 5. ASISTENCIA ─────────────────────────── ?>
+    <section class="cuadros-print__bloque">
+        <h2 class="cuadros-print__h2">Conducta y asistencia</h2>
+        <div class="cuadros-kpis">
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $cond['cerradas'] ?>/<?= (int) $cond['secciones'] ?></span>
+                <span class="cuadros-kpi__t">Conducta cerrada</span>
+            </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $cond['pend_tutor'] ?></span>
+                <span class="cuadros-kpi__t">Esperan al tutor</span>
+            </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $cond['pend_auxiliar'] ?></span>
+                <span class="cuadros-kpi__t">Esperan al auxiliar</span>
+            </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= $pct((int) $cond['calificados'], (int) $cond['esperados']) ?>%</span>
+                <span class="cuadros-kpi__t">Calificados en conducta</span>
+            </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $asis['completas'] ?>/<?= (int) $asis['secciones'] ?></span>
+                <span class="cuadros-kpi__t">Asistencia completa</span>
+            </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= $pct((int) $asis['registrados'], (int) $asis['esperados']) ?>%</span>
+                <span class="cuadros-kpi__t">Cobertura de asistencia</span>
+            </div>
+        </div>
+
+        <?php if (isset($chartData['conductaEmbudo'])): ?>
+            <div class="cuadros-print__chart">
+                <h3 class="cuadros-print__h3">Etapa del cierre de conducta</h3>
+                <div id="chart-conducta-embudo"></div>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($chartData['conductaSecciones'])): ?>
+            <div class="cuadros-print__chart">
+                <h3 class="cuadros-print__h3">Secciones con menor avance en conducta</h3>
+                <div id="chart-conducta-secciones"></div>
+            </div>
+        <?php endif; ?>
+    </section>
+
+    <?php if (!empty($bloques['reaperturas'])): ?>
+        <section class="cuadros-print__bloque">
+            <h2 class="cuadros-print__h2">Reaperturas del bimestre</h2>
+            <p><?= count($bloques['reaperturas']) ?> reapertura(s) registrada(s), auditadas con su motivo.</p>
+        </section>
+    <?php endif; ?>
+
+    <?php if ($directorEbr && !empty($directorEbr['sello_path'])): ?>
+        <footer class="cuadros-print__footer">
+            <div class="cuadros-print__sello-bloque">
+                <img class="cuadros-print__sello" src="<?= url($directorEbr['sello_path']) ?>"
+                     alt="" aria-hidden="true">
+            </div>
+        </footer>
+    <?php endif; ?>
+
+</div>
+
+<?php if ($chartData): ?>
+    <script type="application/json" id="cuadros-data"><?= json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?></script>
+    <script src="<?= url('js/frappe-charts.min.js') ?>"></script>
+    <script src="<?= url('js/cuadros.js') ?>"></script>
+<?php endif; ?>

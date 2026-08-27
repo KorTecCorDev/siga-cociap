@@ -7,8 +7,10 @@ use App\Models\AnioAcademicoModel;
 use App\Models\AsistenciaModel;
 use App\Models\ConductaModel;
 use App\Models\ControlOperativoModel;
+use App\Models\DirectorEbrModel;
 use App\Models\MatriculaModel;
 use App\Models\OrdenMeritoModel;
+use Core\View;
 
 /**
  * CuadrosEstadisticosController
@@ -76,6 +78,52 @@ class CuadrosEstadisticosController extends BaseController
             return;
         }
 
+        $this->view('admin/cuadros/index', [
+            'titulo'   => 'Cuadros estadísticos',
+            'periodos' => $periodos,
+            'periodo'  => $periodo,
+            'bloques'  => $this->componerBloques($periodo),
+        ]);
+    }
+
+    /**
+     * GET /admin/cuadros/imprimir  (acepta ?periodo_id)
+     *
+     * Version A4 del tablero, para las reuniones de Dirección y los informes.
+     * Comparte con index() la composición de bloques: si cada uno armara la
+     * suya, la pantalla y el papel podrían decir cifras distintas del MISMO
+     * bimestre. Los roles los hereda del constructor.
+     */
+    public function imprimir(): void
+    {
+        $periodoId = (int) ($this->query('periodo_id') ?? 0);
+
+        $periodo = $periodoId > 0
+            ? $this->controlModel->getPeriodo($periodoId)
+            : $this->controlModel->getPeriodoPorDefecto();
+
+        // Un documento sin bimestre no existe: aqui no hay estado vacio que
+        // mostrar, a diferencia de la pantalla.
+        if (!$periodo) {
+            $this->notFound();
+        }
+
+        View::setLayout('print');
+        $this->view('admin/cuadros/imprimir', [
+            'titulo'      => 'Cuadros estadísticos',
+            'periodo'     => $periodo,
+            'bloques'     => $this->componerBloques($periodo),
+            'directorEbr' => (new DirectorEbrModel())->getVigenteEnFecha((int) $periodo['anio_id']),
+        ]);
+    }
+
+    /**
+     * Reune los bloques del bimestre pidiendoselos a su dueño. Punto UNICO:
+     * lo comparten la pantalla y su imprimible, para que no puedan mostrar
+     * cifras distintas del mismo bimestre.
+     */
+    private function componerBloques(array $periodo): array
+    {
         $periodoId = (int) $periodo['id'];
         $anioId    = (int) $periodo['anio_id'];
 
@@ -84,20 +132,22 @@ class CuadrosEstadisticosController extends BaseController
         $conducta         = $this->conductaModel->getResumenSeccionesPorPeriodo($periodoId);
         $asistencia       = $this->asistenciaModel->getProgresoPorSeccion($periodoId);
 
-        $this->view('admin/cuadros/index', [
-            'titulo'   => 'Cuadros estadísticos',
-            'periodos' => $periodos,
-            'periodo'  => $periodo,
-            'bloques'  => [
-                'matricula'      => $resumenMatricula,
-                'calificaciones' => $this->anioModel->getResumenBimestre($periodoId),
-                'merito'         => $this->anioModel->getStatsCierre($periodoId),
-                'empates'        => $this->meritoModel->gradosConEmpatesPendientes($periodoId),
-                'reaperturas'    => $this->anioModel->getReaperturas($periodoId),
-                'conducta'       => $this->resumirConducta($conducta),
-                'asistencia'     => $this->resumirAsistencia($asistencia),
-            ],
-        ]);
+        return [
+            'matricula'      => $resumenMatricula,
+            'calificaciones' => $this->anioModel->getResumenBimestre($periodoId),
+            // La evolucion se ancla al año del BIMESTRE ELEGIDO, no al año
+            // activo: al mirar un bimestre de un año pasado la serie tiene
+            // que ser la de aquel año.
+            'evolucion'      => $this->anioModel->getEvolucionAnual($anioId),
+            'merito'         => $this->anioModel->getStatsCierre($periodoId),
+            'empates'        => $this->meritoModel->gradosConEmpatesPendientes($periodoId),
+            'reaperturas'    => $this->anioModel->getReaperturas($periodoId),
+            'conducta'       => $this->resumirConducta($conducta),
+            // El detalle por seccion ya vino en la consulta de arriba; se pasa
+            // crudo para graficarlo, sin volver a pedirlo.
+            'conducta_secciones' => $conducta,
+            'asistencia'     => $this->resumirAsistencia($asistencia),
+        ];
     }
 
     /**

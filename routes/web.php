@@ -32,6 +32,8 @@ $router->post('/admin/curriculum/competencias/{id}/editar',        'Admin\Curric
 // ─── Admin — Cuadros estadisticos (tablero de direccion) ────
 // Solo lectura. COMPONE los indicadores que ya calculan otros modelos; no
 // tiene consultas propias ni reimplementa ninguna regla de negocio.
+// El imprimible va ANTES: el router ancla por orden de registro.
+$router->get( '/admin/cuadros/imprimir',      'Admin\CuadrosEstadisticosController@imprimir');
 $router->get( '/admin/cuadros',               'Admin\CuadrosEstadisticosController@index');
 
 // ─── Admin — Centro de Control Operativo ────────────────────
