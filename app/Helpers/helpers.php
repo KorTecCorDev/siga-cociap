@@ -259,6 +259,49 @@ function orden_alfabetico(string $alias = 'p', int $campos = 3): string
 }
 
 /**
+ * Filtro del ROSTER DE EVALUACIÓN — PUNTO ÚNICO de las condiciones SQL.
+ *
+ * Es el universo de "a quién se evalúa": la lista que ve el docente al calificar
+ * y, por tanto, la que deben usar conducta, asistencia y sus contadores de
+ * avance. Estaba copiado a mano en NUEVE consultas; se emite desde aquí igual
+ * que `orden_alfabetico()`.
+ *
+ * Las tres condiciones y su porqué:
+ *
+ *  1. `tipo NOT IN ('trasladado','retirado')` — el TRASLADO DE SALIDA abandonó
+ *     el colegio y el RETIRADO ya no asiste (sin traslado oficial; migración
+ *     045, reversible vía `tipo_anterior`). Nadie más se excluye.
+ *  2-3. RETORNO DE GRADO — el estudiante tiene dos matrículas del mismo año y
+ *     solo una se evalúa: mientras el retorno está `activo` se evalúa en la
+ *     OPERATIVA (se excluye la oficial); tras `revertido` vuelve a la OFICIAL
+ *     (se excluye la operativa).
+ *
+ * 🔴 NO filtra por `matriculas.estado` A PROPÓSITO. `pendiente` (el estado en
+ * que NACE toda matrícula) y `desactivado` (baja administrativa por deuda)
+ * SIGUEN ASISTIENDO y sí se califican. Filtrar por `estado='aprobada'` fue un
+ * bug real: dejaba a esos alumnos fuera de la grilla de asistencia, nunca se
+ * les creaba fila en `inasistencias` y su boleta salía con "0 inasistencias",
+ * un dato FALSO en vez de ausente (04/08/2026).
+ *
+ * ⚠️ NO lo usan tres consultas, y no es un descuido:
+ *  · `CalificacionModel` (resumen de competencia) añade
+ *    `estado IN ('aprobada','pendiente')`.
+ *  · `ControlOperativoModel` y `OrdenMeritoModel::ROSTER_MERITO` pertenecen al
+ *    universo del ORDEN DE MÉRITO, que exige `estado='aprobada'` y tiene su
+ *    propia excepción para la operativa revertida. Unificarlos rompería el
+ *    invariante del mérito.
+ *
+ * @param  string $alias alias de la tabla `matriculas` en la consulta
+ * @return string las tres condiciones, ya con `AND` inicial, listas para interpolar
+ */
+function roster_evaluacion(string $alias = 'm'): string
+{
+    return "AND {$alias}.tipo NOT IN ('trasladado', 'retirado')\n"
+        . "              AND {$alias}.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')\n"
+        . "              AND {$alias}.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')";
+}
+
+/**
  * Marca del área de Ética y Valores (Educación Religiosa) — PUNTO ÚNICO.
  * Es la única área `tipo='tutoria'` que cuenta en el ORDEN DE MÉRITO
  * (reemplaza a Ed. Religiosa en secundaria; migración 035 la sella con este

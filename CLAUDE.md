@@ -256,7 +256,17 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   `desactivado` por deuda y `pendiente`) SÍ se califica. `retirado` = ya no asiste
   sin traslado oficial (migración 045); reversible vía `tipo_anterior`. NO extender
   a los usos de `trasladado` en boleta (un retirado es desactivado no-trasladado →
-  BORRADOR). Ver `docs/modulos/matriculas.md`.
+  BORRADOR). **PUNTO ÚNICO desde el 27/08/2026: `roster_evaluacion()` en
+  `helpers.php`** (emite las 3 condiciones, como `orden_alfabetico()`); antes
+  estaban copiadas a mano en 9 consultas, `getAlumnosSeccion` incluida. ⚠️ **TRES
+  consultas NO lo usan a propósito** y llevan comentario que lo dice:
+  `CalificacionModel` (añade `estado IN ('aprobada','pendiente')`),
+  `ControlOperativoModel` y `OrdenMeritoModel::ROSTER_MERITO` (universo del mérito,
+  que es su propio punto único). Protegido por `verif_roster_evaluacion.php`.
+  Ver `docs/modulos/matriculas.md`.
+- **Los 4 contadores de `inasistencias` son INDEPENDIENTES**, no un total y su
+  subconjunto: `faltas`/`tardanzas` YA son las **sin justificación**. NUNCA restar
+  (159 filas tienen `faltas_justificadas > faltas`). Ver `docs/modulos/admin.md`.
 - **Orden de mérito excluye áreas `tipo IN ('transversal','tutoria')`, con UNA excepción:
   ÉTICA Y VALORES cuenta en TODA secundaria, 5.º incluido** (decisión cerrada 05/08/2026).
   **Ética NO es tutoría**: es la nota del área-curso **Educación Religiosa de secundaria**,
