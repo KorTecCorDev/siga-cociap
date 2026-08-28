@@ -343,17 +343,43 @@ echo "\n8) Cambiar de bimestre no arrastra la consulta anterior\n";
 // El redirect vive en el controlador (`criterios()`), que no se puede invocar
 // sin sesion. Se comprueba sobre el CODIGO: que la construccion de la query
 // con los filtros ya no exista en ese salto.
+//
+// ⚠️ ESTOS DOS ASERTOS SE REESCRIBIERON EL 28/08/2026, y la leccion importa.
+// Buscaban cadenas LITERALES en dos archivos concretos, y el conmutador de 3
+// ejes (commit 550e5ff) movio las dos piezas sin tocar el comportamiento:
+//   · el `onchange` se fue de `criterios.php` al partial `_nav.php`, comun a
+//     los tres ejes;
+//   · el redirect inline se extrajo a `saltarDePeriodo()`, compartido por
+//     Docentes y Criterios.
+// Resultado: el verificador llevaba dias en rojo por un REFACTOR QUE MEJORABA
+// el codigo —una copia en vez de dos—, y un verificador cronicamente rojo
+// ensena a ignorar la suite entera. Ahora se comprueba la MECANICA donde vive,
+// no su ubicacion de aquel dia.
 $fuente = file_get_contents(ROOT_PATH . '/app/Controllers/Consulta/ConsultaNotasController.php');
+
+// La mecanica del salto: al pedir otro periodo, redirige a la ruta del eje SIN
+// arrastrar la query. Se ancla al helper compartido, no a la copia inline.
 $saltoOk = (bool) preg_match(
-    '/\$destino > 0 && \$destino !== \$periodoId\s*\)\s*\{\s*redirect\(url\(\s*\'consulta-notas\/\'\s*\.\s*\$destino\s*\.\s*\'\/criterios\'\s*\)\);/',
+    '/private function saltarDePeriodo\(int \$periodoId, string \$ruta\).*?'
+    . '\$destino > 0 && \$destino !== \$periodoId\s*\)\s*\{\s*'
+    . 'redirect\(url\(\s*\'consulta-notas\/\'\s*\.\s*\$destino\s*\.\s*\'\/\'\s*\.\s*\$ruta\s*\)\);/s',
     $fuente
 );
 $chk('el salto de bimestre redirige a la ruta LIMPIA, sin http_build_query', $saltoOk);
-$chk('el selector de bimestre auto-aplica (onchange en la vista)',
-    str_contains(
-        file_get_contents(ROOT_PATH . '/resources/views/consulta-notas/criterios.php'),
-        'name="periodo_id" class="form-input" onchange="this.form.submit()"'
+
+// Y que el eje de Criterios lo USE: el helper existe pero podria no llamarse.
+$chk('criterios() usa saltarDePeriodo() (no reimplementa el salto)',
+    (bool) preg_match(
+        '/public function criterios\(string \$periodoId\).*?\$this->saltarDePeriodo\(\$periodoId, \'criterios\'\)/s',
+        $fuente
     ));
+
+// El selector vive en el partial de navegacion, comun a los tres ejes. Se
+// comprueba por ATRIBUTOS y no por la cadena entera: el orden de los atributos
+// no es una regla de negocio y ya rompio este aserto una vez.
+$nav = file_get_contents(ROOT_PATH . '/resources/views/consulta-notas/_nav.php');
+$chk('el selector de bimestre auto-aplica (onchange en _nav.php)',
+    (bool) preg_match('/<select[^>]*name="periodo_id"[^>]*onchange="this\.form\.submit\(\)"/', $nav));
 
 echo "\n9) El chip de codigo reusa el estilo del proyecto\n";
 // El codigo de competencia se pinta con `.competencia-card__codigo`, el chip que
