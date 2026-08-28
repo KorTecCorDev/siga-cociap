@@ -90,6 +90,150 @@
     line-height: 1.4;
 }
 
+// ── Mapa de calor: criterios de conducta x seccion ───────────────────
+// Una tabla y no un grafico: son 23 x 10 valores, densidad a la que cualquier
+// grafico deja de leerse, y ademas hay que imprimirla.
+.cuadros-matriz {
+    font-size: $font-size-sm;
+
+    // La columna de seccion se queda a la vista al desplazar las 10 de
+    // criterios; sin `background` propio, el contenido se ve por debajo.
+    // z-index segun la escala del sistema: 2 cuerpo, 3 thead, 5 la esquina
+    // (misma que usa `.conducta-scroll`).
+    .col-nombre {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        min-width: 120px;
+        white-space: nowrap;
+        background: $bg-white;
+        box-shadow: 2px 0 6px rgba(0, 0, 0, .06);
+    }
+
+    thead .col-nombre { z-index: 5; background: $bg-secondary; }
+    tr:hover .col-nombre { background: $bg-secondary; }
+
+    &__th {
+        width: 34px;
+        min-width: 34px;
+        text-align: center;
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+
+    &__c {
+        width: 34px;
+        min-width: 34px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+
+        // Cinco escalones, no un degradado: en papel cinco tonos se distinguen
+        // y cien no, y un degradado obligaria a CSS inline.
+        &--n0 { color: $text-muted; }
+        &--n1 { background: $color-warning-bg; }
+        &--n2 { background: #fde9c8; }
+        &--n3 { background: $color-warning; font-weight: 600; }
+        &--n4 { background: $color-error;   font-weight: 700; }
+
+        // Sin respuestas registradas. No es un 0 %: es que no hay dato.
+        &--sd { color: $text-muted; background: $bg-secondary; }
+    }
+
+    // 🔴 EL COLOR DEL TEXTO VA APARTE Y CON MÁS ESPECIFICIDAD.
+    // `.tabla-notas td { color: $text-primary }` es (0,1,1) y le ganaba a
+    // `.cuadros-matriz__c--n4`, que es (0,1,0): el texto salia azul oscuro
+    // sobre rojo saturado —2,4:1 de contraste, ilegible— y ninguna prueba de
+    // servidor lo ve. Con el descendiente son (0,2,1) y no depende del orden
+    // de los @import (ver la nota de la zona de resultado en docs/modulos/ui.md).
+    //
+    // Blanco SOLO sobre el rojo (5,9:1). Sobre el ambar seria 3,2:1, peor que
+    // el texto oscuro que ya hay (4,6:1): por eso n3 no se invierte.
+    .cuadros-matriz__c--n4,
+    tr:hover .cuadros-matriz__c--n4 { color: $text-white; }
+
+    // ── Hover: un tono propio por escalon ────────────────────────────
+    //
+    // 🔴 NO usar `background: inherit` aqui. Se probo, y `inherit` toma el fondo
+    // del <tr>, que NO tiene ninguno: la celda quedaba transparente sobre el
+    // hover gris de la fila y el numero BLANCO de n4 desaparecia. La intencion
+    // era "que el hover no tape el mapa" y el efecto fue borrar el dato justo
+    // en las celdas mas graves.
+    //
+    // Cada escalon tiene su par de hover, para que la fila se resalte entera
+    // SIN perder el nivel de calor. ⚠️ La direccion del paso no es uniforme y no
+    // es un descuido, es lo que exige el contraste:
+    //   · n4 no puede ACLARARSE  -> blanco sobre #ef4444 cae a 3,8:1.
+    //   · n3 no puede OSCURECERSE -> texto oscuro sobre #b45309 cae a 2,9:1.
+    // Lo que si se conserva, que es lo que se ve: la fila entera cambia y la
+    // escala sigue siendo monotonica dentro de ella (n1 < n2 < n3 < n4).
+    //
+    // Los valores estan MEDIDOS en navegador, no estimados: los 5 escalones dan
+    // >= 4,5:1 con su propio texto en estado hover. Al tocar cualquiera, volver
+    // a medirlos (ver docs/modulos/usuarios-direccion.md).
+    tr:hover td.cuadros-matriz__c--sd { background: #eef1f5; }
+    tr:hover td.cuadros-matriz__c--n1 { background: #fdf0cf; }
+    tr:hover td.cuadros-matriz__c--n2 { background: #fbd9a3; }
+    tr:hover td.cuadros-matriz__c--n3 { background: #f08a0b; }
+    tr:hover td.cuadros-matriz__c--n4 { background: #b91c1c; }
+}
+
+// ── Estudiantes con mas faltas ───────────────────────────────────────
+// 🔴 PALETA NEUTRA A PROPOSITO. Este listado es informativo: la normativa
+// vigente no contempla retiro automatico por inasistencias. El rojo y el ambar
+// de este sistema significan estado de un proceso (docs/modulos/ui.md), y aqui
+// no hay proceso que senalar, hay personas. Nada de semaforos.
+.cuadros-top {
+    .col-nombre {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        min-width: 200px;
+        background: $bg-white;
+    }
+
+    thead .col-nombre { z-index: 5; background: $bg-secondary; }
+    tr:hover .col-nombre { background: $bg-secondary; }
+
+    &__n { width: 78px; }
+
+    // La ultima fila no lleva borde (regla de .tabla-notas) y aqui SI hace
+    // falta: es la que cierra el bloque contra su borde.
+    tr:last-child td { border-bottom: none; }
+
+    // Rotulo de la seccion. Es un <caption>, no un <hN>: queda asociado a SU
+    // tabla para un lector de pantalla y no depende del nivel de encabezado del
+    // contenedor, que es <h3> en pantalla y <h2> en el imprimible.
+    &__caption {
+        text-align: left;
+        padding: $spacing-sm $spacing-md;
+        background: $bg-secondary;
+        border-bottom: 1px solid $border-color;
+        font-weight: 700;
+        color: $text-primary;
+    }
+
+    // El contador que trajo a esta persona a la lista. Sin la marca, una fila
+    // con 0 faltas y 9 tardanzas parece un error de la tabla.
+    &__v--destaca {
+        font-weight: 700;
+        color: $text-primary;
+    }
+
+    // Bloque contenedor de CADA seccion. Va fuera de `.cuadros-top` porque
+    // envuelve a la tabla, no vive dentro de ella.
+    @at-root .cuadros-top__bloque {
+        border: 1px solid $border-color;
+        border-radius: $border-radius-sm;
+        overflow: hidden;
+        margin-bottom: $spacing-md;
+
+        &:last-of-type { margin-bottom: 0; }
+
+        // La tabla ya no necesita su propio margen inferior: lo da el bloque.
+        .tabla-notas { margin-bottom: 0; }
+    }
+}
+
 // ── Version imprimible (A4 portrait, layout print) ───────────────────
 // Esta vista SOLO se ve dentro del layout print, asi que no necesita
 // @media print: igual que .resumen-print, los estilos aplican siempre.
@@ -137,6 +281,19 @@
         page-break-inside: avoid;
     }
 
+    // 🔴 Un bloque cuyo contenido es UNA TABLA LARGA no puede llevar
+    // `page-break-inside: avoid`: la matriz de criterios (23 filas) y el
+    // listado de incidencias (~180) no caben en una hoja, asi que el navegador
+    // los empujaria enteros a la siguiente y dejaria media pagina en blanco
+    // antes de partirlos igual. Aqui se deja partir y se repite la cabecera.
+    &__bloque--tabla {
+        page-break-inside: auto;
+
+        table { page-break-inside: auto; }
+        tr    { page-break-inside: avoid; }   // una fila nunca se corta por la mitad
+        thead { display: table-header-group; } // la cabecera vuelve en cada hoja
+    }
+
     &__h2 {
         font-size: 13px;
         margin: 0 0 $spacing-sm;
@@ -166,6 +323,52 @@
         th, td   { border-color: #000; padding: 3px 5px; }
         thead th { background: #eee; }
     }
+
+    // Las dos tablas nuevas comparten el mismo tratamiento. Van SIN scroll
+    // propio y sin columnas pegadas: en papel no hay scroll, y una celda
+    // `position: sticky` dentro de una hoja impresa se comporta de formas
+    // distintas segun el navegador. Deben CABER en los 718px del contenedor.
+    .cuadros-matriz,
+    .cuadros-top {
+        width: 100%;
+        font-size: 8px;
+
+        th, td   { border: 1px solid #000; padding: 2px 3px; }
+        thead th { background: #eee; }
+
+        .col-nombre,
+        .col-num { position: static; box-shadow: none; }
+    }
+
+    .cuadros-matriz__th { width: 26px; }
+
+    // Cada seccion es un bloque de 3 a 8 filas: cabe entera en una hoja, asi
+    // que se le prohibe partirse. El contenedor `--tabla` conserva su
+    // `page-break-inside: auto` para poder repartir los 23 bloques entre
+    // paginas; es aqui, en el bloque pequeno, donde el `avoid` sirve.
+    .cuadros-top__bloque {
+        page-break-inside: avoid;
+        margin-bottom: $spacing-sm;
+        border-color: #000;
+    }
+
+    .cuadros-top__caption {
+        padding: 2px 3px;
+        font-size: 9px;
+        background: #eee;
+        border-bottom: 1px solid #000;
+    }
+
+    .tabla-notas-wrapper { overflow: visible; }
+
+    .tabla-pie {
+        border-top: 1px solid #000;
+        padding: $spacing-xs 0 0;
+
+        p { font-size: 8px; margin: 0 0 2px; }
+    }
+
+    .tabla-pie__leyenda { font-size: 8px; gap: 1px $spacing-sm; }
 
     .cuadros-kpi {
         padding: $spacing-sm;

@@ -81,6 +81,42 @@ $chk('ninguna card de ESCRITURA se le coló al director',
         ['admin/conducta', 'admin/asistencia', 'rectificaciones', 'admin/boletas-publicas',
          'admin/actas-siagie', 'admin/usuarios', 'admin/director-ebr', 'admin/secciones', 'admin/curriculum'])));
 
+// ── Un glifo, un concepto ─────────────────────────────────────────────
+// El wayfinding del sistema (docs/modulos/ui.md) fija el color por concepto
+// "para que ubiquen el acceso sin leer". El GLIFO manda igual: si dos cards
+// comparten icono, ese atajo deja de funcionar. Pasaba con tres pares —la
+// medalla significaba a la vez "merito" y "cuadros", y encima contradecia al
+// panel del docente, que ya la usa como wayfinding de merito—.
+//
+// La forma en que esto regresa es que una card NUEVA reuse un icono existente
+// porque ninguno le pega; nada avisa, y el dashboard queda con dos glifos
+// iguales.
+$iconos = [];
+foreach ($grupos as $g) { foreach ($g as $mod) { $iconos[] = $mod['icon']; } }
+
+// La unica pareja admitida hoy: no hay icono con el que sustituir a ninguna de
+// las dos. Al resolverla, quitarla de aqui (y entonces la lista queda vacia).
+$duplicadosOk = ['users-group-rounded.svg'];
+$repetidos = array_keys(array_filter(
+    array_count_values($iconos),
+    fn(int $n, string $i): bool => $n > 1 && !in_array($i, $duplicadosOk, true),
+    ARRAY_FILTER_USE_BOTH
+));
+$chk('ninguna card del dashboard comparte icono',
+    empty($repetidos),
+    $repetidos ? implode(', ', $repetidos) : count($iconos) . ' cards, '
+        . count(array_unique($iconos)) . ' iconos distintos');
+
+// Un icono mal escrito NO da error: pinta un <img> roto que nadie ve hasta
+// abrir el dashboard.
+$sinArchivo = array_values(array_filter(
+    array_unique($iconos),
+    fn(string $i): bool => !file_exists(ROOT_PATH . '/public/assets/icons/' . $i)
+));
+$chk('todos los iconos del dashboard existen en disco',
+    empty($sinArchivo),
+    $sinArchivo ? implode(', ', $sinArchivo) : count(array_unique($iconos)) . ' archivo(s)');
+
 // ── FASE 6 ───────────────────────────────────────────────────────
 echo "\nFASE 6 — superficies nuevas de consulta\n";
 $rutas = $leer('/routes/web.php');
@@ -154,8 +190,11 @@ foreach ($periodos as $p) {
     $aid = (int) $p['anio_id'];
     $etiquetaP = $p['nombre_display'] . ' ' . $p['anio'];
 
-    $conducta = (new App\Models\ConductaModel())->getResumenSeccionesPorPeriodo($pid);
-    $asis     = (new App\Models\AsistenciaModel())->getProgresoPorSeccion($pid);
+    $conductaModel = new App\Models\ConductaModel();
+    $asisModel     = new App\Models\AsistenciaModel();
+
+    $conducta = $conductaModel->getResumenSeccionesPorPeriodo($pid);
+    $asis     = $asisModel->getProgresoPorSeccion($pid);
 
     // ── La evolucion anual NO puede divergir del resumen del bimestre ──
     // getEvolucionAnual() duplica a proposito el SQL del bloque 1 de
@@ -237,22 +276,141 @@ foreach ($periodos as $p) {
             'reaperturas'    => $anio->getReaperturas($pid),
             'conducta'       => $resConducta,
             'asistencia'     => $resAsis,
+
+            // Resultado de conducta y asistencia (27/08/2026). Si estas claves
+            // faltaran aqui, las lecturas `??` de las vistas se quedarian sin
+            // cubrir y este verificador seguiria verde con la pantalla rota.
+            'conducta_literales'   => $conductaModel->getDistribucionLiteralesAnual($aid),
+            'conducta_criterios'   => $conductaModel->getIncumplimientoCriterios($pid),
+            'asistencia_secciones' => $asisModel->getIncidenciasPorSeccion($pid),
+            'asistencia_top'       => $asisModel->getTopIncidenciasPorSeccion($pid),
+            'asistencia_evolucion' => $asisModel->getEvolucionIncidenciasAnual($aid),
         ],
     ];
 
     // Render REAL, capturando cualquier warning/notice como fallo.
+    //
+    // 🔴 EN SU PROPIO AMBITO, no en el de este script. Con `extract()` + include
+    // aqui mismo, cualquier variable de la vista o de sus partials pisa las de
+    // este verificador: paso de verdad el 27/08/2026: un `foreach (... as $p)`
+    // dentro de un partial se llevo por delante `$p`, la fila del periodo, y el
+    // imprimible reventó DESPUÉS con un error que no tenía nada que ver.
+    // `Core\View` ya renderiza dentro de un metodo, asi que la aplicacion real
+    // nunca corrio ese riesgo; este script sí.
+    $render = static function (array $vars, string $vista): string {
+        ob_start();
+        extract($vars);
+        include ROOT_PATH . '/resources/views/admin/cuadros/' . $vista . '.php';
+        return (string) ob_get_clean();
+    };
+
     $errores = [];
     set_error_handler(function ($no, $str) use (&$errores) { $errores[] = $str; return true; });
-    ob_start();
-    extract($datos);
-    include ROOT_PATH . '/resources/views/admin/cuadros/index.php';
-    $html = ob_get_clean();
+    $html = $render($datos, 'index');
     restore_error_handler();
 
     $chk("cuadros renderiza $etiquetaP sin avisos",
         empty($errores) && strlen($html) > 2000,
         $errores ? $errores[0] : strlen($html) . ' bytes · conducta ' . $resConducta['cerradas'] . '/' . $resConducta['secciones']
             . ' · asistencia ' . $resAsis['registrados'] . '/' . $resAsis['esperados']);
+
+    // ── Contrato de las pestañas ──────────────────────────────────────
+    // Sin esto, una pestaña sin panel (o un panel sin pestaña) deja un bloque
+    // entero invisible y NADA falla: la pagina renderiza perfecta y con menos
+    // contenido del que deberia.
+    preg_match_all('~data-tab="([^"]+)"~', $html, $mTabs);
+    preg_match_all('~data-panel="([^"]+)"~', $html, $mPanels);
+    $huerfanos = array_merge(
+        array_diff($mTabs[1] ?? [], $mPanels[1] ?? []),
+        array_diff($mPanels[1] ?? [], $mTabs[1] ?? [])
+    );
+
+    // Y cada `aria-controls` tiene que apuntar a un id que exista.
+    preg_match_all('~aria-controls="([^"]+)"~', $html, $mCtrl);
+    foreach ($mCtrl[1] ?? [] as $idPanel) {
+        if (!str_contains($html, 'id="' . $idPanel . '"')) {
+            $huerfanos[] = "aria-controls=$idPanel sin destino";
+        }
+    }
+
+    $chk("las pestañas de $etiquetaP cuadran con sus paneles",
+        empty($huerfanos),
+        $huerfanos ? implode(', ', $huerfanos) : count($mTabs[1] ?? []) . ' pestaña(s)');
+
+    // Exactamente una activa por grupo, y su panel sin `hidden`: sin JavaScript
+    // la pagina tiene que mostrar algo, y con el, tabs.js parte de ese estado.
+    $activas = substr_count($html, 'aria-selected="true"');
+    $grupos  = substr_count($html, 'role="tablist"');
+    $chk("cada grupo de pestañas de $etiquetaP nace con UNA activa",
+        $grupos > 0 && $activas === $grupos,
+        "$activas activa(s) para $grupos grupo(s)");
+
+    // 🔴 CADA SERIE CALCULADA TIENE QUE TENER SU CONTENEDOR. Es el fallo mas
+    // silencioso de esta pantalla: `_chart-data.php` produce el dato, el JSON
+    // lo lleva al navegador, cuadros.js registra la fabrica... y no hay ningun
+    // <div> donde dibujarlo. No hay error, no hay hueco: el grafico simplemente
+    // no existe. Se descubrio asi el 27/08/2026, con la evolucion de conducta
+    // desapareciendo del bimestre en curso justo cuando mas sirve.
+    preg_match_all('~<div id="(chart-[a-z-]+)"~', $html, $mCharts);
+    $contenedores = $mCharts[1] ?? [];
+
+    // clave de $chartData -> id del contenedor que la dibuja.
+    $mapaGraficos = [
+        'evolucion'          => 'chart-evolucion',
+        'brecha'             => 'chart-brecha',
+        'conductaEmbudo'     => 'chart-conducta-embudo',
+        'conductaSecciones'  => 'chart-conducta-secciones',
+        'conductaLiterales'  => 'chart-conducta-literales',
+        'conductaEvolucion'  => 'chart-conducta-evolucion',
+        'conductaCriterios'  => 'chart-conducta-criterios',
+        'asisFaltas'         => 'chart-asis-faltas',
+        'asisTardanzas'      => 'chart-asis-tardanzas',
+        'asisEvolucion'      => 'chart-asis-evolucion',
+        'asisJustificacion'  => 'chart-asis-justificacion',
+    ];
+
+    $sinContenedor = [];
+    if (preg_match('~<script type="application/json" id="cuadros-data">(.*?)</script>~s', $html, $mTmp)) {
+        foreach (array_keys((array) json_decode($mTmp[1], true)) as $clave) {
+            $destino = $mapaGraficos[$clave] ?? null;
+            if ($destino === null) {
+                $sinContenedor[] = "$clave no esta en el mapa del verificador";
+            } elseif (!in_array($destino, $contenedores, true)) {
+                $sinContenedor[] = "$clave sin <div id=\"$destino\">";
+            }
+        }
+    }
+
+    $chk("cada grafico de $etiquetaP tiene donde dibujarse",
+        empty($sinContenedor),
+        $sinContenedor ? $sinContenedor[0] : count($contenedores) . ' contenedor(es)');
+
+    // ── Cada seccion lleva SU tabla, con SU encabezado ────────────────
+    // Requisito explicito (28/08/2026): con una sola tabla de 180 filas el
+    // encabezado de columnas se iba de pantalla al desplazarse y los numeros
+    // dejaban de significar nada. Es justo lo que una futura "simplificacion"
+    // volveria a juntar, y nada mas lo impediria.
+    $nSecciones = count($datos['bloques']['asistencia_top']);
+    $nTablas    = substr_count($html, 'class="tabla-notas cuadros-top"');
+    $nCaptions  = substr_count($html, 'class="cuadros-top__caption"');
+    $nBloques   = substr_count($html, 'class="cuadros-top__bloque"');
+
+    // Una tabla por seccion, y cada una con su <caption> y su <thead>. El
+    // <thead> se cuenta sobre las tablas de este partial, no sobre la pagina.
+    preg_match_all('~<table class="tabla-notas cuadros-top">(.*?)</table>~s', $html, $mTablas);
+    $sinCabecera = 0;
+    foreach ($mTablas[1] ?? [] as $cuerpo) {
+        if (!str_contains($cuerpo, '<caption') || !str_contains($cuerpo, '<thead>')) {
+            $sinCabecera++;
+        }
+    }
+
+    $chk("cada seccion de $etiquetaP tiene su propia tabla con encabezado",
+        $nTablas === $nSecciones && $nCaptions === $nSecciones
+            && $nBloques === $nSecciones && $sinCabecera === 0,
+        $sinCabecera > 0
+            ? "$sinCabecera tabla(s) sin caption o sin thead"
+            : "$nTablas tabla(s) para $nSecciones seccion(es)");
 
     // ── El JSON que consume cuadros.js ────────────────────────────────
     // Es el unico contrato de la pantalla que PHP no puede romper de forma
@@ -275,7 +433,18 @@ foreach ($periodos as $p) {
                     }
                 }
             }
-            foreach ([['brecha', ['mejor', 'peor']], ['conductaEmbudo', ['values']], ['conductaSecciones', ['values']]] as [$clave, $ejes]) {
+            $conEjes = [
+                ['brecha',             ['mejor', 'peor']],
+                ['conductaEmbudo',     ['values']],
+                ['conductaSecciones',  ['values']],
+                // El eje de criterios lleva ADEMAS el texto completo de cada
+                // uno para el tooltip: un eje de codigos C1..C10 no dice nada
+                // solo. Si `textos` se descuadra, el tooltip miente.
+                ['conductaCriterios',  ['values', 'textos']],
+                ['asisFaltas',         ['values']],
+                ['asisTardanzas',      ['values']],
+            ];
+            foreach ($conEjes as [$clave, $ejes]) {
                 if (!isset($payload[$clave])) {
                     continue;
                 }
@@ -283,6 +452,20 @@ foreach ($periodos as $p) {
                 foreach ($ejes as $eje) {
                     if (count($payload[$clave][$eje]) !== $nLabels) {
                         $problemas[] = "$clave/$eje: " . count($payload[$clave][$eje])
+                            . " valores para $nLabels etiquetas";
+                    }
+                }
+            }
+
+            // Las de datasets se comprueban igual que `evolucion`.
+            foreach (['conductaLiterales', 'conductaEvolucion', 'asisEvolucion', 'asisJustificacion'] as $clave) {
+                if (!isset($payload[$clave])) {
+                    continue;
+                }
+                $nLabels = count($payload[$clave]['labels']);
+                foreach ($payload[$clave]['datasets'] as $ds) {
+                    if (count($ds['values']) !== $nLabels) {
+                        $problemas[] = "$clave/" . ($ds['name'] ?? '?') . ': ' . count($ds['values'])
                             . " valores para $nLabels etiquetas";
                     }
                 }
@@ -310,16 +493,83 @@ foreach ($periodos as $p) {
 
     $erroresPrint = [];
     set_error_handler(function ($no, $str) use (&$erroresPrint) { $erroresPrint[] = $str; return true; });
-    ob_start();
-    extract($datosPrint);
-    include ROOT_PATH . '/resources/views/admin/cuadros/imprimir.php';
-    $htmlPrint = ob_get_clean();
+    $htmlPrint = $render($datosPrint, 'imprimir');
     restore_error_handler();
 
     $chk("el imprimible A4 renderiza $etiquetaP sin avisos",
         empty($erroresPrint) && strlen($htmlPrint) > 2000,
         $erroresPrint ? $erroresPrint[0] : strlen($htmlPrint) . ' bytes'
             . ($datosPrint['directorEbr'] ? ' · con sello' : ' · sin director vigente'));
+
+    // El papel se lee entero de una vez: si heredara las pestañas, dos tercios
+    // del informe saldrian en blanco y nadie lo notaria hasta imprimirlo.
+    $chk("el imprimible de $etiquetaP no lleva pestañas ni paneles ocultos",
+        !str_contains($htmlPrint, 'role="tab"')
+            && !str_contains($htmlPrint, 'role="tablist"')
+            && !preg_match('~<div[^>]*\shidden~', $htmlPrint),
+        'sin role=tab ni hidden');
+
+    // ── Coherencia de la distribucion de conducta ─────────────────────
+    // Gemelo del aserto que ya compara getEvolucionAnual con getResumenBimestre:
+    // los estudiantes con literal compuesto no pueden pasar de los calificados
+    // que cuenta el panel del director, que mira la MISMA grilla desde otra
+    // consulta. Es <= y no ==: `calificados` exige las 10 respuestas completas,
+    // mientras que el I Bimestre (legado) tiene literal sin ninguna respuesta.
+    $litTotal = 0;
+    foreach ($datos['bloques']['conducta_literales']['niveles'] as $nv) {
+        foreach ($nv['serie'] as $celda) {
+            if ((int) $celda['periodo_id'] === $pid) {
+                $litTotal += (int) $celda['total'];
+            }
+        }
+    }
+    $esLegado = empty($datos['bloques']['conducta_criterios']['criterios']);
+    $chk("la distribucion de conducta de $etiquetaP cuadra con el avance",
+        $esLegado || $litTotal <= (int) $resConducta['esperados'],
+        $litTotal . ' con literal de ' . $resConducta['esperados'] . ' esperados'
+            . ($esLegado ? ' (bimestre legado)' : ''));
+
+    // ── El literal NO se recalcula por un camino paralelo ─────────────
+    // ESTE es el aserto que prueba que `getDistribucionLiteralesAnual` pasa por
+    // `componerLiteral()` y no por una copia nueva de la aritmetica.
+    //
+    // Se contrasta contra `getEstudiantesParaTutor`, que es la OTRA copia de esa
+    // aritmetica que ya vive en el repositorio (calcula `literal_final` en PHP,
+    // alumno a alumno, para la grilla del tutor). Comparar el agregado nuevo
+    // contra ella cubre las dos a la vez: si cualquiera de las tres —el helper,
+    // la grilla o el tablero— se desvia, los conteos dejan de cuadrar.
+    //
+    // El universo tiene que ser identico: mismo roster, mismo periodo, sin mirar
+    // el cierre. Por eso se comparan literal a literal y no solo el total.
+    $porGrilla  = ['AD' => 0, 'A' => 0, 'B' => 0, 'C' => 0];
+    $porTablero = ['AD' => 0, 'A' => 0, 'B' => 0, 'C' => 0];
+
+    foreach ($conducta as $sec) {
+        $totalCrit = $conductaModel->totalCriterios((int) $sec['nivel_id']);
+        foreach ($conductaModel->getEstudiantesParaTutor((int) $sec['seccion_id'], $pid, $totalCrit) as $al) {
+            if (!empty($al['literal_final'])) {
+                $porGrilla[$al['literal_final']]++;
+            }
+        }
+    }
+
+    foreach ($datos['bloques']['conducta_literales']['niveles'] as $nv) {
+        foreach ($nv['serie'] as $celda) {
+            if ((int) $celda['periodo_id'] !== $pid) {
+                continue;
+            }
+            foreach (['AD' => 'ad', 'A' => 'a', 'B' => 'b', 'C' => 'c'] as $lit => $campo) {
+                $porTablero[$lit] += (int) $celda[$campo];
+            }
+        }
+    }
+
+    $fmt = static fn(array $x): string => "AD{$x['AD']} A{$x['A']} B{$x['B']} C{$x['C']}";
+    $chk("el literal de conducta de $etiquetaP sale de un solo sitio",
+        $porGrilla === $porTablero,
+        $porGrilla === $porTablero
+            ? 'tablero y grilla del tutor coinciden: ' . $fmt($porTablero)
+            : 'tablero ' . $fmt($porTablero) . ' != grilla ' . $fmt($porGrilla));
 }
 
 echo "\n", $ok ? "== FASES 4-7 EN VERDE ==\n" : "== HAY FALLOS ==\n";

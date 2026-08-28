@@ -147,6 +147,22 @@ class CuadrosEstadisticosController extends BaseController
             // crudo para graficarlo, sin volver a pedirlo.
             'conducta_secciones' => $conducta,
             'asistencia'     => $this->resumirAsistencia($asistencia),
+
+            // ── Resultado de conducta y asistencia (27/08/2026) ──────
+            // Hasta hoy este bloque solo medía el AVANCE DEL PROCESO (cuántas
+            // secciones cerraron, qué porcentaje del roster se llenó) y no
+            // decía nada del RESULTADO. Cada clave la calcula el modelo dueño:
+            // aquí no hay ni un SELECT.
+            //
+            // Las dos series anuales se anclan al año del BIMESTRE ELEGIDO, no
+            // al año activo, por el mismo motivo que `evolucion`: al mirar un
+            // bimestre de un año pasado la comparación tiene que ser la de
+            // aquel año.
+            'conducta_literales'   => $this->conductaModel->getDistribucionLiteralesAnual($anioId),
+            'conducta_criterios'   => $this->conductaModel->getIncumplimientoCriterios($periodoId),
+            'asistencia_secciones' => $this->asistenciaModel->getIncidenciasPorSeccion($periodoId),
+            'asistencia_top'       => $this->asistenciaModel->getTopIncidenciasPorSeccion($periodoId),
+            'asistencia_evolucion' => $this->asistenciaModel->getEvolucionIncidenciasAnual($anioId),
         ];
     }
 

@@ -14,10 +14,11 @@
 $pct = static fn(int $parte, int $total): int => $total > 0 ? (int) round($parte / $total * 100) : 0;
 
 require VIEW_PATH . '/admin/cuadros/_chart-data.php';
+// Mismos agregados que la pantalla ($c, $a, $lit, $pctLogro, $delta, $asisTot,
+// $condCrit, $asisTop): en papel NO se recalculan.
+require VIEW_PATH . '/admin/cuadros/_resumen-conducta-asistencia.php';
 
-$k    = $bloques['matricula']['kpis'];
-$cond = $bloques['conducta'];
-$asis = $bloques['asistencia'];
+$k = $bloques['matricula']['kpis'];
 ?>
 <div class="cuadros-print">
 
@@ -144,35 +145,63 @@ $asis = $bloques['asistencia'];
         <?php endif; ?>
     </section>
 
-    <?php // ── 4. CONDUCTA y 5. ASISTENCIA ─────────────────────────── ?>
+    <?php // ── 4. CONDUCTA ─────────────────────────────────────────── ?>
+    <?php // En papel NO hay pestañas: el informe se lee entero de una vez, y un
+          // bloque oculto en una hoja impresa simplemente no existe. ?>
     <section class="cuadros-print__bloque">
-        <h2 class="cuadros-print__h2">Conducta y asistencia</h2>
+        <h2 class="cuadros-print__h2">Conducta</h2>
         <div class="cuadros-kpis">
+            <?php // Sin conducta calificada NO se imprimen las tarjetas de
+                  // resultado: un "En logro 0 · 0%" en un papel se lee como un
+                  // resultado pesimo, cuando lo que pasa es que aun no hay nada
+                  // que medir. Las de proceso si van: son las que dicen por
+                  // donde va el bimestre. ?>
+            <?php if ($lit['total'] > 0): ?>
             <div class="cuadros-kpi">
-                <span class="cuadros-kpi__n"><?= (int) $cond['cerradas'] ?>/<?= (int) $cond['secciones'] ?></span>
+                <span class="cuadros-kpi__n"><?= (int) $lit['logro'] ?></span>
+                <span class="cuadros-kpi__t">En logro (AD + A) &middot; <?= $pctLogro ?>%</span>
+            </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $lit['b'] ?></span>
+                <span class="cuadros-kpi__t">En proceso (B)</span>
+            </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $lit['c'] ?></span>
+                <span class="cuadros-kpi__t">En inicio (C)</span>
+            </div>
+            <?php if ($delta !== null): ?>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= $delta > 0 ? '+' : '' ?><?= number_format($delta, 1) ?></span>
+                <span class="cuadros-kpi__t">Puntos frente a <?= e($nombrePrevio) ?></span>
+            </div>
+            <?php endif; ?>
+            <?php endif; ?>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $c['cerradas'] ?>/<?= (int) $c['secciones'] ?></span>
                 <span class="cuadros-kpi__t">Conducta cerrada</span>
             </div>
             <div class="cuadros-kpi">
-                <span class="cuadros-kpi__n"><?= (int) $cond['pend_tutor'] ?></span>
-                <span class="cuadros-kpi__t">Esperan al tutor</span>
-            </div>
-            <div class="cuadros-kpi">
-                <span class="cuadros-kpi__n"><?= (int) $cond['pend_auxiliar'] ?></span>
-                <span class="cuadros-kpi__t">Esperan al auxiliar</span>
-            </div>
-            <div class="cuadros-kpi">
-                <span class="cuadros-kpi__n"><?= $pct((int) $cond['calificados'], (int) $cond['esperados']) ?>%</span>
+                <span class="cuadros-kpi__n"><?= $pct((int) $c['calificados'], (int) $c['esperados']) ?>%</span>
                 <span class="cuadros-kpi__t">Calificados en conducta</span>
             </div>
-            <div class="cuadros-kpi">
-                <span class="cuadros-kpi__n"><?= (int) $asis['completas'] ?>/<?= (int) $asis['secciones'] ?></span>
-                <span class="cuadros-kpi__t">Asistencia completa</span>
-            </div>
-            <div class="cuadros-kpi">
-                <span class="cuadros-kpi__n"><?= $pct((int) $asis['registrados'], (int) $asis['esperados']) ?>%</span>
-                <span class="cuadros-kpi__t">Cobertura de asistencia</span>
-            </div>
         </div>
+        <?php if ($lit['total'] === 0): ?>
+            <p class="cuadros-print__vacio">Este bimestre todavía no tiene conducta calificada.</p>
+        <?php endif; ?>
+
+        <?php if (isset($chartData['conductaLiterales'])): ?>
+            <div class="cuadros-print__chart">
+                <h3 class="cuadros-print__h3">Distribución de conducta por nivel</h3>
+                <div id="chart-conducta-literales"></div>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($chartData['conductaEvolucion'])): ?>
+            <div class="cuadros-print__chart">
+                <h3 class="cuadros-print__h3">Evolución del % en logro de conducta</h3>
+                <div id="chart-conducta-evolucion"></div>
+            </div>
+        <?php endif; ?>
 
         <?php if (isset($chartData['conductaEmbudo'])): ?>
             <div class="cuadros-print__chart">
@@ -187,7 +216,95 @@ $asis = $bloques['asistencia'];
                 <div id="chart-conducta-secciones"></div>
             </div>
         <?php endif; ?>
+
+        <?php if (isset($chartData['conductaCriterios'])): ?>
+            <div class="cuadros-print__chart">
+                <h3 class="cuadros-print__h3">Criterios con mayor incumplimiento</h3>
+                <div id="chart-conducta-criterios"></div>
+            </div>
+        <?php endif; ?>
     </section>
+
+    <?php // La matriz va en su PROPIO bloque: es una tabla larga y el
+          // `page-break-inside: avoid` de `.cuadros-print__bloque` la empujaria
+          // entera a la hoja siguiente en vez de dejarla partirse. ?>
+    <?php if (!empty($condCrit['criterios'])): ?>
+    <section class="cuadros-print__bloque cuadros-print__bloque--tabla">
+        <h2 class="cuadros-print__h2">Incumplimiento por sección</h2>
+        <?php require VIEW_PATH . '/admin/cuadros/_matriz-criterios.php'; ?>
+    </section>
+    <?php endif; ?>
+
+    <?php // ── 5. ASISTENCIA ───────────────────────────────────────── ?>
+    <section class="cuadros-print__bloque">
+        <h2 class="cuadros-print__h2">Asistencia</h2>
+        <div class="cuadros-kpis">
+            <?php // Sin NINGUN registro de asistencia, "0 faltas" y "100 % sin
+                  // incidencias" serian datos falsos, no ausentes: nadie ha
+                  // tomado asistencia todavia. Es el mismo error que ya se
+                  // corrigio una vez en la boleta. ?>
+            <?php if ((int) $a['registrados'] > 0): ?>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $asisTot['faltas'] ?></span>
+                <span class="cuadros-kpi__t">Faltas sin justificar</span>
+            </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $asisTot['tardanzas'] ?></span>
+                <span class="cuadros-kpi__t">Tardanzas sin justificar</span>
+            </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= $pct((int) $asisTot['sin_incidencias'], (int) $asisTot['alumnos']) ?>%</span>
+                <span class="cuadros-kpi__t">Sin ninguna incidencia</span>
+            </div>
+            <?php endif; ?>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $a['completas'] ?>/<?= (int) $a['secciones'] ?></span>
+                <span class="cuadros-kpi__t">Asistencia completa</span>
+            </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= $pct((int) $a['registrados'], (int) $a['esperados']) ?>%</span>
+                <span class="cuadros-kpi__t">Cobertura de asistencia</span>
+            </div>
+        </div>
+        <?php if ((int) $a['registrados'] === 0): ?>
+            <p class="cuadros-print__vacio">Este bimestre todavía no tiene asistencia registrada.</p>
+        <?php endif; ?>
+
+        <?php if (isset($chartData['asisEvolucion'])): ?>
+            <div class="cuadros-print__chart">
+                <h3 class="cuadros-print__h3">Evolución de faltas y tardanzas sin justificar</h3>
+                <div id="chart-asis-evolucion"></div>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($chartData['asisJustificacion'])): ?>
+            <div class="cuadros-print__chart">
+                <h3 class="cuadros-print__h3">Justificadas frente a sin justificar, por nivel</h3>
+                <div id="chart-asis-justificacion"></div>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($chartData['asisFaltas'])): ?>
+            <div class="cuadros-print__chart">
+                <h3 class="cuadros-print__h3">Faltas sin justificar por sección</h3>
+                <div id="chart-asis-faltas"></div>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($chartData['asisTardanzas'])): ?>
+            <div class="cuadros-print__chart">
+                <h3 class="cuadros-print__h3">Tardanzas sin justificar por sección</h3>
+                <div id="chart-asis-tardanzas"></div>
+            </div>
+        <?php endif; ?>
+    </section>
+
+    <?php if (!empty($asisTop)): ?>
+    <section class="cuadros-print__bloque cuadros-print__bloque--tabla">
+        <h2 class="cuadros-print__h2">Estudiantes con más faltas</h2>
+        <?php require VIEW_PATH . '/admin/cuadros/_top-incidencias.php'; ?>
+    </section>
+    <?php endif; ?>
 
     <?php if (!empty($bloques['reaperturas'])): ?>
         <section class="cuadros-print__bloque">
