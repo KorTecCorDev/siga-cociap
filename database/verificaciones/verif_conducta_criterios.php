@@ -43,6 +43,11 @@ $vistas = [
     'admin/conducta/imprimir.php',
     'docente/conducta-criterios.php',
     'consulta-notas/conducta.php',
+    // 27/08/2026: la grilla de ESCRITURA se habia quedado fuera de esta lista y,
+    // por eso, fue la unica que siguio rotulando C{$i+1} posicional un mes
+    // despues de la migracion 056. Un reordenamiento de criterios habria hecho
+    // divergir la pantalla donde se registra de la hoja que ya esta firmada.
+    'admin/conducta/seccion.php',
 ];
 foreach ($vistas as $rel) {
     $html = file_get_contents(ROOT_PATH . '/resources/views/' . $rel);
