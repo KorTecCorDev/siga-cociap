@@ -59,6 +59,42 @@
 - Aplicado en `/docente/inicio` y `/director/bloqueos`. Usar estos mismos colores en
   futuras vistas para el mismo concepto.
 
+### El GLIFO también es fijo por concepto (28/08/2026)
+
+El mismo razonamiento del color vale para el icono: si dos cards comparten glifo,
+el atajo de «ubicarlo sin leer» deja de funcionar.
+
+🔴 **REGLA: dos cards del dashboard NUNCA comparten icono.** Cuando una card nueva
+no encuentre un icono que le pegue, **se añade uno**; no se toma prestado el del
+vecino. Los iconos viven en `public/assets/icons/` y son del set Solar (SVG Repo):
+`viewBox="0 0 24 24"`, `fill="none"`, trazo `#1C274C` de `1.5` con puntas
+redondeadas. Se pintan con un `<img>` a 36 px, así que el SVG lleva su propio
+color: **no se recolorean con `currentColor`**.
+
+Pasaba con **tres pares** a la vez, todos por la misma causa —cards que nacieron
+después y reusaron lo que había—:
+
+| Card | Tomaba prestado de | Ahora |
+|---|---|---|
+| Cuadros estadísticos | Orden de mérito (`medal-ribbon-star`) | `stats.svg` |
+| Criterios de evaluación | Rectificación de notas (`edit-pen`) | `criterios.svg` |
+| Consulta de notas | Buscar estudiante (`lupa-look`) | `notas.svg` |
+
+⚠️ **La medalla era el caso grave**: `_docente-panel.scss:156` ya la usa como
+wayfinding de mérito (`.page-title--wf`), así que el mismo glifo significaba
+«mérito» en el panel del docente y «cuadros» en el del admin — el sistema se
+contradecía a sí mismo. Igual con la lupa, que `_docente-panel.scss:298` usa para
+buscar. **Esos dos usos del SASS no se tocaron: eran los correctos.**
+
+Hay dos asertos en `verif_direccion_superficies.php` que lo sostienen: ninguna
+card comparte icono (con una lista explícita de excepciones toleradas) y todo
+icono referenciado existe en disco — **un nombre mal escrito no da error**, pinta
+un `<img>` roto que nadie ve hasta abrir el dashboard.
+
+**Excepción viva:** `users-group-rounded.svg` sigue en «Secciones y Tutores» y
+«Ranking por sección». Al resolverla, quitarla de `$duplicadosOk` en el
+verificador y la lista queda vacía.
+
 ## Dashboard del docente — cards de acceso (16/06/2026)
 
 - **`/docente/inicio`** (`Docente\PanelController::index`) tiene 4 cards en `.dpanel-grid`:
@@ -364,3 +400,268 @@ en medio del apellido y no compite contra una N en la misma posición.
 `orden_alfabetico()`. Nunca ordenar por `p.apellido_paterno` a secas ni por un alias
 `CONCAT(...)` — el alias hereda la colación de la columna y reintroduce el problema (era
 el caso de `ControlOperativoModel::alertasEvaluacionIncompleta`, que ordenaba por `alumno`).
+
+
+## Zona de resultado: el hover no puede borrarla (25/08/2026)
+
+`.col-resultado` marca las columnas **calculadas** (promedio, nota final, literal)
+para que no se confundan con las de origen. Vive en `components/_tables.scss` y la
+usan **seis vistas**: `consulta-notas/{conducta,transversales,_tabla}` y
+`docente/{conducta,resumen-competencia,tutoria}`.
+
+- 🔴 **Su fondo era `#f8fafc`, el MISMO valor literal que `$bg-secondary`**, que es
+  el color del hover de fila. Al pasar por una fila, toda ella tomaba ese gris y la
+  zona de resultado **desaparecía** — justo cuando se está señalando la fila, y
+  justo la función para la que la clase existe.
+- **La solución es el ESCALÓN, no un color**: en hover la zona sube un tono
+  (`#eef2f7`, el que ya usa `thead .col-resultado`) y la diferencia relativa se
+  conserva en los dos estados. No entra ningún color nuevo al sistema.
+- ⚠️ **Va por ESPECIFICIDAD, no por orden**: `.tabla-{notas,resumen} tr:hover td`
+  es **(0,2,2)** y la regla de la zona es **(0,3,2)**. Y se escriben **las dos
+  familias** de tabla porque cada una define su propio hover; un
+  `tr:hover .col-resultado` suelto (0,2,1) no bastaría.
+- **La zona de resultado CIERRA la fila.** En `consulta-notas/conducta.php` el
+  orden pasó a `N° | Nombre | Sí/total | ┃ Nota auxiliar | Nota tutor | Final |
+  Literal`: el separador `col-resultado--inicio` abre un bloque que no debe quedar
+  interrumpido por una columna suelta a su derecha. La regla vale para **las dos
+  ramas** de esa vista (el bimestre legado también abre su zona con el separador).
+- Verificado en `database/verificaciones/verif_zona_resultado.php`, que mide la
+  **propiedad** —que el escalón sobreviva al hover— y no un color concreto: fijar
+  el valor convertiría cualquier retoque de la paleta en un fallo.
+
+### `.tabla-pie`: el pie de grilla, formalizado (25/08/2026)
+
+Contenedor estándar de lo que va **debajo** de una tabla: leyendas, notas al pie,
+totales en texto. Dentro va `.tabla-pie__leyenda` con sus `__item`.
+
+- 🔴 **VA FUERA DE `.tabla-notas-wrapper`, NUNCA DENTRO.** El wrapper es el área de
+  scroll (`overflow-x: auto`). Un pie metido ahí falla de **tres** formas a la vez:
+  se **desplaza** con la tabla al hacer scroll horizontal y se va de la pantalla,
+  queda **pegado al borde** sin margen, y si la grilla está en un `.card` —que
+  lleva `overflow: hidden` con esquinas redondeadas— sale **recortado** por la
+  curva. Los tres pasaron en la grilla de conducta.
+- El pie es **hermano** del wrapper, no su hijo:
+  `<div class="tabla-notas-wrapper"><table>…</table></div>` + `<div class="tabla-pie">`.
+- `--suelto` para cuando no hay card alrededor (quita borde y fondo).
+
+## `.page-header`: cómo se alinean las acciones a la derecha (26/08/2026)
+
+El `page-header` es el encabezado de **79 vistas**. Su convención de marcado es:
+
+```html
+<div class="page-header">
+    <a class="btn btn--secondary btn--sm">← Volver</a>   <!-- back-link -->
+    <div>                                                <!-- SIN CLASE: titulo + subtitulo -->
+        <h1 class="page-title">…</h1>
+        <p class="page-subtitle">…</p>
+    </div>
+    <div class="btn-group">…</div>                       <!-- acciones, a la derecha -->
+</div>
+```
+
+- **El `<div>` SIN CLASE es el que crece.** `pages/_dashboard.scss` lleva
+  `.page-header > div:not([class]) { flex: 1 1 auto; min-width: 0 }`. Es lo que empuja
+  a la derecha lo que venga detrás: botones, badges o un selector de periodo.
+- 🔴 **`.page-title { flex: 1 }` NO hace ese trabajo y no hay que creérselo.** En 72 de
+  las 79 vistas el `h1` cuelga del `<div>`, que es `display:block`, así que **no es un
+  item flex y su `flex-grow` no aplica**. Durante meses ningún hijo directo del header
+  creció: las acciones se pegaban al subtítulo y, con subtítulos largos, envolvían a una
+  línea propia **a la izquierda**. Se detectó en `/consulta-notas` y afectaba también a
+  matrículas, orden de mérito, `padre/notas` y actas SIAGIE.
+- **La regla se conserva igualmente**: hay 7 vistas donde el `h1` sí es hijo directo del
+  header, y en `docente/mis-cargas.php` y `padre/inicio.php` ese `flex: 1` está **vivo**
+  y es lo único que alinea sus badges. Es inerte —no dañino— en las otras 72.
+- ⚠️ **Si un header necesita DOS bloques, el segundo lleva clase.** Dos `<div>` sin clase
+  se reparten el ancho a partes iguales y el segundo queda flotando a mitad de fila. Para
+  botones, la clase es `.btn-group` (`components/_buttons.scss`), el agrupador oficial.
+  `admin/actas_siagie/index.php` era el único caso del repo y se corrigió así.
+- ⚠️ `resources/sass/components/_dashboard.scss` contiene una **copia muerta** de
+  `.page-header` / `.page-title`: `app.scss` no lo importa. Editar esa copia no cambia
+  nada en pantalla — la buena es `pages/_dashboard.scss`.
+
+## `.dash-grupo`: el bloque de sección, no solo su rótulo (26/08/2026)
+
+El patrón «rótulo + lista» de las páginas internas es **un componente de dos piezas**
+(`pages/_dashboard.scss:67-82`) y casi nadie copia la primera:
+
+```scss
+.dash-grupo   { margin-bottom: $spacing-xl; &:last-child { margin-bottom: 0 } }
+.dash-grupo__titulo { margin: 0 0 $spacing-md; … }   // ← margin-top: 0
+```
+
+- 🔴 **El cierre de la sección lo da el CONTENEDOR, no el rótulo.** Como
+  `__titulo` no lleva `margin-top`, dos bloques con el rótulo suelto quedan a **0 px**:
+  la lista de arriba cierra en 0 y el h2 de abajo abre en 0. Pasó en
+  `consulta-notas/seccion.php`, donde «ÁREAS Y CARGAS» salía pegado a la última tarjeta
+  de «Registros de la sección». Se arregló envolviendo cada bloque en
+  `<section class="dash-grupo" aria-labelledby="…">`, sin tocar una línea de SASS.
+- El `:last-child { margin-bottom: 0 }` es la otra mitad que se pierde al copiar solo el
+  rótulo: sin él, la última sección arrastra hueco muerto al pie de la página.
+- El mismo arreglo se aplicó a `admin/cuadros/index.php` (5 bloques) el mismo día, y ahí
+  el defecto era **otro**: el `mb-lg` sí estaba vivo, pero el hueco lo ponía la clase del
+  CONTENIDO (`.tabla-responsive mb-lg`), que **solo existe en la rama con datos**. En las
+  dos ramas `empty-state` —bimestre sin calificaciones, grado sin ranking— la separación
+  caía a **0 px**, justo en la pantalla que se mira cuando algo falta.
+  🔴 **La separación entre bloques no puede colgar de una rama del contenido.** Con el
+  contenedor es la misma con datos y sin ellos.
+- Al envolver, los `mb-*` que **cerraban** bloque se quitan (si no, 24 + 32 = 56 px); los
+  **internos** —los que separan piezas dentro del bloque, como los KPIs de su párrafo—
+  se conservan. `dashboard/index.php` fue siempre el modelo: ya usaba el contenedor.
+
+### ⚠️ Una utilidad `.mb-*` puede estar MUERTA y no notarse
+
+En `consulta-notas/seccion.php` el hueco se pedía con `<ul class="consulta-cargas mb-lg">` y **nunca se
+aplicó**. `.mb-lg` (`pages/_dashboard.scss:1215`) y `.consulta-cargas`
+(`pages/_consulta-notas.scss:36`) tienen la **misma especificidad (0,1,0)**, y
+`.consulta-cargas` declara el margen inferior **dentro de un shorthand**
+(`margin: $spacing-md 0 0`). Manda el orden de `app.scss`, donde
+`pages/consulta-notas` (`:43`) va **después** de `pages/dashboard` (`:25`) → gana el `0`.
+
+- **No hay síntoma en el código**: la clase está escrita en la vista y la regla está en el
+  SASS. Solo se ve en el CSS compilado — `grep -o '\.mb-lg{[^}]*}' public/css/app.css` y
+  comparar la **posición** (`grep -bo`) con la del selector del componente.
+- **Regla: si existe el componente, usar el componente, no el utilitario.** Un `.mb-*`
+  sobre un elemento que ya define ese lado del margen es una apuesta al orden de imports.
+- Mismo patrón de fallo que el `.page-title { flex: 1 }` de arriba: una regla de layout
+  presente en el código, inerte en pantalla, durante meses.
+
+---
+
+### `.tabla-pie__leyenda`: una sola leyenda para las grillas de datos
+
+Explica bajo la tabla lo que las cabeceras solo dicen con `title` — un tooltip **no
+existe en móvil ni para quien navega con teclado**, que es justo donde trabajan los
+auxiliares. Vive en `components/_tables.scss`, con las tablas.
+
+- La usan el partial de asistencia (F/FJ/T/TJ) y la grilla de conducta (las tres
+  notas y el `Sí / total`). Nació como `.asistencia-leyenda` el mismo día y se
+  extrajo al raíz **antes de que hubiera una segunda copia**.
+- 🔴 **NO se llama `.tabla-leyenda`, y el motivo importa.** Ese nombre se usó unas
+  horas y **ya estaba ocupado**: `pages/_registro-cierre.scss` lo tiene para una
+  `<table>` de los imprimibles (`admin/conducta/imprimir.php`). Como ese parcial se
+  importa **después**, el `display:flex` de la de pantalla caía sobre la tabla del
+  papel y el `font-size: 6.5pt` del papel sobre las leyendas de pantalla: rompía en
+  las **dos** direcciones y sin ningún error visible. Antes de bautizar una clase,
+  buscarla en TODO `resources/sass/` — y buscarla también anidada (`&__x`), que es
+  como se escapó `competencia-card__codigo` el mismo día.
+- Cada página aporta solo su modificador (p. ej. `--registrada` en asistencia).
+  Si una hoja de `pages/` vuelve a declarar `display`/`gap`/`color` para una
+  leyenda propia, es la copia que se quería evitar.
+- ⚠️ **Esto NO gobierna todas las clases `*-leyenda` del sistema**: las de boleta
+  impresa, horario y el donut de bloqueos son de otro contexto y no se unifican.
+
+
+## El chip de código, y su modificador `--solo` (25/08/2026)
+
+`.competencia-card__codigo` es **el** chip de código del sistema. Su nombre está
+anclado a `competencia-card` por historia, pero 4 de sus 6 usos ya estaban fuera de
+ese bloque: el proyecto lo trata como global.
+
+Marca el código de **competencias** (`codigo_minedu`: C1…C57) y el de **criterios
+de conducta** (`criterios_conducta.codigo`, migración 056), que son numeraciones
+distintas y no se cruzan — cada una vive en su pantalla.
+
+- **`--solo`**: el chip lleva `margin-right` porque normalmente va **delante de un
+  nombre**. Cuando el código va solo —una cabecera de columna— ese margen lo
+  descentra. El modificador lo quita y aprieta el relleno.
+- ⚠️ **Al usarlo en una cabecera, revisar el `min-width` de la columna**: el chip
+  trae su propio relleno. En la grilla de conducta hubo que subir
+  `th.conducta-th-crit` de 56 a 64 px, o el chip de `C10` tocaba los bordes.
+- ⚠️ **Buscarlo en el SCSS por su bloque padre.** Está escrito como `&__codigo`
+  anidado dentro de `.competencia-card`, así que `grep "competencia-card__codigo"`
+  sobre `resources/sass/` **no lo encuentra** — y hay una copia idéntica en
+  `components/_dashboard.scss`, que **no se importa desde ningún sitio**. La
+  vigente es la de `pages/_dashboard.scss`.
+
+### El literal se muestra, no se insinúa con el color
+
+En la grilla Sí/No de conducta la nota mostraba solo el **numeral**, con el literal
+reducido a la clase de color (`nota-numeral--a`). Un color no es legible para quien
+no distingue esos tonos, y el **imprimible oficial ya estampa `17 (A)`**: la
+pantalla decía menos que el papel.
+
+Ahora hay **dos columnas**: Nota y Literal, como en `/conducta`. 🔴 El literal se
+**sumó**, no sustituyó al numeral — hay un aserto que falla si alguien «simplifica»
+quitando cualquiera de los dos, y otro que comprueba sobre el **DOM** que son dos
+`<td>` y no dos `<span>` en la misma celda (contar clases no distingue una cosa de
+la otra).
+
+Las dos van marcadas con **`col-resultado`**, la zona de resultado del sistema: son
+columnas **calculadas** a partir de los Sí/No, igual que el promedio y el literal de
+las demás grillas. ⚠️ Al aplicarla hubo que **retirar el `border-left` manual** que
+`conducta-th-nota` traía para separarse de los criterios: `col-resultado--inicio` ya
+dibuja ese separador, y mantener los dos daba doble línea.
+
+## Pestañas dentro de una pantalla — COMPONENTE GLOBAL (27/08/2026)
+
+Existe por fin un componente de pestañas reutilizable, y con él se cierra la deuda
+que `pages/_consulta-notas.scss` llevaba declarada: *«antes de escribir un CUARTO
+conmutador, extraer un componente global»*. Eran cuatro (`.consulta-eje`,
+`.periodo-tab`, `.curr-sidebar__tab`, `.bloqueos-tabcard`) y `/admin/cuadros`
+habría sido el quinto.
+
+- **`resources/sass/components/_tabs.scss`** — `.tabs` / `.tab` / `.tab-panel`.
+  El aspecto es la tira con subrayado de `.consulta-eje`, la más sobria de las
+  cuatro y la que ya se lee como «navegación dentro de la pantalla».
+- **`resources/js/tabs.js`** — comportamiento calcado de `bloqueos.js`, el único
+  tabs accesible que había.
+
+### Cuál usar
+
+| Si… | Usa |
+|---|---|
+| cada pestaña es **otra URL** | `.consulta-eje` (enlaces, sin JS) |
+| muestran/ocultan **paneles de la misma página** | **este componente** |
+
+### Marcado
+
+El **servidor** decide la pestaña inicial, así que sin JavaScript la página sigue
+siendo correcta: se ve el panel que el servidor dejó visible, simplemente no se
+puede cambiar.
+
+```html
+<div class="tabs" role="tablist" data-tabs="conducta"
+     data-tabs-memoria="cuadros.tab.conducta.2">
+  <button class="tab tab--activa" role="tab" id="tab-x"
+          data-tab="x" aria-controls="panel-x" aria-selected="true">X</button>
+</div>
+<div id="panel-x" class="tab-panel" role="tabpanel" data-panel="x"
+     aria-labelledby="tab-x">…</div>
+```
+
+- **SIEMPRE hay una pestaña activa.** Es la diferencia deliberada con el hub de
+  `/director/bloqueos`, que nace colapsado y cuyo segundo clic cierra el panel:
+  allí el detalle es opcional y caro; aquí un grupo sin nada visible sería una
+  sección en blanco.
+- Teclado: ←/→/Home/End, con *roving tabindex* (el Tab entra y sale del grupo de
+  una vez; recorrer siete pestañas a base de Tab para llegar al contenido es hostil).
+- `data-tabs-memoria` es **opcional**. La clave la elige quien renderiza, porque
+  solo él sabe de qué depende: en el tablero lleva el id del bimestre, para que la
+  pestaña recordada no se mezcle entre bimestres. `localStorage` va en `try/catch`:
+  que la memoria falle no puede dejar las pestañas sin funcionar.
+
+### 🔴 Gráficos dentro de una pestaña: el fallo que hay que conocer
+
+Instanciar un SVG (Frappe Charts) dentro de un contenedor con `hidden` lo mide a
+**0 px** y nace roto **sin ningún error en consola**. Por eso el componente emite
+**`tabs:mostrado`** sobre el panel al mostrarlo (burbujea, `detail = {grupo, nombre}`)
+y quien dibuje gráficos se suscribe para dibujar **perezosamente**:
+
+- al cargar, todo contenedor **visible** (`offsetParent !== null`);
+- al recibir el evento, los que acaban de hacerse visibles;
+- `data-dibujado="1"` impide repetir.
+
+`tabs.js` no sabe nada de gráficos y `cuadros.js` no sabe nada de pestañas: se
+hablan solo por ese evento. **El imprimible no carga `tabs.js`**: todos los paneles
+están visibles y todo se dibuja al cargar, por la rama de «contenedor visible».
+
+Hay asertos en `verif_direccion_superficies.php` para las tres formas de romperlo
+sin que se note: una pestaña sin panel, ningún o más de un `aria-selected="true"`
+por grupo, y —la más silenciosa— **una serie calculada sin contenedor donde
+dibujarse**. Esa última cazó de verdad la evolución de conducta desapareciendo del
+bimestre en curso, justo cuando más sirve.
+
+### Migración pendiente
+
+Los cuatro conmutadores anteriores **siguen sin migrar** (tocan módulos ajenos al
+cambio que trajo el componente). Ya no hay que extraer nada: hay que migrarlos.

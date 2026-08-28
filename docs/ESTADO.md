@@ -1,7 +1,321 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **22/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **24/08/2026**.
+
+
+## 🟢 CUADROS — conducta y asistencia ampliadas + roster con punto único (27/08/2026)
+
+Lote grande en `dev`, **con verificación de navegador ya hecha** (no queda como
+el lote del 26/08, que se mergeó sin abrir una pantalla).
+
+### Qué entró
+
+1. **`/admin/cuadros` pasa de 5 a 12 gráficos + 2 tablas**, reorganizado en dos
+   secciones (Conducta / Asistencia) con **tres pestañas cada una**. Detalle y
+   decisiones en `docs/modulos/usuarios-direccion.md`.
+2. **Componente global de pestañas** — `components/_tabs.scss` + `js/tabs.js`.
+   Cierra la deuda que `_consulta-notas.scss` llevaba declarada. Los otros
+   cuatro conmutadores **siguen sin migrar**. Ver `docs/modulos/ui.md`.
+3. **5 métodos nuevos de modelo** (2 en `ConductaModel`, 3 en `AsistenciaModel`).
+   El controlador sigue sin un solo `SELECT`.
+4. **`roster_evaluacion()` en `helpers.php`** — punto único de las 3 condiciones
+   del roster, que estaban copiadas en **9 consultas**, `getAlumnosSeccion`
+   incluida. Verificador nuevo: `verif_roster_evaluacion.php`.
+5. **`admin/conducta/seccion.php` deja de rotular `C{$i+1}` posicional** — era la
+   única vista que no migró con la 056, y `verif_conducta_criterios.php` no la
+   cubría. Ahora sí.
+
+### Verificado
+
+- **31 verificadores en verde.** El único fallo, `verif_criterios_filtros_cascada`,
+  **es previo a este lote** (comprobado con `git stash`): sus 2 asertos del salto
+  de bimestre en `/consulta-notas/criterios` fallaban ya con el árbol limpio.
+  **Queda abierto y no es de aquí.**
+- **Navegador (27/08)** renderizando la vista real con datos reales a un HTML
+  temporal en `public/` (borrado después). Comprobado en **B1 legado, B2 completo
+  y B3 activo casi vacío**: dibujado perezoso (gráfico de panel oculto nace a
+  1102 px, no a 0), teclado ←/→ con wrap, memoria de pestaña por bimestre,
+  0 errores JS, sin scroll horizontal de página.
+- **Imprimible A4**: hoja de 718 px, los **11 gráficos a 702 px**, sin pestañas ni
+  paneles ocultos, y ni la matriz (23×10) ni el listado (203 filas) desbordan.
+  Con esto se cierra el pendiente «el imprimible en papel nunca se ha probado».
+- **Contraste del mapa de calor medido en navegador**: 14,1 / 12,3 / 4,6 / 4,8 —
+  los 5 escalones en AA. El nivel más intenso salía a **2,4:1** por una regla de
+  especificidad que ninguna prueba de servidor ve.
+- Cifras contrastadas contra SQL independiente: conducta B1 `AD240 A228 B39 C9`
+  (516 con literal), criterios B2 `C9 74,0 %` · `C10 53,9 %` · `C4 3,3 %`,
+  asistencia B2 `F 371 · T 625`. Difieren del SQL crudo (528 / 373) **en exactamente
+  el filtro de roster**, comprobado fila a fila.
+
+### 🆕 28/08 — dos correcciones de lectura, verificadas en navegador
+
+1. **«Estudiantes con más faltas» pasa a UNA TABLA POR SECCIÓN** (23 bloques con
+   borde, cada uno con su `<caption>` y su `<thead>`). Con 180 filas seguidas el
+   encabezado de columnas se iba de pantalla. Aserto nuevo en el verificador.
+   **El A4 mejora de paso**: bloques de 263 px máx. contra 1047 px de hoja útil,
+   así que ninguna sección se parte, y el listado baja de ~5 hojas a **4**.
+2. **Arreglado el hover del mapa de calor.** Estaba con `background: inherit`, que
+   toma el fondo del `<tr>` —inexistente—: la celda quedaba transparente y el
+   número **blanco** de n4 **desaparecía** al pasar el cursor. Ahora cada escalón
+   tiene su par de hover. Medido en navegador: los 6 escalones **≥ 4,5:1**, y los
+   dos críticos suben de 4,59/4,83 a **5,81/6,47**. Tabla completa en
+   `docs/modulos/usuarios-direccion.md`.
+
+### 🆕 28/08 — cada card del dashboard con su propio icono
+
+Tres cards usaban el icono de otra: **Cuadros estadísticos** llevaba la medalla
+de Orden de mérito, **Criterios de evaluación** el lápiz de Rectificación y
+**Consulta de notas** la lupa de Buscar estudiante. El usuario aportó
+`stats.svg`, `criterios.svg` y `notas.svg` (mismo set Solar) y se asignaron.
+
+Con eso **los tres glifos prestados recuperan un único significado**, y de paso
+se resuelve una contradicción del wayfinding: la medalla y la lupa ya se usaban
+en `_docente-panel.scss` para mérito y para buscar, así que el mismo icono decía
+dos cosas según el panel. Esos usos del SASS **no se tocaron**.
+
+Cambio: 3 literales en `resources/views/dashboard/index.php`. Verificado en
+navegador con el CSS compilado (los 3 a 36 px, ningún `<img>` roto, trazo igual
+al de sus vecinos) y con **dos asertos nuevos** en
+`verif_direccion_superficies.php`: ninguna card comparte icono y todos existen en
+disco. Las dos ramas de la guarda probadas.
+
+**Queda un duplicado**: `users-group-rounded.svg` en «Secciones y Tutores» y
+«Ranking por sección». No hay icono para sustituirlo y no se pidió; está en la
+lista de excepciones toleradas del verificador.
+### Pendiente
+
+- **Papel de verdad**: el A4 está medido en pantalla, no impreso. Con el cambio
+  del 28/08 T2 ya no se parte (cada sección es un bloque que cabe en una hoja);
+  queda ver en papel el reparto de los 23 bloques entre las 4 páginas.
+- **Regresión de `getAlumnosSeccion`**: `verif_roster_asistencia` y
+  `verif_roster_evaluacion` lo cubren contra consultas de control escritas a mano,
+  pero conviene abrir `/docente/calificaciones` de una carga real y ver el mismo
+  número de alumnos.
+- `/director/periodos/{id}/stats` sigue teniendo dos consumidores de
+  `_panel-bimestre.php`: mirarla al probar.
+
+## 🟡 USUARIOS DE DIRECCIÓN — EN `dev`, SIN PROBAR EN NAVEGADOR (24/08/2026)
+
+Las **7 fases están implementadas** y las **5 verificaciones automáticas en
+verde**, pero **nadie ha abierto todavía una sola pantalla**. Reglas, decisiones y
+gotchas del módulo: **`docs/modulos/usuarios-direccion.md`**.
+
+### 🔴 BLOQUEANTE ANTES DEL MERGE A `main`
+
+1. **Aplicar la migración `055_rol_director_academico.sql` en PRODUCCIÓN a mano**,
+   como la 044 y la 045. Es un `INSERT` de catálogo, idempotente, sin cambio de
+   esquema. En LOCAL ya está aplicada (rol id 9). Verificación:
+   `SELECT COUNT(*) FROM roles;` debe dar **9**.
+2. **`public/css/app.css` va regenerado** en este lote. Si hay conflicto al
+   mergear, **no resolverlo a mano**: tomar un lado y `npx gulp build`.
+
+### PENDIENTE — pruebas en navegador (no se hizo ninguna)
+
+Orden sugerido; los puntos 1 y 4 son los que más fácil se rompen:
+
+1. **`/docente/horario/imprimir`** con un docente real — es la prueba de que la
+   extracción de `HorarioModel` no cambió nada. Debe salir **idéntico** al de
+   antes (grilla alineada, colores, horas/sem y total).
+2. ~~**Crear un usuario con rol Director académico**~~ **HECHO EN LOCAL el
+   24/08/2026:** ESPINOZA JULIE CAROL, DNI `00000001`, usuario 41. **En PROD
+   sigue sin existir** y hay que decidir allí el DNI y el nombre reales.
+   *(Al crearlo cayó `verif_rol_director_academico`: afirmaba «0 usuarios con el
+   rol nuevo», una aserción que caducaba por diseño en cuanto se daba este paso.
+   Sustituida por una que no caduca: ningún NO-Director EBR figura como firmante
+   vigente.)*
+3. Como director: las **10 cards** · `/matriculas` sin «+ Nueva matrícula» ·
+   `/director/bloqueos` sin botones · la boleta desde una matrícula.
+4. **Como `admin` y como Registro Académico: que SÍ vean todos sus botones.** Es
+   la rama de la guarda que se rompe sin avisar (ya pasó una vez en esta sesión:
+   el flag del Centro de Control se insertó en la rama equivocada).
+5. `/admin/cuadros` · `/consulta-notas/{p}/seccion/{s}/asistencia` · el eje por
+   docente · `/director/cargas/seccion/{id}/horario`.
+6. **Explorador de criterios** (`/consulta-notas/{p}/criterios`, añadido el
+   24/08 después de las 7 fases): árbol sección → carga, tabla por carga, sus
+   4 filtros, el imprimible y la card nueva — el dashboard del director pasa de
+   10 a **11 cards**. En LOCAL renderiza 2 353 criterios en B1 y 2 731 en B2
+   (1 988 académicos + **743 transversales**), contrastados contra SQL
+   independiente; **B3 sale vacío a propósito** y lo explica en pantalla.
+   El usuario **ya lo vio en navegador** y de ahí salieron tres correcciones
+   (el `&mdash;` escapado, la lectura en tabla y la retirada del buscador).
+   Falta probar: **las dos cabeceras fijas** al hacer scroll dentro de una
+   sección larga —es lo más frágil del lote— y el **imprimible en papel**.
+   🆕 **25/08 — cascada de los 4 filtros, sin probar en navegador.** Nivel
+   recorta Grado; Nivel+Grado recortan Sección; los tres recortan Docente por
+   pertenencia. De paso se corrigió que el grado se identificaba por
+   `grados.numero`, que **colisiona entre niveles** (`?grado=1` mezclaba
+   primaria con secundaria). Servidor verificado con
+   `verif_criterios_filtros_cascada.php`; **el JS de la cascada no lo ha visto
+   nadie en un navegador todavía**. Detalle en `docs/modulos/usuarios-direccion.md`.
+7. 🆕 **26/08 — gráficos de `/admin/cuadros` + su imprimible A4, sin probar en
+   navegador.** Cinco gráficos con Frappe Charts 1.6.2 (ya vendorizado; **no se
+   añadió ninguna librería**) y la ruta nueva `/admin/cuadros/imprimir`. Servidor
+   verificado con `verif_direccion_superficies.php`, ampliado con cuatro
+   aserciones: coherencia cruzada `getEvolucionAnual` ↔ `getResumenBimestre`
+   celda a celda, paralelismo de las series, validez del JSON que consume
+   `cuadros.js`, y render real de la vista A4.
+   ✅ **El usuario confirmó en navegador (26/08) que los gráficos se dibujan
+   correctamente** en `/admin/cuadros`. **Falta todavía**: (a) el **imprimible en
+   papel** — es el primer gráfico que este repo imprime, no hay precedente, y el
+   `max-width: 718px` de `.cuadros-print` existe porque Frappe le escribe al SVG
+   un `width` en px al instanciarlo; (b) que `/director/periodos/{id}/stats` siga
+   idéntica, porque `_panel-bimestre.php` **ahora tiene dos consumidores**.
+   Detalle en `docs/modulos/usuarios-direccion.md`.
+   🆕 **25/08 — chip con el `codigo_minedu`** delante del nombre de cada
+   competencia, en pantalla y en el imprimible. Falta verlo en navegador y en
+   papel (que el chip no descuadre la columna ni parta la fila).
+   🆕 **25/08 — el selector de bimestre auto-aplica y el salto LIMPIA los 4
+   filtros** (deroga el «conservando los filtros» del 24/08), más una guarda que
+   descarta el filtro que no exista en el catálogo del periodo. Con esto queda
+   **cerrado** el pendiente del filtro que sobrevivía al salto de bimestre.
+   Falta en navegador: que al cambiar de bimestre no se recargue dos veces y que
+   **Aplicar siga filtrando** con el bimestre sin tocar — es la rama que se
+   rompe sin avisar.
+   🆕 **26/08 — VERIFICADO EN NAVEGADOR POR EL USUARIO.** El eje por docente y el
+   explorador de criterios dejaron de ser dos botones sueltos del `page-header`:
+   ahora hay un **conmutador de 3 pestañas** (Secciones · Docentes · Criterios) y
+   **un solo selector de bimestre**, común a las tres y por ENCIMA de la barra.
+   Con esto quedan **cerrados** los pendientes de arriba sobre el selector
+   (auto-aplicar, el salto que limpia los 4 filtros y que Aplicar siga filtrando):
+   el usuario los recorrió y confirmó que funcionan. Detalle en
+   `docs/modulos/consulta-notas-ampliada.md` §10.
+   De paso salió una **causa raíz que afectaba a las 79 vistas con `page-header`**:
+   `.page-title { flex: 1 }` no alineaba nada porque el `h1` cuelga de un `<div>`
+   de `display:block`, que no es contenedor flex. Regla nueva en
+   `pages/_dashboard.scss`; el porqué en `docs/modulos/ui.md`. **Sigue sin probar
+   en navegador el resto de headers con acciones** que esa regla mueve:
+   `/matriculas`, `/padre/notas`, `/director/orden-merito-periodo/...` y
+   `/admin/actas-siagie`.
+   🆕 **25/08 — nomenclatura de las DOS caras de las transversales.** Los
+   promedios del tutor y el registro del docente se llamaban igual en 3
+   pantallas; ahora son «Promedios de Competencias Transversales» y
+   «Competencias Transversales — Registro del docente», y `seccion.php` lleva
+   encabezados de grupo. Verificado en `verif_consulta_notas_ampliada.php` (F5).
+   Detalle en `docs/modulos/transversales-visibilidad-tutor.md` §7. Falta verlo
+   en navegador: **se prueba en B1 o B2**, donde las 23 secciones tienen cierre
+   transversal vigente; **en B3 la tarjeta no sale** —0 cierres— y eso es
+   correcto, no un fallo del renombrado.
+   🆕 **25/08 — asistencia de la sección: bug + partial compartido.** La vista
+   decía «Registro en curso» SIEMPRE (leía `bloqueado_en`, clave inexistente;
+   la columna es `ra_bloqueado_en`) — con 23 cierres vigentes en B1 y 23 en B2
+   mostrando lo contrario. La tabla pasa a ser un partial único compartido con
+   Registro Académico (`admin/asistencia/_tabla-incidencias.php`), con totales
+   y leyenda F/FJ/T/TJ en las DOS vistas, y el imprimible oficial abierto a
+   Dirección. Verificado en `verif_asistencia_partial_compartido.php` (render
+   real de los dos modos). **Falta en navegador, y esto es lo delicado del
+   lote: que RA siga GUARDANDO** en `/admin/asistencia/{id}` —el partial
+   alimenta a `asistencia.js` y un gancho perdido no da error visible— y que
+   siga pudiendo **bloquear y aprobar**. La vista del director se prueba en
+   B1/B2, que tienen cierre. Detalle en `docs/modulos/admin.md`.
+   🔶 **Decisión abierta, planteada al usuario y sin responder:** al filtrar por
+   UNA sección, ¿se conserva el acordeón de sección o se pinta en plano,
+   ahorrando un nivel visual? Ver `docs/modulos/usuarios-direccion.md`.
+
+### PENDIENTE — 5 recomendaciones medidas, NO implementadas
+
+Se informaron y **no** se ejecutaron, por la regla de alcance del proyecto:
+
+- **`resources/sass/components/_dashboard.scss` es un archivo MUERTO**: no se
+  importa desde `app.scss` ni desde ningún otro SCSS, pero contiene una copia
+  idéntica de `.competencia-card` (incluido el chip `&__codigo`). La vigente es
+  la de `pages/_dashboard.scss`. Riesgo real: alguien edita la copia muerta,
+  recompila y no ve ningún cambio. Detectado el 25/08 al unificar el chip de
+  código de competencia; borrarlo es un `rm`, pero conviene confirmar antes que
+  nada más lo referencie.
+- **`&--secretaria` en `_admin.scss` es un rol fósil**: `secretaria_academica` y
+  `secretaria_administrativa` salen pintadas con el **color de docente**. 2 líneas.
+- **La descripción del rol `director_ebr` en la BD ahora es FALSA** — dice
+  «Supervisión de su nivel educativo» y se decidió que los tres ven los dos
+  niveles. Un `UPDATE` de una fila.
+- **La consulta de periodos (`activo`+`cerrado`) está copiada a mano en 3
+  controladores** (`ConsultaNotas`, `Bloqueo`, `OrdenMerito`) teniendo el método
+  en `ControlOperativoModel::getPeriodos()`. Los Cuadros ya lo reusan; los otros
+  tres no. Es la misma familia de fallo que este repo arrastra.
+- **`MatriculaController::nominaImprimir` NO se abrió a los directores** — no se
+  discutió. Decidir si la nómina imprimible entra en «grilla completa».
+
+### PENDIENTE — bug preexistente, sigue abierto
+
+- **La card «Usuarios» del dashboard se le muestra a `registro_academico`**
+  (`dashboard/index.php`), pero `Admin\UsuarioController` exige `admin` → **403
+  seguro**. Detectado el 24/08 al inventariar el dashboard; no se tocó porque está
+  fuera del alcance de este módulo. (El caso gemelo de la card de bloqueos SÍ se
+  corrigió, sumando RA al controlador.)
+
+### Al cerrar: `verif_horario_modelo.php` es TEMPORAL
+
+Reconstruye el algoritmo VIEJO desde `git HEAD` para contrastarlo con el nuevo.
+En cuanto esto se mergee a `main`, HEAD traerá el código nuevo y el contraste
+dejará de probar nada. **Es un verificador de la migración, no permanente**:
+retirarlo o reescribirlo tras el merge.
+
+## 🔵 PLAN — FLUJO PROPIO PARA LOS AUXILIARES (planteado 25/08/2026, SIN implementar)
+
+Requisitos del usuario, tal como los dio. **Nada de esto está construido.**
+
+1. Los auxiliares **no tienen formación técnica** y se les complican los
+   aplicativos web.
+2. **Usan el celular mucho más que una computadora.**
+3. Su **nombre debe aparecer en el espacio de firma**.
+4. Mismo flujo que el docente: marcan el dato de cada criterio, ven sus notas
+   finales, y **bloquean y aprueban** para confirmar.
+
+### Lo que ya existe y hay que reusar (medido el 25/08/2026)
+
+- 🔴 **El rol `auxiliar_academico` NO EXISTE**: la tabla `roles` tiene 9 y ninguno
+  es auxiliar. **Hoy el trabajo del auxiliar lo hace `registro_academico`** — así
+  está escrito en el código (`BloqueoController`: *«el auxiliar académico (hoy
+  Registro Académico)»*) y hay un TODO en `Admin\AsistenciaController`.
+- **El CONCEPTO sí está modelado**: conducta tiene dos etapas
+  (`cierres_conducta.ra_bloqueado_en` = etapa 1 «auxiliar», `tutor_cerrado_en` =
+  etapa 2 «tutor»), y `/admin/cuadros` ya cuenta `pend_auxiliar` («Esperan al
+  auxiliar»). El flujo del punto 4 **no se diseña desde cero**: se le pone rol
+  propio a una etapa que ya existe.
+- **La línea de firma ya está**: `admin/{asistencia,conducta}/imprimir.php` traen
+  dos bloques, «Auxiliar Responsable» y «Personal de Registro Académico», con la
+  línea EN BLANCO. El punto 3 es rellenarla — y el dato **ya está disponible**
+  (`$cierre['ra_nombre']`), sin esperar al rol nuevo.
+- ⚠️ **Incoherencia a resolver al hacerlo**: el mismo documento nombra a la misma
+  persona con dos cargos. La traza dice «bloqueado y aprobado por X **(Registro
+  Académico)**» y encima hay dos líneas de firma distintas. Hoy es ambiguo en cuál
+  de las dos firma X.
+
+### ¿Repetir el N° como última columna? — NO (respondido el 25/08/2026)
+
+El auxiliar lleva un registro manual, filtra justificaciones y luego transcribe a
+SIGACOCIAP; el miedo es **saltar de fila** al llegar al extremo derecho. Es un
+problema real, pero repetir el N° es una solución de PAPEL aplicada a una pantalla:
+
+- **`.tabla-notas` ya tiene `col-num` y `col-nombre` en `position: sticky`**
+  (`components/_tables.scss`), con sombra en el borde. Al desplazarse en horizontal
+  **el número y el nombre se quedan pegados**: la identidad de la fila nunca se
+  pierde, así que la columna repetida no añade información.
+- **Y empeora el problema donde más duele.** Ancho actual de la tabla editable:
+  40 (N°) + 200 (nombre) + 4×64 (contadores) + 150 (acción) = **646 px**. En un
+  móvil de ~390 px, con 240 px ocupados por las dos columnas fijas, **se ven 2 de
+  los 4 contadores a la vez**. Repetir el N° lo lleva a 686 px.
+
+Lo que sí ataca la causa:
+
+1. ❌ **Layout de tarjeta en móvil** — **DESCARTADO por el usuario el 25/08/2026.**
+   La grilla se mantiene a propósito: es lo que da accesibilidad útil al auxiliar
+   que ya domina la herramienta o que viene de subir su asistencia en **SIAGIE**,
+   donde el formato es de rejilla. No re-proponerlo.
+2. ✅ **Resaltar la fila enfocada** — **IMPLEMENTADO el 25/08/2026** (commit
+   `137676b`). Barra azul en la columna N°, que es sticky y por tanto sigue en
+   pantalla con la tabla desplazada. Canal separado del fondo, que sigue diciendo
+   el estado del dato. Incluye `scroll-margin-block` para que el teclado virtual
+   no tape la fila recién enfocada. Ver `docs/modulos/admin.md`.
+3. 🔵 **Entrada por estudiante** (buscar/elegir uno y registrar sus 4 contadores en
+   una pantalla), que es como se transcribe desde un cuaderno: alumno por alumno.
+   **Sin decidir.** Es la única de las tres que sigue abierta, y la que más se
+   acerca al requisito 2 sin renunciar a la grilla: convivirían como dos entradas
+   a lo mismo.
+
+⚠️ Cualquiera de las tres toca `admin/asistencia/_tabla-incidencias.php`, que desde
+el 25/08/2026 es **partial compartido con la consulta de Dirección**: el cambio se
+vería en las dos pantallas. Ver `docs/modulos/admin.md`.
 
 ## 🏁 CIERRE DE LA VERSIÓN 1.0 — 22/08/2026
 
@@ -295,6 +609,24 @@ confirmar el `limite_notas` de B3; y luego el siguiente hito con fecha, la **reg
 periodo final** (tope 05/10/2026).
 
 ## Migraciones
+- 🆕 **`056_codigo_criterios_conducta`** (25/08): añade `criterios_conducta.codigo`
+  (VARCHAR(8) NULL) y lo siembra como `CONCAT('C', orden)`. **APLICADA EN LOCAL,
+  PENDIENTE EN PRODUCCIÓN** — el auto-deploy publica código, no repara datos: hay
+  que ejecutarla a mano tras el push, o `getCriterios()` fallará al pedir una
+  columna que allí no existe.
+  - **Por qué**: las grillas rotulan `C1`, `C2`… y ese código se calculaba a mano
+    como `$i + 1` en dos vistas. Un código POSICIONAL se corre entero si alguien
+    reordena o borra un criterio, y los registros ya impresos y firmados dejan de
+    cuadrar sin ningún error visible. Segundo motivo: `getCriterios($nivelId)`
+    filtra por nivel, así que en cuanto exista un criterio por nivel la misma
+    posición significaría criterios distintos en primaria y en secundaria.
+  - **No cambia nada de lo ya impreso**: medido antes de escribirla, los 10
+    criterios vigentes tienen `orden` 1..10 **sin huecos**, así que `C{posición}`
+    y `C{orden}` daban el mismo valor. `verif_conducta_criterios.php` ancla esa
+    coincidencia y avisará el día que se rompa a propósito.
+  - **Idempotente** y con fallback en código: la columna admite NULL y
+    `ConductaModel::getCriterios()` cae a la posición si un criterio nace sin
+    código, que es como se rotulaba antes.
 - **`054_revertir_anulacion_constancia_traslado`** (22/08): corrección de DATOS (no toca
   esquema). Devuelve a `vigente` la constancia de traslado **N° 052-2026-CAVVG-DA** (4.º A
   de secundaria → IEP LAS AMERICAS SCHOOL, 07/07/2026) y deja sus tres campos `anulado_*`

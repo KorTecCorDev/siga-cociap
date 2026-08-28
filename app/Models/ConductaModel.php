@@ -70,20 +70,39 @@ class ConductaModel extends BaseModel
     public function getCriterios(?int $nivelId = null): array
     {
         if ($nivelId === null) {
-            return $this->query("
-                SELECT id, texto, orden, nivel_id
+            $filas = $this->query("
+                SELECT id, codigo, texto, orden, nivel_id
                 FROM criterios_conducta
                 WHERE eliminado_en IS NULL
                 ORDER BY orden, id
             ");
+        } else {
+            $filas = $this->query("
+                SELECT id, codigo, texto, orden, nivel_id
+                FROM criterios_conducta
+                WHERE eliminado_en IS NULL
+                  AND (nivel_id IS NULL OR nivel_id = ?)
+                ORDER BY orden, id
+            ", [$nivelId]);
         }
-        return $this->query("
-            SELECT id, texto, orden, nivel_id
-            FROM criterios_conducta
-            WHERE eliminado_en IS NULL
-              AND (nivel_id IS NULL OR nivel_id = ?)
-            ORDER BY orden, id
-        ", [$nivelId]);
+
+        // 🔴 EL CODIGO SALE DE AQUI, NO DE LAS VISTAS. Se rotulaba a mano como
+        // `C{$i + 1}` en el imprimible y en la grilla del tutor: dos copias de la
+        // misma regla, y a punto de ser tres. Ahora es un campo mas de la fila.
+        //
+        // El fallback POSICIONAL cubre un criterio que nazca sin codigo (la
+        // columna admite NULL): es exactamente como se rotulaba antes de la
+        // migracion 056, asi que no cambia el comportamiento historico.
+        //
+        // ⚠️ El fallback depende de la POSICION en ESTA lista, que esta filtrada
+        // por nivel. Por eso el codigo de la columna es el bueno: un criterio con
+        // `nivel_id` haria que la misma posicion significara criterios distintos
+        // en primaria y en secundaria.
+        foreach ($filas as $i => $f) {
+            $codigo = trim((string) ($f['codigo'] ?? ''));
+            $filas[$i]['codigo'] = $codigo !== '' ? $codigo : 'C' . ($i + 1);
+        }
+        return $filas;
     }
 
     /** Total de criterios vigentes que aplican a un nivel (para la formula y completitud). */
@@ -135,11 +154,8 @@ class ConductaModel extends BaseModel
             INNER JOIN anios_academicos a ON a.id = s.anio_id AND a.estado = 'activo'
             LEFT JOIN matriculas m
                    ON m.seccion_id = s.id AND m.anio_id = s.anio_id
-                  -- Mismo roster que el docente (getAlumnosSeccion): todos salvo el
-                  -- traslado de salida; retorno excluye la matricula que no aplica.
-                  AND m.tipo NOT IN ('trasladado', 'retirado')
-                  AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
-                  AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+                  -- Roster de evaluacion (punto unico en helpers.php).
+                  " . roster_evaluacion('m') . "
             LEFT JOIN (
                 SELECT matricula_id, COUNT(*) AS respondidos
                 FROM conducta_respuestas WHERE periodo_id = ?
@@ -182,12 +198,8 @@ class ConductaModel extends BaseModel
               -- Mismo roster que el docente al ingresar notas (getAlumnosSeccion):
               -- TODOS los matriculados de la seccion (aprobada, pendiente e incluso
               -- desactivado por baja administrativa/deuda: siguen asistiendo). El
-              -- Excluidos: el traslado de salida (tipo='trasladado') y el retiro
-              -- (tipo='retirado', ya no asiste; migracion 045). El retorno de grado
-              -- excluye la matricula que no se califica en su grado.
-              AND m.tipo NOT IN ('trasladado', 'retirado')
-              AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
-              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+              -- Roster de evaluacion (punto unico en helpers.php).
+              " . roster_evaluacion('m') . "
               AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)
             ORDER BY " . orden_alfabetico('p') . "
         ", [$seccionId]);
@@ -234,11 +246,8 @@ class ConductaModel extends BaseModel
             LEFT JOIN calificaciones_conducta cc
                 ON cc.matricula_id = m.id AND cc.periodo_id = ?
             WHERE m.seccion_id = ?
-              -- Mismo roster que getEstudiantesParaRegistro (todos salvo el
-              -- traslado de salida; retorno excluye la matricula que no aplica).
-              AND m.tipo NOT IN ('trasladado', 'retirado')
-              AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
-              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+              -- Roster de evaluacion (punto unico en helpers.php).
+              " . roster_evaluacion('m') . "
               AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)
             ORDER BY " . orden_alfabetico('p') . "
         ", [$periodoId, $seccionId]);
@@ -333,11 +342,9 @@ class ConductaModel extends BaseModel
                 GROUP BY matricula_id
             ) sub ON sub.matricula_id = m.id
             WHERE m.seccion_id = ?
-              -- Mismo roster que el docente (getAlumnosSeccion): la compuerta de
+              -- Roster de evaluacion (punto unico en helpers.php): la compuerta de
               -- completitud debe contar exactamente a quienes aparecen en la grilla.
-              AND m.tipo NOT IN ('trasladado', 'retirado')
-              AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
-              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+              " . roster_evaluacion('m') . "
               AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)
         ", [$totalCriterios, $periodoId, $seccionId]);
 
@@ -528,11 +535,8 @@ class ConductaModel extends BaseModel
             INNER JOIN personas    p ON p.id = e.persona_id
             LEFT JOIN calificaciones_conducta cc ON cc.matricula_id = m.id AND cc.periodo_id = ?
             WHERE m.seccion_id = ?
-              -- Mismo roster que el docente (getAlumnosSeccion): todos salvo el
-              -- traslado de salida; retorno excluye la matricula que no aplica.
-              AND m.tipo NOT IN ('trasladado', 'retirado')
-              AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
-              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+              -- Roster de evaluacion (punto unico en helpers.php).
+              " . roster_evaluacion('m') . "
               AND m.anio_id = (SELECT id FROM anios_academicos WHERE estado='activo' LIMIT 1)
             ORDER BY " . orden_alfabetico('p') . "
         ", [$periodoId, $periodoId, $periodoId, $seccionId]);
@@ -702,6 +706,266 @@ class ConductaModel extends BaseModel
             return nota_a_literal($this->promediar($notaRA, $notaTutor));
         }
         return $literalLegado; // puede ser null si no hay nada
+    }
+
+    // ── Estadistica para el tablero de Direccion ─────────────────
+
+    /**
+     * Distribucion de literales de conducta por NIVEL y por BIMESTRE del año.
+     *
+     * Alimenta el tablero de `/admin/cuadros`: cuantos estudiantes estan en AD,
+     * A, B y C, y como evoluciona el "en logro" (AD+A) a lo largo del año.
+     *
+     * 🔴 EL LITERAL NO SE CALCULA AQUI. La consulta trae los ingredientes en
+     * crudo (si / respondidos / total_criterios / nota_tutor / literal legado) y
+     * el literal lo compone `componerLiteral()`, el MISMO metodo que usan la
+     * boleta y el panel del padre. Reimplementar `(si/total)*20` o los umbrales
+     * 18/14/11 en SQL habria creado una cuarta copia de esa aritmetica —ya hay
+     * tres— y las copias de este repositorio divergen sin sintoma.
+     *
+     * Ademas es lo unico que hace bien el I Bimestre: es LEGADO (0 respuestas,
+     * `literal` escrito directo) y `componerLiteral()` ya ramifica por eso.
+     *
+     * NO filtra por `cierres_conducta`: el tablero es de monitoreo y tiene que
+     * servir con el bimestre en curso a medio llenar. La visibilidad en boleta
+     * es otra pregunta y la responden `getParaBoleta`/`getParaPeriodo`.
+     *
+     * La forma de salida es la de `AnioAcademicoModel::getEvolucionAnual` a
+     * proposito: la vista de graficos ya sabe recorrerla, y la serie va SIEMPRE
+     * paralela al eje X (una celda por bimestre del año, aunque valga 0).
+     *
+     * @return array{periodos: list<array>, niveles: list<array>}
+     */
+    public function getDistribucionLiteralesAnual(int $anioId): array
+    {
+        $filas = $this->query("
+            SELECT
+                p.id             AS periodo_id,
+                p.numero         AS periodo_numero,
+                p.nombre_display AS periodo_nombre,
+                n.id             AS nivel_id,
+                n.nombre         AS nivel_nombre,
+                n.codigo         AS nivel_codigo,
+                cc.literal       AS literal_legado,
+                cc.nota_tutor    AS nota_tutor,
+                COALESCE(r.si, 0)          AS si,
+                COALESCE(r.respondidos, 0) AS respondidos,
+                (SELECT COUNT(*) FROM criterios_conducta k
+                  WHERE k.eliminado_en IS NULL
+                    AND (k.nivel_id IS NULL OR k.nivel_id = n.id)) AS total_criterios
+            FROM periodos p
+            INNER JOIN secciones  s ON s.anio_id = p.anio_id AND s.estado_nomina = 'aprobada'
+            INNER JOIN grados     g ON g.id = s.grado_id
+            INNER JOIN niveles    n ON n.id = g.nivel_id
+            INNER JOIN matriculas m
+                    ON m.seccion_id = s.id AND m.anio_id = s.anio_id
+                   -- Roster de evaluacion (punto unico en helpers.php).
+                   " . roster_evaluacion('m') . "
+            LEFT JOIN calificaciones_conducta cc
+                   ON cc.matricula_id = m.id AND cc.periodo_id = p.id
+            LEFT JOIN (
+                SELECT matricula_id, periodo_id,
+                       SUM(respuesta = 1) AS si,
+                       COUNT(*)           AS respondidos
+                FROM conducta_respuestas
+                GROUP BY matricula_id, periodo_id
+            ) r ON r.matricula_id = m.id AND r.periodo_id = p.id
+            WHERE p.anio_id = ?
+            ORDER BY p.numero, n.id
+        ", [$anioId]);
+
+        // Eje X: todos los bimestres del año, con o sin dato. Recortarlo aqui
+        // dejaria series de distinta longitud y el grafico saldria corrido.
+        $periodos = $this->query("
+            SELECT id, numero, nombre_display
+            FROM periodos WHERE anio_id = ? ORDER BY numero
+        ", [$anioId]);
+
+        $vacia   = ['ad' => 0, 'a' => 0, 'b' => 0, 'c' => 0, 'total' => 0];
+        $niveles = [];   // [nivel_id => ['nivel_*' => ..., 'celdas' => [periodo_id => conteos]]]
+
+        foreach ($filas as $f) {
+            $nid = (int) $f['nivel_id'];
+            $pid = (int) $f['periodo_id'];
+
+            if (!isset($niveles[$nid])) {
+                $niveles[$nid] = [
+                    'nivel_id'     => $nid,
+                    'nivel_nombre' => $f['nivel_nombre'],
+                    'nivel_codigo' => $f['nivel_codigo'],
+                    'celdas'       => [],
+                ];
+                foreach ($periodos as $p) {
+                    $niveles[$nid]['celdas'][(int) $p['id']] = $vacia;
+                }
+            }
+
+            $literal = $this->componerLiteral(
+                (int) $f['si'],
+                (int) $f['respondidos'],
+                (int) $f['total_criterios'],
+                $f['nota_tutor'] !== null ? (int) $f['nota_tutor'] : null,
+                $f['literal_legado']
+            );
+
+            // Sin literal el alumno NO entra al denominador: contarlo como si
+            // estuviera en C convertiria "todavia no lo han calificado" en un
+            // resultado malo, que es justo lo contrario.
+            if ($literal === null) {
+                continue;
+            }
+
+            $niveles[$nid]['celdas'][$pid][strtolower($literal)]++;
+            $niveles[$nid]['celdas'][$pid]['total']++;
+        }
+
+        $salida = [];
+        foreach ($niveles as $n) {
+            $serie = [];
+            foreach ($periodos as $p) {
+                $pid = (int) $p['id'];
+                $c   = $n['celdas'][$pid] ?? $vacia;
+                $tot = (int) $c['total'];
+                $log = (int) $c['ad'] + (int) $c['a'];
+
+                $serie[] = [
+                    'periodo_id' => $pid,
+                    'ad'         => (int) $c['ad'],
+                    'a'          => (int) $c['a'],
+                    'b'          => (int) $c['b'],
+                    'c'          => (int) $c['c'],
+                    'total'      => $tot,
+                    'logro'      => $log,
+                    'pct_logro'  => $tot > 0 ? round($log / $tot * 100, 1) : 0.0,
+                ];
+            }
+
+            unset($n['celdas']);
+            $n['serie'] = $serie;
+            $salida[]   = $n;
+        }
+
+        return [
+            'periodos' => array_map(static fn(array $p): array => [
+                'id'     => (int) $p['id'],
+                'numero' => (int) $p['numero'],
+                'nombre' => (string) $p['nombre_display'],
+            ], $periodos),
+            'niveles'  => $salida,
+        ];
+    }
+
+    /**
+     * Incumplimiento de cada criterio de conducta, a nivel institucional y por
+     * seccion. Es la lectura agregada de la grilla Si/No de los auxiliares.
+     *
+     * "Incumplimiento" = `respuesta = 0` (el boton "No cumple" de la grilla).
+     * Se devuelve tanto el conteo como el porcentaje sobre las respuestas
+     * REGISTRADAS, no sobre el roster: un criterio a medio responder no debe
+     * parecer cumplido.
+     *
+     * ⚠️ Con el I Bimestre devuelve las dos listas VACIAS y no es un error: es
+     * el bimestre legado, que se registro con un literal directo y nunca tuvo
+     * grilla de criterios. La vista tiene que decirlo, no dejar un hueco mudo.
+     *
+     * El `codigo` sale de la columna (migracion 056) con el mismo fallback
+     * posicional que `getCriterios()`: rotularlo a mano en la vista fue la
+     * regresion que este modulo ya tuvo una vez.
+     *
+     * @return array{criterios: list<array>, secciones: list<array>}
+     */
+    public function getIncumplimientoCriterios(int $periodoId): array
+    {
+        $filas = $this->query("
+            SELECT
+                k.id     AS criterio_id,
+                k.codigo AS criterio_codigo,
+                k.texto  AS criterio_texto,
+                k.orden  AS criterio_orden,
+                s.id     AS seccion_id,
+                s.nombre AS seccion_nombre,
+                g.numero AS grado_numero,
+                n.id     AS nivel_id,
+                n.codigo AS nivel_codigo,
+                COUNT(*)             AS respondidos,
+                SUM(r.respuesta = 0) AS no_cumple
+            FROM conducta_respuestas r
+            INNER JOIN criterios_conducta k ON k.id = r.criterio_id
+            INNER JOIN matriculas m
+                    ON m.id = r.matricula_id
+                   -- Roster de evaluacion (punto unico en helpers.php).
+                   " . roster_evaluacion('m') . "
+            INNER JOIN secciones s ON s.id = m.seccion_id
+            INNER JOIN grados    g ON g.id = s.grado_id
+            INNER JOIN niveles   n ON n.id = g.nivel_id
+            WHERE r.periodo_id = ?
+              AND k.eliminado_en IS NULL
+            GROUP BY k.id, s.id
+            ORDER BY n.id, g.numero, s.nombre, k.orden, k.id
+        ", [$periodoId]);
+
+        if (empty($filas)) {
+            return ['criterios' => [], 'secciones' => []];
+        }
+
+        $criterios = [];   // [criterio_id => totales institucionales]
+        $secciones = [];   // [seccion_id  => fila + matriz por criterio]
+
+        foreach ($filas as $f) {
+            $kid = (int) $f['criterio_id'];
+            $sid = (int) $f['seccion_id'];
+            $res = (int) $f['respondidos'];
+            $no  = (int) $f['no_cumple'];
+
+            if (!isset($criterios[$kid])) {
+                $criterios[$kid] = [
+                    'id'          => $kid,
+                    'codigo'      => trim((string) ($f['criterio_codigo'] ?? '')),
+                    'texto'       => (string) $f['criterio_texto'],
+                    'orden'       => (int) $f['criterio_orden'],
+                    'respondidos' => 0,
+                    'no_cumple'   => 0,
+                ];
+            }
+            $criterios[$kid]['respondidos'] += $res;
+            $criterios[$kid]['no_cumple']   += $no;
+
+            if (!isset($secciones[$sid])) {
+                $secciones[$sid] = [
+                    'seccion_id'   => $sid,
+                    'nivel_codigo' => (string) $f['nivel_codigo'],
+                    // Misma etiqueta que el resto del tablero: primaria y
+                    // secundaria repiten los numeros de grado y sin la inicial
+                    // del nivel habria dos "1° A" indistinguibles.
+                    'etq'          => (int) $f['grado_numero'] . '° ' . $f['seccion_nombre']
+                        . ' (' . strtoupper(substr((string) $f['nivel_codigo'], 0, 1)) . ')',
+                    'por_criterio' => [],
+                ];
+            }
+            $secciones[$sid]['por_criterio'][$kid] = [
+                'respondidos' => $res,
+                'no_cumple'   => $no,
+                'pct'         => $res > 0 ? round($no / $res * 100, 1) : 0.0,
+            ];
+        }
+
+        // El fallback posicional es el mismo de getCriterios(): un criterio que
+        // naciera sin codigo se rotula por su sitio en ESTA lista, como antes de
+        // la migracion 056.
+        $criterios = array_values($criterios);
+        usort($criterios, static fn(array $x, array $y): int
+            => [$x['orden'], $x['id']] <=> [$y['orden'], $y['id']]);
+
+        foreach ($criterios as $i => $k) {
+            if ($k['codigo'] === '') {
+                $criterios[$i]['codigo'] = 'C' . ($i + 1);
+            }
+            $criterios[$i]['pct'] = $k['respondidos'] > 0
+                ? round($k['no_cumple'] / $k['respondidos'] * 100, 1)
+                : 0.0;
+        }
+
+        return ['criterios' => $criterios, 'secciones' => array_values($secciones)];
     }
 
     // ── Verificacion de edicion ──────────────────────────────────

@@ -138,7 +138,46 @@ foreach ($periodos as $per) {
         count($secs), $conCierre, $conCond);
 }
 
-echo $fallos === 0
+// ── 5. Las DOS caras de las transversales no comparten titulo ────────
+// Los promedios del tutor (que van a la boleta) y el registro crudo del docente
+// se llamaban los dos "Competencias Transversales", en tres pantallas. Se
+// comprueba la PROPIEDAD —que los titulos sean distintos— y no un texto
+// literal: fijar la cadena convertiria cualquier reescritura legitima del
+// rotulo en un fallo, que es como se rompen los verificadores de UI.
+$titulo = function (string $vista, string $patron): ?string {
+    $html = @file_get_contents(ROOT_PATH . '/resources/views/consulta-notas/' . $vista);
+    return ($html !== false && preg_match($patron, $html, $m)) ? trim($m[1]) : null;
+};
+$tPromedios = $titulo('transversales.php', '/<h1 class="page-title">(.*?)<\/h1>/s');
+$tRegistro  = $titulo('carga.php',         '/<h2 class="transversales-separador__titulo">(.*?)<\/h2>/s');
+$tEnlace    = $titulo('seccion.php',       '/<span class="consulta-carga__area">(Promedios[^<]*|Competencias Transversales)<\/span>/s');
+
+echo "\n  [F5] titulos de las dos caras\n";
+foreach (['promedios (tutor)' => $tPromedios, 'registro (docente)' => $tRegistro, 'enlace en seccion' => $tEnlace] as $q => $v) {
+    printf("       %-20s %s\n", $q . ':', $v ?? '(NO ENCONTRADO)');
+}
+if ($tPromedios === null || $tRegistro === null || $tEnlace === null) {
+    // Que el patron deje de encontrar el titulo tambien es un fallo: si no, el
+    // verificador pasaria en verde por no haber mirado nada.
+    echo "       FALLO: no se pudo leer alguno de los titulos\n";
+    $fallos++;
+} else {
+    if ($tPromedios === $tRegistro) {
+        echo "       FALLO: las dos caras comparten titulo\n";
+        $fallos++;
+    }
+    if ($tEnlace !== $tPromedios) {
+        echo "       FALLO: el enlace no dice lo mismo que la pagina a la que lleva\n";
+        $fallos++;
+    }
+    if ($tPromedios === $tRegistro || $tEnlace !== $tPromedios) {
+        // nada mas que imprimir
+    } else {
+        echo "       OK: distintas entre si y el enlace coincide con su destino\n";
+    }
+}
+
+echo "\n", $fallos === 0
     ? "RESULTADO: OK — la supervisión muestra lo mismo que la boleta.\n"
     : "RESULTADO: {$fallos} FALLO(S).\n";
 

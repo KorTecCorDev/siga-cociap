@@ -210,8 +210,81 @@ thead .col-resultado {
     background: #eef2f7;
 }
 
+// 🔴 EL HOVER NO PUEDE BORRAR LA ZONA. `$bg-secondary` vale #f8fafc, el MISMO
+// valor literal que el fondo de arriba: al pasar por una fila, toda ella tomaba
+// ese gris y la zona de resultado DESAPARECIA — justo cuando se está señalando
+// esa fila, y justo la función para la que la clase existe. La zona sube un tono
+// y conserva el escalón en los dos estados. El tono es el que ya usa
+// `thead .col-resultado`: no entra ningún color nuevo al sistema.
+//
+// ⚠️ Va por ESPECIFICIDAD, no por orden: `.tabla-{notas,resumen} tr:hover td` es
+// (0,2,2) y esto es (0,3,2). Y se escriben LAS DOS FAMILIAS porque cada tabla
+// define su propio hover; con un `tr:hover .col-resultado` suelto (0,2,1) no
+// bastaría. Afecta a las 6 vistas que usan la zona de resultado.
+.tabla-resumen tr:hover td.col-resultado,
+.tabla-notas   tr:hover td.col-resultado {
+    background: #eef2f7;
+}
+
 .col-resultado--inicio {
     border-left: 2px solid #cbd5e1;
+}
+
+// ── Pie de grilla ────────────────────────────────────────────
+// Contenedor estándar de lo que va DEBAJO de una tabla: leyendas, notas al pie,
+// totales en texto. Formaliza el patrón para que no se improvise otra vez.
+//
+// 🔴 VA FUERA DE `.tabla-notas-wrapper`, NUNCA DENTRO. El wrapper es el área de
+// scroll (`overflow-x: auto`), así que un pie metido ahí:
+//   · se DESPLAZA con la tabla al hacer scroll horizontal y se va de la pantalla;
+//   · queda pegado al borde, sin margen;
+//   · y si la grilla está en un `.card` —que lleva `overflow: hidden` con
+//     esquinas redondeadas— sale RECORTADO por la curva.
+// Los tres fallos a la vez es lo que pasó en la grilla de conducta el 25/08/2026.
+//
+// El pie es hermano del wrapper, no su hijo:
+//   <div class="tabla-notas-wrapper"><table>…</table></div>
+//   <div class="tabla-pie"> … </div>
+.tabla-pie {
+    padding: $spacing-sm $spacing-md;
+    border-top: 1px solid $border-color;
+    background: $bg-white;
+
+    > :last-child { margin-bottom: 0; }
+
+    // Suelto (sin card alrededor) no necesita el borde: la tabla ya termina.
+    &--suelto {
+        padding-left: 0;
+        padding-right: 0;
+        border-top: none;
+        background: transparent;
+    }
+}
+
+// ── Leyenda de una tabla ─────────────────────────────────────
+// Explica bajo la tabla lo que las cabeceras solo dicen con `title`: un tooltip
+// no existe en móvil ni para quien navega con teclado. Vive aquí, con las
+// tablas, para que no nazca una leyenda distinta por cada pantalla.
+// Su contenedor natural es `.tabla-pie`.
+.tabla-pie__leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-xs $spacing-md;
+    margin-top: $spacing-sm;
+    font-size: $font-size-sm;
+    color: $text-muted;
+    line-height: 1.5;
+
+    &__item strong {
+        display: inline-block;
+        min-width: 1.5em;
+        color: $text-secondary;
+    }
+
+    // Ocupa la fila entera: para la nota que explica un estado, no una columna.
+    &__item--bloque {
+        flex-basis: 100%;
+    }
 }
 
 // Texto de conclusión cuando la competencia está bloqueada

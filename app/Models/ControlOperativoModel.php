@@ -358,6 +358,9 @@ class ControlOperativoModel extends BaseModel
                               WHERE ex.matricula_id = m.id AND ex.area_id = a.id
                                 AND ex.revocado_en IS NULL)
               -- Anclaje de retorno: excluye la oficial (compite en su operativa).
+              -- ⚠️ NO usa `roster_evaluacion()` (helpers.php): esto pertenece al
+              -- universo del ORDEN DE MÉRITO, que tiene su propio punto único
+              -- (`OrdenMeritoModel::ROSTER_MERITO`) y exige `estado='aprobada'`.
               AND m.id NOT IN (SELECT matricula_oficial_id FROM retornos_grado WHERE estado = 'activo')
             ORDER BY n.id, g.numero, s.nombre, " . orden_alfabetico('p') . ",
                      comp.nombre_completo, cr.orden

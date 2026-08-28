@@ -56,14 +56,19 @@
                     <th class="col-num">N°</th>
                     <th class="col-nombre">Apellidos y nombres</th>
                     <?php if ($esLegado): ?>
-                        <th class="col-literal col-resultado text-center">Literal</th>
+                        <?php // Tambien aqui la zona se abre con el separador, aunque sea de una
+                              // sola columna: la regla es la misma en las dos ramas. ?>
+                        <th class="col-literal col-resultado col-resultado--inicio text-center">Literal</th>
                     <?php else: ?>
-                        <th class="col-numeral col-resultado col-resultado--inicio text-center"
-                            title="Derivada de las respuestas registradas">Nota auxiliar</th>
+                        <?php // El DETALLE va antes y la ZONA DE RESULTADO cierra la fila: el
+                              // separador de `col-resultado--inicio` abre un bloque que no debe
+                              // quedar interrumpido por una columna suelta a su derecha. La
+                              // leyenda de abajo explica las tres notas y el Si/total. ?>
+                        <th class="text-center">Sí / total</th>
+                        <th class="col-numeral col-resultado col-resultado--inicio text-center">Nota auxiliar</th>
                         <th class="col-numeral col-resultado text-center">Nota tutor</th>
                         <th class="col-numeral col-resultado text-center">Final</th>
                         <th class="col-literal col-resultado text-center">Literal</th>
-                        <th class="text-center" title="Criterios respondidos con Sí sobre el total">Sí / total</th>
                     <?php endif; ?>
                 </tr>
             </thead>
@@ -75,7 +80,7 @@
                         <td class="col-nombre"><?= e($a['nombre_completo']) ?></td>
 
                         <?php if ($esLegado): ?>
-                            <td class="col-literal col-resultado text-center">
+                            <td class="col-literal col-resultado col-resultado--inicio text-center">
                                 <?php if ($lit !== null): ?>
                                     <span class="nota-literal nota-literal--<?= strtolower($lit) ?>"><?= e($lit) ?></span>
                                 <?php else: ?>
@@ -83,6 +88,10 @@
                                 <?php endif; ?>
                             </td>
                         <?php else: ?>
+                            <?php // Mismo orden que el thead: detalle primero, resultado al final. ?>
+                            <td class="text-center text-sm text-muted">
+                                <?= (int) $a['si'] ?> / <?= count($criterios) ?>
+                            </td>
                             <td class="col-numeral col-resultado col-resultado--inicio text-center">
                                 <?= $a['nota_ra'] !== null ? fmt_nota((int) $a['nota_ra']) : '<span class="text-muted">—</span>' ?>
                             </td>
@@ -105,28 +114,57 @@
                                     <span class="text-muted">—</span>
                                 <?php endif; ?>
                             </td>
-                            <td class="text-center text-sm text-muted">
-                                <?= (int) $a['si'] ?> / <?= count($criterios) ?>
-                            </td>
                         <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
     </div>
+
+    <?php if (!$esLegado): ?>
+        <?php // 🔴 EL PIE VA FUERA DEL WRAPPER. Dentro se desplazaba con el scroll
+              // horizontal y el `overflow: hidden` del card lo recortaba en las
+              // esquinas redondeadas. Ver `.tabla-pie` en components/_tables.scss.
+              //
+              // Estas explicaciones vivian solo en `title`, o sea un tooltip: no
+              // existe en movil ni con teclado. Y aqui pesan mas que en otras
+              // tablas — son tres columnas numericas seguidas que se confunden. ?>
+        <div class="tabla-pie">
+            <p class="tabla-pie__leyenda">
+                <span class="tabla-pie__item"><strong>Sí / total</strong> criterios respondidos con Sí</span>
+                <span class="tabla-pie__item"><strong>Nota auxiliar</strong> derivada de las respuestas registradas</span>
+                <span class="tabla-pie__item"><strong>Nota tutor</strong> la que registra el tutor de la sección</span>
+                <span class="tabla-pie__item tabla-pie__item--bloque">
+                    <strong>Final</strong> y <strong>Literal</strong> son la nota que va a la boleta.
+                </span>
+            </p>
+        </div>
+    <?php endif; ?>
 </div>
 
 <?php if (!$esLegado && !empty($criterios)): ?>
     <div class="card mb-lg">
         <div class="card__header">
             <h2 class="card__title">Criterios evaluados (<?= count($criterios) ?>)</h2>
+            <?php // La grilla Si/No por alumno NO cabe en esta pantalla (10 columnas
+                  // mas el roster). Vive en su propia vista, en solo lectura. ?>
+            <a class="btn btn--secondary btn--sm"
+               href="<?= url('consulta-notas/' . (int) $periodo['id'] . '/seccion/' . (int) $seccion['seccion_id'] . '/conducta/criterios') ?>">
+                Ver la grilla Sí / No &rarr;
+            </a>
         </div>
         <div class="card__body">
-            <ol class="text-sm">
+            <?php // El CODIGO va delante, y sale del modelo: es el mismo que rotula las
+                  // columnas del imprimible y de la grilla, asi que el director puede
+                  // cruzar el papel con la pantalla. Nunca recalcularlo aqui. ?>
+            <ul class="criterios-codigos">
                 <?php foreach ($criterios as $cr): ?>
-                    <li><?= e($cr['texto']) ?></li>
+                    <li>
+                        <span class="competencia-card__codigo"><?= e($cr['codigo']) ?></span>
+                        <?= e($cr['texto']) ?>
+                    </li>
                 <?php endforeach; ?>
-            </ol>
+            </ul>
         </div>
     </div>
 <?php endif; ?>

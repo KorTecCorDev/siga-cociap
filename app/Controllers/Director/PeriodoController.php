@@ -17,10 +17,18 @@ use Core\Session;
  */
 class PeriodoController extends BaseController
 {
+    /**
+     * Quien ESCRIBE. Los directores entran a este controlador y VEN, pero desde
+     * el 24/08/2026 no operan: su rol es de supervision en solo lectura. Se
+     * valida en cada metodo de escritura (no ocultando el boton en la vista):
+     * esconder la UI no es control de acceso.
+     */
+    private const ROLES_ESCRIBEN = ['admin', 'registro_academico'];
+
     private AnioAcademicoModel     $model;
     private PublicacionBoletaModel $publicacionModel;
 
-    private const ROLES = ['admin', 'director_general', 'director_ebr', 'registro_academico'];
+    private const ROLES = ['admin', 'registro_academico', ...ROLES_DIRECCION];
 
     public function __construct()
     {
@@ -34,6 +42,7 @@ class PeriodoController extends BaseController
     // POST /director/periodos/{id}/editar
     public function editar(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $id      = (int) $id;
         $periodo = $this->model->getPeriodo($id);
@@ -72,6 +81,7 @@ class PeriodoController extends BaseController
     // POST /director/periodos/{id}/abrir
     public function abrir(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $id      = (int) $id;
         $periodo = $this->model->getPeriodo($id);
@@ -104,6 +114,7 @@ class PeriodoController extends BaseController
     // POST /director/periodos/{id}/cerrar
     public function cerrar(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $id      = (int) $id;
         $periodo = $this->model->getPeriodo($id);
@@ -194,6 +205,7 @@ class PeriodoController extends BaseController
     // POST /director/periodos/{id}/reabrir
     public function reabrir(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $id      = (int) $id;
         $periodo = $this->model->getPeriodo($id);

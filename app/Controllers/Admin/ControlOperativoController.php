@@ -18,6 +18,14 @@ use Core\Session;
  */
 class ControlOperativoController extends BaseController
 {
+    /**
+     * Quien ESCRIBE. Los directores entran a este controlador y VEN, pero
+     * desde el 24/08/2026 no operan: su rol es de supervision en solo
+     * lectura. Se valida en cada metodo de escritura, NO ocultando el boton
+     * en la vista: esconder la UI no es control de acceso.
+     */
+    private const ROLES_ESCRIBEN = ['admin', 'registro_academico'];
+
     private ControlOperativoModel  $model;
     private AnioAcademicoModel     $anioModel;
     private PublicacionBoletaModel $publicacionModel;
@@ -33,7 +41,7 @@ class ControlOperativoController extends BaseController
     {
         $this->requireRole([
             'admin', 'registro_academico',
-            'director_general', 'director_ebr',
+            ...ROLES_DIRECCION,
         ]);
         $this->model            = new ControlOperativoModel();
         $this->anioModel        = new AnioAcademicoModel();
@@ -55,6 +63,7 @@ class ControlOperativoController extends BaseController
 
         if (!$periodo) {
             $this->view('admin/control/index', [
+                'puedeEscribir' => has_role(self::ROLES_ESCRIBEN),
                 'titulo'   => 'Centro de Control',
                 'periodos' => $periodos,
                 'periodo'  => null,
@@ -137,6 +146,9 @@ class ControlOperativoController extends BaseController
             : $this->model->incidenciasCierre($periodoId);
 
         $this->view('admin/control/index', [
+            // Vista de SOLO LECTURA para los directores: sin los botones del
+            // HITO A. La compuerta de publicacion tiene su propio $puedePublicar.
+            'puedeEscribir'    => has_role(self::ROLES_ESCRIBEN),
             'titulo'           => 'Centro de Control',
             'periodos'         => $periodos,
             'periodo'          => $periodo,
@@ -191,6 +203,7 @@ class ControlOperativoController extends BaseController
      */
     public function aprobarBimestre(string $periodoId): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $periodoId = (int) $periodoId;
         $periodo   = $this->model->getPeriodo($periodoId);
@@ -230,6 +243,7 @@ class ControlOperativoController extends BaseController
      */
     public function anularAprobacion(string $periodoId): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $periodoId = (int) $periodoId;
         $periodo   = $this->model->getPeriodo($periodoId);

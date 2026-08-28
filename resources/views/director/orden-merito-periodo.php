@@ -74,8 +74,13 @@
                             regularidad alta (notas 15-16 y 16) lo separan. El puesto en disputa
                             debe resolverlo la Dirección, Registro Académico o Administración.
                         </span>
+                        <?php /* El AVISO lo ve todo el mundo —el director necesita
+                                 saber que el grado tiene un empate sin resolver—;
+                                 el boton que RESUELVE, solo quien escribe. */ ?>
+                        <?php if ($puedeEscribir): ?>
                         <a href="<?= url('director/orden-merito/' . $periodo['id'] . '/desempate/' . $data['grado']['id']) ?>"
                            class="btn btn--primary btn--sm">Resolver empate</a>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
 

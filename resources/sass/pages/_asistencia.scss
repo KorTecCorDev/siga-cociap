@@ -114,14 +114,54 @@
 
     .asistencia-td-input    { text-align: center; }
 
+    // Modo SOLO LECTURA (historial de RA y consulta de Direccion). Sin esto los
+    // numeros quedaban a la izquierda bajo una cabecera centrada: la rejilla de
+    // contadores solo se lee de un vistazo si columna y cabecera coinciden.
+    .asistencia-td-valor {
+        width: 64px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+    }
+
     .asistencia-th-acciones { width: 150px; text-align: center; }
     .asistencia-td-acciones {
         text-align: center;
         white-space: nowrap;
     }
+
+    // ── Totales de la seccion ───────────────────────────────
+    // En RA sirven para cuadrar el registro ANTES de bloquearlo; en la consulta,
+    // para leer la seccion de un golpe sin sumar a mano.
+    .asistencia-totales {
+        background: $bg-secondary;
+        font-weight: 700;
+
+        td {
+            border-top: 1.5px solid $border-color;
+            border-bottom: none;
+            color: $text-primary;
+        }
+    }
+}
+
+// ── Leyenda de asistencia ───────────────────────────────────
+// El layout es `.tabla-pie__leyenda` (components/_tables.scss), compartido con las
+// demas tablas: aqui solo vive lo PROPIO de asistencia. Si esto vuelve a
+// declarar display/gap/color, es una copia que acabara divergiendo.
+.tabla-pie__item--registrada {
+    padding-left: $spacing-sm;
+    border-left: 3px solid rgba($color-success, .45);
 }
 
 .asistencia-input {
+    // 🔴 EL TECLADO VIRTUAL TAPA LA MITAD INFERIOR DE LA PANTALLA. Al enfocar,
+    // el navegador desplaza el input a la vista, y sin margen queda pegado al
+    // borde —o debajo del teclado—: ahi resaltar la fila no sirve de nada,
+    // porque la fila no se ve. El margen le pide al navegador que deje aire
+    // arriba y abajo. Va en el INPUT porque es el elemento que recibe el foco
+    // y, por tanto, al que se desplaza.
+    scroll-margin-block: 96px;
+
     width: 54px;
     padding: 4px 6px;
     text-align: center;
@@ -150,11 +190,26 @@
 
 // ── Estados de fila ─────────────────────────────────────────
 // Heredan el lenguaje verde/ámbar establecido por --con-notas /
-// --con-cambios en calificaciones. El ámbar gana por orden de cascade.
+// --con-cambios en calificaciones.
+//
+// 🔴 DOS CANALES INDEPENDIENTES, A PROPÓSITO:
+//   · el FONDO dice el estado del DATO   (verde = guardado, ámbar = sin guardar)
+//   · la BARRA en la columna N° dice dónde está el FOCO
+// Si el foco usara también el fondo, mientras se escribe habría que tapar el
+// ámbar de «sin guardar» —la señal que no se puede perder— o al revés. Separando
+// los canales, cada uno responde a una pregunta distinta y ninguno estorba.
+//
+// 🔴 ESTO VA POR ESPECIFICIDAD, NO POR ORDEN. `.tabla-notas tr:hover .col-num`
+// es (0,3,1) y GANABA a `.asistencia-fila--registrada td.col-num` (0,2,1): al
+// pasar el ratón, una fila registrada perdía su verde por completo. Anclar a
+// `.asistencia-tabla` y doblar la clase de fila da (0,4,1), por encima del
+// hover. Si estas reglas se sacan de aquí o se acortan, vuelve el defecto.
 .asistencia-fila {
     transition: background-color 200ms ease;
+}
 
-    &--registrada {
+.asistencia-tabla {
+    .asistencia-fila.asistencia-fila--registrada {
         background: rgba($color-success, .06);
 
         td.col-num,
@@ -163,7 +218,7 @@
         }
     }
 
-    &--con-cambios {
+    .asistencia-fila.asistencia-fila--con-cambios {
         background: rgba($color-warning, .10);
 
         td.col-num,
@@ -174,6 +229,19 @@
         .asistencia-input {
             border-color: $color-warning;
         }
+    }
+
+    // ── Fila enfocada ───────────────────────────────────────
+    // La barra vive en la columna N°, que es STICKY: sigue en pantalla aunque
+    // se esté escribiendo en TJ, en el extremo derecho. Es justo el caso del
+    // auxiliar transcribiendo desde su cuaderno en el celular. Mismo recurso
+    // que usa `.fila-pendiente` en `tabla-resumen`, y el mismo azul con que ya
+    // se marca el foco del propio input, asi que no entra un color nuevo.
+    //
+    // En la vista de Direccion no se activa nunca: en solo lectura el partial
+    // no pinta inputs, y sin nada enfocable no hay `:focus-within`.
+    .asistencia-fila:focus-within td.col-num {
+        box-shadow: inset 4px 0 0 $brand-mid;
     }
 }
 

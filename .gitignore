@@ -35,8 +35,12 @@ nul
 *.swp
 *.swo
 
-# Config local de Claude Code (permisos por maquina, no versionar)
-.claude/settings.local.json
+# Claude Code: config local por maquina y worktrees temporales.
+# Se ignora el DIRECTORIO entero, no solo settings.local.json: `.claude/worktrees/`
+# contiene copias de trabajo del propio repo, y un `git add -A` las anadia como
+# repositorio EMBEBIDO (git avisa: "adding embedded git repository"), dejando una
+# referencia rota tipo submodulo de ~9 MB.
+.claude/
 
 # PHP
 *.cache

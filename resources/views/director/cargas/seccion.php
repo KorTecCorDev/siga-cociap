@@ -38,6 +38,10 @@ if ($esUnidocente && $grupos) {
 
 <div class="page-header">
     <a href="<?= url('director/cargas') ?>" class="btn btn--secondary btn--sm">← Secciones</a>
+    <?php // Grilla semanal de la seccion (24/08/2026): antes solo existia el
+          // resumen en texto por carga. Es lectura, la ve tambien el director. ?>
+    <a href="<?= url('director/cargas/seccion/' . $seccion['id'] . '/horario') ?>"
+       target="_blank" rel="noopener" class="btn btn--secondary btn--sm">Ver horario semanal</a>
     <div>
         <h1 class="page-title">
             <?= e($seccion['grado_nombre']) ?> <?= e($seccion['seccion_nombre']) ?>
@@ -55,7 +59,9 @@ if ($esUnidocente && $grupos) {
             </p>
         <?php endif; ?>
     </div>
+<?php if ($puedeEscribir): ?>
     <a href="<?= url('director/cargas/crear?seccion_id=' . $seccion['id']) ?>" class="btn btn--primary">+ Nueva carga</a>
+<?php endif; ?>
 </div>
 
 <?php if (empty($cargas)): ?>
@@ -154,12 +160,15 @@ if ($esUnidocente && $grupos) {
 
                     <td>
                         <div class="td-acciones">
-                            <a href="<?= url('director/cargas/' . $c['id'] . '/editar') ?>"
-                               class="btn btn--secondary btn--sm">Editar</a>
-                            <?php if ($activa): ?>
-                                <a href="<?= url('director/cargas/' . $c['id'] . '/reemplazar') ?>"
-                                   class="btn btn--secondary btn--sm">Reemplazar docente</a>
+                            <?php if ($puedeEscribir): ?>
+                                <a href="<?= url('director/cargas/' . $c['id'] . '/editar') ?>"
+                                   class="btn btn--secondary btn--sm">Editar</a>
+                                <?php if ($activa): ?>
+                                    <a href="<?= url('director/cargas/' . $c['id'] . '/reemplazar') ?>"
+                                       class="btn btn--secondary btn--sm">Reemplazar docente</a>
+                                <?php endif; ?>
                             <?php endif; ?>
+                            <?php // "Reemplazos" es el HISTORIAL: lectura, la ve tambien el director. ?>
                             <a href="<?= url('director/cargas/' . $c['id'] . '/reemplazos') ?>"
                                class="btn btn--secondary btn--sm">Reemplazos</a>
                             <?php
@@ -170,6 +179,7 @@ if ($esUnidocente && $grupos) {
                                 ? "var m=prompt('Motivo para desactivar esta carga (obligatorio si ya tiene notas):',''); if(m===null)return false; this.motivo.value=m; return true;"
                                 : "return confirm('¿Activar esta carga?')";
                             ?>
+                            <?php if ($puedeEscribir): ?>
                             <form method="POST"
                                   action="<?= url('director/cargas/' . $c['id'] . '/estado') ?>"
                                   onsubmit="<?= $onSubmit ?>">
@@ -180,6 +190,7 @@ if ($esUnidocente && $grupos) {
                                     <?= $activa ? 'Desactivar' : 'Activar' ?>
                                 </button>
                             </form>
+                            <?php endif; ?>
                         </div>
                     </td>
 

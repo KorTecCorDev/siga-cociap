@@ -82,12 +82,10 @@ class AsistenciaModel extends BaseModel
             LEFT JOIN matriculas m
                    ON m.seccion_id = s.id
                   AND m.anio_id    = s.anio_id
-                  -- Mismo roster que getEstudiantesConIncidencias: los
+                  -- Roster de evaluacion (punto unico en helpers.php): los
                   -- 'esperados' tienen que contar exactamente a quienes
                   -- aparecen en la grilla, o el avance miente.
-                  AND m.tipo NOT IN ('trasladado', 'retirado')
-                  AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
-                  AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+                  " . roster_evaluacion('m') . "
             LEFT JOIN inasistencias i
                    ON i.matricula_id = m.id
                   AND i.periodo_id   = ?
@@ -103,6 +101,39 @@ class AsistenciaModel extends BaseModel
             ];
         }
         return $mapa;
+    }
+
+    /**
+     * Los 4 contadores de incidencias, en el orden en que se muestran.
+     * PUNTO ÚNICO: lo usan el partial de la tabla, los totales y el imprimible.
+     */
+    public const CAMPOS = ['faltas', 'faltas_justificadas', 'tardanzas', 'tardanzas_justificadas'];
+
+    /**
+     * Suma los 4 contadores de un roster ya cargado, más cuántos tienen registro.
+     *
+     * Recibe la salida de `getEstudiantesConIncidencias` en vez de consultar otra
+     * vez: el total tiene que ser el de LAS FILAS QUE SE PINTAN, no el de una
+     * consulta paralela que podría aplicar otro roster. Es el mismo motivo por el
+     * que el roster de asistencia es el de notas y no uno propio.
+     *
+     * @param  array $alumnos salida de getEstudiantesConIncidencias()
+     * @return array{faltas:int,faltas_justificadas:int,tardanzas:int,tardanzas_justificadas:int,registrados:int}
+     */
+    public static function totalesIncidencias(array $alumnos): array
+    {
+        $totales = array_fill_keys(self::CAMPOS, 0) + ['registrados' => 0];
+
+        foreach ($alumnos as $a) {
+            $inc = $a['incidencias'] ?? [];
+            foreach (self::CAMPOS as $campo) {
+                $totales[$campo] += (int) ($inc[$campo] ?? 0);
+            }
+            if (!empty($inc['registrado'])) {
+                $totales['registrados']++;
+            }
+        }
+        return $totales;
     }
 
     /**
@@ -124,18 +155,10 @@ class AsistenciaModel extends BaseModel
             INNER JOIN estudiantes e ON e.id = m.estudiante_id
             INNER JOIN personas    p ON p.id = e.persona_id
             WHERE m.seccion_id = ?
-              -- MISMO ROSTER QUE LA GRILLA DEL DOCENTE (getAlumnosSeccion):
-              -- el registro de asistencia debe cubrir exactamente a quien se
-              -- evalua. NO se filtra por estado: 'pendiente' y 'desactivado'
-              -- (baja administrativa por deuda) siguen asistiendo y deben
-              -- tener donde registrarse. Los unicos excluidos son el traslado
-              -- de salida y el retiro (migracion 045), que ya no asisten.
-              AND m.tipo NOT IN ('trasladado', 'retirado')
-              -- Retorno de grado: durante la nivelacion la asistencia se toma
-              -- en la matricula OPERATIVA (el grado donde la estudiante esta
-              -- fisicamente); tras revertir, vuelve a la OFICIAL.
-              AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
-              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+              -- Roster de evaluacion (punto unico en helpers.php): el registro
+              -- de asistencia debe cubrir exactamente a quien se evalua. El
+              -- porque de cada condicion vive en el docblock del helper.
+              " . roster_evaluacion('m') . "
               AND m.anio_id    = (SELECT id FROM anios_academicos WHERE estado = 'activo' LIMIT 1)
             ORDER BY " . orden_alfabetico('p') . "
         ", [$seccionId]);
@@ -461,6 +484,251 @@ class AsistenciaModel extends BaseModel
         return $secciones;
     }
 
+    // ── Estadistica para el tablero de Direccion ─────────────────
+    //
+    // 🔴 SEMANTICA DE LOS 4 CONTADORES, que es lo primero que se malinterpreta:
+    // `faltas` y `faltas_justificadas` son COLUMNAS INDEPENDIENTES, no un total
+    // y su subconjunto. `faltas` ya son las faltas SIN JUSTIFICACION. Medido en
+    // los datos: hay 159 filas con `faltas_justificadas > faltas` y 78 con
+    // `tardanzas_justificadas > tardanzas`, imposible si una contuviera a la
+    // otra. NUNCA restar una de otra para obtener "las no justificadas".
+
+    /**
+     * Los 4 contadores agregados por SECCION, mas cuanta gente los acumula.
+     *
+     * Alimenta la comparativa entre secciones del tablero y el grafico de
+     * justificadas vs sin justificar. Misma armazon y MISMO ROSTER que
+     * `getProgresoPorSeccion`: si contaran universos distintos, dos cifras de
+     * la misma pantalla se contradirian.
+     *
+     * `sin_incidencias` cuenta a quien no tiene NI faltas NI tardanzas sin
+     * justificar, incluidos los que no tienen fila: no tener registro y tener
+     * un registro en cero se ven igual aqui a proposito —es un indicador de
+     * panorama, no de completitud; para eso esta `registrados`—.
+     */
+    public function getIncidenciasPorSeccion(int $periodoId): array
+    {
+        return $this->query("
+            SELECT
+                s.id             AS seccion_id,
+                s.nombre         AS seccion_nombre,
+                g.numero         AS grado_numero,
+                n.id             AS nivel_id,
+                n.nombre         AS nivel_nombre,
+                n.codigo         AS nivel_codigo,
+                COUNT(DISTINCT m.id) AS alumnos,
+                COALESCE(SUM(i.faltas), 0)                 AS faltas,
+                COALESCE(SUM(i.faltas_justificadas), 0)    AS faltas_justificadas,
+                COALESCE(SUM(i.tardanzas), 0)              AS tardanzas,
+                COALESCE(SUM(i.tardanzas_justificadas), 0) AS tardanzas_justificadas,
+                COUNT(DISTINCT CASE WHEN i.faltas    > 0 THEN m.id END) AS con_faltas,
+                COUNT(DISTINCT CASE WHEN i.tardanzas > 0 THEN m.id END) AS con_tardanzas,
+                COUNT(DISTINCT CASE
+                    WHEN COALESCE(i.faltas, 0) = 0 AND COALESCE(i.tardanzas, 0) = 0
+                    THEN m.id END) AS sin_incidencias,
+                COUNT(DISTINCT i.matricula_id) AS registrados
+            FROM secciones s
+            INNER JOIN grados  g ON g.id = s.grado_id
+            INNER JOIN niveles n ON n.id = g.nivel_id
+            LEFT JOIN matriculas m
+                   ON m.seccion_id = s.id
+                  AND m.anio_id    = s.anio_id
+                  -- Roster de evaluacion (punto unico en helpers.php).
+                  " . roster_evaluacion('m') . "
+            LEFT JOIN inasistencias i
+                   ON i.matricula_id = m.id
+                  AND i.periodo_id   = ?
+            WHERE s.estado_nomina = 'aprobada'
+              AND s.anio_id = (SELECT anio_id FROM periodos WHERE id = ?)
+            GROUP BY s.id
+            ORDER BY n.id, g.numero, s.nombre
+        ", [$periodoId, $periodoId]);
+    }
+
+    /**
+     * Estudiantes con alguna incidencia SIN JUSTIFICAR, ya agrupados por seccion
+     * y recortados a los `$tope` de mas faltas y los `$tope` de mas tardanzas.
+     *
+     * ⚠️ EL CORTE INCLUYE LOS EMPATES. Si en una seccion el tercer puesto tiene
+     * 2 faltas y hay cuatro estudiantes con 2, salen los cuatro. Cortar en seco
+     * elegiria entre ex aequo por orden alfabetico, que es arbitrario y, en un
+     * listado que senala personas, injusto. Por eso una seccion puede traer mas
+     * de `$tope` filas y es correcto.
+     *
+     * Es un indicador INFORMATIVO. La normativa vigente no contempla el retiro
+     * automatico por exceso de inasistencias: cualquier decision se sustenta y
+     * evalua caso por caso. Nada en el sistema debe derivar una consecuencia de
+     * esta lista, y por eso el metodo NO recibe umbral alguno.
+     *
+     * Una sola consulta (≈528 filas como mucho) y el recorte en PHP: con 23
+     * secciones, una consulta por seccion serian 46 viajes a la base de datos.
+     *
+     * @return list<array> una fila por seccion con `top_faltas` y `top_tardanzas`
+     */
+    public function getTopIncidenciasPorSeccion(int $periodoId, int $tope = 3): array
+    {
+        $filas = $this->query("
+            SELECT
+                s.id     AS seccion_id,
+                s.nombre AS seccion_nombre,
+                g.numero AS grado_numero,
+                n.id     AS nivel_id,
+                n.codigo AS nivel_codigo,
+                m.id     AS matricula_id,
+                CONCAT(p.apellido_paterno, ' ', p.apellido_materno, ', ', p.nombres) AS nombre_completo,
+                i.faltas,
+                i.faltas_justificadas,
+                i.tardanzas,
+                i.tardanzas_justificadas
+            FROM inasistencias i
+            INNER JOIN matriculas m
+                    ON m.id = i.matricula_id
+                   -- Roster de evaluacion (punto unico en helpers.php).
+                   " . roster_evaluacion('m') . "
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas    p ON p.id = e.persona_id
+            INNER JOIN secciones   s ON s.id = m.seccion_id AND s.estado_nomina = 'aprobada'
+            INNER JOIN grados      g ON g.id = s.grado_id
+            INNER JOIN niveles     n ON n.id = g.nivel_id
+            WHERE i.periodo_id = ?
+              AND (i.faltas > 0 OR i.tardanzas > 0)
+            ORDER BY n.id, g.numero, s.nombre, " . orden_alfabetico('p') . "
+        ", [$periodoId]);
+
+        // Los `$tope` primeros, AMPLIADO solo lo justo para no partir el empate
+        // del ultimo puesto.
+        //
+        // ⚠️ La alternativa "los `$tope` VALORES distintos mas altos" se probo y
+        // se descarto: en una seccion con la incidencia repartida, el tercer
+        // valor distinto es un 1, y la lista pasa de 3 a 8 personas —de "quienes
+        // acumulan mas" a "todo el que llego tarde una vez"—. Medido: 250 filas
+        // en B2 frente a las ~120 de esta regla.
+        $recortar = static function (array $items, string $campo) use ($tope): array {
+            $items = array_values(array_filter(
+                $items,
+                static fn(array $x): bool => (int) $x[$campo] > 0
+            ));
+            if (empty($items)) {
+                return [];
+            }
+
+            // El contador manda; dentro de un empate se conserva el orden
+            // alfabetico que ya trajo la consulta (usort no es estable, asi que
+            // el indice de llegada hace de segundo criterio explicito).
+            $orden = array_keys($items);
+            usort($orden, static fn(int $x, int $y): int
+                => [(int) $items[$y][$campo], $x] <=> [(int) $items[$x][$campo], $y]);
+            $items = array_map(static fn(int $i): array => $items[$i], $orden);
+
+            if (count($items) <= $tope) {
+                return $items;
+            }
+
+            // Todo el que iguale al del ultimo puesto entra: cortar en seco
+            // elegiria entre ex aequo por apellido, arbitrario y, en un listado
+            // que senala personas, injusto.
+            $corte = (int) $items[$tope - 1][$campo];
+            return array_values(array_filter(
+                $items,
+                static fn(array $x): bool => (int) $x[$campo] >= $corte
+            ));
+        };
+
+        $secciones = [];
+        foreach ($filas as $f) {
+            $sid = (int) $f['seccion_id'];
+            if (!isset($secciones[$sid])) {
+                $secciones[$sid] = [
+                    'seccion_id'   => $sid,
+                    'nivel_id'     => (int) $f['nivel_id'],
+                    'nivel_codigo' => (string) $f['nivel_codigo'],
+                    // Misma etiqueta que el resto del tablero: sin la inicial del
+                    // nivel habria dos "1° A", uno de primaria y otro de secundaria.
+                    'etq'          => (int) $f['grado_numero'] . '° ' . $f['seccion_nombre']
+                        . ' (' . strtoupper(substr((string) $f['nivel_codigo'], 0, 1)) . ')',
+                    'items'        => [],
+                ];
+            }
+            $secciones[$sid]['items'][] = $f;
+        }
+
+        $salida = [];
+        foreach ($secciones as $s) {
+            $porFaltas    = $recortar($s['items'], 'faltas');
+            $porTardanzas = $recortar($s['items'], 'tardanzas');
+            unset($s['items']);
+
+            // UNA FILA POR ESTUDIANTE, no dos listas. Quien destaca en ambas
+            // aparecia dos veces con la mitad del dato cada vez; asi se lee el
+            // caso completo de un vistazo y la tabla no repite nombres.
+            // `por_*` dice en cual de las dos entro, para que la vista destaque
+            // el numero que lo trajo aqui.
+            $alumnos = [];
+            foreach ([['por_faltas', $porFaltas], ['por_tardanzas', $porTardanzas]] as [$marca, $lista]) {
+                foreach ($lista as $a) {
+                    $mid = (int) $a['matricula_id'];
+                    if (!isset($alumnos[$mid])) {
+                        $alumnos[$mid] = [
+                            'matricula_id'           => $mid,
+                            'nombre_completo'        => (string) $a['nombre_completo'],
+                            'faltas'                 => (int) $a['faltas'],
+                            'faltas_justificadas'    => (int) $a['faltas_justificadas'],
+                            'tardanzas'              => (int) $a['tardanzas'],
+                            'tardanzas_justificadas' => (int) $a['tardanzas_justificadas'],
+                            'por_faltas'             => false,
+                            'por_tardanzas'          => false,
+                        ];
+                    }
+                    $alumnos[$mid][$marca] = true;
+                }
+            }
+
+            $alumnos = array_values($alumnos);
+            usort($alumnos, static fn(array $x, array $y): int
+                => [$y['faltas'], $y['tardanzas']] <=> [$x['faltas'], $x['tardanzas']]);
+
+            // Una seccion sin nadie con incidencias sin justificar no se muestra.
+            if ($alumnos) {
+                $s['alumnos'] = $alumnos;
+                $salida[]     = $s;
+            }
+        }
+
+        return $salida;
+    }
+
+    /**
+     * Los 4 contadores agregados por BIMESTRE del año, sobre el mismo roster.
+     * Alimenta la linea historica del tablero. `registrados` permite distinguir
+     * el bimestre en cero del bimestre que nadie ha registrado todavia: sin ese
+     * dato la linea caeria a 0 y se leeria como una mejora que no ocurrio.
+     */
+    public function getEvolucionIncidenciasAnual(int $anioId): array
+    {
+        return $this->query("
+            SELECT
+                p.id             AS periodo_id,
+                p.numero         AS periodo_numero,
+                p.nombre_display AS periodo_nombre,
+                COALESCE(SUM(i.faltas), 0)                 AS faltas,
+                COALESCE(SUM(i.faltas_justificadas), 0)    AS faltas_justificadas,
+                COALESCE(SUM(i.tardanzas), 0)              AS tardanzas,
+                COALESCE(SUM(i.tardanzas_justificadas), 0) AS tardanzas_justificadas,
+                COUNT(DISTINCT i.matricula_id)             AS registrados
+            FROM periodos p
+            LEFT JOIN inasistencias i ON i.periodo_id = p.id
+            LEFT JOIN matriculas m
+                   ON m.id = i.matricula_id
+                  -- Roster de evaluacion (punto unico en helpers.php).
+                  " . roster_evaluacion('m') . "
+            LEFT JOIN secciones s ON s.id = m.seccion_id AND s.estado_nomina = 'aprobada'
+            WHERE p.anio_id = ?
+              AND (i.id IS NULL OR (m.id IS NOT NULL AND s.id IS NOT NULL))
+            GROUP BY p.id
+            ORDER BY p.numero
+        ", [$anioId]);
+    }
+
     /** seccion_id de una matricula, o null si no existe (gate de guardado). */
     public function seccionDeMatricula(int $matriculaId): ?int
     {
@@ -482,9 +750,7 @@ class AsistenciaModel extends BaseModel
             SELECT 1 AS ok
             FROM matriculas m
             WHERE m.id = ?
-              AND m.tipo NOT IN ('trasladado', 'retirado')
-              AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
-              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+              " . roster_evaluacion('m') . "
         ", [$matriculaId]);
 
         return $row !== null;

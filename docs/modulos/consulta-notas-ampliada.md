@@ -274,12 +274,82 @@ nuevo) en la misma corrida.
 
 ## 8. Fuera de alcance (consciente)
 
-- **El índice `/consulta-notas` NO cambia.** Sigue listando las secciones con ≥1
-  competencia bloqueada. Una sección que tuviera conducta cerrada y ninguna nota
+- **El índice `/consulta-notas` no cambia su CONTENIDO.** Sigue listando las secciones
+  con ≥1 competencia bloqueada. Una sección que tuviera conducta cerrada y ninguna nota
   bloqueada no aparecería — hoy no existe ese caso, y meterlo obligaría a rehacer el
   conteo de la portada.
+  > ⚠️ Su **navegación** sí cambió después (24/08 y 26/08/2026): ver §10.
 - **Exoneraciones en el agregado transversal:** no se filtran. Las transversales no se
   exoneran; si algún día se pudiera, esta vista habría que revisarla.
 - **Asistencia** no entra: es el cuarto registro del bimestre y tiene su propio
   imprimible oficial (`/admin/asistencia`). Si se decidiera sumarla, el sitio natural es
   otra tarjeta de sección con el mismo patrón de F3.
+
+---
+
+## 10. Los tres ejes de navegación (24/08 → 26/08/2026)
+
+El módulo se recorre por **tres caminos sobre el mismo universo**: por SECCIÓN (el
+índice), por DOCENTE (`/{p}/docentes`) y por CRITERIO (`/{p}/criterios`). Los dos
+últimos nacieron el 24/08/2026 como dos `btn btn--secondary` sueltos al final del
+`page-header` del índice.
+
+**El 26/08/2026 pasaron a un conmutador.** Los dos botones tenían tres defectos que no
+eran de estética:
+
+1. **No representaban el eje activo** — el usuario no sabía en cuál de los tres estaba.
+2. **Desaparecían al entrar** a Docentes o Criterios: saltar de uno al otro obligaba a
+   volver al índice.
+3. Como hijos sueltos del `page-header` pesaban lo mismo que el back-link, y **no se
+   alineaban a la derecha** (causa raíz del layout: ver `docs/modulos/ui.md`).
+
+### Punto único: `resources/views/consulta-notas/_nav.php`
+
+Ese partial renderiza **las dos piezas de chrome del módulo, en este orden**:
+
+1. la **card del selector de bimestre** — el ámbito, común a las tres pestañas;
+2. el **conmutador de ejes** — Secciones · Docentes · Criterios.
+
+Van juntas porque salen del **mismo mapa de rutas** (`$rutas`); en dos partials ese mapa
+se escribiría dos veces y acabaría divergiendo. Las tres vistas lo montan justo debajo del
+`page-header` y solo declaran `$ejeActivo` (`'secciones'` | `'docentes'` | `'criterios'`)
+antes del `require`; el eje activo es un dato de la vista, no del Presenter.
+
+- **Los back-links se quedan** (`← Dashboard`, `← Secciones`, `← Consulta de notas`): el
+  back-link es la salida del módulo hacia arriba, el conmutador es movimiento lateral.
+  Son dos gestos distintos.
+- El botón **Imprimir** de `/{p}/criterios` sigue en el `page-header`: eso sí es una
+  acción, no un eje.
+- Estilo: `.consulta-ejes` / `.consulta-eje` en `resources/sass/pages/_consulta-notas.scss`.
+  ⚠️ Es el **tercer** conmutador con CSS propio del repo (`.curr-sidebar__tab`,
+  `.periodo-tab`). Antes de escribir un cuarto, extraer un componente global.
+
+### El bimestre es ÁMBITO, no contenido de una pestaña (26/08/2026)
+
+Antes el selector estaba en tres sitios distintos y con tres conductas: card **debajo** de
+la barra en el índice, **inexistente** en Docentes, y **primer campo del formulario de
+filtros** en Criterios. Desde el 26/08 hay uno solo, en la card de `_nav.php`.
+
+- 🔴 **La card va ENCIMA de la barra de pestañas.** Debajo se leía como contenido de la
+  pestaña Secciones cuando manda sobre las tres. Arriba = ámbito global; lo que queda
+  debajo de la barra pertenece a la pestaña — en Criterios, su card de filtros.
+- **El `action` del formulario es la ruta del eje ACTIVO**, así que cambiar de bimestre
+  conserva la pestaña. En Secciones `periodo_id` es el parámetro real; en Docentes y
+  Criterios viaja como query sobre la ruta vieja y el servidor redirige.
+- **Punto único del salto: `ConsultaNotasController::saltarDePeriodo()`.** Lo usan las dos
+  pestañas que llevan el periodo en la ruta. Nació al extraer el bloque que ya vivía dentro
+  de `criterios()`; `index()` no lo necesita.
+- **El placeholder `— Seleccionar periodo —` solo sale con `$periodo === null`** (el índice
+  sin selección). En las otras dos el periodo siempre existe (`notFound()` si no) y sería
+  una opción muerta.
+- **Las pestañas solo se pintan si hay periodo**; la card siempre — es el control que hace
+  falta para elegirlo.
+- ⚠️ **Sigue vigente que cambiar de bimestre LIMPIA los cuatro filtros de Criterios**
+  (regla del 25/08/2026): el redirect suelta la query. Y sacar el `<select>` de ese
+  formulario no lo pone en riesgo — elegir el bimestre **ya seleccionado** no dispara
+  `change`, así que el formulario no se envía.
+- `<noscript>` con un botón **Cambiar**: sin JS no hay `onchange`, y Criterios funcionaba
+  sin JS gracias al botón "Aplicar" del formulario que ahora ya no contiene el bimestre.
+- **Las vistas profundas** (`seccion`, `carga`, `docente`, `conducta`, `transversales`,
+  `asistencia`) **no llevan selector**: no son pestañas y cada una tiene sus propios
+  parámetros de ruta.

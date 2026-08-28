@@ -23,6 +23,14 @@ class AnioAcademicoModel extends BaseModel
         [4, 'IV Bimestre',  '10-05', '12-18'],
     ];
 
+    /**
+     * Memo de getEvolucionAnual() por año. El verificador de superficies de
+     * Direccion reutiliza UNA sola instancia de este modelo a lo largo de su
+     * bucle de periodos, asi que sin esto recalcularia la misma serie una vez
+     * por bimestre del mismo año.
+     */
+    private array $cacheEvolucion = [];
+
     // ── Años ──────────────────────────────────────────────────
 
     /** Lista todos los años con el conteo de bimestres por estado. */
@@ -582,6 +590,149 @@ class AnioAcademicoModel extends BaseModel
         }
 
         return ['niveles' => $niveles];
+    }
+
+    /**
+     * Evolucion de la distribucion literal a lo largo de los bimestres de UN
+     * AÑO, separada por nivel. Alimenta las lineas del tablero de Direccion
+     * (/admin/cuadros), que necesita comparar bimestres entre si.
+     *
+     * 🔴 GEMELO del bloque 1 de getResumenBimestre(): MISMO universo
+     * (m.estado='aprobada', ar.tipo != 'transversal', area efectiva via
+     * COALESCE(sa.area_id, comp.area_id)) y MISMOS umbrales (NOTA_MIN_*).
+     * Si uno cambia, cambia el otro: verif_direccion_superficies.php compara
+     * celda a celda que ambos coincidan para el periodo seleccionado.
+     *
+     * NO se implementa como un bucle de getResumenBimestre() por periodo:
+     * ese metodo hace 2 consultas (la segunda con tabla derivada + GROUP BY
+     * m.id), o sea 8 por render, y ademas el controlador acabaria decidiendo
+     * que periodos entran y como se rellenan los huecos — reglas de negocio
+     * que pertenecen aqui.
+     *
+     * El eje X SIEMPRE trae los bimestres del año (incluidos los 'pendiente')
+     * y cada serie viene rellena y paralela a el: Frappe Charts exige que
+     * values.length === labels.length, y un hueco desplaza la linea entera
+     * sin dar error.
+     */
+    public function getEvolucionAnual(int $anioId): array
+    {
+        if (isset($this->cacheEvolucion[$anioId])) {
+            return $this->cacheEvolucion[$anioId];
+        }
+
+        // Eje X: los bimestres del año, en orden, existan o no sus notas.
+        $periodos = $this->getPeriodos($anioId);
+
+        // Distribucion literal por bimestre y nivel, de una sola pasada.
+        //
+        // Nota: NO se filtra `cal.nota_numerica IS NOT NULL` aunque parezca
+        // correcto. COUNT(*) cuenta las filas con nota nula y SUM() no, asi
+        // que ad+a+b+c puede ser < total_calif. Eso ya ocurre en el gemelo;
+        // "arreglarlo" solo aqui haria que la linea de un bimestre no cuadre
+        // con la fila de ese mismo bimestre en la tabla de al lado.
+        $filas = $this->query("
+            SELECT
+                cal.periodo_id                                            AS periodo_id,
+                n.id     AS nivel_id,
+                n.nombre AS nivel_nombre,
+                n.codigo AS nivel_codigo,
+                SUM(cal.nota_numerica >= " . NOTA_MIN_AD . ")                              AS ad,
+                SUM(cal.nota_numerica >= " . NOTA_MIN_A . " AND cal.nota_numerica < " . NOTA_MIN_AD . ")   AS a,
+                SUM(cal.nota_numerica >= " . NOTA_MIN_B . " AND cal.nota_numerica < " . NOTA_MIN_A . ")   AS b,
+                SUM(cal.nota_numerica < " . NOTA_MIN_B . ")                               AS c,
+                COUNT(*)                                                  AS total_calif
+            FROM calificaciones cal
+            INNER JOIN periodos p        ON p.id    = cal.periodo_id
+            INNER JOIN matriculas m      ON m.id    = cal.matricula_id
+            INNER JOIN secciones s       ON s.id    = m.seccion_id
+            INNER JOIN grados g          ON g.id    = s.grado_id
+            INNER JOIN niveles n         ON n.id    = g.nivel_id
+            INNER JOIN competencias comp ON comp.id = cal.competencia_id
+            LEFT  JOIN subareas sa       ON sa.id   = comp.subarea_id
+            INNER JOIN areas ar          ON ar.id   = COALESCE(sa.area_id, comp.area_id)
+            WHERE p.anio_id  = ?
+              AND m.estado   = 'aprobada'
+              AND ar.tipo   != 'transversal'
+            GROUP BY cal.periodo_id, n.id, n.nombre, n.codigo
+            ORDER BY n.id
+        ", [$anioId]);
+
+        // Indexar por nivel y, dentro, por periodo.
+        $porNivel      = [];
+        $periodosConDato = [];
+        foreach ($filas as $f) {
+            $nivelId   = (int) $f['nivel_id'];
+            $periodoId = (int) $f['periodo_id'];
+
+            if (!isset($porNivel[$nivelId])) {
+                $porNivel[$nivelId] = [
+                    'nivel_id'     => $nivelId,
+                    'nivel_nombre' => $f['nivel_nombre'],
+                    'nivel_codigo' => $f['nivel_codigo'],
+                    'celdas'       => [],
+                ];
+            }
+            $porNivel[$nivelId]['celdas'][$periodoId] = $f;
+            $periodosConDato[$periodoId] = true;
+        }
+
+        $ejeX = [];
+        foreach ($periodos as $p) {
+            $ejeX[] = [
+                'id'         => (int) $p['id'],
+                'numero'     => (int) $p['numero'],
+                'nombre'     => $p['nombre_display'],
+                'estado'     => $p['estado'],
+                'con_datos'  => isset($periodosConDato[(int) $p['id']]),
+            ];
+        }
+
+        // Serie rellena y paralela al eje X. El relleno es 0 (un hecho: cero
+        // calificaciones), NO null: que un bimestre vacio se pinte como hueco
+        // o como cero es decision de la vista, no del modelo.
+        $niveles = [];
+        foreach ($porNivel as $nivel) {
+            $serie = [];
+            foreach ($ejeX as $p) {
+                $f = $nivel['celdas'][$p['id']] ?? null;
+
+                $total = (int) ($f['total_calif'] ?? 0);
+                $ad    = (int) ($f['ad'] ?? 0);
+                $a     = (int) ($f['a']  ?? 0);
+                $b     = (int) ($f['b']  ?? 0);
+                $c     = (int) ($f['c']  ?? 0);
+
+                // Misma guarda que el gemelo: en SQL x/0 da NULL y arrastraria
+                // nulos hasta el JSON.
+                $pct = fn(int $n): float => $total > 0 ? round($n / $total * 100, 1) : 0.0;
+
+                $logro   = $ad + $a;
+                $proceso = $b + $c;
+
+                $serie[] = [
+                    'periodo_id'   => $p['id'],
+                    'total_calif'  => $total,
+                    'ad' => $ad, 'a' => $a, 'b' => $b, 'c' => $c,
+                    'pct_ad' => $pct($ad), 'pct_a' => $pct($a),
+                    'pct_b'  => $pct($b),  'pct_c' => $pct($c),
+                    'logro'        => $logro,
+                    'proceso'      => $proceso,
+                    'pct_logro'    => $pct($logro),
+                    'pct_proceso'  => $pct($proceso),
+                ];
+            }
+
+            $niveles[] = [
+                'nivel_id'     => $nivel['nivel_id'],
+                'nivel_nombre' => $nivel['nivel_nombre'],
+                'nivel_codigo' => $nivel['nivel_codigo'],
+                'serie'        => $serie,
+            ];
+        }
+
+        $this->cacheEvolucion[$anioId] = ['periodos' => $ejeX, 'niveles' => $niveles];
+
+        return $this->cacheEvolucion[$anioId];
     }
 
     /** Grados con al menos un estudiante calificado en el periodo. */

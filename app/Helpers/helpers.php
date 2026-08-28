@@ -188,6 +188,34 @@ const NOTA_MIN_A  = 14;
 const NOTA_MIN_B  = 11;
 
 /**
+ * Roles de DIRECCIÓN — PUNTO ÚNICO DE VERDAD.
+ *
+ * Los tres tipos de director tienen EXACTAMENTE las mismas atribuciones
+ * (decisión del usuario, 24/08/2026): supervisión en SOLO LECTURA sobre los dos
+ * niveles. No hay alcance por nivel — no existe mapeo usuario→nivel en el
+ * sistema y se decidió que no lo habrá.
+ *
+ * Nació porque estos códigos estaban escritos a mano en 44 literales repartidos
+ * por 16 archivos: sumar un tercer director obligaba a tocarlos uno por uno, que
+ * es el patrón con el que ya divergieron cuatro reglas en este repositorio.
+ * Cualquier control de acceso que hable de "los directores" se apoya en esta
+ * constante; nunca se vuelve a listar los códigos a mano.
+ *
+ * ⚠️ DOS EXCEPCIONES DELIBERADAS, y NO son un olvido — son el par que sostiene
+ * el invariante "solo el Director EBR firma":
+ *   - `DirectorEbrModel::listarCandidatos()`  — LISTA los candidatos a firmante.
+ *   - `Admin\DirectorEbrController::asignar()` — REVALIDA en servidor al asignar.
+ * Las dos anclan a `'director_ebr'` en singular a propósito. Si esta constante
+ * se cuela en cualquiera de ellas, un Director General o Académico podría quedar
+ * asignado como firmante de boletas, actas y reportes de mérito.
+ *
+ * ⚠️ Al buscar estos códigos en el repositorio, hacerlo SIEMPRE entre comillas:
+ * la cadena `director_ebr` también es parte del nombre de la tabla
+ * `director_ebr_historial`, y un reemplazo masivo la corrompe en silencio.
+ */
+const ROLES_DIRECCION = ['director_general', 'director_ebr', 'director_academico'];
+
+/**
  * Colación de ordenamiento alfabético en ESPAÑOL — PUNTO ÚNICO DE VERDAD.
  *
  * Las columnas de `personas` son `utf8mb4_unicode_ci`, que equipara Ñ ≡ N: al
@@ -228,6 +256,49 @@ function orden_alfabetico(string $alias = 'p', int $campos = 3): string
         static fn(string $c): string => "{$alias}.{$c} " . COLLATE_ES,
         $columnas
     ));
+}
+
+/**
+ * Filtro del ROSTER DE EVALUACIÓN — PUNTO ÚNICO de las condiciones SQL.
+ *
+ * Es el universo de "a quién se evalúa": la lista que ve el docente al calificar
+ * y, por tanto, la que deben usar conducta, asistencia y sus contadores de
+ * avance. Estaba copiado a mano en NUEVE consultas; se emite desde aquí igual
+ * que `orden_alfabetico()`.
+ *
+ * Las tres condiciones y su porqué:
+ *
+ *  1. `tipo NOT IN ('trasladado','retirado')` — el TRASLADO DE SALIDA abandonó
+ *     el colegio y el RETIRADO ya no asiste (sin traslado oficial; migración
+ *     045, reversible vía `tipo_anterior`). Nadie más se excluye.
+ *  2-3. RETORNO DE GRADO — el estudiante tiene dos matrículas del mismo año y
+ *     solo una se evalúa: mientras el retorno está `activo` se evalúa en la
+ *     OPERATIVA (se excluye la oficial); tras `revertido` vuelve a la OFICIAL
+ *     (se excluye la operativa).
+ *
+ * 🔴 NO filtra por `matriculas.estado` A PROPÓSITO. `pendiente` (el estado en
+ * que NACE toda matrícula) y `desactivado` (baja administrativa por deuda)
+ * SIGUEN ASISTIENDO y sí se califican. Filtrar por `estado='aprobada'` fue un
+ * bug real: dejaba a esos alumnos fuera de la grilla de asistencia, nunca se
+ * les creaba fila en `inasistencias` y su boleta salía con "0 inasistencias",
+ * un dato FALSO en vez de ausente (04/08/2026).
+ *
+ * ⚠️ NO lo usan tres consultas, y no es un descuido:
+ *  · `CalificacionModel` (resumen de competencia) añade
+ *    `estado IN ('aprobada','pendiente')`.
+ *  · `ControlOperativoModel` y `OrdenMeritoModel::ROSTER_MERITO` pertenecen al
+ *    universo del ORDEN DE MÉRITO, que exige `estado='aprobada'` y tiene su
+ *    propia excepción para la operativa revertida. Unificarlos rompería el
+ *    invariante del mérito.
+ *
+ * @param  string $alias alias de la tabla `matriculas` en la consulta
+ * @return string las tres condiciones, ya con `AND` inicial, listas para interpolar
+ */
+function roster_evaluacion(string $alias = 'm'): string
+{
+    return "AND {$alias}.tipo NOT IN ('trasladado', 'retirado')\n"
+        . "              AND {$alias}.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')\n"
+        . "              AND {$alias}.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')";
 }
 
 /**

@@ -131,6 +131,11 @@ $extraordinarias = $extraordinarias ?? [];
         </table>
     </div>
 
+    <?php // La descripcion de los criterios NO se lista aqui: vive en su propia
+          // pantalla, /consulta-notas/{periodo}/criterios, que las organiza por
+          // seccion, carga, docente y competencia. En la cabecera de columna
+          // sigue disponible como `title=`. ?>
+
     <?php if (!empty($extraordinarias)): ?>
         <!-- Calificaciones extraordinarias: NO salen del registro ordinario
              del docente; las registró RA con autorización (motivo abajo). -->

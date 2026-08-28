@@ -1404,12 +1404,12 @@ class CalificacionController extends BaseController
             -- colegio y no debe calificarse. Un traslado siempre es desactivado,
             -- así que basta filtrar por tipo. Se suma 'retirado': ya no asiste
             -- (sin traslado oficial) y tampoco debe calificarse. Ver migración 045.
-            AND m.tipo NOT IN ('trasladado', 'retirado')
-            -- Retorno de grado: durante la nivelación la matrícula OFICIAL no se
-            -- califica en su grado (lo hace la operativa); tras revertir, la
-            -- operativa deja de calificarse (lo hace de nuevo la oficial).
-            AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
-            AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+            -- Este es EL roster canónico: el resto del sistema (conducta,
+            -- asistencia y sus contadores de avance) declara explícitamente que
+            -- copia el de aquí. Desde hoy no se copia: sale del punto único
+            -- `roster_evaluacion()` en helpers.php, que conserva el porqué de
+            -- cada condición.
+            " . roster_evaluacion('m') . "
             ORDER BY " . orden_alfabetico('p') . "
         ", [$seccionId]);
     }

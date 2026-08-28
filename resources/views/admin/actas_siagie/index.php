@@ -10,7 +10,10 @@
         <h1 class="page-title">Actas SIAGIE</h1>
         <p class="page-subtitle">Vuelca las notas oficiales de SIGA a la plantilla que el SIAGIE exporta por sección</p>
     </div>
-    <div>
+    <?php // Lleva clase a proposito: `.page-header > div:not([class])` crece para
+          // empujar a la derecha lo que venga detras, y dos divs sin clase se
+          // repartirian el ancho dejando este boton a mitad de fila. ?>
+    <div class="btn-group">
         <a href="<?= url('admin/actas-siagie/vinculos') ?>" class="btn btn--secondary btn--sm">
             Vínculos y cobertura
         </a>

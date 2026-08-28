@@ -31,40 +31,8 @@ $nivelAbrev = ['prim' => 'PRI', 'sec' => 'SEC'];
         <span><strong>Fecha de impresión:</strong> <?= e(date('d/m/Y H:i')) ?></span>
     </div>
 
-    <table class="horario-print__tabla">
-        <thead>
-            <tr>
-                <th class="horario-print__hora-col">Hora</th>
-                <?php foreach ($dias as $label): ?>
-                    <th><?= e($label) ?></th>
-                <?php endforeach; ?>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($segmentos as $r => $seg): ?>
-                <tr>
-                    <th class="horario-print__hora-col"><?= e(substr($seg['inicio'], 0, 5)) ?>–<?= e(substr($seg['fin'], 0, 5)) ?></th>
-                    <?php foreach (array_keys($dias) as $diaKey): ?>
-                        <?php if (isset($startAt[$diaKey][$r])): $celda = $startAt[$diaKey][$r]; ?>
-                            <td class="horario-celda" rowspan="<?= (int) $celda['rowspan'] ?>" style="--hbg: <?= e($celda['color']) ?>">
-                                <span class="horario-celda__area"><?= e($celda['area']) ?></span>
-                                <span class="horario-celda__sec">
-                                    <?= e($celda['seccion']) ?>
-                                    <?php if (!empty($nivelAbrev[$celda['nivel'] ?? ''])): ?>
-                                        <span class="horario-celda__nivel"><?= e($nivelAbrev[$celda['nivel']]) ?></span>
-                                    <?php endif; ?>
-                                </span>
-                            </td>
-                        <?php elseif (isset($covered[$diaKey][$r])): ?>
-                            <?php /* celda continuada por rowspan del bloque de arriba: no se dibuja */ ?>
-                        <?php else: ?>
-                            <td class="horario-celda horario-celda--vacia"></td>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+    <?php // Grilla compartida con el horario por SECCION (punto unico). ?>
+    <?php $eje = 'seccion'; require VIEW_PATH . '/shared/_horario-grilla.php'; ?>
 
     <div class="horario-bottom">
     <div class="horario-refs">

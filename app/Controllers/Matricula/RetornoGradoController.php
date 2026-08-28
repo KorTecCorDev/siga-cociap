@@ -19,7 +19,13 @@ class RetornoGradoController extends BaseController
 
     public function __construct()
     {
-        $this->requireRole(['admin', 'registro_academico', 'director_ebr']);
+        // El Director EBR SALE el 24/08/2026: registrar un retorno de grado es
+        // escritura, y su rol pasa a ser de supervision en solo lectura. El
+        // permiso ademas era HUERFANO — para llegar al formulario habia que
+        // pasar por /matriculas/{id}, que le devolvia 403; solo era alcanzable
+        // pegando la URL a mano. El retorno se consulta desde el detalle de la
+        // matricula, que si ve.
+        $this->requireRole(['admin', 'registro_academico']);
         $this->model = new MatriculaModel();
     }
 

@@ -57,7 +57,7 @@ $total = count($criterios);
                 <th class="tr-num">N&deg;</th>
                 <th class="tr-nombre">Apellidos y Nombres</th>
                 <?php foreach ($criterios as $i => $c): ?>
-                    <th class="tr-crit">C<?= $i + 1 ?></th>
+                    <th class="tr-crit"><?= e($c['codigo']) ?></th>
                 <?php endforeach; ?>
                 <th class="tr-nota">Nota</th>
             </tr>
@@ -102,7 +102,7 @@ $total = count($criterios);
             <tbody>
                 <?php foreach ($criterios as $i => $c): ?>
                     <tr>
-                        <td class="tl-cod">C<?= $i + 1 ?></td>
+                        <td class="tl-cod"><?= e($c['codigo']) ?></td>
                         <td class="tl-texto"><?= e($c['texto']) ?></td>
                     </tr>
                 <?php endforeach; ?>

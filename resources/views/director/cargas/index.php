@@ -11,7 +11,9 @@
         <h1 class="page-title">Cargas Académicas</h1>
         <p class="page-subtitle">Selecciona una sección para ver o gestionar sus cargas</p>
     </div>
+<?php if ($puedeEscribir): ?>
     <a href="<?= url('director/cargas/crear') ?>" class="btn btn--primary">+ Nueva carga</a>
+<?php endif; ?>
 </div>
 
 <?php if (empty($porNivel)): ?>

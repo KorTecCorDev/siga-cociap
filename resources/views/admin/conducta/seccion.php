@@ -187,8 +187,11 @@ foreach ($estudiantes as $est) {
             <tr>
                 <th class="col-num">N°</th>
                 <th class="col-nombre">Apellidos y Nombres</th>
-                <?php foreach ($criterios as $i => $c): ?>
-                    <th class="conducta-th-crit" title="<?= e($c['texto']) ?>">C<?= $i + 1 ?></th>
+                <?php // El codigo sale del DATO (migracion 056), nunca de la posicion:
+                      // reordenar o dar de baja un criterio corria las etiquetas de
+                      // esta grilla respecto del imprimible ya firmado. ?>
+                <?php foreach ($criterios as $c): ?>
+                    <th class="conducta-th-crit" title="<?= e($c['texto']) ?>"><?= e($c['codigo']) ?></th>
                 <?php endforeach; ?>
                 <th class="conducta-th-nota" title="Nota de Registro Académico (Sí ÷ <?= $total ?> × 20)">Nota</th>
             </tr>

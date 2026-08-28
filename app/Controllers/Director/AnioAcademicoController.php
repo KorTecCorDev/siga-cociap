@@ -12,9 +12,17 @@ use App\Models\AnioAcademicoModel;
  */
 class AnioAcademicoController extends BaseController
 {
+    /**
+     * Quien ESCRIBE. Los directores entran a este controlador y VEN, pero desde
+     * el 24/08/2026 no operan: su rol es de supervision en solo lectura. Se
+     * valida en cada metodo de escritura (no ocultando el boton en la vista):
+     * esconder la UI no es control de acceso.
+     */
+    private const ROLES_ESCRIBEN = ['admin', 'registro_academico'];
+
     private AnioAcademicoModel $model;
 
-    private const ROLES = ['admin', 'director_general', 'director_ebr', 'registro_academico'];
+    private const ROLES = ['admin', 'registro_academico', ...ROLES_DIRECCION];
 
     public function __construct()
     {
@@ -28,12 +36,17 @@ class AnioAcademicoController extends BaseController
         $this->view('director/anios/index', [
             'titulo' => 'Año académico',
             'anios'  => $this->model->listarAnios(),
+            // Los directores VEN esta pantalla pero no operan en ella: la vista
+            // se pinta sin controles. El permiso real lo hace requireRole en
+            // cada metodo de escritura; esto es UX, no control de acceso.
+            'puedeEscribir' => has_role(self::ROLES_ESCRIBEN),
         ]);
     }
 
     // GET /director/anios/crear
     public function create(): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->view('director/anios/crear', [
             'titulo'        => 'Nuevo año académico',
             'anioSugerido'  => (int) date('Y') + 1,
@@ -43,6 +56,7 @@ class AnioAcademicoController extends BaseController
     // POST /director/anios/crear
     public function store(): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
 
         $anio = (int) $this->input('anio', 0);
@@ -98,6 +112,8 @@ class AnioAcademicoController extends BaseController
         }
 
         $this->view('director/anios/show', [
+            // Vista de SOLO LECTURA para los directores: sin controles.
+            'puedeEscribir' => has_role(self::ROLES_ESCRIBEN),
             'titulo'            => 'Año académico ' . $anio['anio'],
             'anio'              => $anio,
             'periodos'          => $periodos,
@@ -112,6 +128,7 @@ class AnioAcademicoController extends BaseController
     // POST /director/anios/{id}/activar
     public function activar(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $id   = (int) $id;
         $anio = $this->model->find($id);
@@ -141,6 +158,7 @@ class AnioAcademicoController extends BaseController
     // POST /director/anios/{id}/cerrar
     public function cerrar(string $id): void
     {
+        $this->requireRole(self::ROLES_ESCRIBEN);
         $this->validateCsrf();
         $id   = (int) $id;
         $anio = $this->model->find($id);

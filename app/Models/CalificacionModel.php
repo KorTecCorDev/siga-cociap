@@ -821,11 +821,13 @@ class CalificacionModel extends BaseModel
                 bc.origen            AS bloqueo_origen,
                 bc.bloqueado_en,
                 comp.nombre_completo AS competencia_nombre,
+                comp.codigo_minedu   AS competencia_codigo,
                 a.nombre             AS area_nombre,
                 sa.nombre            AS subarea_nombre,
                 n.nombre             AS nivel_nombre,
                 n.codigo             AS nivel_codigo,
                 n.id                 AS nivel_id,
+                g.id                 AS grado_id,
                 g.numero             AS grado_numero,
                 g.nombre_display     AS grado_nombre,
                 s.id                 AS seccion_id,
@@ -920,10 +922,14 @@ class CalificacionModel extends BaseModel
             -- creadas) y 'aprobada' (vigentes, incl. retorno de grado), excluye
             -- trasladados. Así el resumen y la validación de bloqueo cuadran con
             -- la grilla de ingreso.
+            -- ⚠️ NO usa `roster_evaluacion()` (helpers.php) A PROPÓSITO: este
+            -- resumen añade `estado IN ('aprobada','pendiente')`, que el roster
+            -- canónico NO tiene —allí `desactivado` (baja por deuda) sí entra—.
+            -- Es un universo distinto; unificarlo cambiaría a quién se exige
+            -- conclusión antes de bloquear. Si algún día se decide igualarlos,
+            -- se hace aquí y se borra este comentario.
             AND m.estado IN ('aprobada', 'pendiente')
             AND m.tipo  NOT IN ('trasladado', 'retirado')
-            -- Retorno de grado: misma exclusión que getAlumnosSeccion (oficial en
-            -- retorno activo / operativa ya revertida no se califican aquí).
             AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
             AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
             ORDER BY " . orden_alfabetico('p', 2) . "

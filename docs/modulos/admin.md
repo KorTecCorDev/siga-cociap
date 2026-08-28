@@ -442,3 +442,182 @@ y `/admin/asistencia`, con copia imprimible firmable. Migracion `043_cierres_asi
   secciones (registrados/esperados, estado, fecha) y acciones
   `POST /director/bloqueos/asistencia/{seccion_id}/{bloquear|reabrir}`
   (`AsistenciaModel::getResumenSeccionesPorPeriodo`, sin requisito de tutor).
+
+## Asistencia: la tabla de incidencias es UN partial compartido (25/08/2026)
+
+`resources/views/admin/asistencia/_tabla-incidencias.php` es la **fuente única** de
+la tabla de incidencias. La usan las dos pantallas que muestran ese registro:
+
+| Vista | Modo | Quién |
+|---|---|---|
+| `admin/asistencia/seccion.php` | editable + solo lectura (historial) | RA / admin |
+| `consulta-notas/asistencia.php` | solo lectura | los tres directores |
+
+Antes eran **dos tablas distintas para el mismo dato**: RA con `asistencia-tabla` y
+la consulta reimplementada con `tabla-resumen` + `text-center`, sin ancho fijo en los
+contadores. El modo solo lectura **no se inventó** para esto: ya existía en la vista
+de RA para el historial de bimestres cerrados.
+
+- 🔴 **EL MODO EDITABLE ALIMENTA A `public/js/asistencia.js`**, que engancha por
+  `.asistencia-fila`, `.asistencia-input`, `.asistencia-guardar`, `.asistencia-status`
+  y los `data-matricula-id` / `data-periodo-id` / `data-csrf`. Renombrar cualquiera de
+  esos rompe el guardado de RA **en silencio**: el JS deja de encontrar las filas y no
+  hay error visible. `verif_asistencia_partial_compartido.php` renderiza el partial de
+  verdad en los dos modos y comprueba los ganchos **leyéndolos del propio `.js`**, para
+  no fijar aquí una lista que se quede vieja.
+- **Los `data-*` solo se emiten en modo editable.** En solo lectura no hay script que
+  los lea, y así no se siembra el token CSRF en una página que nunca escribe.
+- **Totales y leyenda salen del partial**, así que los tienen las dos vistas por
+  construcción. Los totales cuadran el registro antes de bloquearlo; la leyenda
+  explica F/FJ/T/TJ, que hasta ahora solo se explicaban con `title` — un tooltip que
+  no existe en móvil ni con teclado.
+- **`AsistenciaModel::totalesIncidencias()` es el punto único** y recibe el roster ya
+  cargado, no consulta otra vez: el total debe ser el de **las filas que se pintan**.
+  `AsistenciaModel::CAMPOS` es el orden canónico de los 4 contadores.
+- **`asistencia-td-valor` no tenía estilo**: en solo lectura los números quedaban a la
+  izquierda bajo una cabecera centrada. Ahora centra y usa `tabular-nums`.
+- El **imprimible** (`admin/asistencia/imprimir.php`) sigue aparte a propósito: es
+  layout `print` con `.tabla-registro`, otro medio y otras restricciones.
+
+### El imprimible se abrió a Dirección (25/08/2026)
+
+`Admin\AsistenciaController` pasa al patrón de acceso mixto de
+`ControlOperativoController`: **el constructor admite el superconjunto**
+(`ROLES_REGISTRAN` + `ROLES_DIRECCION`) y **cada método se valida por separado**.
+
+- Solo `imprimir()` queda abierto a los directores — imprimir es una lectura y el
+  documento ya existe. `index`, `seccion`, `bloquear` y `guardar` llevan
+  `requireRole(self::ROLES_REGISTRAN)` como primera sentencia.
+- ⚠️ **La constante se llama `ROLES_REGISTRAN`, no `ROLES_ESCRIBEN`**, porque cubre
+  también `index` y `seccion`, que son lectura del panel de RA: llamarlas escritura
+  sería mentir. Por eso este controlador **no** entra en el plan de
+  `verif_direccion_solo_lectura.php` (que valida los 7 con `ROLES_ESCRIBEN`); lo
+  cubre `verif_asistencia_partial_compartido.php`, que además falla si nace un
+  método público nuevo sin decidir su rol.
+- ⚠️ Camino de error conocido: si `imprimir()` falla su gate (sin cierre vigente)
+  redirige a `/admin/asistencia`, que para un director es 403. No es alcanzable desde
+  la UI —el botón solo aparece con cierre vigente— pero está ahí.
+
+### Fila enfocada: canal propio, separado del estado del dato (25/08/2026)
+
+Nace del flujo de los auxiliares: transcriben su cuaderno en el celular y, con la
+tabla desplazada a la derecha, **saltar de fila** es un error caro.
+
+- ❌ **Se descartó repetir el N° como última columna.** `col-num` y `col-nombre` ya
+  son `sticky`, así que la identidad de la fila **no se pierde** al desplazarse; y
+  añadir columna empeora justo lo que duele: la tabla mide **646 px** y en un móvil
+  de ~390 px, con 240 px de columnas fijas, **solo se ven 2 de los 4 contadores**.
+- 🔴 **DOS CANALES INDEPENDIENTES.** El **fondo** dice el estado del DATO (verde =
+  guardado, ámbar = sin guardar); la **barra en la columna N°** dice dónde está el
+  FOCO. Si el foco usara también el fondo, mientras se escribe habría que tapar el
+  ámbar de «sin guardar» —la señal que no se puede perder— o al revés. **No añadir
+  `background` a la regla de `:focus-within`**: hay un aserto que lo impide.
+- La barra vive en `col-num`, que es **sticky**: sigue en pantalla aunque se esté
+  escribiendo en TJ. Mismo recurso que `.fila-pendiente` en `tabla-resumen`, y el
+  mismo azul (`$brand-mid`) con que ya se marca el foco del propio input — el
+  naranja se descartó por confundirse con el ámbar de `--con-cambios`.
+- 🔴 **VA POR ESPECIFICIDAD, NO POR ORDEN.** `.tabla-notas tr:hover .col-num` es
+  **(0,3,1)** y ganaba a `.asistencia-fila--registrada td.col-num` **(0,2,1)**: al
+  pasar el ratón, una fila registrada **perdía su verde por completo** (defecto
+  preexistente, arreglado aquí). Las reglas se anclan a `.asistencia-tabla` y
+  doblan la clase de fila → **(0,4,1)**. El hover vive en OTRO parcial, así que
+  confiar en el orden de `@import` no bastaba. Si se sacan de ahí, vuelve el fallo.
+- **`scroll-margin-block` en `.asistencia-input`**: el teclado virtual tapa la mitad
+  inferior de la pantalla y la fila recién enfocada quedaba pegada al borde. Va en
+  el input porque es el elemento que recibe el foco y al que el navegador desplaza.
+- En la vista de Dirección **no se activa nunca**: en solo lectura el partial no
+  pinta inputs, y sin nada enfocable no hay `:focus-within`.
+
+## Conducta: código de criterio y grilla Sí/No compartida (25/08/2026)
+
+- **`criterios_conducta.codigo`** (migración **056**). Las grillas rotulan sus
+  columnas `C1`, `C2`… y ese código se calculaba a mano como `$i + 1` en **dos**
+  vistas, a punto de ser tres. Ahora `ConductaModel::getCriterios()` lo devuelve
+  como un campo más, con **fallback posicional** si un criterio nace sin código.
+- 🔴 **Por qué una columna y no seguir con la posición.** Si se reordena o se borra
+  un criterio de en medio, **todos los códigos siguientes se corren** y los
+  registros ya impresos y firmados dejan de cuadrar, sin error visible. Y hay un
+  segundo motivo: `getCriterios($nivelId)` **filtra por nivel**; hoy los 10
+  criterios son globales, pero en cuanto exista uno por nivel la misma posición
+  significaría criterios distintos en primaria y en secundaria.
+- **La migración no cambió nada de lo impreso**: medido antes de escribirla, los 10
+  criterios vigentes tienen `orden` 1..10 **sin huecos**, así que `C{posición}` y
+  `C{orden}` daban el mismo valor. El verificador ancla esa coincidencia.
+- **La grilla Sí/No la comparten TUTOR y DIRECCIÓN.** `/consulta-notas/{p}/seccion/{s}/conducta/criterios`
+  **reusa `docente/conducta-criterios.php`**, que ya existía y ya era solo lectura
+  —su docblock la declaraba «espejo de `admin/conducta/seccion.php` en su estado
+  bloqueado»—. Escribir otra habría sido la tercera copia de la misma grilla.
+  Lo único que cambia es el chrome: `$volverUrl` y `$tituloClase`, con default
+  para el tutor. La vista **no sabe quién la mira**.
+- Mismo gate que la pantalla de conducta: las **dos etapas** cumplidas y sin
+  anular, o 404 — esconder el enlace no basta, la URL queda en marcadores.
+
+## Los 4 contadores de asistencia son INDEPENDIENTES (27/08/2026)
+
+Nunca estuvo escrito en ningún doc y es lo primero que se malinterpreta al leer
+`inasistencias`: **`faltas` y `faltas_justificadas` NO son un total y su
+subconjunto**. Son cuatro columnas paralelas y disjuntas:
+
+| Columna | UI | Significado |
+|---|---|---|
+| `faltas` | `F` | faltas **sin justificación** |
+| `faltas_justificadas` | `FJ` | faltas justificadas |
+| `tardanzas` | `T` | tardanzas **sin justificación** |
+| `tardanzas_justificadas` | `TJ` | tardanzas justificadas |
+
+🔴 **«Sin justificación» = la columna tal cual. NUNCA restar.** La prueba está en
+los datos: hay **159 filas con `faltas_justificadas > faltas`** y **78 con
+`tardanzas_justificadas > tardanzas`**, imposible si una contuviera a la otra.
+Nada en el código valida `FJ <= F`, y no debe hacerlo.
+
+No existe motivo, documento ni fecha de justificación: lo único auditable es
+`registrado_por` / `registrado_en` / `modificado_en` de la fila entera.
+
+## Estadística de conducta y asistencia para Dirección (27/08/2026)
+
+`/admin/cuadros` pasó de medir solo el **avance del proceso** (cuántas secciones
+cerraron) a medir también el **resultado**. Métodos nuevos, cada uno en su modelo
+—el controlador COMPONE, no calcula—:
+
+| Modelo | Método | Qué devuelve |
+|---|---|---|
+| `ConductaModel` | `getDistribucionLiteralesAnual($anioId)` | AD/A/B/C por nivel y por bimestre, con `pct_logro` |
+| `ConductaModel` | `getIncumplimientoCriterios($periodoId)` | `%` de «No cumple» por criterio, global y por sección |
+| `AsistenciaModel` | `getIncidenciasPorSeccion($periodoId)` | los 4 contadores + `con_faltas`, `sin_incidencias` |
+| `AsistenciaModel` | `getTopIncidenciasPorSeccion($periodoId, $tope)` | estudiantes con más faltas/tardanzas, por sección |
+| `AsistenciaModel` | `getEvolucionIncidenciasAnual($anioId)` | los 4 contadores por bimestre |
+
+Decisiones que NO son evidentes en el código:
+
+- 🔴 **`getDistribucionLiteralesAnual` NO calcula el literal**: trae los
+  ingredientes en crudo y llama a `componerLiteral()`, el mismo método que usan la
+  boleta y el panel del padre. Ya había **tres** copias de esa aritmética en el
+  repo (`componerLiteral`, el bloque PHP de `getEstudiantesParaTutor` y
+  `resources/js/conducta.js`); una cuarta habría divergido sin síntoma. Además es
+  lo único que trata bien el **I Bimestre**, que es legado (0 respuestas, literal
+  directo) y del que `componerLiteral()` ya se ocupa.
+- **Nada se filtra por `cierres_conducta`.** El tablero es de monitoreo y tiene que
+  servir con el bimestre en curso a medio llenar; la visibilidad en boleta es otra
+  pregunta y la responden `getParaBoleta`/`getParaPeriodo`. Se rotula en pantalla.
+- **Los estudiantes sin literal quedan fuera del denominador.** Contarlos como C
+  convertiría «todavía no lo han calificado» en un mal resultado.
+- **El corte del top incluye los empates del último puesto**, para no elegir entre
+  ex aequo por apellido en un listado que señala personas. Se probó la variante
+  «los N valores distintos más altos» y se **descartó**: en una sección con la
+  incidencia repartida el tercer valor distinto es un 1 y la lista pasa de 3 a 8
+  personas (250 filas frente a 180). Una fila por estudiante, no dos listas.
+
+### 🔴 «Estudiantes con más faltas» es INFORMATIVO, y así debe presentarse
+
+Decisión del colegio, no técnica: **la normativa vigente ya no contempla el retiro
+automático por exceso de inasistencias**. Cualquier decisión se sustenta y evalúa
+caso por caso. Por eso ese bloque:
+
+- **no tiene umbral** (se estudió ponerlo en 5 faltas y se rechazó),
+- **no usa rojo ni ámbar** — en este sistema significan estado de un proceso, y
+  aquí no hay proceso que señalar, hay personas,
+- **no dice «riesgo» ni «alerta»**, y lleva la advertencia escrita en la pantalla
+  y en el papel.
+
+Si alguien «mejora» esto añadiendo un semáforo, está reintroduciendo una regla que
+el colegio derogó.

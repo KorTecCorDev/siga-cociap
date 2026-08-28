@@ -16,12 +16,20 @@
 
 $total = count($criterios);
 $pid   = (int) $periodo['id'];
+
+// 🔴 ESTA VISTA LA COMPARTEN DOS ROLES (25/08/2026): el TUTOR, desde su panel, y
+// DIRECCION, desde /consulta-notas. Es la misma pantalla porque es el mismo dato
+// en solo lectura; duplicarla habria sido la tercera copia de la grilla Si/No.
+// Lo unico que cambia es el chrome, y viaja por estas dos variables — el que
+// llama decide, la vista no sabe quien la mira.
+$volverUrl   = $volverUrl   ?? url('docente/conducta/' . $pid);
+$tituloClase = $tituloClase ?? 'page-title page-title--wf page-title--conducta';
 ?>
 
 <div class="page-header">
-    <a href="<?= url('docente/conducta/' . $pid) ?>" class="btn btn--secondary btn--sm">← Volver</a>
+    <a href="<?= $volverUrl ?>" class="btn btn--secondary btn--sm">← Volver</a>
     <div>
-        <h1 class="page-title page-title--wf page-title--conducta">
+        <h1 class="<?= e($tituloClase) ?>">
             Criterios de conducta — Sección <?= e($seccion['nombre']) ?>
         </h1>
         <p class="page-subtitle">
@@ -57,8 +65,13 @@ $pid   = (int) $periodo['id'];
 <details class="conducta-criterios-leyenda">
     <summary>Ver los <?= $total ?> criterios (✓ = cumple · ✗ = no cumple)</summary>
     <ol class="conducta-criterios-lista">
+        <?php // El chip de codigo del sistema, el mismo que usa el panel de
+              // "Criterios evaluados" de la consulta. Ver docs/modulos/ui.md. ?>
         <?php foreach ($criterios as $c): ?>
-            <li><?= e($c['texto']) ?></li>
+            <li>
+                <span class="competencia-card__codigo"><?= e($c['codigo']) ?></span>
+                <?= e($c['texto']) ?>
+            </li>
         <?php endforeach; ?>
     </ol>
 </details>
@@ -70,9 +83,17 @@ $pid   = (int) $periodo['id'];
                 <th class="col-num">N°</th>
                 <th class="col-nombre">Apellidos y Nombres</th>
                 <?php foreach ($criterios as $i => $c): ?>
-                    <th class="conducta-th-crit" title="<?= e($c['texto']) ?>">C<?= $i + 1 ?></th>
+                    <th class="conducta-th-crit" title="<?= e($c['texto']) ?>">
+                        <span class="competencia-card__codigo competencia-card__codigo--solo"><?= e($c['codigo']) ?></span>
+                    </th>
                 <?php endforeach; ?>
-                <th class="conducta-th-nota" title="Nota de Registro Académico (Sí ÷ <?= $total ?> × 20)">Nota</th>
+                <?php // Nota y Literal son columnas CALCULADAS (derivadas de los Si/No),
+                      // asi que llevan la zona de resultado del sistema: el separador
+                      // `--inicio` las despega de los criterios y el hover ya no las borra.
+                      // Ver docs/modulos/ui.md. ?>
+                <th class="conducta-th-nota col-resultado col-resultado--inicio"
+                    title="Nota de Registro Académico (Sí ÷ <?= $total ?> × 20)">Nota</th>
+                <th class="conducta-th-literal col-resultado">Literal</th>
             </tr>
         </thead>
         <tbody>
@@ -103,11 +124,22 @@ $pid   = (int) $periodo['id'];
                         </td>
                     <?php endforeach; ?>
 
-                    <td class="conducta-td-nota">
+                    <?php // El LITERAL va en su PROPIA columna, no dentro de la nota: el
+                          // color del numeral no es legible para quien no distingue esos
+                          // tonos, y asi la grilla se lee igual que /conducta. La columna
+                          // numeral NO se toca — el literal se suma, no la sustituye. ?>
+                    <td class="conducta-td-nota col-resultado col-resultado--inicio">
                         <?php if ($notaRa !== null): ?>
                             <span class="nota-numeral nota-numeral--<?= strtolower($litRa) ?>">
                                 <?= fmt_nota($notaRa) ?>
                             </span>
+                        <?php else: ?>
+                            <span class="text-muted" title="Registro incompleto">—</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="conducta-td-literal col-resultado">
+                        <?php if ($litRa !== null): ?>
+                            <span class="nota-literal nota-literal--<?= strtolower($litRa) ?>"><?= e($litRa) ?></span>
                         <?php else: ?>
                             <span class="text-muted" title="Registro incompleto">—</span>
                         <?php endif; ?>

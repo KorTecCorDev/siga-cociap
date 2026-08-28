@@ -16,6 +16,14 @@ use Core\View;
  */
 class OrdenMeritoController extends BaseController
 {
+    /**
+     * Quien ESCRIBE. Los directores entran a este controlador y VEN, pero
+     * desde el 24/08/2026 no operan: su rol es de supervision en solo
+     * lectura. Se valida en cada metodo de escritura, NO ocultando el boton
+     * en la vista: esconder la UI no es control de acceso.
+     */
+    private const ROLES_ESCRIBEN = ['admin', 'registro_academico'];
+
     private CalificacionModel    $calModel;
     private DirectorEbrModel     $dirModel;
     private DesempateMeritoModel $desempateModel;
@@ -25,7 +33,7 @@ class OrdenMeritoController extends BaseController
     {
         $this->requireRole([
             'admin', 'registro_academico',
-            'director_general', 'director_ebr'
+            ...ROLES_DIRECCION,
         ]);
         $this->calModel         = new CalificacionModel();
         $this->dirModel         = new DirectorEbrModel();
@@ -184,6 +192,8 @@ class OrdenMeritoController extends BaseController
         }
 
         $this->view('director/orden-merito-periodo', [
+            // Vista de SOLO LECTURA para los directores: sin controles.
+            'puedeEscribir' => has_role(self::ROLES_ESCRIBEN),
             'titulo'          => 'Orden de mérito — ' . $periodo['nombre_display'],
             'periodo'         => $periodo,
             'ranking'         => $ranking,
@@ -374,7 +384,8 @@ class OrdenMeritoController extends BaseController
      */
     public function desempate(string $periodoId, string $gradoId): void
     {
-        $this->requireRole(['admin', 'registro_academico', 'director_general', 'director_ebr']);
+        $this->requireRole(self::ROLES_ESCRIBEN);
+        $this->requireRole(['admin', 'registro_academico', ...ROLES_DIRECCION]);
 
         $periodoId = (int) $periodoId;
         $gradoId   = (int) $gradoId;
@@ -423,7 +434,8 @@ class OrdenMeritoController extends BaseController
      */
     public function guardarDesempate(string $periodoId, string $gradoId): void
     {
-        $this->requireRole(['admin', 'registro_academico', 'director_general', 'director_ebr']);
+        $this->requireRole(self::ROLES_ESCRIBEN);
+        $this->requireRole(['admin', 'registro_academico', ...ROLES_DIRECCION]);
         $this->validateCsrf();
 
         $periodoId = (int) $periodoId;
