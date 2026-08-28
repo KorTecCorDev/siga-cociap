@@ -551,3 +551,73 @@ tabla desplazada a la derecha, **saltar de fila** es un error caro.
   para el tutor. La vista **no sabe quién la mira**.
 - Mismo gate que la pantalla de conducta: las **dos etapas** cumplidas y sin
   anular, o 404 — esconder el enlace no basta, la URL queda en marcadores.
+
+## Los 4 contadores de asistencia son INDEPENDIENTES (27/08/2026)
+
+Nunca estuvo escrito en ningún doc y es lo primero que se malinterpreta al leer
+`inasistencias`: **`faltas` y `faltas_justificadas` NO son un total y su
+subconjunto**. Son cuatro columnas paralelas y disjuntas:
+
+| Columna | UI | Significado |
+|---|---|---|
+| `faltas` | `F` | faltas **sin justificación** |
+| `faltas_justificadas` | `FJ` | faltas justificadas |
+| `tardanzas` | `T` | tardanzas **sin justificación** |
+| `tardanzas_justificadas` | `TJ` | tardanzas justificadas |
+
+🔴 **«Sin justificación» = la columna tal cual. NUNCA restar.** La prueba está en
+los datos: hay **159 filas con `faltas_justificadas > faltas`** y **78 con
+`tardanzas_justificadas > tardanzas`**, imposible si una contuviera a la otra.
+Nada en el código valida `FJ <= F`, y no debe hacerlo.
+
+No existe motivo, documento ni fecha de justificación: lo único auditable es
+`registrado_por` / `registrado_en` / `modificado_en` de la fila entera.
+
+## Estadística de conducta y asistencia para Dirección (27/08/2026)
+
+`/admin/cuadros` pasó de medir solo el **avance del proceso** (cuántas secciones
+cerraron) a medir también el **resultado**. Métodos nuevos, cada uno en su modelo
+—el controlador COMPONE, no calcula—:
+
+| Modelo | Método | Qué devuelve |
+|---|---|---|
+| `ConductaModel` | `getDistribucionLiteralesAnual($anioId)` | AD/A/B/C por nivel y por bimestre, con `pct_logro` |
+| `ConductaModel` | `getIncumplimientoCriterios($periodoId)` | `%` de «No cumple» por criterio, global y por sección |
+| `AsistenciaModel` | `getIncidenciasPorSeccion($periodoId)` | los 4 contadores + `con_faltas`, `sin_incidencias` |
+| `AsistenciaModel` | `getTopIncidenciasPorSeccion($periodoId, $tope)` | estudiantes con más faltas/tardanzas, por sección |
+| `AsistenciaModel` | `getEvolucionIncidenciasAnual($anioId)` | los 4 contadores por bimestre |
+
+Decisiones que NO son evidentes en el código:
+
+- 🔴 **`getDistribucionLiteralesAnual` NO calcula el literal**: trae los
+  ingredientes en crudo y llama a `componerLiteral()`, el mismo método que usan la
+  boleta y el panel del padre. Ya había **tres** copias de esa aritmética en el
+  repo (`componerLiteral`, el bloque PHP de `getEstudiantesParaTutor` y
+  `resources/js/conducta.js`); una cuarta habría divergido sin síntoma. Además es
+  lo único que trata bien el **I Bimestre**, que es legado (0 respuestas, literal
+  directo) y del que `componerLiteral()` ya se ocupa.
+- **Nada se filtra por `cierres_conducta`.** El tablero es de monitoreo y tiene que
+  servir con el bimestre en curso a medio llenar; la visibilidad en boleta es otra
+  pregunta y la responden `getParaBoleta`/`getParaPeriodo`. Se rotula en pantalla.
+- **Los estudiantes sin literal quedan fuera del denominador.** Contarlos como C
+  convertiría «todavía no lo han calificado» en un mal resultado.
+- **El corte del top incluye los empates del último puesto**, para no elegir entre
+  ex aequo por apellido en un listado que señala personas. Se probó la variante
+  «los N valores distintos más altos» y se **descartó**: en una sección con la
+  incidencia repartida el tercer valor distinto es un 1 y la lista pasa de 3 a 8
+  personas (250 filas frente a 180). Una fila por estudiante, no dos listas.
+
+### 🔴 «Estudiantes con más faltas» es INFORMATIVO, y así debe presentarse
+
+Decisión del colegio, no técnica: **la normativa vigente ya no contempla el retiro
+automático por exceso de inasistencias**. Cualquier decisión se sustenta y evalúa
+caso por caso. Por eso ese bloque:
+
+- **no tiene umbral** (se estudió ponerlo en 5 faltas y se rechazó),
+- **no usa rojo ni ámbar** — en este sistema significan estado de un proceso, y
+  aquí no hay proceso que señalar, hay personas,
+- **no dice «riesgo» ni «alerta»**, y lleva la advertencia escrita en la pantalla
+  y en el papel.
+
+Si alguien «mejora» esto añadiendo un semáforo, está reintroduciendo una regla que
+el colegio derogó.

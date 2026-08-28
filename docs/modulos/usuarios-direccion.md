@@ -380,6 +380,15 @@ global en `_matriculas.scss`.
 | G3 | Brecha por grado (1.er puesto vs último) | `merito.por_grado[].peores`, que se descartaba | no |
 | G4 | Embudo del cierre de conducta | `conducta.{cerradas,pend_tutor,pend_auxiliar}` | no |
 | G5 | Secciones con menor avance en conducta | `conducta_secciones`, el crudo que ya se consultaba | no |
+| G6 | Distribución AD/A/B/C de conducta por nivel (apilado) | `ConductaModel::getDistribucionLiteralesAnual()` | **sí** |
+| G7 | Evolución del % en logro de conducta | el mismo método | **sí** |
+| G8 | Criterios de convivencia con mayor incumplimiento | `ConductaModel::getIncumplimientoCriterios()` | **sí** |
+| G9 | Faltas sin justificar por sección | `AsistenciaModel::getIncidenciasPorSeccion()` | **sí** |
+| G10 | Tardanzas sin justificar por sección | el mismo método | **sí** |
+| G11 | Evolución anual de faltas y tardanzas | `AsistenciaModel::getEvolucionIncidenciasAnual()` | **sí** |
+| G12 | Justificadas vs sin justificar, por nivel (apilado) | `getIncidenciasPorSeccion()`, plegado por nivel | **sí** |
+| T1 | Mapa de calor: criterios × 23 secciones | `getIncumplimientoCriterios()` | **sí** |
+| T2 | Estudiantes con más faltas, por sección | `AsistenciaModel::getTopIncidenciasPorSeccion()` | **sí** |
 
 **Cuatro de los cinco no costaron una sola consulta**: la pantalla ya pedía a los
 modelos mucho más de lo que pintaba y tiraba el resto (`por_grado`/`por_seccion`
@@ -416,6 +425,72 @@ por sección de conducta).
 - **Los gráficos se AÑADEN, nunca reemplazan las tablas**: accesibilidad, que
   Frappe es 100 % cliente (sin JS la página quedaría vacía) y que quitar tablas
   encoge el HTML hasta rozar el `strlen > 2000` del verificador.
+
+#### Conducta y asistencia en pestañas (27/08/2026)
+
+Al pasar de 5 a 12 gráficos, «Conducta y asistencia» se partió en **dos
+`.dash-grupo`**, cada uno con **tres pestañas** del componente global `.tabs`
+(ver `docs/modulos/ui.md`, que tiene el contrato y el gotcha de Frappe en panel
+oculto). Ningún KPI anterior se perdió: se repartieron entre «Proceso de cierre»
+y «Panorama».
+
+| Sección | Pestañas |
+|---|---|
+| Conducta | Resultados (KPIs + G6 + G7) · Proceso de cierre (KPIs + G4 + G5) · Criterios (G8 + T1) |
+| Asistencia | Panorama (KPIs + G11 + G12) · Comparativa por sección (G9 + G10) · Estudiantes con más faltas (T2) |
+
+Reglas que costaron un fallo cada una y no hay que deshacer:
+
+- **G7 (la evolución) va FUERA del `if` que exige dato del bimestre a la vista.**
+  Es la serie histórica, y en el bimestre en curso —que aún no tiene dato propio—
+  es justo cuando más sirve para comparar. Meterla dentro la hacía desaparecer del
+  bimestre activo, con el JSON calculado y sin ningún `<div>` donde dibujarla. Lo
+  cazó el aserto «cada gráfico tiene dónde dibujarse», que nació de ahí.
+- **Sin registro NO se pintan las tarjetas de resultado.** «0 faltas» y «100 % sin
+  incidencias» con la asistencia sin tomar son datos **falsos**, no ausentes — el
+  mismo error que ya se corrigió una vez en la boleta. Igual con «En logro 0 · 0 %»
+  en conducta.
+- **El criterio de «bimestres comparables» está extraído a un closure** del
+  partial y lo comparten G2, G7 y (en su variante) G11. Copiarlo habría sido otra
+  regla duplicada.
+- **T1 y T2 llevan su `.tabla-pie` FUERA del wrapper**, como hermano: dentro se
+  desplaza con el scroll, pierde el margen y la `.card` lo recorta por su
+  `overflow: hidden`.
+- **El texto de la celda más intensa del mapa de calor va con especificidad
+  `(0,2,1)`.** `.tabla-notas td { color: … }` le ganaba a la clase modificadora y
+  el número salía azul oscuro sobre rojo saturado: **2,4:1 de contraste**. Ninguna
+  prueba de servidor ve esto.
+- **T2 es una tabla POR SECCIÓN**, no una sola con filas de grupo (28/08/2026).
+  Con 180 filas seguidas el encabezado de columnas se iba de pantalla y los
+  números dejaban de significar nada. Cada bloque lleva su `<caption>` —y no un
+  `<hN>`: el contenedor es `<h3>` en pantalla y `<h2>` en el imprimible, así que
+  cualquier nivel fijo saltaría uno en una de las dos vistas—. Hay aserto en el
+  verificador: **una tabla por sección, cada una con `<caption>` y `<thead>`**.
+  De paso el A4 mejora: cada bloque cabe en una hoja (263 px el mayor, útil
+  1047 px), así que `page-break-inside: avoid` de verdad evita que una sección se
+  parta, y el listado baja de ~5 hojas a 4.
+
+#### 🔴 Contraste del mapa de calor — línea base medida
+
+Los seis escalones, en estado normal y en hover, **medidos en navegador** sobre
+`getComputedStyle` (no estimados). **Al tocar cualquier color, volver a medirlos.**
+
+| | n0 | sd | n1 | n2 | n3 | n4 |
+|---|---|---|---|---|---|---|
+| normal | — | 13,98 | 14,11 | 12,31 | **4,59** | **4,83** |
+| hover | 13,98 | 12,91 | 12,92 | 10,84 | **5,81** | **6,47** |
+
+- **Nunca `background: inherit` en el hover.** Se probó: `inherit` toma el fondo
+  del `<tr>`, que no tiene ninguno, la celda queda transparente y el número
+  **blanco** de n4 desaparecía sobre el gris de la fila. Cada escalón tiene su
+  par de hover explícito.
+- **La dirección del paso no es uniforme, y es obligatorio que no lo sea:**
+  n4 no puede aclararse (blanco sobre `#ef4444` cae a 3,8:1) y n3 no puede
+  oscurecerse (texto oscuro sobre `#b45309` cae a 2,9:1). Lo que sí se conserva
+  es que la fila entera cambia y que la escala sigue siendo monotónica dentro de
+  ella.
+- `sd` no aparece con los datos actuales (todas las secciones respondieron los 10
+  criterios); su regla se comprobó forzando la clase en el navegador.
 
 #### El imprimible A4
 

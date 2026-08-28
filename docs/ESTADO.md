@@ -3,6 +3,98 @@
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
 > Actualizar aquí (no en CLAUDE.md). Última revisión: **24/08/2026**.
 
+
+## 🟢 CUADROS — conducta y asistencia ampliadas + roster con punto único (27/08/2026)
+
+Lote grande en `dev`, **con verificación de navegador ya hecha** (no queda como
+el lote del 26/08, que se mergeó sin abrir una pantalla).
+
+### Qué entró
+
+1. **`/admin/cuadros` pasa de 5 a 12 gráficos + 2 tablas**, reorganizado en dos
+   secciones (Conducta / Asistencia) con **tres pestañas cada una**. Detalle y
+   decisiones en `docs/modulos/usuarios-direccion.md`.
+2. **Componente global de pestañas** — `components/_tabs.scss` + `js/tabs.js`.
+   Cierra la deuda que `_consulta-notas.scss` llevaba declarada. Los otros
+   cuatro conmutadores **siguen sin migrar**. Ver `docs/modulos/ui.md`.
+3. **5 métodos nuevos de modelo** (2 en `ConductaModel`, 3 en `AsistenciaModel`).
+   El controlador sigue sin un solo `SELECT`.
+4. **`roster_evaluacion()` en `helpers.php`** — punto único de las 3 condiciones
+   del roster, que estaban copiadas en **9 consultas**, `getAlumnosSeccion`
+   incluida. Verificador nuevo: `verif_roster_evaluacion.php`.
+5. **`admin/conducta/seccion.php` deja de rotular `C{$i+1}` posicional** — era la
+   única vista que no migró con la 056, y `verif_conducta_criterios.php` no la
+   cubría. Ahora sí.
+
+### Verificado
+
+- **31 verificadores en verde.** El único fallo, `verif_criterios_filtros_cascada`,
+  **es previo a este lote** (comprobado con `git stash`): sus 2 asertos del salto
+  de bimestre en `/consulta-notas/criterios` fallaban ya con el árbol limpio.
+  **Queda abierto y no es de aquí.**
+- **Navegador (27/08)** renderizando la vista real con datos reales a un HTML
+  temporal en `public/` (borrado después). Comprobado en **B1 legado, B2 completo
+  y B3 activo casi vacío**: dibujado perezoso (gráfico de panel oculto nace a
+  1102 px, no a 0), teclado ←/→ con wrap, memoria de pestaña por bimestre,
+  0 errores JS, sin scroll horizontal de página.
+- **Imprimible A4**: hoja de 718 px, los **11 gráficos a 702 px**, sin pestañas ni
+  paneles ocultos, y ni la matriz (23×10) ni el listado (203 filas) desbordan.
+  Con esto se cierra el pendiente «el imprimible en papel nunca se ha probado».
+- **Contraste del mapa de calor medido en navegador**: 14,1 / 12,3 / 4,6 / 4,8 —
+  los 5 escalones en AA. El nivel más intenso salía a **2,4:1** por una regla de
+  especificidad que ninguna prueba de servidor ve.
+- Cifras contrastadas contra SQL independiente: conducta B1 `AD240 A228 B39 C9`
+  (516 con literal), criterios B2 `C9 74,0 %` · `C10 53,9 %` · `C4 3,3 %`,
+  asistencia B2 `F 371 · T 625`. Difieren del SQL crudo (528 / 373) **en exactamente
+  el filtro de roster**, comprobado fila a fila.
+
+### 🆕 28/08 — dos correcciones de lectura, verificadas en navegador
+
+1. **«Estudiantes con más faltas» pasa a UNA TABLA POR SECCIÓN** (23 bloques con
+   borde, cada uno con su `<caption>` y su `<thead>`). Con 180 filas seguidas el
+   encabezado de columnas se iba de pantalla. Aserto nuevo en el verificador.
+   **El A4 mejora de paso**: bloques de 263 px máx. contra 1047 px de hoja útil,
+   así que ninguna sección se parte, y el listado baja de ~5 hojas a **4**.
+2. **Arreglado el hover del mapa de calor.** Estaba con `background: inherit`, que
+   toma el fondo del `<tr>` —inexistente—: la celda quedaba transparente y el
+   número **blanco** de n4 **desaparecía** al pasar el cursor. Ahora cada escalón
+   tiene su par de hover. Medido en navegador: los 6 escalones **≥ 4,5:1**, y los
+   dos críticos suben de 4,59/4,83 a **5,81/6,47**. Tabla completa en
+   `docs/modulos/usuarios-direccion.md`.
+
+### 🆕 28/08 — cada card del dashboard con su propio icono
+
+Tres cards usaban el icono de otra: **Cuadros estadísticos** llevaba la medalla
+de Orden de mérito, **Criterios de evaluación** el lápiz de Rectificación y
+**Consulta de notas** la lupa de Buscar estudiante. El usuario aportó
+`stats.svg`, `criterios.svg` y `notas.svg` (mismo set Solar) y se asignaron.
+
+Con eso **los tres glifos prestados recuperan un único significado**, y de paso
+se resuelve una contradicción del wayfinding: la medalla y la lupa ya se usaban
+en `_docente-panel.scss` para mérito y para buscar, así que el mismo icono decía
+dos cosas según el panel. Esos usos del SASS **no se tocaron**.
+
+Cambio: 3 literales en `resources/views/dashboard/index.php`. Verificado en
+navegador con el CSS compilado (los 3 a 36 px, ningún `<img>` roto, trazo igual
+al de sus vecinos) y con **dos asertos nuevos** en
+`verif_direccion_superficies.php`: ninguna card comparte icono y todos existen en
+disco. Las dos ramas de la guarda probadas.
+
+**Queda un duplicado**: `users-group-rounded.svg` en «Secciones y Tutores» y
+«Ranking por sección». No hay icono para sustituirlo y no se pidió; está en la
+lista de excepciones toleradas del verificador.
+### Pendiente
+
+- **Papel de verdad**: el A4 está medido en pantalla, no impreso. Con el cambio
+  del 28/08 T2 ya no se parte (cada sección es un bloque que cabe en una hoja);
+  queda ver en papel el reparto de los 23 bloques entre las 4 páginas.
+- **Regresión de `getAlumnosSeccion`**: `verif_roster_asistencia` y
+  `verif_roster_evaluacion` lo cubren contra consultas de control escritas a mano,
+  pero conviene abrir `/docente/calificaciones` de una carga real y ver el mismo
+  número de alumnos.
+- `/director/periodos/{id}/stats` sigue teniendo dos consumidores de
+  `_panel-bimestre.php`: mirarla al probar.
+
 ## 🟡 USUARIOS DE DIRECCIÓN — EN `dev`, SIN PROBAR EN NAVEGADOR (24/08/2026)
 
 Las **7 fases están implementadas** y las **5 verificaciones automáticas en

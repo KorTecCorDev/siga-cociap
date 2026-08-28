@@ -59,6 +59,42 @@
 - Aplicado en `/docente/inicio` y `/director/bloqueos`. Usar estos mismos colores en
   futuras vistas para el mismo concepto.
 
+### El GLIFO también es fijo por concepto (28/08/2026)
+
+El mismo razonamiento del color vale para el icono: si dos cards comparten glifo,
+el atajo de «ubicarlo sin leer» deja de funcionar.
+
+🔴 **REGLA: dos cards del dashboard NUNCA comparten icono.** Cuando una card nueva
+no encuentre un icono que le pegue, **se añade uno**; no se toma prestado el del
+vecino. Los iconos viven en `public/assets/icons/` y son del set Solar (SVG Repo):
+`viewBox="0 0 24 24"`, `fill="none"`, trazo `#1C274C` de `1.5` con puntas
+redondeadas. Se pintan con un `<img>` a 36 px, así que el SVG lleva su propio
+color: **no se recolorean con `currentColor`**.
+
+Pasaba con **tres pares** a la vez, todos por la misma causa —cards que nacieron
+después y reusaron lo que había—:
+
+| Card | Tomaba prestado de | Ahora |
+|---|---|---|
+| Cuadros estadísticos | Orden de mérito (`medal-ribbon-star`) | `stats.svg` |
+| Criterios de evaluación | Rectificación de notas (`edit-pen`) | `criterios.svg` |
+| Consulta de notas | Buscar estudiante (`lupa-look`) | `notas.svg` |
+
+⚠️ **La medalla era el caso grave**: `_docente-panel.scss:156` ya la usa como
+wayfinding de mérito (`.page-title--wf`), así que el mismo glifo significaba
+«mérito» en el panel del docente y «cuadros» en el del admin — el sistema se
+contradecía a sí mismo. Igual con la lupa, que `_docente-panel.scss:298` usa para
+buscar. **Esos dos usos del SASS no se tocaron: eran los correctos.**
+
+Hay dos asertos en `verif_direccion_superficies.php` que lo sostienen: ninguna
+card comparte icono (con una lista explícita de excepciones toleradas) y todo
+icono referenciado existe en disco — **un nombre mal escrito no da error**, pinta
+un `<img>` roto que nadie ve hasta abrir el dashboard.
+
+**Excepción viva:** `users-group-rounded.svg` sigue en «Secciones y Tutores» y
+«Ranking por sección». Al resolverla, quitarla de `$duplicadosOk` en el
+verificador y la lista queda vacía.
+
 ## Dashboard del docente — cards de acceso (16/06/2026)
 
 - **`/docente/inicio`** (`Docente\PanelController::index`) tiene 4 cards en `.dpanel-grid`:
@@ -555,3 +591,77 @@ columnas **calculadas** a partir de los Sí/No, igual que el promedio y el liter
 las demás grillas. ⚠️ Al aplicarla hubo que **retirar el `border-left` manual** que
 `conducta-th-nota` traía para separarse de los criterios: `col-resultado--inicio` ya
 dibuja ese separador, y mantener los dos daba doble línea.
+
+## Pestañas dentro de una pantalla — COMPONENTE GLOBAL (27/08/2026)
+
+Existe por fin un componente de pestañas reutilizable, y con él se cierra la deuda
+que `pages/_consulta-notas.scss` llevaba declarada: *«antes de escribir un CUARTO
+conmutador, extraer un componente global»*. Eran cuatro (`.consulta-eje`,
+`.periodo-tab`, `.curr-sidebar__tab`, `.bloqueos-tabcard`) y `/admin/cuadros`
+habría sido el quinto.
+
+- **`resources/sass/components/_tabs.scss`** — `.tabs` / `.tab` / `.tab-panel`.
+  El aspecto es la tira con subrayado de `.consulta-eje`, la más sobria de las
+  cuatro y la que ya se lee como «navegación dentro de la pantalla».
+- **`resources/js/tabs.js`** — comportamiento calcado de `bloqueos.js`, el único
+  tabs accesible que había.
+
+### Cuál usar
+
+| Si… | Usa |
+|---|---|
+| cada pestaña es **otra URL** | `.consulta-eje` (enlaces, sin JS) |
+| muestran/ocultan **paneles de la misma página** | **este componente** |
+
+### Marcado
+
+El **servidor** decide la pestaña inicial, así que sin JavaScript la página sigue
+siendo correcta: se ve el panel que el servidor dejó visible, simplemente no se
+puede cambiar.
+
+```html
+<div class="tabs" role="tablist" data-tabs="conducta"
+     data-tabs-memoria="cuadros.tab.conducta.2">
+  <button class="tab tab--activa" role="tab" id="tab-x"
+          data-tab="x" aria-controls="panel-x" aria-selected="true">X</button>
+</div>
+<div id="panel-x" class="tab-panel" role="tabpanel" data-panel="x"
+     aria-labelledby="tab-x">…</div>
+```
+
+- **SIEMPRE hay una pestaña activa.** Es la diferencia deliberada con el hub de
+  `/director/bloqueos`, que nace colapsado y cuyo segundo clic cierra el panel:
+  allí el detalle es opcional y caro; aquí un grupo sin nada visible sería una
+  sección en blanco.
+- Teclado: ←/→/Home/End, con *roving tabindex* (el Tab entra y sale del grupo de
+  una vez; recorrer siete pestañas a base de Tab para llegar al contenido es hostil).
+- `data-tabs-memoria` es **opcional**. La clave la elige quien renderiza, porque
+  solo él sabe de qué depende: en el tablero lleva el id del bimestre, para que la
+  pestaña recordada no se mezcle entre bimestres. `localStorage` va en `try/catch`:
+  que la memoria falle no puede dejar las pestañas sin funcionar.
+
+### 🔴 Gráficos dentro de una pestaña: el fallo que hay que conocer
+
+Instanciar un SVG (Frappe Charts) dentro de un contenedor con `hidden` lo mide a
+**0 px** y nace roto **sin ningún error en consola**. Por eso el componente emite
+**`tabs:mostrado`** sobre el panel al mostrarlo (burbujea, `detail = {grupo, nombre}`)
+y quien dibuje gráficos se suscribe para dibujar **perezosamente**:
+
+- al cargar, todo contenedor **visible** (`offsetParent !== null`);
+- al recibir el evento, los que acaban de hacerse visibles;
+- `data-dibujado="1"` impide repetir.
+
+`tabs.js` no sabe nada de gráficos y `cuadros.js` no sabe nada de pestañas: se
+hablan solo por ese evento. **El imprimible no carga `tabs.js`**: todos los paneles
+están visibles y todo se dibuja al cargar, por la rama de «contenedor visible».
+
+Hay asertos en `verif_direccion_superficies.php` para las tres formas de romperlo
+sin que se note: una pestaña sin panel, ningún o más de un `aria-selected="true"`
+por grupo, y —la más silenciosa— **una serie calculada sin contenedor donde
+dibujarse**. Esa última cazó de verdad la evolución de conducta desapareciendo del
+bimestre en curso, justo cuando más sirve.
+
+### Migración pendiente
+
+Los cuatro conmutadores anteriores **siguen sin migrar** (tocan módulos ajenos al
+cambio que trajo el componente). Ya no hay que extraer nada: hay que migrarlos.
