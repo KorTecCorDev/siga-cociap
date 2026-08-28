@@ -78,6 +78,12 @@
 // `pages/_registro-cierre.scss`). Resuelven lo mismo con CSS distinto. Antes de
 // escribir un CUARTO, extraer un componente global; aqui no se hizo para no
 // tocar dos modulos ajenos al cambio.
+//
+// ✅ 27/08/2026 — EL COMPONENTE GLOBAL YA EXISTE: `components/_tabs.scss`
+// (`.tabs` / `.tab` / `.tab-panel`) + `resources/js/tabs.js`. Nacio con este
+// mismo aspecto, tomado de aqui. **Todo conmutador NUEVO usa ese**; este y los
+// otros tres siguen sin migrar (tocan modulos ajenos), pero ya no hay que
+// extraer nada: hay que migrarlos. Ver `docs/modulos/ui.md`.
 .consulta-ejes {
     display: flex;
     flex-wrap: wrap;

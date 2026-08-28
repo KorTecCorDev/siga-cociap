@@ -1,0 +1,90 @@
+// ── Pestañas dentro de una pantalla ──────────────────────────────────
+//
+// COMPONENTE GLOBAL. Nace el 27/08/2026 para saldar una deuda que este propio
+// repositorio tenía declarada en `pages/_consulta-notas.scss`: había ya CUATRO
+// conmutadores con estilo propio resolviendo lo mismo con CSS distinto
+// (`.consulta-eje`, `.periodo-tab`, `.curr-sidebar__tab`, `.bloqueos-tabcard`)
+// y el comentario pedía extraer un componente antes de escribir el siguiente.
+// `/admin/cuadros` habría sido el quinto.
+//
+// Los cuatro existentes NO se migraron en ese lote —tocan módulos ajenos al
+// cambio— pero cualquier conmutador NUEVO usa este.
+//
+// Cuándo usar cuál:
+//   · Si cada pestaña es una URL distinta, son enlaces y no hace falta JS:
+//     `.consulta-eje` ya lo resuelve (y este componente comparte su aspecto).
+//   · Si las pestañas muestran y ocultan paneles de la MISMA página, este:
+//     `<button role="tab">` + `<div role="tabpanel">`, con `resources/js/tabs.js`.
+//
+// Aspecto: tira con subrayado, tomada de `.consulta-eje`. Es la más sobria de
+// las cuatro y la que ya se lee como "navegación dentro de la pantalla", no
+// como un acceso a otra parte del sistema.
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-xs;
+    border-bottom: 1px solid $border-color;
+    margin-bottom: $spacing-md;
+
+    // En movil la tira no se parte en dos filas: se desplaza. Partida, la
+    // segunda fila queda debajo del borde y deja de leerse como pestañas.
+    @media (max-width: 640px) {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar { display: none; }
+    }
+}
+
+.tab {
+    padding: $spacing-sm $spacing-md;
+    background: none;
+    border: none;
+    // El subrayado transparente reserva su sitio: sin el, la pestaña activa
+    // empuja 2px a todas las demas al cambiar de pestaña.
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    font: inherit;
+    font-weight: 600;
+    font-size: $font-size-base;
+    color: $text-secondary;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: $transition;
+
+    &:hover:not(&--activa) {
+        background: $bg-secondary;
+        color: $text-primary;
+    }
+
+    // Sin `:focus-visible` la navegacion con teclado (flechas) es invisible:
+    // el foco existe pero nadie sabe donde esta.
+    &:focus-visible {
+        outline: 2px solid $brand-accent;
+        outline-offset: -2px;
+    }
+
+    &--activa {
+        color: $brand-accent;
+        border-bottom-color: $brand-accent;
+    }
+
+    // Contador discreto a la derecha del rotulo, para pestañas que resumen
+    // cuanto hay dentro sin obligar a abrirlas.
+    &__n {
+        margin-left: $spacing-xs;
+        font-size: $font-size-sm;
+        font-weight: 500;
+        color: $text-muted;
+    }
+}
+
+// El panel NO lleva estilo propio: es un contenedor transparente. Se oculta
+// con el atributo `hidden` (lo pone el servidor y lo mueve `tabs.js`), no con
+// una clase, para que sin JavaScript el HTML siga siendo correcto.
+.tab-panel {
+    scroll-margin-top: $spacing-lg;
+}
