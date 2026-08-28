@@ -2865,6 +2865,34 @@ La competencia **C57** (área 24) nunca fue ensayo: la crea la migración `036`.
   7:30pm-9:00pm. Detalle en `docs/decisiones-diferidas.md`.
 
 ## Git
+
+- ✅ **28/08/2026 — DEPLOY. `origin/main` pasó de `1b18e2c` a `2b74be0`**
+  (merge `--no-ff`, autorizado por el usuario). **37 commits de contenido,
+  SIN MIGRACIONES NUEVAS**: la 055 y la 056 ya estaban aplicadas a mano en
+  producción antes del merge (confirmado con el usuario), así que el push no
+  requirió tocar la base de datos.
+  - **Qué entra:** el lote de Usuarios de Dirección (24/08), que llevaba cuatro
+    días esperando en `dev`, el explorador de criterios, el conmutador de 3
+    ejes de consulta-notas, el partial de asistencia compartido, el arreglo de
+    `.page-header`, y lo del 27-28/08: punto único del roster de evaluación,
+    `/admin/cuadros` con 12 gráficos y 3 tablas, el componente global de
+    pestañas y los iconos propios del dashboard.
+  - **Estado al desplegar:** 31 verificadores en verde, por primera vez en el
+    lote — `verif_criterios_filtros_cascada` llevaba días rojo por dos asertos
+    CADUCOS del refactor de los 3 ejes, no por un defecto.
+  - ⚠️ **Trampa nueva, y costó un susto: `git merge -F -` NO lee stdin.**
+    Hay un archivo llamado `-` en la raíz del repo (sin versionar, del
+    14/05/2026, con una salida de SASS fallida dentro) y git lo tomó como
+    fichero de mensaje: el commit de merge nació con un error de compilación
+    por asunto. Se corrigió con `--amend -F <ruta>` ANTES del push. El CSS
+    nunca estuvo roto —`app.css` de `main` es byte a byte el de `dev`—, pero
+    el mensaje lo aparentaba. **Para mensajes largos, `-F <ruta real>`; nunca
+    `-F -`. Y conviene borrar ese archivo `-`.**
+  - **Sin verificar en producción todavía:** el imprimible A4 en papel y los
+    `page-header` de `/matriculas`, `/padre/notas` y `/admin/actas-siagie`.
+    Tampoco se abrió `/docente/calificaciones` tras el cambio de
+    `getAlumnosSeccion` — lo cubren dos verificadores contra consultas de
+    control escritas a mano, pero conviene mirarlo en prod.
 - `dev` = rama de trabajo; `main` = producción (auto-deploy en Hostinger).
   **Preguntar SIEMPRE antes de mergear `dev` → `main`.**
 - `dev` y `main` sincronizados el 20/07/2026 (ff `8ae3d08..567b7f9`): lote
