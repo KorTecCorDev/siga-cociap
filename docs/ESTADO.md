@@ -1,9 +1,82 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **24/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **01/09/2026**.
 
 
+
+## 🟡 ESTADÍSTICAS POR COMPETENCIA (01/09/2026)
+
+En `dev`, **sin desplegar**. Sin migración. Bloque de contadores encima de la tabla de
+alumnos en cuatro pantallas: el resumen del docente
+(`/docente/calificaciones/{carga}/resumen/{competencia}`),
+`/consulta-notas/{p}/carga/{c}`, el historial del docente de un bimestre cerrado y el
+panel de tutoría (`/docente/tutoria/{periodo}`, con un bloque por cada transversal).
+Detalle y decisiones en `docs/modulos/calificaciones.md`.
+
+### Qué entró
+
+1. **`nota_es_aprobatoria()` + `LITERALES_APROBATORIOS` en `helpers.php`** — punto único
+   del corte de aprobación, que **depende del nivel** (primaria AD+A · secundaria
+   AD+A+B). Es la primera regla del repositorio que ramifica por nivel en la
+   calificación, y **no es** la métrica «en logro» de `getResumenBimestre()` (AD+A en los
+   dos niveles). Hay una línea en CLAUDE.md junto al invariante de la escala.
+2. **`stats_competencia()`** — función pura sobre el `$alumnos` que ya está en memoria:
+   evaluados, sin evaluar, aprobados, desaprobados y la distribución AD/A/B/C.
+   **Cero consultas nuevas** y sin volver a disparar el N+1 de `getResumenCompetencia`.
+3. **`resources/views/shared/_stats-competencia.php`** + componente SASS
+   `components/_stats-competencia.scss`. CSS puro, sin Frappe y sin JS: se ve con
+   JavaScript desactivado.
+4. **3 puntos de inclusión para 4 pantallas** — el historial del docente lo recibe a
+   través de `consulta-notas/_tabla.php`, que ya compartía. Tutoría pinta **un bloque
+   por transversal** (TIC y GAMA) y entrega los datos con el prefijo `stats*` para no
+   pisar sus propias variables; 🔴 el parcial **se limpia entre vueltas del bucle**, o
+   la segunda competencia repetiría las cifras de la primera sin que se note.
+5. **Los colores son los del chip `.nota-literal`, no una paleta aparte** — cada tramo de
+   la barra toma del chip **sus dos valores**: el fondo para el relleno y el color de
+   texto para el borde (como `.nota-numeral`), y la leyenda lleva el chip de verdad. Hay
+   un aserto que compara los **ocho** valores en el `app.css` compilado.
+6. 🆕 **Segunda pasada de legibilidad** (mismo día, tras revisarlo en pantalla): la
+   **cantidad y el porcentaje** eran indistinguibles —mismo color, tamaño y peso— y ahora
+   van en elementos separados, con la cantidad en negrita y el porcentaje en gris entre
+   paréntesis, en cuadrícula para que los números queden en columna; y **la barra no
+   tenía bordes visibles**, así que el marco de `$border-color` se sustituyó por el borde
+   de color de cada tramo, que además marca las divisiones. ⚠️ La barra va **sin `gap`**
+   a propósito: con separación, los anchos en `%` sumarían más de 100 y flex encogería
+   los tramos, falseando las proporciones.
+7. 🆕 **El contorno se abría en las cuatro esquinas** — el `overflow: hidden` del
+   contenedor RECORTA el borde recto del tramo siguiendo su curva, no lo redondea.
+   Arreglado dando `border-radius` a los tramos de los extremos, que ahora trazan ellos
+   la curva. Comprobado a 5 aumentos en los tres casos (cuatro tramos con uno de 3,7 %,
+   un único tramo al 100 % y dos tramos), con aserto sobre el CSS compilado porque es un
+   defecto de 8 px que no se ve a tamaño real.
+
+### Verificado
+
+- `verif_stats_competencia.php` en verde (**23 asertos**) sobre **50 competencias reales
+  de los dos niveles**: los tres cuadres del universo, el contador de evaluados contra un
+  `COUNT` independiente, el render del parcial, el corte por nivel en **sus dos ramas**,
+  el `unset` entre vueltas del bucle y los colores atados a `.nota-literal`.
+- **Navegador, sin sesión** — las vistas se renderizaron a un HTML estático y se
+  abrieron con el `app.css` compilado: `docente/resumen-competencia.php` y
+  `consulta-notas/carga.php` **con datos reales** (carga 289, 27 alumnos, 24 aprobados
+  de 27 en secundaria), el bloque dentro de su card y la tabla intacta debajo; más el
+  bloque suelto a 320, 360, 768 y 1360 px con los casos «todos en C» y «nadie evaluado
+  todavía». También `docente/tutoria.php`, donde se confirmó que los **dos bloques
+  (TIC 21A/6B y GAMA 19A/8B) muestran cifras distintas** —la prueba de que la limpieza
+  entre vueltas funciona— y que los chips de la leyenda son los mismos que pinta la
+  tabla. **Falta el flujo real con sesión** (roles, redirects y la guarda de cada
+  pantalla), que es lo único que estas sondas no pueden tocar.
+
+### Lo que dejó medido
+
+- **4 exonerados con nota viva** en la base. Es el caso que obliga a sacarlos del
+  universo: exonerar no borra las notas, así que sin el filtro sumarían como aprobados
+  mientras su boleta dice `EXO`.
+- **Hay notas cuya matrícula ya no pertenece a la sección de la carga** (carga 118,
+  matrícula 692): un cambio de sección deja la nota donde se cursó, y
+  `getResumenCompetencia` las excluye correctamente. No es un defecto; era un aserto de
+  control mal escrito.
 ## 🟢 CUADROS — conducta y asistencia ampliadas + roster con punto único (27/08/2026)
 
 Lote grande en `dev`, **con verificación de navegador ya hecha** (no queda como

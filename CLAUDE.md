@@ -235,6 +235,11 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   del umbral de datos.
 - **Escala de notas: punto único de verdad en `app/Helpers/helpers.php`**
   (`NOTA_MIN_AD/A/B`, `nota_a_literal()`, `escala_rangos()`). NUNCA hardcodear umbrales.
+  **APROBAR depende del NIVEL** y también sale de ahí: `LITERALES_APROBATORIOS` /
+  `nota_es_aprobatoria()` (primaria AD+A · secundaria AD+A+B). La escala literal es la
+  misma en los dos niveles; lo que cambia es dónde está la línea del aprobado. ⚠️ NO es
+  la métrica «en logro» de `AnioAcademicoModel::getResumenBimestre()` (AD+A en ambos):
+  son preguntas distintas y no se unifican. Ver `docs/modulos/calificaciones.md`.
 - **Rutas literales ANTES que patrones `{param}`** en `routes/web.php` (el router
   ancla por orden de registro).
 - **`criterios.confirmado_en` es la única verdad de "oficial"**: cualquier mutación
