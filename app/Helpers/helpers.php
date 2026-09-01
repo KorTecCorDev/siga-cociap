@@ -364,6 +364,129 @@ function conclusion_es_obligatoria(string $literal, string $nivel): bool
     return $literal === 'C'; // Secundaria solo en C
 }
 
+
+/**
+ * Literales que cuentan como APROBADO — PUNTO ÚNICO DE VERDAD.
+ *
+ * El corte de aprobación depende del NIVEL, a diferencia de la escala literal
+ * (`nota_a_literal()`), que es la misma en primaria y secundaria: lo que cambia
+ * no es cómo se nombra la nota, sino dónde está la línea del aprobado.
+ *
+ * ⚠️ NO es la métrica «en logro» de `AnioAcademicoModel::getResumenBimestre()`,
+ * que cuenta AD+A en los DOS niveles. Son dos preguntas distintas —«¿destacó o
+ * alcanzó el logro esperado?» frente a «¿aprobó?»— y en secundaria dan números
+ * diferentes porque B aprueba. NO unificarlas: no es una copia desactualizada.
+ */
+const LITERALES_APROBATORIOS = [
+    'prim' => ['AD', 'A'],
+    'sec'  => ['AD', 'A', 'B'],
+];
+
+/**
+ * ¿El literal aprueba en ese nivel? Un alumno sin nota (`$literal === null`)
+ * NO aprueba y NO desaprueba: no está evaluado, y se cuenta aparte.
+ *
+ * Acepta el código del nivel (`'prim'`/`'sec'`, que es lo que traen las vistas
+ * en `$carga['nivel_codigo']`) y también los nombres largos que usa
+ * `conclusion_es_obligatoria()` (`'primaria'`/`'secundaria'`), para que pasar
+ * uno por el otro no falle en silencio hacia el lado permisivo.
+ */
+function nota_es_aprobatoria(?string $literal, string $nivelCodigo): bool
+{
+    if ($literal === null) {
+        return false;
+    }
+
+    $clave = str_starts_with(strtolower($nivelCodigo), 'prim') ? 'prim' : 'sec';
+
+    return in_array($literal, LITERALES_APROBATORIOS[$clave], true);
+}
+
+/**
+ * Contadores de una competencia a partir del resumen que YA está en memoria.
+ *
+ * No consulta la base de datos: recibe el `$alumnos` que devuelve
+ * `CalificacionModel::getResumenCompetencia()` (con `promedio` y `literal` por
+ * alumno) y la lista de matrículas exoneradas. Así el bloque de estadísticas de
+ * las vistas no cuesta ni una consulta más — y en particular no vuelve a
+ * disparar el N+1 de ese método.
+ *
+ * Tres reglas, y las tres tienen su motivo:
+ *
+ *  1. **Evaluado ⟺ `promedio !== null`**, comparado con `!==` y nunca con
+ *     `empty()`: una nota 0 es un cero real, no un hueco. Equivale a "no tiene
+ *     todos los criterios sin nota" por el invariante «fila en `calificaciones`
+ *     existe ⟺ el alumno tiene nota viva».
+ *  2. **Los EXONERADOS salen del universo** antes de contar nada. Exonerar NO
+ *     borra las notas anteriores (para que la exoneración sea reversible), así
+ *     que un exonerado puede traer `promedio` no nulo; sin este filtro sumaría
+ *     como evaluado y como aprobado mientras su boleta muestra `EXO`.
+ *  3. **Los porcentajes van sobre `evaluados`**, no sobre el roster: quien no
+ *     tiene nota no es quien desaprobó, y mezclarlos inflaría el desaprobado.
+ *
+ * @param  array  $alumnos      filas con al menos `matricula_id`, `promedio`, `literal`
+ * @param  array  $exonerados   matricula_ids exonerados (formato de `ExoneracionModel::getActivasParaCarga`)
+ * @param  string $nivelCodigo  'prim' | 'sec'
+ */
+function stats_competencia(array $alumnos, array $exonerados, string $nivelCodigo): array
+{
+    $exoSet    = array_flip($exonerados);
+    $literales = ['AD' => 0, 'A' => 0, 'B' => 0, 'C' => 0];
+
+    $total = count($alumnos);
+    $exo = $evaluados = $aprobados = 0;
+
+    foreach ($alumnos as $alumno) {
+        if (isset($exoSet[$alumno['matricula_id']])) {
+            $exo++;
+            continue;
+        }
+
+        if (($alumno['promedio'] ?? null) === null) {
+            continue;
+        }
+
+        $evaluados++;
+
+        $literal = $alumno['literal'];
+        if (isset($literales[$literal])) {
+            $literales[$literal]++;
+        }
+
+        if (nota_es_aprobatoria($literal, $nivelCodigo)) {
+            $aprobados++;
+        }
+    }
+
+    $universo     = $total - $exo;
+    $desaprobados = $evaluados - $aprobados;
+    $clave        = str_starts_with(strtolower($nivelCodigo), 'prim') ? 'prim' : 'sec';
+
+    // Sin evaluados no hay porcentaje: 0 % seria un dato FALSO, no ausente.
+    $pct = static fn(int $n): float => $evaluados > 0
+        ? round($n / $evaluados * 100, 1)
+        : 0.0;
+
+    return [
+        'total'        => $total,
+        'exonerados'   => $exo,
+        'universo'     => $universo,
+        'evaluados'    => $evaluados,
+        'no_evaluados' => $universo - $evaluados,
+        'aprobados'    => $aprobados,
+        'desaprobados' => $desaprobados,
+        'literales'    => $literales,
+        'aprobatorios' => LITERALES_APROBATORIOS[$clave],
+        'pct'          => [
+            'AD'           => $pct($literales['AD']),
+            'A'            => $pct($literales['A']),
+            'B'            => $pct($literales['B']),
+            'C'            => $pct($literales['C']),
+            'aprobados'    => $pct($aprobados),
+            'desaprobados' => $pct($desaprobados),
+        ],
+    ];
+}
 /** Formatea una fecha en español peruano */
 function fecha_es(string $fecha): string
 {

@@ -1,0 +1,202 @@
+// ============================================================
+// _stats-competencia.scss — Estadisticas de UNA competencia
+// ============================================================
+// Bloque de cifras que va ENCIMA de la tabla de alumnos. Lo comparten cuatro
+// pantallas (resumen del docente, consulta de notas por carga, historial del
+// docente y el panel de tutoria), por eso es un componente y no un parcial de
+// pagina.
+//
+// Markup: resources/views/shared/_stats-competencia.php
+// Calculo: stats_competencia() en app/Helpers/helpers.php
+
+.stats-comp {
+    // ┌ Paleta de los literales ─────────────────────────────────────────────┐
+    // 🔴 Son EXACTAMENTE los fondos de `.nota-literal` (pages/_dashboard.scss),
+    // el chip que la tabla pinta dos centimetros mas abajo. Ese vinculo es el
+    // punto del bloque: el lector reconoce "el color de AD" sin leer la leyenda.
+    // NO usar los `--lit-*` del donut de direccion (_anio-academico.scss), que
+    // ademas de ser mas saturados INVIERTEN AD y A (alli AD es verde y A azul):
+    // el mismo literal saldria de un color en la barra y de otro en la celda de
+    // al lado, dentro de la misma card.
+    // Si algun dia cambian los colores de `.nota-literal`, estos van detras.
+    // Relleno = el `background` del chip.
+    --sc-ad: #dbeafe;
+    --sc-a:  #d1fae5;
+    --sc-b:  #fef9c3;
+    --sc-c:  #fee2e2;
+
+    // Borde = el `color` (el texto) del MISMO chip. Es el recurso que la tabla
+    // ya usa en `.nota-numeral`: relleno claro, contorno del tono fuerte. Aqui
+    // ademas hace de divisor entre tramos.
+    --sc-ad-ink: #1d4ed8;
+    --sc-a-ink:  #065f46;
+    --sc-b-ink:  #854d0e;
+    --sc-c-ink:  #991b1b;
+
+    padding: $spacing-md;
+    border-bottom: 1px solid $border-color;
+}
+
+.stats-comp__titulo {
+    margin: 0 0 $spacing-sm;
+    font-size: $font-size-base;
+    font-weight: 600;
+    color: $text-secondary;
+}
+
+// ── Tarjetas de cifra ───────────────────────────────────────────────────
+// auto-fit resuelve el movil sin media query: las tarjetas se reparten el
+// ancho disponible y se apilan solas cuando no caben.
+.stats-comp__kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: $spacing-sm;
+}
+
+.stats-comp__kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: $spacing-sm;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-sm;
+    background: $bg-secondary;
+    text-align: center;
+}
+
+.stats-comp__n {
+    font-size: $font-size-xl;
+    font-weight: 700;
+    line-height: 1.1;
+    color: $text-primary;
+
+    &--ok    { color: $color-success; }
+    &--err   { color: $color-error; }
+    &--muted { color: $text-muted; }
+}
+
+.stats-comp__t {
+    font-size: $font-size-sm;
+    color: $text-muted;
+    line-height: 1.3;
+}
+
+// ── Barra apilada AD/A/B/C ──────────────────────────────────────────────
+// Los anchos los escribe la vista con `style="width: X%"`: son valores
+// calculados, no reglas de estilo (mismo patron que .bimestre-logro__seg).
+//
+// Es mas alta que una barra de progreso al uso (16px, no 10) porque los cuatro
+// rellenos son pasteles y ademas cada tramo gasta 2px en su borde: a 10px un
+// tramo estrecho se quedaba sin relleno visible.
+//
+// El contenedor NO lleva borde propio: el marco lo forman los bordes de los
+// tramos, que son de color y se ven. Solo aporta el remate de pildora y el
+// fondo del hueco que queda si los porcentajes no llegan a 100 por redondeo.
+.stats-comp__barra {
+    display: flex;
+    height: 16px;
+    margin-top: $spacing-md;
+    border-radius: 8px;
+    overflow: hidden;
+    background: $bg-secondary;
+}
+
+// Cada tramo lleva SU borde, del tono fuerte del literal. Asi la division entre
+// dos tramos son dos bordes de color contiguos —imposible pasarla por alto— y de
+// paso el tramo queda atado al chip por partida doble (relleno y contorno).
+//
+// 🔴 SIN `gap` A PROPOSITO. Los anchos son porcentajes que suman 100: con
+// separacion entre tramos el total pasaria de 100 y flex los encogeria, asi que
+// las proporciones dejarian de ser las reales (poco en escritorio, ~2% en un
+// movil de 300px). El borde ya separa; el hueco sobraba.
+.stats-comp__seg {
+    display: block;
+    height: 100%;
+    box-sizing: border-box;   // el borde va DENTRO del ancho: 40% sigue siendo 40%
+    flex-shrink: 0;           // sin esto flex reparte el sobrante y falsea el ancho
+    border: 1px solid;
+
+    // 🔴 Los tramos de los extremos trazan ELLOS la curva de la barra.
+    // El `overflow: hidden` del contenedor RECORTA el contenido siguiendo su
+    // `border-radius`, no lo redondea: el trozo de borde recto que cae fuera del
+    // arco se descarta, y el contorno se abria en las cuatro esquinas. Ponerle
+    // borde al contenedor no lo arregla —seguirian faltando los del tramo—; lo
+    // que hace falta es que el borde del propio tramo siga la curva.
+    //
+    // Mismo radio que el contenedor: no hay padding entre ambos, asi que coinciden.
+    // Los tramos con 0 estudiantes NO se pintan, de modo que `:first-child` y
+    // `:last-child` caen sobre los que existen (sin ningun AD, el primero es el de
+    // A). Y un unico tramo al 100% es a la vez el primero y el ultimo: recibe las
+    // dos reglas y queda cerrado por los cuatro lados.
+    &:first-child { border-radius: 8px 0 0 8px; }
+    &:last-child  { border-radius: 0 8px 8px 0; }
+
+    &--ad { background: var(--sc-ad); border-color: var(--sc-ad-ink); }
+    &--a  { background: var(--sc-a);  border-color: var(--sc-a-ink); }
+    &--b  { background: var(--sc-b);  border-color: var(--sc-b-ink); }
+    &--c  { background: var(--sc-c);  border-color: var(--sc-c-ink); }
+}
+
+// ── Leyenda ─────────────────────────────────────────────────────────────
+// Lleva el CHIP `.nota-literal` de verdad, no un cuadrito de color aparte: es
+// la misma pieza que la tabla, asi que el vinculo visual no depende de que dos
+// definiciones de color se mantengan sincronizadas a mano.
+// Cuadricula y no `flex-wrap`: con flex cada item tenia el ancho de su contenido
+// y los numeros bailaban de una fila a otra. Mismo `auto-fit` que .stats-comp__kpis,
+// pero con TOPE de columna y alineada a la izquierda: con `1fr` los cuatro items se
+// repartian todo el ancho de la card y en escritorio quedaban a 275px unos de otros,
+// tan separados que dejaban de leerse como una sola leyenda.
+.stats-comp__leyenda {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 190px));
+    justify-content: start;
+    gap: $spacing-xs $spacing-md;
+    margin: $spacing-sm 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.stats-comp__item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: $font-size-sm;
+}
+
+// El chip a escala de leyenda: mismo color, menos peso visual que en la tabla.
+.stats-comp__chip {
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: $border-radius-sm;
+    min-width: 30px;
+    text-align: center;
+}
+
+// La cantidad manda y el porcentaje acompana: antes compartian color, tamano y
+// peso, y `21 - 77.8%` se leia como un solo dato. El `min-width` + alineacion a
+// la derecha pone las unidades y las decenas en columna entre filas.
+.stats-comp__cant {
+    min-width: 1.6em;
+    text-align: right;
+    font-weight: 700;
+    color: $text-primary;
+}
+
+.stats-comp__pct {
+    font-size: 11px;
+    color: $text-muted;
+}
+
+// El porcentaje de la tarjeta, en su propia linea: pegado a la etiqueta se leia
+// como parte del corte de aprobacion —«(AD + A + B) - 70.4%»—.
+.stats-comp__kpi-pct {
+    font-size: 11px;
+    color: $text-muted;
+    line-height: 1.2;
+}
+
+.stats-comp__vacio {
+    margin: $spacing-sm 0 0;
+    font-size: $font-size-sm;
+    color: $text-muted;
+}

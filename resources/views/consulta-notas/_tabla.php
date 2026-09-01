@@ -28,6 +28,8 @@ $extraordinarias = $extraordinarias ?? [];
         </p>
     </div>
 <?php else: ?>
+    <?php require VIEW_PATH . '/shared/_stats-competencia.php'; ?>
+
     <div class="tabla-responsive">
         <table class="tabla-resumen">
             <thead>
