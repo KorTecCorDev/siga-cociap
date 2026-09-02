@@ -345,6 +345,67 @@ $chk('cada tramo pintado lleva su clase de literal',
         === substr_count($html, 'stats-comp__seg stats-comp__seg--'),
     substr_count($html, 'stats-comp__seg stats-comp__seg--') . ' tramos con literal');
 
+// ---- 5 bis. La barra reparte en FRACCIONES y no redondea la cifra ----
+// Caso a medida: 23 A + 5 B sobre 28 evaluados da 82.1 % y 17.9 %, dos
+// porcentajes CON decimal y uno a cada lado del umbral del 25 %.
+$statsAlumnos = array_merge(
+    array_map(static fn(int $i): array
+        => ['matricula_id' => $i, 'promedio' => 16, 'literal' => 'A'], range(1, 23)),
+    array_map(static fn(int $i): array
+        => ['matricula_id' => $i, 'promedio' => 12, 'literal' => 'B'], range(24, 28))
+);
+$statsExonerados = [];
+$statsNivel      = 'sec';
+ob_start();
+require VIEW_PATH . '/shared/_stats-competencia.php';
+$htmlDec = ob_get_clean();
+
+$chk('la barra reparte en fracciones `fr`, no en anchos `%`',
+    str_contains($htmlDec, 'grid-template-columns: minmax(0, 82.1fr) minmax(0, 17.9fr)')
+    && !str_contains($htmlDec, 'style="width:'));
+
+// 🔴 REQUISITO EXPLICITO DEL USUARIO (02/09/2026): la cifra de dentro de la
+// barra es la EXACTA, con su decimal. Un `round()` al entero diria "A 82%".
+$chk('la etiqueta de la barra conserva el decimal (no redondea al entero)',
+    str_contains($htmlDec, '>A 82.1%</span>')
+    && !str_contains($htmlDec, '>A 82%</span>'));
+
+// Y esa cifra tiene que ser LA MISMA que la de la leyenda, o el bloque se
+// contradice a si mismo a dos centimetros de distancia.
+$chk('barra y leyenda dicen la misma cifra',
+    substr_count($htmlDec, '82.1%') >= 2 && substr_count($htmlDec, '17.9%') >= 2);
+
+// Las dos bandas de umbral: el tramo grande se etiqueta siempre; el mediano
+// solo en pantalla ancha, y para eso sale marcado con `--media`.
+$chk('el tramo >=25% se etiqueta siempre y el de 8-25% solo en pantalla ancha',
+    str_contains($htmlDec, 'class="stats-comp__seg-etq">A 82.1%')
+    && str_contains($htmlDec, 'class="stats-comp__seg-etq stats-comp__seg-etq--media">B 17.9%'));
+
+// Un tramo por debajo del 8% no lleva etiqueta: no cabria ni en escritorio.
+// 1 de 29 = 3.4 %. La cifra sigue estando en la leyenda.
+//
+// ⚠️ Se RECONSTRUYE el array entero, no vale `$statsAlumnos[] = ...`: el parcial
+// hace `unset($statsAlumnos)` al salir —a proposito, para no contaminar la
+// siguiente vuelta del bucle— asi que aqui la variable ya no existe y el append
+// crearia un array de UN elemento. Ese descuido hizo fallar este aserto la
+// primera vez que se escribio.
+$statsAlumnos = array_merge(
+    array_map(static fn(int $i): array
+        => ['matricula_id' => $i, 'promedio' => 16, 'literal' => 'A'], range(1, 23)),
+    array_map(static fn(int $i): array
+        => ['matricula_id' => $i, 'promedio' => 12, 'literal' => 'B'], range(24, 28)),
+    [['matricula_id' => 99, 'promedio' => 5, 'literal' => 'C']]
+);
+$statsExonerados = [];
+$statsNivel      = 'sec';
+ob_start();
+require VIEW_PATH . '/shared/_stats-competencia.php';
+$htmlMin = ob_get_clean();
+$chk('el tramo <8% se pinta pero SIN etiqueta (la cifra queda en la leyenda)',
+    str_contains($htmlMin, 'stats-comp__seg stats-comp__seg--c')
+    && !str_contains($htmlMin, '>C 3.4%</span>')
+    && str_contains($htmlMin, '(3.4%)'));
+
 // Con el universo vacio no debe emitir NADA: una fila de ceros no informa.
 $alumnos = []; $exonerados = [];
 ob_start();
@@ -398,13 +459,46 @@ $css = file_get_contents(ROOT_PATH . '/public/css/app.css');
 $chk('public/css/app.css trae las clases del bloque (gulp build corrido)',
     str_contains($css, '.stats-comp__kpi') && str_contains($css, '.stats-comp__seg--ad'));
 
-// Los tramos de los extremos trazan la curva de la barra. Sin su `border-radius`,
-// el `overflow: hidden` del contenedor recorta el borde recto siguiendo el arco y
-// el contorno se abre en las cuatro esquinas — un defecto que solo se ve haciendo
-// zoom sobre 8px, asi que nadie lo notaria al quitar estas dos reglas.
-$chk('los tramos de los extremos llevan border-radius (contorno cerrado)',
-    preg_match('/\.stats-comp__seg:first-child\{[^}]*border-radius/', $css) === 1
-    && preg_match('/\.stats-comp__seg:last-child\{[^}]*border-radius/', $css) === 1);
+$regla = static function (string $css, string $selector): string {
+    return preg_match('/' . preg_quote($selector, '/') . '\{([^}]*)\}/', $css, $m) ? $m[1] : '';
+};
+
+// 🔴 LA REGRESION QUE ORIGINO TODO ESTO (02/09/2026). La barra era flex con
+// anchos en `%` y los extremos negociaban las esquinas con `:first-child` /
+// `:last-child`, las dos con el ATAJO `border-radius`. Un tramo unico al 100 %
+// casa con LAS DOS reglas: misma especificidad, gana la ultima ENTERA —el atajo
+// no se fusiona, reemplaza las cuatro esquinas— y el lado IZQUIERDO salia recto.
+// El aserto que habia solo miraba que las reglas MENCIONARAN `border-radius`,
+// que lo hacian, asi que dio verde a la barra rota.
+//
+// Ahora cada tramo se redondea SOLO y el caso del 100 % dejo de existir. Estos
+// dos asertos vigilan que nadie vuelva a introducir la negociacion de esquinas.
+$chk('ningun tramo depende de :first-child/:last-child para su radio',
+    $regla($css, '.stats-comp__seg:first-child') === ''
+    && $regla($css, '.stats-comp__seg:last-child') === '');
+$chk('cada tramo trae su propio radio (un tramo al 100% sale redondeado)',
+    str_contains($regla($css, '.stats-comp__seg'), 'border-radius:'));
+
+// La rejilla es lo que permite separar los tramos SIN falsear las proporciones:
+// descuenta los `gap` antes de repartir las fracciones. Con flex y `%` no se
+// podia, y por eso la barra iba pegada.
+$barra = $regla($css, '.stats-comp__barra');
+$chk('la barra es una REJILLA con gap (proporciones exactas al separar)',
+    str_contains($barra, 'display:grid') && str_contains($barra, 'gap:'));
+
+// Sin `min-width:0` la etiqueta impondria un ancho minimo al tramo y el reparto
+// dejaria de ser proporcional — justo lo que la rejilla vino a garantizar.
+$chk('el tramo no deja que su etiqueta le imponga un ancho minimo',
+    str_contains($regla($css, '.stats-comp__seg'), 'min-width:0'));
+
+// 🔴 EL ASERTO QUE MAS FALTA HACE. `clean-css` 4.2.3 no conoce `@container` y lo
+// borra EN SILENCIO al minificar, sin fallar `gulp build`: el SASS se ve
+// correcto en el repo y la regla no llega al navegador. Aqui se comprueba que la
+// media query que hace de sustituta SI esta en el CSS servido. Si algun dia sube
+// el minificador y se pasa a `@container`, este aserto es el que hay que cambiar.
+$chk('la etiqueta del tramo mediano llega al CSS servido (no la comio el minificador)',
+    str_contains($css, '.stats-comp__seg-etq--media')
+    && preg_match('/@media[^{]*min-width:\s*900px[^{]*\{[^@]*\.stats-comp__seg-etq--media\{display:block\}/', $css) === 1);
 
 // El punto del bloque es que el lector reconozca "el color de AD" sin leer la
 // leyenda. Si alguien retoca `.nota-literal` y no la barra, ese vinculo se

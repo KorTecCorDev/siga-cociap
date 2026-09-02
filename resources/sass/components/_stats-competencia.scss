@@ -82,59 +82,88 @@
 }
 
 // ── Barra apilada AD/A/B/C ──────────────────────────────────────────────
-// Los anchos los escribe la vista con `style="width: X%"`: son valores
+// REJILLA con unidades `fr`, no flex con anchos en `%` (02/09/2026). Las
+// fracciones las escribe la vista en `grid-template-columns`: son valores
 // calculados, no reglas de estilo (mismo patron que .bimestre-logro__seg).
 //
-// Es mas alta que una barra de progreso al uso (16px, no 10) porque los cuatro
-// rellenos son pasteles y ademas cada tramo gasta 2px en su borde: a 10px un
-// tramo estrecho se quedaba sin relleno visible.
+// 🔴 AQUI EL `gap` SI CONSERVA LAS PROPORCIONES, y por eso se paso a rejilla.
+// Con flex y `%` era imposible —los tramos ya sumaban 100 %, el hueco desbordaba
+// y flex los encogia—, asi que la barra iba pegada. La rejilla DESCUENTA los
+// gaps antes de repartir las fracciones: medido a 1094px y a 260px, un
+// 18.5/55.6/22.2/3.7 sale identico en ambos.
 //
-// El contenedor NO lleva borde propio: el marco lo forman los bordes de los
-// tramos, que son de color y se ven. Solo aporta el remate de pildora y el
-// fondo del hueco que queda si los porcentajes no llegan a 100 por redondeo.
+// El cambio se llevo por delante otros dos defectos del reparto en `%`:
+//   · el HUECO DE FONDO que asomaba cuando los porcentajes redondeados no
+//     llegaban a 100 (por eso el contenedor ya no necesita `background`);
+//   · toda la negociacion de esquinas entre `:first-child` y `:last-child`.
+//     Esa negociacion es la que rompio la barra hasta el 02/09/2026: las dos
+//     reglas usaban el ATAJO `border-radius`, que no se fusiona sino que
+//     REEMPLAZA las cuatro esquinas, y un tramo unico al 100 % —que es a la vez
+//     el primero y el ultimo— se quedaba con la ultima regla entera y salia
+//     recto por la izquierda. Ahora cada tramo es su propia pildora y se
+//     redondea solo: el caso del 100 % dejo de ser un caso.
+//
+// 22px y no 16: ahora el tramo lleva la etiqueta dentro.
 .stats-comp__barra {
-    display: flex;
-    height: 16px;
+    display: grid;
+    gap: 3px;
+    height: 22px;
     margin-top: $spacing-md;
-    border-radius: 8px;
-    overflow: hidden;
-    background: $bg-secondary;
 }
 
-// Cada tramo lleva SU borde, del tono fuerte del literal. Asi la division entre
-// dos tramos son dos bordes de color contiguos —imposible pasarla por alto— y de
-// paso el tramo queda atado al chip por partida doble (relleno y contorno).
-//
-// 🔴 SIN `gap` A PROPOSITO. Los anchos son porcentajes que suman 100: con
-// separacion entre tramos el total pasaria de 100 y flex los encogeria, asi que
-// las proporciones dejarian de ser las reales (poco en escritorio, ~2% en un
-// movil de 300px). El borde ya separa; el hueco sobraba.
+// Cada tramo lleva SU borde, del tono fuerte del literal, y ese mismo tono es el
+// color de la etiqueta: es la combinacion exacta del chip `.nota-literal`, asi
+// que el contraste del texto ya esta resuelto donde el chip lo resolvio.
 .stats-comp__seg {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     height: 100%;
-    box-sizing: border-box;   // el borde va DENTRO del ancho: 40% sigue siendo 40%
-    flex-shrink: 0;           // sin esto flex reparte el sobrante y falsea el ancho
+    box-sizing: border-box;   // el borde va DENTRO del tramo, no lo ensancha
+    min-width: 0;             // la etiqueta NO puede imponer un ancho minimo
+    overflow: hidden;
     border: 1px solid;
+    border-radius: 5px;
 
-    // 🔴 Los tramos de los extremos trazan ELLOS la curva de la barra.
-    // El `overflow: hidden` del contenedor RECORTA el contenido siguiendo su
-    // `border-radius`, no lo redondea: el trozo de borde recto que cae fuera del
-    // arco se descarta, y el contorno se abria en las cuatro esquinas. Ponerle
-    // borde al contenedor no lo arregla —seguirian faltando los del tramo—; lo
-    // que hace falta es que el borde del propio tramo siga la curva.
-    //
-    // Mismo radio que el contenedor: no hay padding entre ambos, asi que coinciden.
-    // Los tramos con 0 estudiantes NO se pintan, de modo que `:first-child` y
-    // `:last-child` caen sobre los que existen (sin ningun AD, el primero es el de
-    // A). Y un unico tramo al 100% es a la vez el primero y el ultimo: recibe las
-    // dos reglas y queda cerrado por los cuatro lados.
-    &:first-child { border-radius: 8px 0 0 8px; }
-    &:last-child  { border-radius: 0 8px 8px 0; }
+    &--ad { background: var(--sc-ad); border-color: var(--sc-ad-ink); color: var(--sc-ad-ink); }
+    &--a  { background: var(--sc-a);  border-color: var(--sc-a-ink);  color: var(--sc-a-ink); }
+    &--b  { background: var(--sc-b);  border-color: var(--sc-b-ink);  color: var(--sc-b-ink); }
+    &--c  { background: var(--sc-c);  border-color: var(--sc-c-ink);  color: var(--sc-c-ink); }
+}
 
-    &--ad { background: var(--sc-ad); border-color: var(--sc-ad-ink); }
-    &--a  { background: var(--sc-a);  border-color: var(--sc-a-ink); }
-    &--b  { background: var(--sc-b);  border-color: var(--sc-b-ink); }
-    &--c  { background: var(--sc-c);  border-color: var(--sc-c-ink); }
+// ── Etiqueta dentro del tramo ───────────────────────────────────────────
+// La cifra EXACTA, con su decimal y con el mismo formateador que la leyenda:
+// la barra y el texto de abajo nunca pueden decir numeros distintos.
+//
+// QUE TRAMOS LA LLEVAN LO DECIDE LA VISTA, no este archivo, porque depende del
+// porcentaje. El reparto de umbrales y su aritmetica estan comentados alli.
+.stats-comp__seg-etq {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+// 🔴 El tramo mediano (del 8 % al 25 %) SOLO se etiqueta en pantalla ancha, y
+// esta media query es la mitad de esa regla —la otra mitad la pone la vista al
+// emitir la clase—. El motivo es puro ancho en pixeles: la etiqueta mas larga
+// ("AD 18.5%") mide 58px con el borde, y un 8 % son 65px a 900px de ventana
+// pero solo 25px en un movil. Si no cupiera, el `overflow: hidden` del tramo la
+// cortaria a media palabra, que es peor que no ponerla.
+//
+// ⚠️ ESTO QUERRIA SER `@container (min-width: 60px)` sobre el propio tramo, que
+// mide lo que hay que medir en vez de deducirlo de la ventana. NO SE PUEDE
+// TODAVIA: `clean-css` 4.2.3 —el minificador que monta `gulp build`— no conoce
+// `@container` y se lo come EN SILENCIO, sin fallar la tarea. Comprobado el
+// 02/09/2026. Si algun dia sube el minificador, esta media query y los dos
+// umbrales de la vista se sustituyen por una sola consulta de contenedor.
+.stats-comp__seg-etq--media {
+    display: none;
+}
+
+@media (min-width: 900px) {
+    .stats-comp__seg-etq--media { display: block; }
 }
 
 // ── Leyenda ─────────────────────────────────────────────────────────────
