@@ -412,6 +412,9 @@ class BoletaController extends BaseController
         // No rompe nada emitido: el QR se ancla a la matrícula IDENTIDAD, que en
         // un retorno es siempre la oficial (ver renderBoleta), y ninguna boleta
         // pública se llegó a generar con el token de una operativa.
+        // La exclusión sale de `matricula_documento()` (PUNTO ÚNICO del criterio
+        // DOCUMENTO, `helpers.php`), la misma línea que usan el lote de boletas y
+        // las estadísticas de /matriculas/resumen. Antes estaba escrita a mano aquí.
         $matricula = $this->calModel->queryOne(
             "SELECT m.id, m.anio_id, n.id AS nivel_id
              FROM matriculas m
@@ -420,7 +423,7 @@ class BoletaController extends BaseController
              INNER JOIN niveles   n ON n.id = g.nivel_id
              WHERE m.token_acceso = ?
                AND m.estado <> 'desactivado'
-               AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
+               " . matricula_documento('m') . "
              LIMIT 1",
             [$token]
         );

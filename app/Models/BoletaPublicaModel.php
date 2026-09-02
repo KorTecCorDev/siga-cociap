@@ -15,16 +15,20 @@ class BoletaPublicaModel extends BaseModel
      * RETORNO DE GRADO — la matricula OPERATIVA nunca genera boleta ni token
      * propios: el documento SIEMPRE se emite con la OFICIAL (regla A, 05/08/2026).
      *
-     * OJO: es la exclusion INVERSA a la de los rosters de evaluacion, que
-     * excluyen la OFICIAL para que el estudiante se califique en su grado
-     * operativo. No confundirlas — aqui se lista quien RECIBE documento, alla
-     * quien SE EVALUA. Se excluye la operativa de CUALQUIER retorno (activo o
-     * revertido): en ambos casos la boleta sale por la oficial.
+     * La condicion NO se escribe aqui: sale de `matricula_documento()`
+     * (`app/Helpers/helpers.php`), que desde el 02/09/2026 es el PUNTO UNICO del
+     * criterio DOCUMENTO. Antes era la constante privada `SQL_EXCLUIR_OPERATIVA`
+     * de esta clase, copiada ademas a mano en el token publico y en el cuadro de
+     * `/matriculas/resumen`. El porque completo —y la advertencia sobre el
+     * hibrido con `WHERE estado`— vive en el docblock del helper.
      *
-     * Requiere que la tabla de matriculas este aliasada como `m`.
+     * Se usa aliasando la tabla de matriculas como `m`, que es como la aliasan
+     * las tres consultas de abajo.
      */
-    private const SQL_EXCLUIR_OPERATIVA = "
-              AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)";
+    private function sqlExcluirOperativa(): string
+    {
+        return "\n              " . matricula_documento('m');
+    }
 
     /**
      * Candidata a boleta = tiene al menos UNA competencia BLOQUEADA en el
@@ -138,7 +142,7 @@ class BoletaPublicaModel extends BaseModel
      * para evitar timeouts al renderizar todas las boletas a la vez).
      *
      * RETORNO DE GRADO: lista SIEMPRE la matrícula oficial (y en su sección
-     * oficial), nunca la operativa. Ver SQL_EXCLUIR_OPERATIVA y
+     * oficial), nunca la operativa. Ver sqlExcluirOperativa() y
      * SQL_TIENE_BLOQUEOS.
      */
     public function getMatriculasAprobadasParaBoleta(int $periodoId, ?int $seccionId = null): array
@@ -163,7 +167,7 @@ class BoletaPublicaModel extends BaseModel
             INNER JOIN secciones s   ON s.id   = m.seccion_id
             INNER JOIN grados g      ON g.id   = s.grado_id
             WHERE m.estado = 'aprobada'"
-              . self::SQL_EXCLUIR_OPERATIVA . "
+              . $this->sqlExcluirOperativa() . "
               AND " . self::SQL_TIENE_BLOQUEOS . "
               {$whereSeccion}
             ORDER BY g.id, s.nombre, " . orden_alfabetico('per') . "
@@ -207,7 +211,7 @@ class BoletaPublicaModel extends BaseModel
             INNER JOIN grados g      ON g.id   = s.grado_id
             INNER JOIN niveles n     ON n.id   = g.nivel_id
             WHERE m.estado = 'aprobada'"
-              . self::SQL_EXCLUIR_OPERATIVA . "
+              . $this->sqlExcluirOperativa() . "
               AND " . self::SQL_TIENE_BLOQUEOS . "
               {$whereSeccion}
             ORDER BY n.id, g.numero, s.nombre,
@@ -245,7 +249,7 @@ class BoletaPublicaModel extends BaseModel
             INNER JOIN niveles           n ON n.id = g.nivel_id
             INNER JOIN anios_academicos  a ON a.id = s.anio_id AND a.estado = 'activo'
             INNER JOIN matriculas        m ON m.seccion_id = s.id AND m.estado = 'aprobada'"
-                                          . self::SQL_EXCLUIR_OPERATIVA . "
+                                          . $this->sqlExcluirOperativa() . "
             LEFT JOIN boletas_publicas   bp ON bp.matricula_id = m.id AND bp.periodo_id = ?
             WHERE s.estado_nomina = 'aprobada'
             GROUP BY s.id

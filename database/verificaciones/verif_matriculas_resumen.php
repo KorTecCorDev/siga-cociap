@@ -78,7 +78,13 @@ $chk('todas las claves que pinta /admin/cuadros existen en kpis',
 // ---- 2. El universo: contraste contra un COUNT escrito a mano -------------
 echo "\n=== 2. El universo, contra una consulta de control ===\n";
 
-// A MANO, sin usar roster_evaluacion(): si saliera del helper no probaría nada.
+// A MANO, sin usar los helpers: si saliera de ellos no probaría nada.
+//
+// 🔴 EL ANCLA ES LA MATRÍCULA OFICIAL (02/09/2026): fuera la OPERATIVA de todo
+// retorno, sin condición de estado (criterio DOCUMENTO). Antes esta consulta
+// llevaba el criterio de EVALUACIÓN, que es el INVERSO —conservaba la operativa
+// y ubicaba al estudiante en el grado inferior—, contradiciendo al cuadro del
+// pie de la misma pantalla.
 $control = $model->queryOne("
     SELECT
         COUNT(*)                      AS total,
@@ -89,8 +95,7 @@ $control = $model->queryOne("
     FROM matriculas m
     WHERE m.anio_id = ?
       AND m.tipo NOT IN ('trasladado', 'retirado')
-      AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
-      AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+      AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
 ", [$anioId]);
 
 $chk('estudiantes = el universo completo del roster',
@@ -128,15 +133,47 @@ $distintos = $model->queryOne("
     FROM matriculas m
     WHERE m.anio_id = ?
       AND m.tipo NOT IN ('trasladado', 'retirado')
-      AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
-      AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
+      AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
 ", [$anioId]);
 
 // El aserto que muerde: contar FILAS y contar ESTUDIANTES tiene que dar lo mismo.
-// Si alguien quita el helper, un retorno activo suma 2 y esto se pone en rojo.
+// Si alguien quita el ancla, un retorno suma 2 y esto se pone en rojo.
 $chk('estudiantes distintos == filas contadas (sin duplicar por retorno)',
     $kpis['estudiantes'] === (int) $distintos['n'],
     $kpis['estudiantes'] . ' filas vs ' . (int) $distintos['n'] . " distintos · {$nRetornos} retorno(s) en el año");
+
+// 🔴 Y EL QUE MUERDE MÁS: los chips ubican al estudiante en su sección OFICIAL.
+// Con el ancla contraria (la de evaluación) salía su sección OPERATIVA, o sea el
+// grado inferior, y la misma pantalla lo ponía en dos secciones distintas: los
+// chips en una y el cuadro del pie en otra.
+$anclaMal = $model->query("
+    SELECT rg.id, rg.estado,
+           mo.id AS of_id, mo.seccion_id AS of_sec,
+           mp.id AS op_id, mp.seccion_id AS op_sec
+    FROM retornos_grado rg
+    INNER JOIN matriculas mo ON mo.id = rg.matricula_oficial_id
+    INNER JOIN matriculas mp ON mp.id = rg.matricula_operativa_id
+    WHERE mo.anio_id = ?
+      -- Rojo si la que entra al universo de los chips es la OPERATIVA...
+      AND (mp.id IN (
+              SELECT m.id FROM matriculas m
+              WHERE m.anio_id = ?
+                AND m.tipo NOT IN ('trasladado', 'retirado')
+                AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
+          )
+      -- ...o si la OFICIAL se queda fuera teniendo tipo vigente.
+      OR (mo.tipo NOT IN ('trasladado', 'retirado') AND mo.id NOT IN (
+              SELECT m.id FROM matriculas m
+              WHERE m.anio_id = ?
+                AND m.tipo NOT IN ('trasladado', 'retirado')
+                AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
+          )))
+", [$anioId, $anioId, $anioId]);
+$chk('cada retorno entra por su matrícula OFICIAL, nunca por la operativa',
+    $anclaMal === [],
+    $anclaMal === []
+        ? "{$nRetornos} retorno(s) anclados en su sección oficial"
+        : 'mal anclados: ' . implode(', ', array_column($anclaMal, 'id')));
 
 // ---- 5. Los excluidos se publican ---------------------------------------
 echo "\n=== 5. Los que quedan fuera del conteo ===\n";
@@ -149,17 +186,65 @@ $chk('trasladados y retirados se publican para poder explicarlos en pantalla',
     && $kpis['retirados'] === (int) ($fuera['r'] ?? 0),
     "{$kpis['trasladados']} trasladados · {$kpis['retirados']} retirados");
 
-// ---- 6. Los gráficos NO cambiaron de universo ---------------------------
+// ---- 6. Los gráficos: universo propio, MISMA ancla de retorno -----------
 // Siguen con estado='aprobada' a proposito: describen la foto oficial de la
-// matricula, que es otra pregunta distinta de "cuantos estudiantes hay".
-echo "\n=== 6. Los gráficos conservan su universo ===\n";
+// matricula, que es otra pregunta distinta de "cuantos estudiantes hay". Lo que
+// desde el 02/09/2026 comparten con los chips y con el cuadro es el ANCLA del
+// retorno (criterio DOCUMENTO), no el universo.
+echo "\n=== 6. Los gráficos: universo propio, misma ancla ===\n";
 $src = file_get_contents(ROOT_PATH . '/app/Models/MatriculaModel.php');
 preg_match('/public function getResumen.*?\n    \}/s', $src, $mg);
 $chk("getResumen sigue teniendo consultas con estado='aprobada' (los gráficos)",
     substr_count($mg[0] ?? '', "m.estado = 'aprobada'") >= 3,
     substr_count($mg[0] ?? '', "m.estado = 'aprobada'") . ' consultas');
-$chk('los KPIs ya NO filtran por estado (usan roster_evaluacion)',
-    str_contains($mg[0] ?? '', 'roster_evaluacion('));
+$chk('el ancla del retorno sale del punto único, no escrita a mano',
+    str_contains($mg[0] ?? '', 'matricula_documento(')
+    && !str_contains($mg[0] ?? '', 'retornos_grado'));
+$chk('los KPIs siguen sin filtrar por estado (universo = estudiantes del colegio)',
+    str_contains($mg[0] ?? '', 'matriculas_vigentes('));
+
+// 🔴 EL ASERTO QUE MUERDE: las cuatro series tienen que sumar lo MISMO, y ese
+// mismo tiene que ser el chip `aprobadas`. Hasta el 02/09/2026 los gráficos no
+// aplicaban NINGUNA exclusión de retorno y sumaban uno de más (521 contra 520):
+// el estudiante en retorno aparecía dos veces, y en dos grados distintos.
+$res    = $model->getResumen($anioId);
+$sumas  = [
+    'por_grado'   => array_sum(array_column($res['por_grado'], 'n')),
+    'por_seccion' => array_sum(array_column($res['por_seccion'], 'n')),
+    'por_tipo'    => array_sum(array_column($res['por_tipo'], 'n')),
+    'por_genero'  => (int) $res['por_genero']['m'] + (int) $res['por_genero']['f']
+                     + (int) $res['por_genero']['sin_dato'],
+];
+foreach ($sumas as $serie => $n) {
+    $chk("$serie suma lo mismo que el chip `aprobadas`",
+        $n === $kpis['aprobadas'], "{$n} vs {$kpis['aprobadas']}");
+}
+// El desglose de sexo del gráfico apilado tiene que cerrar sección a sección: si
+// no, las barras apiladas no llegarían a la altura de la barra de al lado.
+$malSeccion = [];
+foreach ($res['por_seccion'] as $s) {
+    if ($s['m'] + $s['f'] + $s['sin_dato'] !== $s['n']) {
+        $malSeccion[] = $s['grado_numero'] . $s['seccion_nombre'];
+    }
+}
+$chk('en cada sección M + F + sin dato = el total de la barra',
+    $malSeccion === [],
+    $malSeccion === [] ? count($res['por_seccion']) . ' secciones' : implode(' · ', $malSeccion));
+
+// Y el contraste contra una consulta de control escrita A MANO, sección a
+// sección: es lo que detecta que una sola de las cuatro consultas pierda el ancla.
+$ctrlSeccion = $model->query("
+    SELECT s.id AS seccion_id, COUNT(*) AS n
+    FROM matriculas m
+    INNER JOIN secciones s ON s.id = m.seccion_id
+    WHERE m.anio_id = ? AND m.estado = 'aprobada'
+      AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
+    GROUP BY s.id
+", [$anioId]);
+$chk('el gráfico por sección cuadra con la consulta de control, sección a sección',
+    count($ctrlSeccion) === count($res['por_seccion'])
+    && array_sum(array_column($ctrlSeccion, 'n')) === $sumas['por_seccion'],
+    count($res['por_seccion']) . ' secciones · ' . $sumas['por_seccion'] . ' matrículas');
 
 // ═════════════════════════════════════════════════════════════════════════
 // EL CUADRO DE MATRÍCULA POR GRADO (la tabla final de la pantalla).
@@ -218,18 +303,22 @@ $chk('la columna Retirados trae los retirados reales del año',
 echo "\n=== 8. Retorno de grado: criterio DOCUMENTO, y nadie cuenta dos veces ===\n";
 
 // El cuadro es un DOCUMENTO: excluye TODA operativa, sin condición de estado.
-// Es la misma línea que `BoletaPublicaModel`, que es el criterio canónico.
+// Desde el 02/09/2026 la línea NO se escribe aquí ni en boletas: sale de
+// `matricula_documento()`, el punto único. Quien vigila el texto emitido y que
+// nadie vuelva a copiarlo es `verif_matricula_documento.php`; aquí solo se
+// comprueba que este cuadro es uno de sus consumidores.
 $srcCuadro = '';
 if (preg_match('/public function getCuadroMatricula.*?\n    \}/s', $src, $mc)) { $srcCuadro = $mc[0]; }
-$chk('el cuadro excluye la operativa SIN condición de estado (criterio documento)',
-    preg_match('/NOT IN \(\s*SELECT matricula_operativa_id FROM retornos_grado\s*\)/s', $srcCuadro) === 1);
+$chk('el cuadro excluye la operativa usando el punto único (criterio documento)',
+    str_contains($srcCuadro, "matricula_documento('m')"));
 // 🔴 El aserto que muerde de verdad: que NO haya vuelto el `WHERE estado`, que es
 // del criterio de EVALUACIÓN. Mezclarlos es el error más fácil de este módulo.
 $chk('NO se le ha vuelto a pegar un `WHERE estado` al subselect del retorno',
-    preg_match('/matricula_operativa_id FROM retornos_grado\s+WHERE/i', $srcCuadro) !== 1);
+    preg_match('/matricula_operativa_id FROM retornos_grado\s+WHERE/i', $srcCuadro) !== 1
+    && stripos(matricula_documento(), 'WHERE estado') === false);
 $srcBoleta = file_get_contents(ROOT_PATH . '/app/Models/BoletaPublicaModel.php');
-$chk('coincide con la forma canónica de BoletaPublicaModel',
-    str_contains($srcBoleta, 'NOT IN (SELECT matricula_operativa_id FROM retornos_grado)'));
+$chk('comparte el punto único con BoletaPublicaModel (que es el criterio canónico)',
+    str_contains($srcBoleta, 'matricula_documento('));
 
 $filas  = array_sum(array_column($cuadro, 'total'));
 $distDb = $model->queryOne("

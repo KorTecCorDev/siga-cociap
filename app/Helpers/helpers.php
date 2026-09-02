@@ -259,6 +259,61 @@ function orden_alfabetico(string $alias = 'p', int $campos = 3): string
 }
 
 /**
+ * Filtro de matrículas VIGENTES — PUNTO ÚNICO.
+ *
+ * Fuera quien ya no está: el TRASLADO DE SALIDA abandonó el colegio y el
+ * RETIRADO ya no asiste (sin traslado oficial; migración 045, reversible vía
+ * `tipo_anterior`). Nadie más se excluye — en particular NO filtra por
+ * `matriculas.estado`, que es una pregunta distinta.
+ *
+ * Es la primera de las tres condiciones de `roster_evaluacion()`, extraída
+ * aparte porque también la necesita quien combina "estudiantes que siguen en
+ * el colegio" con el criterio DOCUMENTO (`matricula_documento()`), que es el
+ * ancla INVERSA a la de evaluación. La usan los chips de `/matriculas/resumen`.
+ *
+ * @param  string $alias alias de la tabla `matriculas` en la consulta
+ * @return string la condición, ya con `AND` inicial, lista para interpolar
+ */
+function matriculas_vigentes(string $alias = 'm'): string
+{
+    return "AND {$alias}.tipo NOT IN ('trasladado', 'retirado')";
+}
+
+/**
+ * Criterio DOCUMENTO del RETORNO DE GRADO — PUNTO ÚNICO de la condición SQL.
+ *
+ * La matrícula OPERATIVA de un retorno NUNCA figura en un documento ni en una
+ * estadística: el documento se emite SIEMPRE con la OFICIAL (Regla A,
+ * 05/08/2026). Vale igual para el retorno `activo` y para el `revertido`: en
+ * ambos casos la boleta sale por la oficial.
+ *
+ * ⚠️ Es la exclusión INVERSA a la de `roster_evaluacion()`, que excluye la
+ * OFICIAL para que el estudiante se califique en su grado operativo. No
+ * confundirlas: aquí se lista quien RECIBE DOCUMENTO o SE CUENTA, allá quien
+ * SE EVALÚA. Copiar la del lugar equivocado produce el defecto contrario.
+ *
+ * 🔴 VA SIN CONDICIÓN DE ESTADO, Y NO SE LE AÑADE NUNCA. Pegarle el
+ * `WHERE estado = 'activo'` de la lista de evaluación produce el HÍBRIDO, que
+ * es la tercera forma y es incorrecta: con un retorno `revertido` no excluye
+ * NINGUNA de las dos matrículas y el estudiante cuenta dos veces, con la fila
+ * fantasma cayendo en el GRADO INFERIOR como `continuador`/`desactivado`, que
+ * es como `revertir()` deja la operativa. Estuvo vivo en el cuadro de
+ * `/matriculas/resumen` hasta el 02/09/2026 (latente: el único retorno real
+ * está `activo`). Lo vigila `verif_matricula_documento.php`.
+ *
+ * Consumidores: el lote de boletas y el hub de tokens (`BoletaPublicaModel`),
+ * la resolución del token público (`BoletaController`), y toda
+ * `/matriculas/resumen` — chips, los 5 gráficos y el cuadro por grado.
+ *
+ * @param  string $alias alias de la tabla `matriculas` en la consulta
+ * @return string la condición, ya con `AND` inicial, lista para interpolar
+ */
+function matricula_documento(string $alias = 'm'): string
+{
+    return "AND {$alias}.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)";
+}
+
+/**
  * Filtro del ROSTER DE EVALUACIÓN — PUNTO ÚNICO de las condiciones SQL.
  *
  * Es el universo de "a quién se evalúa": la lista que ve el docente al calificar
@@ -268,9 +323,10 @@ function orden_alfabetico(string $alias = 'p', int $campos = 3): string
  *
  * Las tres condiciones y su porqué:
  *
- *  1. `tipo NOT IN ('trasladado','retirado')` — el TRASLADO DE SALIDA abandonó
- *     el colegio y el RETIRADO ya no asiste (sin traslado oficial; migración
- *     045, reversible vía `tipo_anterior`). Nadie más se excluye.
+ *  1. `tipo NOT IN ('trasladado','retirado')` — delegada en
+ *     `matriculas_vigentes()`, que es su punto único: el TRASLADO DE SALIDA
+ *     abandonó el colegio y el RETIRADO ya no asiste (sin traslado oficial;
+ *     migración 045, reversible vía `tipo_anterior`). Nadie más se excluye.
  *  2-3. RETORNO DE GRADO — el estudiante tiene dos matrículas del mismo año y
  *     solo una se evalúa: mientras el retorno está `activo` se evalúa en la
  *     OPERATIVA (se excluye la oficial); tras `revertido` vuelve a la OFICIAL
@@ -296,7 +352,10 @@ function orden_alfabetico(string $alias = 'p', int $campos = 3): string
  */
 function roster_evaluacion(string $alias = 'm'): string
 {
-    return "AND {$alias}.tipo NOT IN ('trasladado', 'retirado')\n"
+    // La primera condición sale de `matriculas_vigentes()`; las otras dos son
+    // propias. El TEXTO EMITIDO no cambia ni un byte — `verif_roster_evaluacion.php`
+    // lo compara literal, así que una recomposición desviada salta ahí.
+    return matriculas_vigentes($alias) . "\n"
         . "              AND {$alias}.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')\n"
         . "              AND {$alias}.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')";
 }
