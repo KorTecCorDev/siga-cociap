@@ -1,9 +1,70 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **01/09/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **02/09/2026**.
 
 
+
+## 🟡 BANNERS DE AVISO — COMPONENTE ÚNICO (02/09/2026)
+
+En `dev`, **sin desplegar**. Sin migración. Salió de un bug de responsive reportado en el
+banner de auditoría de `/consulta-notas/{p}/seccion/{s}/transversales`, y resultó ser el
+sistema entero: **47 banners en 29 vistas**. Detalle en `docs/modulos/ui.md`.
+
+### Qué entró
+
+1. **`display: flex` era la causa, y afectaba a los dos sistemas.** Flex *blockifica* el
+   contenido: cada `<strong>` es un ítem y cada tramo de texto suelto es un ítem **anónimo**,
+   así que una frase con un `<strong>` en medio salía en tres columnas. Medido en Chrome a
+   340 px: ítems en `x=204/340/431`, alturas `143/42/80 px`. **A 1100 px también estaba
+   roto**, solo que menos obvio. Los que se veían bien lo hacían **por casualidad** (un solo
+   nodo de texto = un solo ítem). Ahora el banner es de flujo y el icono sale de él.
+2. 🔴 **Había TRES declarantes, y el que mandaba no era el componente.** Además de
+   `components/_alerts.scss` y del `.flash` de `components/_cards.scss`, **`pages/_auth.scss`
+   tenía una copia entera de `.alert` sin selector de página**; como `app.scss` la importa
+   después, ganaba **en toda la app**, no solo en login. El `app.css` traía dos bloques
+   `.alert{…}`. Mismo fallo que el de `.tabla-leyenda` en `verif_zona_resultado.php`.
+3. **`.flash` pasa a ser ALIAS de `.alert`** (mismo ruleset, `.alert, .flash`). Repara los
+   47 banners **sin renombrar nada**. Los 31 `.flash` cambian de aspecto —12 px en vez de
+   14, padding 16 en vez de 24, y **ganan borde e icono**—: es la estandarización pedida.
+4. **Icono automático por variante en todos** (decisión del usuario). Obligó a borrar
+   **9 glifos a mano** (`✓ ⚠ ⚡ ✅`) en 8 vistas: la guarda `:has()` solo ve **elementos**,
+   así que un carácter suelto no la activa y el banner salía con **dos** iconos.
+5. **`alert__accion` se muda al componente** desde `pages/_registro-cierre.scss`, donde
+   dependía de `margin-left: auto` (solo funciona dentro de flex). Ahora cae en su propia
+   línea, alineado a la derecha. ⚠️ **Cambio visible en los 3 banners con botón.**
+
+### Verificado
+
+- **`verif_banners_aviso.php` nuevo, 24 asertos en verde.** Mide el CSS **servido** y el
+  marcado de las 29 vistas; comprueba la **propiedad** (que el contenedor no vuelva a ser
+  flex ni grid), no valores de padding o color. Su barrido cuenta **47 banners** por su
+  cuenta. Incluye el aserto que barre las vistas buscando glifos a mano.
+- **Los 7 verificadores que auditan `app.css` siguen en verde** tras tocar CSS compartido.
+- **Navegador, sin sesión** — los 6 casos reales inyectados con el `app.css` compilado a
+  340 px y 700 px: el de transversales, el de `conducta.php` (dos `<strong>` y un `<br>`,
+  el peor), el de `director-ebr` (con enlace), el de `asistencia` (icono manual + botón,
+  que era el riesgo de regresión), el de `actas_siagie` (con `<ul>` dentro) y el flash de
+  sesión del layout. **Cero desbordes**, icono anclado a la primera línea y el automático
+  correctamente suprimido donde hay uno manual. La altura del banner reportado baja de
+  143 px a 89 px a 340 px.
+- **Falta el flujo real con sesión**, y en especial **`/login`**: es la única vista pública
+  y sus alertas cambian al borrar la copia de `_auth.scss`.
+
+### Decisiones abiertas que deja
+
+1. **Renombrar los 31 `.flash` a `.alert`** — cosmético y con cambio visual cero gracias al
+   alias, así que se puede hacer por lotes o nunca. ⚠️ **Tiene un bloqueante que hay que
+   decidir ANTES:** `resources/js/auth.js` autocierra `.alert--success` y `.alert--warning`
+   **en todas las páginas**, así que al renombrar, los mensajes de sesión empezarían a
+   desaparecer solos. Hoy los `.flash` no se autocierran.
+2. 🆕 **BUG INDEPENDIENTE que este trabajo destapó: el mismo mensaje flash se pinta DOS
+   VECES.** `layouts/app.php:58-75` ya pinta `$flash_success`/`$flash_error`/`$flash_warning`
+   (globales que inyecta `BaseController::view()`), y **siete vistas los repintan por su
+   cuenta**: `dashboard/index.php`, `docente/inicio.php`, `rectificaciones/{index,matricula,
+   editar,extraordinaria}.php` y `admin/boletas-publicas/index.php`. No es un problema de
+   CSS y arreglarlo **cambia lo que se ve**, así que queda fuera de este lote. (`auth/login.php`
+   no cuenta: usa el layout `auth`, que no pinta flashes.)
 
 ## 🟡 ESTADÍSTICAS POR COMPETENCIA (01/09/2026)
 
