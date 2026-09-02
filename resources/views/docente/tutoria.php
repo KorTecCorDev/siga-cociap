@@ -45,7 +45,7 @@ $pid      = (int) $periodoSel['id'];
 <!-- Estado del bimestre transversal -->
 <?php if ($cerrado): ?>
     <div class="flash flash--success">
-        ✅ Bimestre transversal cerrado el
+        Bimestre transversal cerrado el
         <strong><?= fechaLima($cierre['cerrado_en'], 'd/m/Y H:i') ?></strong>
         por <?= e($cierre['cerrado_por_nombre']) ?>.
         TIC y GAMA ya aparecen en las boletas de la sección.
@@ -152,6 +152,39 @@ $editable = !$cerrado && $listo;
             <?php endif; ?>
         </h2>
     </div>
+
+    <?php
+    // Estadisticas por competencia. Aqui la tabla lleva DOS competencias
+    // (TIC y GAMA) en columnas, asi que va un bloque por cada una, titulado;
+    // en las otras pantallas el titulo lo pone la card y no hace falta.
+    //
+    // El parcial recibe los datos con el prefijo `stats*` para no pisar
+    // `$alumnos` de esta vista, que se sigue usando en la tabla de abajo, y se
+    // limpia solo entre vueltas.
+    //
+    // Las transversales NO se exoneran (ver docs/modulos/consulta-notas-ampliada.md),
+    // por eso la lista de exonerados va vacia y no se consulta.
+    foreach ($competencias as $comp):
+        $cid = (int) $comp['id'];
+
+        $statsAlumnos = [];
+        foreach ($alumnos as $al) {
+            $mid  = (int) $al['matricula_id'];
+            $nota = $promedios[$mid][$cid] ?? null;
+            $statsAlumnos[] = [
+                'matricula_id' => $mid,
+                'promedio'     => $nota,
+                'literal'      => $nota !== null ? nota_a_literal((int) $nota, $nivel) : null,
+            ];
+        }
+
+        $statsExonerados = [];
+        $statsNivel      = $seccion['nivel_codigo'];
+        $statsTitulo     = $comp['nombre_corto'] ?? ($comp['codigo_minedu'] ?? '');
+
+        require VIEW_PATH . '/shared/_stats-competencia.php';
+    endforeach;
+    ?>
     <div class="tabla-notas-wrapper">
         <table class="tabla-resumen tutoria-tabla">
             <thead>

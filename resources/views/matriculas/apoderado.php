@@ -68,7 +68,7 @@ $mid   = (int) $matricula['id'];
 </div>
 
 <?php if ($dni !== '' && !$apoderado): ?>
-    <div class="flash flash--warning">⚠ No se encontró un apoderado con ese DNI. Complétalo abajo para crearlo.</div>
+    <div class="flash flash--warning">No se encontró un apoderado con ese DNI. Complétalo abajo para crearlo.</div>
 <?php endif; ?>
 
 <!-- Vincular apoderado -->

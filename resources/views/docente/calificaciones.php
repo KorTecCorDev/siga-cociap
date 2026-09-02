@@ -227,7 +227,7 @@
                             Esta competencia se marcó como <strong>no evaluada</strong>
                             en este bimestre: se cierra sin notas y no aparece en la boleta.
                         <?php else: ?>
-                            ✅ Esta competencia fue aprobada y bloqueada.
+                            Esta competencia fue aprobada y bloqueada.
                             Las notas ya no pueden modificarse.
                         <?php endif; ?>
                     </div>

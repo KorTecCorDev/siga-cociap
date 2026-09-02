@@ -665,3 +665,110 @@ bimestre en curso, justo cuando más sirve.
 
 Los cuatro conmutadores anteriores **siguen sin migrar** (tocan módulos ajenos al
 cambio que trajo el componente). Ya no hay que extraer nada: hay que migrarlos.
+
+## Banners de aviso — COMPONENTE ÚNICO (02/09/2026)
+
+Un solo componente para todo aviso del sistema: `resources/sass/components/_alerts.scss`.
+**47 banners en 29 vistas.**
+
+### 🔴 El fallo que cerró: `display: flex` sobre una frase
+
+`.flash` y `.alert` eran los dos `display: flex; align-items: center` **sin `flex-wrap`**.
+El contenido de un banner es **una frase**, y flex la *blockifica*: cada `<strong>` pasa a
+ser un ítem propio y **cada tramo de texto contiguo pasa a ser un ítem anónimo**. Esto
+
+```html
+<div class="flash flash--info">
+    Texto… Cerrado el <strong>02/09/2026</strong> por Juan Pérez.
+</div>
+```
+
+no salía como una frase sino como **tres columnas** en fila. Medido en Chrome con un banner
+de 340 px: los ítems caían en `x=204 / x=340 / x=431`, con alturas `143 / 42 / 80 px` que
+`align-items: center` además descuadraba entre sí. **A 1100 px también estaba roto**, solo
+que menos obvio: la frase salía partida en tres bloques separados por huecos.
+
+Los banners que se veían bien lo hacían **por casualidad**: su contenido era un único nodo
+de texto, o sea un solo ítem anónimo. Bastaba con meter un `<strong>` para romperlos.
+
+**Un banner es un párrafo: su display es de flujo.** El icono sale del flujo
+(`position: absolute`) hacia un hueco reservado con `padding-left` — no con `gap`, porque
+el `gap` solo separa el primer renglón y las líneas siguientes se meterían bajo el icono.
+
+### Había TRES declarantes del mismo componente
+
+Y el que mandaba no era el componente:
+
+| Dónde | Qué era |
+|---|---|
+| `components/_alerts.scss` | el componente de verdad (icono, borde, `:has()`) |
+| `components/_cards.scss` | `.flash`, un segundo banner con otra letra y otro padding |
+| **`pages/_auth.scss`** | **una copia entera de `.alert`**, sin selector de página que la acotara |
+
+`app.scss` importa `pages/auth` (línea 26) **después** de `components/alerts` (línea 15),
+así que esa copia ganaba **en toda la aplicación, no solo en login** — el `app.css`
+compilado traía dos bloques `.alert{…}`. Le faltaban la variante `--info` y los iconos, y
+cambiaba `align-items` a `flex-start` para todos. Es el mismo fallo que ancla
+`verif_zona_resultado.php` con `.tabla-leyenda`.
+
+⚠️ **`components/cards` se importa DESPUÉS de `components/alerts`**: si alguien devuelve un
+`.flash` a `_cards.scss`, gana por orden y reimpone el `display: flex`. Hay aserto.
+
+### Cuál usar
+
+| Si el banner es… | Marcado |
+|---|---|
+| una frase, con o sin `<strong>`/`<a>` dentro | `<div class="alert alert--info">` y el texto suelto |
+| título + cuerpo | `<strong class="alert__titulo">` + el texto |
+| cuerpo con lista o varios párrafos | `<p>` / `<ul>` como hijos directos |
+| lleva un icono que dice algo que la variante no | un `.btn-icon` como hijo directo |
+| lleva un botón | `class="btn … alert__accion"` |
+
+```html
+<div class="alert alert--info">
+    <span class="btn-icon btn-icon--locked" aria-hidden="true"></span>
+    Asistencia <strong>bloqueada por Registro Académico</strong> el 28/08/2026.
+    <a href="…" class="btn btn--secondary btn--sm alert__accion">🖨 Imprimir registro</a>
+</div>
+```
+
+- **El `<span>` que envuelve el texto es OPCIONAL.** Era obligatorio de hecho —sin él la
+  frase se partía— y ya no lo es. Los dos banners que lo traían (`consulta-notas/asistencia.php`,
+  `docente/tutoria.php`) eran los únicos bien construidos del proyecto; se conservan.
+- **NUNCA un glifo a mano** (`✓ ⚠ ⚡ ✅`). La variante ya pinta su icono, y la guarda
+  `:has()` que evita el duplicado **solo ve elementos**: un carácter suelto no la activa y
+  el banner sale con **dos** iconos. Había nueve; se borraron. Hay aserto que barre las
+  29 vistas para que no vuelvan.
+- **`alert__accion` cae en su propia línea**, alineado a la derecha. No se usa
+  `float: right` para recuperar la fila en pantalla ancha: el flotante se ancla a la
+  **última** línea del párrafo, así que en un banner de tres líneas el botón acababa a
+  media altura y pegado al texto.
+
+### `.flash` es un ALIAS deprecado
+
+Comparte el mismo ruleset que `.alert` (`.alert, .flash { … }`), no es un segundo
+componente: fundir los selectores impide que vuelvan a divergir. **Marcado nuevo usa
+`.alert`.** Los 31 `.flash` que quedan son renombrado cosmético, con **cambio visual cero**,
+y por eso se puede hacer por lotes o nunca.
+
+⚠️ **La migración tiene un bloqueante**, y hay que decidirlo ANTES: `resources/js/auth.js`
+autocierra `.alert--success` y `.alert--warning` **en todas las páginas**. Renombrar los
+`.flash` haría que los mensajes de sesión empezaran a desaparecer solos. Ver `docs/ESTADO.md`.
+
+### Qué NO es este componente
+
+`.alerta-item` (`padre/alertas.php`) y `.alerta-empate` (`director/orden-merito-periodo.php`)
+son otros bloques, de `pages/_dashboard.scss`. Un `grep 'class="alert'` los captura **por
+prefijo** e inflaba el inventario de 47 a 55. Hay aserto que delimita el alcance.
+
+### Verificación
+
+`database/verificaciones/verif_banners_aviso.php` — **24 asertos**, sin base de datos: mide
+el CSS **servido** y el marcado de las 29 vistas. Comprueba la **propiedad** (que el
+contenedor no vuelva a ser flex ni grid), no valores concretos de padding o color.
+
+⚠️ **Su propio regex tuvo un fallo que conviene conocer**: copiar el `(?:^|[};])` de
+`verif_zona_resultado.php` y usarlo con `preg_match_all` **se come una regla de cada dos**
+—el prefijo consume el `}` de cierre y la siguiente se queda sin delimitador—. Allí
+funciona porque se usa con `preg_match`, una sola regla. El aserto acusaba al CSS de algo
+que no pasaba.

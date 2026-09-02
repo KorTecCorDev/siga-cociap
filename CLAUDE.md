@@ -185,7 +185,7 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | Usuarios, secciones/tutores, Director EBR, panel de bloqueos, conducta | `docs/modulos/admin.md` |
 | **Usuarios de Dirección** (los 3 directores, solo lectura, `ROLES_DIRECCION`) | `docs/modulos/usuarios-direccion.md` |
 | Exportación de notas al SIAGIE (llenado de Excel oficiales) | `docs/modulos/export-siagie.md` |
-| UI: wayfinding, dashboard docente, botón Cerrar, tablas sticky | `docs/modulos/ui.md` |
+| UI: wayfinding, dashboard docente, botón Cerrar, tablas sticky, **banners de aviso** | `docs/modulos/ui.md` |
 | Producción, seguridad, despliegue, secretos, setup SQL desde cero | `docs/infraestructura.md` |
 | Decisiones diferidas (suspensiones, compuerta de publicación, capacitación) | `docs/decisiones-diferidas.md` |
 | **CERRAR un bimestre en producción** (secuencia, consultas, verificación) | `docs/runbooks/cierre-de-bimestre.md` |
@@ -235,6 +235,11 @@ Versión de una línea; el porqué completo está en el doc del módulo.
   del umbral de datos.
 - **Escala de notas: punto único de verdad en `app/Helpers/helpers.php`**
   (`NOTA_MIN_AD/A/B`, `nota_a_literal()`, `escala_rangos()`). NUNCA hardcodear umbrales.
+  **APROBAR depende del NIVEL** y también sale de ahí: `LITERALES_APROBATORIOS` /
+  `nota_es_aprobatoria()` (primaria AD+A · secundaria AD+A+B). La escala literal es la
+  misma en los dos niveles; lo que cambia es dónde está la línea del aprobado. ⚠️ NO es
+  la métrica «en logro» de `AnioAcademicoModel::getResumenBimestre()` (AD+A en ambos):
+  son preguntas distintas y no se unifican. Ver `docs/modulos/calificaciones.md`.
 - **Rutas literales ANTES que patrones `{param}`** en `routes/web.php` (el router
   ancla por orden de registro).
 - **`criterios.confirmado_en` es la única verdad de "oficial"**: cualquier mutación

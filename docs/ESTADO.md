@@ -1,9 +1,190 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **24/08/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **02/09/2026**.
 
 
+
+## 🟡 BANNERS DE AVISO — COMPONENTE ÚNICO (02/09/2026)
+
+En `dev`, **sin desplegar**. Sin migración. Salió de un bug de responsive reportado en el
+banner de auditoría de `/consulta-notas/{p}/seccion/{s}/transversales`, y resultó ser el
+sistema entero: **47 banners en 29 vistas**. Detalle en `docs/modulos/ui.md`.
+
+### Qué entró
+
+1. **`display: flex` era la causa, y afectaba a los dos sistemas.** Flex *blockifica* el
+   contenido: cada `<strong>` es un ítem y cada tramo de texto suelto es un ítem **anónimo**,
+   así que una frase con un `<strong>` en medio salía en tres columnas. Medido en Chrome a
+   340 px: ítems en `x=204/340/431`, alturas `143/42/80 px`. **A 1100 px también estaba
+   roto**, solo que menos obvio. Los que se veían bien lo hacían **por casualidad** (un solo
+   nodo de texto = un solo ítem). Ahora el banner es de flujo y el icono sale de él.
+2. 🔴 **Había TRES declarantes, y el que mandaba no era el componente.** Además de
+   `components/_alerts.scss` y del `.flash` de `components/_cards.scss`, **`pages/_auth.scss`
+   tenía una copia entera de `.alert` sin selector de página**; como `app.scss` la importa
+   después, ganaba **en toda la app**, no solo en login. El `app.css` traía dos bloques
+   `.alert{…}`. Mismo fallo que el de `.tabla-leyenda` en `verif_zona_resultado.php`.
+3. **`.flash` pasa a ser ALIAS de `.alert`** (mismo ruleset, `.alert, .flash`). Repara los
+   47 banners **sin renombrar nada**. Los 31 `.flash` cambian de aspecto —12 px en vez de
+   14, padding 16 en vez de 24, y **ganan borde e icono**—: es la estandarización pedida.
+4. **Icono automático por variante en todos** (decisión del usuario). Obligó a borrar
+   **9 glifos a mano** (`✓ ⚠ ⚡ ✅`) en 8 vistas: la guarda `:has()` solo ve **elementos**,
+   así que un carácter suelto no la activa y el banner salía con **dos** iconos.
+5. **`alert__accion` se muda al componente** desde `pages/_registro-cierre.scss`, donde
+   dependía de `margin-left: auto` (solo funciona dentro de flex). Ahora cae en su propia
+   línea, alineado a la derecha. ⚠️ **Cambio visible en los 3 banners con botón.**
+
+### Verificado
+
+- **`verif_banners_aviso.php` nuevo, 24 asertos en verde.** Mide el CSS **servido** y el
+  marcado de las 29 vistas; comprueba la **propiedad** (que el contenedor no vuelva a ser
+  flex ni grid), no valores de padding o color. Su barrido cuenta **47 banners** por su
+  cuenta. Incluye el aserto que barre las vistas buscando glifos a mano.
+- **Los 7 verificadores que auditan `app.css` siguen en verde** tras tocar CSS compartido.
+- **Navegador, sin sesión** — los 6 casos reales inyectados con el `app.css` compilado a
+  340 px y 700 px: el de transversales, el de `conducta.php` (dos `<strong>` y un `<br>`,
+  el peor), el de `director-ebr` (con enlace), el de `asistencia` (icono manual + botón,
+  que era el riesgo de regresión), el de `actas_siagie` (con `<ul>` dentro) y el flash de
+  sesión del layout. **Cero desbordes**, icono anclado a la primera línea y el automático
+  correctamente suprimido donde hay uno manual. La altura del banner reportado baja de
+  143 px a 89 px a 340 px.
+- **Falta el flujo real con sesión**, y en especial **`/login`**: es la única vista pública
+  y sus alertas cambian al borrar la copia de `_auth.scss`.
+
+### Decisiones abiertas que deja
+
+1. **Renombrar los 31 `.flash` a `.alert`** — cosmético y con cambio visual cero gracias al
+   alias, así que se puede hacer por lotes o nunca. ⚠️ **Tiene un bloqueante que hay que
+   decidir ANTES:** `resources/js/auth.js` autocierra `.alert--success` y `.alert--warning`
+   **en todas las páginas**, así que al renombrar, los mensajes de sesión empezarían a
+   desaparecer solos. Hoy los `.flash` no se autocierran.
+2. 🆕 **BUG INDEPENDIENTE que este trabajo destapó: el mismo mensaje flash se pinta DOS
+   VECES.** `layouts/app.php:58-75` ya pinta `$flash_success`/`$flash_error`/`$flash_warning`
+   (globales que inyecta `BaseController::view()`), y **siete vistas los repintan por su
+   cuenta**: `dashboard/index.php`, `docente/inicio.php`, `rectificaciones/{index,matricula,
+   editar,extraordinaria}.php` y `admin/boletas-publicas/index.php`. No es un problema de
+   CSS y arreglarlo **cambia lo que se ve**, así que queda fuera de este lote. (`auth/login.php`
+   no cuenta: usa el layout `auth`, que no pinta flashes.)
+
+## 🟡 ESTADÍSTICAS POR COMPETENCIA (01/09/2026)
+
+En `dev`, **sin desplegar**. Sin migración. Bloque de contadores encima de la tabla de
+alumnos en cuatro pantallas: el resumen del docente
+(`/docente/calificaciones/{carga}/resumen/{competencia}`),
+`/consulta-notas/{p}/carga/{c}`, el historial del docente de un bimestre cerrado y el
+panel de tutoría (`/docente/tutoria/{periodo}`, con un bloque por cada transversal).
+Detalle y decisiones en `docs/modulos/calificaciones.md`.
+
+### Qué entró
+
+1. **`nota_es_aprobatoria()` + `LITERALES_APROBATORIOS` en `helpers.php`** — punto único
+   del corte de aprobación, que **depende del nivel** (primaria AD+A · secundaria
+   AD+A+B). Es la primera regla del repositorio que ramifica por nivel en la
+   calificación, y **no es** la métrica «en logro» de `getResumenBimestre()` (AD+A en los
+   dos niveles). Hay una línea en CLAUDE.md junto al invariante de la escala.
+2. **`stats_competencia()`** — función pura sobre el `$alumnos` que ya está en memoria:
+   evaluados, sin evaluar, aprobados, desaprobados y la distribución AD/A/B/C.
+   **Cero consultas nuevas** y sin volver a disparar el N+1 de `getResumenCompetencia`.
+3. **`resources/views/shared/_stats-competencia.php`** + componente SASS
+   `components/_stats-competencia.scss`. CSS puro, sin Frappe y sin JS: se ve con
+   JavaScript desactivado.
+4. **3 puntos de inclusión para 4 pantallas** — el historial del docente lo recibe a
+   través de `consulta-notas/_tabla.php`, que ya compartía. Tutoría pinta **un bloque
+   por transversal** (TIC y GAMA) y entrega los datos con el prefijo `stats*` para no
+   pisar sus propias variables; 🔴 el parcial **se limpia entre vueltas del bucle**, o
+   la segunda competencia repetiría las cifras de la primera sin que se note.
+5. **Los colores son los del chip `.nota-literal`, no una paleta aparte** — cada tramo de
+   la barra toma del chip **sus dos valores**: el fondo para el relleno y el color de
+   texto para el borde (como `.nota-numeral`), y la leyenda lleva el chip de verdad. Hay
+   un aserto que compara los **ocho** valores en el `app.css` compilado.
+6. 🆕 **Segunda pasada de legibilidad** (mismo día, tras revisarlo en pantalla): la
+   **cantidad y el porcentaje** eran indistinguibles —mismo color, tamaño y peso— y ahora
+   van en elementos separados, con la cantidad en negrita y el porcentaje en gris entre
+   paréntesis, en cuadrícula para que los números queden en columna; y **la barra no
+   tenía bordes visibles**, así que el marco de `$border-color` se sustituyó por el borde
+   de color de cada tramo, que además marca las divisiones. ⚠️ La barra va **sin `gap`**
+   a propósito: con separación, los anchos en `%` sumarían más de 100 y flex encogería
+   los tramos, falseando las proporciones.
+7. 🆕 **El contorno se abría en las cuatro esquinas** — el `overflow: hidden` del
+   contenedor RECORTA el borde recto del tramo siguiendo su curva, no lo redondea.
+   Arreglado dando `border-radius` a los tramos de los extremos, que ahora trazan ellos
+   la curva. Comprobado a 5 aumentos en los tres casos (cuatro tramos con uno de 3,7 %,
+   un único tramo al 100 % y dos tramos), con aserto sobre el CSS compilado porque es un
+   defecto de 8 px que no se ve a tamaño real.
+8. 🆕 **02/09 — LA BARRA SE REHIZO COMO REJILLA DE FRACCIONES.** El punto 7 dejó un bug:
+   las dos reglas de los extremos usaban el **atajo** `border-radius` y un tramo único al
+   100 % casa con **las dos** —misma especificidad, gana la última entera, y el atajo
+   reemplaza las cuatro esquinas—, así que salía **recto por la izquierda**
+   (`TL:0px BL:0px`). El aserto no lo vio porque solo comprobaba que las reglas
+   *mencionaran* `border-radius`. Se pasó a `display: grid` con `minmax(0, X.Xfr)`, que
+   además **deroga la prohibición del `gap` del punto 6** (la rejilla descuenta los huecos
+   antes de repartir: proporciones exactas, medido a 1094 px y a 260 px) y **elimina el
+   hueco de fondo del redondeo**. Cada tramo lleva ahora **su cifra exacta con decimal
+   dentro** (`A 82.1%`), con dos umbrales de ancho (≥ 25 % siempre; 8–25 % solo ≥ 900 px
+   de ventana; < 8 % nunca) verificados sin recortes en 8 anchos de 320 a 1400 px.
+   Verificador: **23 → 40 asertos**. Detalle en `docs/modulos/calificaciones.md`.
+   🔴 **HALLAZGO DE BUILD, vale para todo el repo:** `clean-css` 4.2.3 —el minificador de
+   `gulp build`— **no conoce `@container` y lo borra EN SILENCIO**, sin fallar la tarea.
+   Por eso los umbrales son una media query sobre la ventana y no una consulta de
+   contenedor sobre el tramo, que es lo que el caso pide. `clean-css` 5.3.3 sí la
+   conserva y su **única** otra diferencia sobre las 265 KB de `app.css` es entrecomillar
+   los `url()` (medido con un diff de las dos salidas). **Subir el minificador está sin
+   decidir** — ver la lista de pendientes.
+
+### Verificado
+
+- `verif_stats_competencia.php` en verde (**40 asertos** desde el 02/09) sobre **50
+  competencias reales de los dos niveles**: los tres cuadres del universo, el contador de
+  evaluados contra un `COUNT` independiente, el render del parcial, el corte por nivel en
+  **sus dos ramas**, el `unset` entre vueltas del bucle, los colores atados a
+  `.nota-literal` y —desde el 02/09— el reparto en `fr`, el decimal de la etiqueta, las
+  dos bandas de umbral y que la media query llegue al CSS **servido**.
+- 🆕 **02/09 — la barra rehecha, en navegador y con el parcial REAL.** Siete repartos
+  (100 % en A, 100 % en AD, dos tramos 82.1/17.9, cuatro tramos con uno de 3,7 %, tramo
+  diminuto al inicio, 4 × 25 % y un caso de primaria) renderizados con el parcial de
+  verdad dentro de `.app-main` + `.card` y medidos con `getBoundingClientRect`:
+  **cero etiquetas recortadas** en 320 · 375 · 641 · 768 · 899 · 900 · 1200 · 1400 px, en
+  los dos estados de la media query, y las proporciones exactas al píxel en todos.
+  **Sigue faltando el flujo real con sesión.**
+- **Navegador, sin sesión** — las vistas se renderizaron a un HTML estático y se
+  abrieron con el `app.css` compilado: `docente/resumen-competencia.php` y
+  `consulta-notas/carga.php` **con datos reales** (carga 289, 27 alumnos, 24 aprobados
+  de 27 en secundaria), el bloque dentro de su card y la tabla intacta debajo; más el
+  bloque suelto a 320, 360, 768 y 1360 px con los casos «todos en C» y «nadie evaluado
+  todavía». También `docente/tutoria.php`, donde se confirmó que los **dos bloques
+  (TIC 21A/6B y GAMA 19A/8B) muestran cifras distintas** —la prueba de que la limpieza
+  entre vueltas funciona— y que los chips de la leyenda son los mismos que pinta la
+  tabla. **Falta el flujo real con sesión** (roles, redirects y la guarda de cada
+  pantalla), que es lo único que estas sondas no pueden tocar.
+
+### Lo que dejó medido
+
+- **4 exonerados con nota viva** en la base. Es el caso que obliga a sacarlos del
+  universo: exonerar no borra las notas, así que sin el filtro sumarían como aprobados
+  mientras su boleta dice `EXO`.
+- **Hay notas cuya matrícula ya no pertenece a la sección de la carga** (carga 118,
+  matrícula 692): un cambio de sección deja la nota donde se cursó, y
+  `getResumenCompetencia` las excluye correctamente. No es un defecto; era un aserto de
+  control mal escrito.
+
+### Decisión abierta — subir `clean-css` (02/09/2026)
+
+**Sin decidir, no bloquea nada.** `clean-css` 4.2.3 (vía `gulp-clean-css` 4.3.0) **borra
+en silencio toda regla `@container`** al minificar: `gulp build` termina en verde y la
+regla no llega al navegador. No es exclusivo de este componente — **le pasará a cualquier
+CSS moderno que se escriba de aquí en adelante**, y no avisa.
+
+Medido el 02/09: `clean-css` 5.3.3 la conserva, y sobre las **265 KB** de `app.css` su
+única otra diferencia son las **comillas en los `url()`** (`url(../x.svg)` →
+`url("../x.svg")`), que es equivalente. El cambio sería un `overrides` en `package.json`,
+porque `gulp-clean-css` no tiene versión que traiga clean-css 5.
+
+Si se hace, **la barra de competencias gana**: sus dos umbrales de porcentaje y la media
+query de 900 px se sustituyen por **una** `@container (min-width: 60px)` sobre el tramo,
+que mide el ancho que de verdad importa en vez de deducirlo de la ventana. Hoy funciona
+porque el bloque siempre vive en una card a todo el ancho de `.app-main`; **si alguien lo
+metiera en una columna estrecha, las etiquetas se recortarían** y la media query no podría
+enterarse.
 ## 🟢 CUADROS — conducta y asistencia ampliadas + roster con punto único (27/08/2026)
 
 Lote grande en `dev`, **con verificación de navegador ya hecha** (no queda como
@@ -2865,6 +3046,34 @@ La competencia **C57** (área 24) nunca fue ensayo: la crea la migración `036`.
   7:30pm-9:00pm. Detalle en `docs/decisiones-diferidas.md`.
 
 ## Git
+
+- ✅ **28/08/2026 — DEPLOY. `origin/main` pasó de `1b18e2c` a `2b74be0`**
+  (merge `--no-ff`, autorizado por el usuario). **37 commits de contenido,
+  SIN MIGRACIONES NUEVAS**: la 055 y la 056 ya estaban aplicadas a mano en
+  producción antes del merge (confirmado con el usuario), así que el push no
+  requirió tocar la base de datos.
+  - **Qué entra:** el lote de Usuarios de Dirección (24/08), que llevaba cuatro
+    días esperando en `dev`, el explorador de criterios, el conmutador de 3
+    ejes de consulta-notas, el partial de asistencia compartido, el arreglo de
+    `.page-header`, y lo del 27-28/08: punto único del roster de evaluación,
+    `/admin/cuadros` con 12 gráficos y 3 tablas, el componente global de
+    pestañas y los iconos propios del dashboard.
+  - **Estado al desplegar:** 31 verificadores en verde, por primera vez en el
+    lote — `verif_criterios_filtros_cascada` llevaba días rojo por dos asertos
+    CADUCOS del refactor de los 3 ejes, no por un defecto.
+  - ⚠️ **Trampa nueva, y costó un susto: `git merge -F -` NO lee stdin.**
+    Hay un archivo llamado `-` en la raíz del repo (sin versionar, del
+    14/05/2026, con una salida de SASS fallida dentro) y git lo tomó como
+    fichero de mensaje: el commit de merge nació con un error de compilación
+    por asunto. Se corrigió con `--amend -F <ruta>` ANTES del push. El CSS
+    nunca estuvo roto —`app.css` de `main` es byte a byte el de `dev`—, pero
+    el mensaje lo aparentaba. **Para mensajes largos, `-F <ruta real>`; nunca
+    `-F -`. Y conviene borrar ese archivo `-`.**
+  - **Sin verificar en producción todavía:** el imprimible A4 en papel y los
+    `page-header` de `/matriculas`, `/padre/notas` y `/admin/actas-siagie`.
+    Tampoco se abrió `/docente/calificaciones` tras el cambio de
+    `getAlumnosSeccion` — lo cubren dos verificadores contra consultas de
+    control escritas a mano, pero conviene mirarlo en prod.
 - `dev` = rama de trabajo; `main` = producción (auto-deploy en Hostinger).
   **Preguntar SIEMPRE antes de mergear `dev` → `main`.**
 - `dev` y `main` sincronizados el 20/07/2026 (ff `8ae3d08..567b7f9`): lote

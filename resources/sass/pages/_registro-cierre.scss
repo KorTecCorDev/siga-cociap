@@ -54,12 +54,10 @@
     }
 }
 
-// Botón de acción dentro de un alert (p. ej. "Imprimir registro").
-.alert .alert__accion {
-    margin-left: auto;
-    flex-shrink: 0;
-    white-space: nowrap;
-}
+// El botón de acción dentro de un banner (p. ej. "Imprimir registro") se mudó a
+// `components/_alerts.scss`, con el resto del componente. Aquí dependía de
+// `margin-left: auto`, que solo empuja dentro de un contenedor flex, y el banner
+// ya no lo es: era una pieza del componente viviendo en un archivo de página.
 
 // Contadores de asistencia en solo lectura (historial).
 .asistencia-td-valor {

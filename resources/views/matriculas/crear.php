@@ -46,7 +46,7 @@ $pasos = [1 => 'Estudiante', 2 => 'Apoderado', 3 => 'Documentos'];
 </div>
 
 <?php if ($dni !== '' && $estudiante && $yaMatriculado): ?>
-    <div class="flash flash--warning">⚠ Este estudiante ya tiene una matrícula registrada en el año activo.</div>
+    <div class="flash flash--warning">Este estudiante ya tiene una matrícula registrada en el año activo.</div>
 <?php endif; ?>
 
 <!-- Formulario de matrícula -->

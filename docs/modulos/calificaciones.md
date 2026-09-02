@@ -3,6 +3,235 @@
 > Extraído VERBATIM de CLAUDE.md el 03/07/2026 (fase 1 de la red de documentación).
 > Los invariantes globales y la tabla de enrutamiento viven en CLAUDE.md.
 
+
+## Estadísticas por competencia — contadores del resumen (01/09/2026)
+
+> **Estado: en `dev`, sin desplegar.** Sin migración, sin métodos de modelo nuevos,
+> sin consultas nuevas y sin JS. Bloque de cifras encima de la tabla de alumnos, en
+> **cuatro** pantallas: el resumen del docente, `/consulta-notas/{p}/carga/{c}`, el
+> historial del docente en un bimestre cerrado y el panel de tutoría
+> (`/docente/tutoria/{periodo}`, un bloque por cada transversal).
+
+### Qué muestra y con qué condición aparece
+
+Evaluados · Sin evaluar · Aprobados · Desaprobados (las dos últimas con su %), más una
+tarjeta de Exonerados cuando los hay, y una barra apilada AD·A·B·C con su leyenda.
+
+**Basta con tener los criterios CONFIRMADOS.** No exige aprobar y bloquear: el bloque
+vive donde ya se puede entrar, y las tres pantallas que lo incluyen tienen su propia
+puerta (`competenciaListaParaResumen` en el docente, `bloqueo_id != null` en la
+consulta). El parcial no añade ninguna guarda propia — no le corresponde decidir quién
+ve qué.
+
+### 🔴 Aprobado depende del NIVEL, y no es «en logro»
+
+| | Aprueba | Desaprueba |
+|---|---|---|
+| **Primaria** | AD, A | B, C |
+| **Secundaria** | AD, A, B | C |
+
+Punto único: `LITERALES_APROBATORIOS` + `nota_es_aprobatoria()` en `helpers.php`, junto
+a `NOTA_MIN_*`. Es la primera regla del repositorio que ramifica por nivel *en la
+calificación*: `nota_a_literal()` sigue ignorando el nivel porque **la escala es la
+misma en los dos**; lo que cambia es dónde está la línea del aprobado.
+
+⚠️ **No unificar con «en logro» de `AnioAcademicoModel::getResumenBimestre()`**, que
+cuenta AD+A en los dos niveles y alimenta `/admin/cuadros` y
+`/director/periodos/{id}/stats`. Son dos preguntas distintas —«¿alcanzó el logro
+esperado?» frente a «¿aprobó?»— y en secundaria dan números diferentes porque B aprueba.
+La que se parece a una copia desactualizada de la otra no lo es.
+
+### Las tres reglas del conteo, y por qué
+
+1. **Evaluado ⟺ `promedio !== null`**, con `!==` y nunca con `empty()`: una nota 0 es un
+   cero real. Equivale a «no tiene ningún criterio con nota» por el invariante *fila en
+   `calificaciones` existe ⟺ el alumno tiene nota viva*.
+2. **Los EXONERADOS salen del universo** (ni evaluados, ni sin evaluar, ni aprobados) y
+   se muestran en su propia tarjeta para que el total cuadre a la vista. **Es
+   obligatorio, no cosmético:** exonerar NO borra las notas anteriores —para que la
+   exoneración sea reversible—, así que un exonerado puede traer `promedio` no nulo y sin
+   el filtro sumaría como aprobado mientras su boleta dice `EXO`. Medido: **4 exonerados
+   con nota** en la copia de agosto de 2026.
+3. **Aprobados + desaprobados = EVALUADOS**, y los porcentajes van sobre esa base. Quien
+   no tiene nota no es quien desaprobó; meterlo en el denominador inflaría el
+   desaprobado con alumnos que nadie llegó a calificar.
+
+Con `evaluados === 0` **no se pinta barra ni porcentajes**, solo el aviso: «0 %» con la
+competencia sin calificar es un dato falso, no ausente — el mismo criterio que ya se
+aplicó en la asistencia sin registro y en la boleta.
+
+### Arquitectura
+
+- **Cálculo:** `stats_competencia($alumnos, $exonerados, $nivelCodigo)` en
+  `helpers.php`. Función pura, sin BD: recibe el `$alumnos` que **ya está en memoria**
+  desde `getResumenCompetencia()`. Por eso el bloque no cuesta ni una consulta, y en
+  particular **no vuelve a disparar el N+1** de ese método (una consulta por alumno ×
+  criterio). Al ser pura, el verificador la mide directamente.
+- **Render:** `resources/views/shared/_stats-competencia.php`. Solo pinta; si el
+  universo es 0 no emite nada.
+- **Puntos de inclusión (3, para 4 pantallas):** `docente/resumen-competencia.php`,
+  `consulta-notas/_tabla.php` y `docente/tutoria.php`. El historial del docente lo
+  recibe gratis porque ya delegaba en `_tabla.php`. Si alguna vez hiciera falta apagarlo
+  en una de ellas, la bandera va en quien hace el `require`, no dentro del parcial.
+- **Dos formas de entrada.** Por convención (`$alumnos`, `$exonerados`, `$nivelCodigo`)
+  cuando la vista ya trabaja con UNA competencia; y con prefijo (`$statsAlumnos`,
+  `$statsExonerados`, `$statsNivel`, `$statsTitulo`) cuando pinta VARIAS en una sola
+  tabla y no puede pisar sus propias variables. Tutoría usa la segunda: arma el array
+  por competencia desde `$promedios[matricula][competencia]`.
+- 🔴 **El parcial hace `unset` de las cuatro variables con prefijo al terminar.** Se
+  monta DENTRO DE UN BUCLE en `carga.php` y en `tutoria.php`: sin eso, la segunda
+  competencia repetiría las cifras de la primera **y nadie lo notaría**, porque los
+  números seguirían siendo plausibles. Hay aserto que lo sostiene.
+- **El corte de aprobación sale del helper ya normalizado** (`$stats['aprobatorios']`).
+  La vista no vuelve a resolver `prim`/`sec`: tutoría maneja el nivel como `'primaria'`
+  y las otras como `'prim'`, y repetir la normalización habría caído del lado
+  equivocado en una de las dos.
+- **Estilos:** `resources/sass/components/_stats-competencia.scss` (componente, no
+  página: lo comparten dos módulos), registrado en `app.scss`. `gulp build` obligatorio.
+- Las **transversales** llevan el bloque igual que las demás: tienen promedio, literal y
+  el mismo roster. El orden de mérito las excluye por otra razón (no compiten en el
+  ranking), que aquí no aplica.
+
+### 🔴 Los colores son EXACTAMENTE los de `.nota-literal`, y son OCHO
+
+Cada tramo de la barra toma del chip que la tabla pinta dos centímetros más abajo
+(`pages/_dashboard.scss:1281`) **sus dos valores**: el `background` para el relleno
+(AD `#dbeafe`, A `#d1fae5`, B `#fef9c3`, C `#fee2e2`) y el `color` para el borde
+(`#1d4ed8`, `#065f46`, `#854d0e`, `#991b1b`). Es el mismo recurso que la tabla usa en
+`.nota-numeral`: relleno claro, contorno del tono fuerte. Y la leyenda no lleva un
+cuadrito de color propio: lleva **el chip `.nota-literal` de verdad**.
+
+Ese vínculo es el punto del bloque —el lector reconoce «el color de AD» sin leer la
+leyenda— y costó dos vueltas: la primera versión pintaba el relleno con el color de
+TEXTO, mucho más oscuro, y los dos azules no se leían como el mismo. **No** usar los
+`--lit-*` de `_anio-academico.scss`, que además de más saturados **invierten AD y A**
+(allí AD es verde y A azul): el mismo literal saldría de un color en la barra y de otro
+en la celda de al lado. La coherencia local manda sobre la de `/admin/cuadros`.
+
+**Hay un aserto que compara los OCHO valores contra el chip en el `app.css` compilado.**
+Si alguien retoca `.nota-literal` y no la barra, el vínculo se rompería en silencio —los
+dos seguirían siendo azules, pero ya no el mismo azul—.
+
+### La barra es una REJILLA de fracciones (02/09/2026)
+
+Nació como flex con anchos en `%` y se rehízo como `display: grid` con unidades `fr`.
+El cambio lo disparó un bug, pero **quitó de en medio tres defectos de golpe**, y por eso
+no hay que volver al reparto en porcentajes:
+
+- 🔴 **El bug: un tramo al 100 % salía recto por la izquierda.** Los extremos trazaban la
+  curva con `:first-child` / `:last-child`, las dos reglas escritas con el **atajo**
+  `border-radius`. Un tramo único casa con **las dos**: misma especificidad, gana la
+  última **entera** —y el atajo no se fusiona, **reemplaza las cuatro esquinas**—, así
+  que se quedaba con `0 8px 8px 0`. Medido: `TL:0px TR:8px BR:8px BL:0px`. Ahora cada
+  tramo es su propia píldora con su radio: **el caso del 100 % dejó de existir**.
+  ⚠️ El aserto que había solo comprobaba que las dos reglas **mencionaran**
+  `border-radius`, cosa que hacían, así que **dio verde a la barra rota**. Los asertos
+  nuevos vigilan el síntoma (que no haya `:first-child`/`:last-child`), no la presencia.
+- **El `gap` ahora SÍ conserva las proporciones**, y deroga la nota anterior que lo
+  prohibía. Era cierto con flex y `%`: los tramos ya sumaban 100, el hueco desbordaba y
+  flex los encogía. **La rejilla descuenta los `gap` ANTES de repartir las fracciones.**
+  Medido a 1094 px y a 260 px: `18.5 / 55.6 / 22.2 / 3.7` idéntico en ambos.
+- **Desaparece el hueco del redondeo.** Con `%` los porcentajes podían sumar 99,9 y el
+  último tramo acababa ~1 px antes del borde (por eso el contenedor tenía `background`).
+  Las fracciones siempre llenan exacto, sin falsear ninguna proporción.
+
+La vista escribe `grid-template-columns` con `minmax(0, X.Xfr)` por tramo. El `minmax(0,…)`
+y el `min-width: 0` del tramo son los que impiden que **la etiqueta de dentro imponga un
+ancho mínimo**: la proporción manda sobre el texto, nunca al revés.
+
+**22 px de alto** (antes 16): ahora el tramo lleva su cifra dentro.
+
+### La cifra dentro del tramo, y por qué no siempre está
+
+Cada tramo muestra su literal y su porcentaje **exacto, con el decimal** (`A 82.1%`,
+nunca `A 82%`), con el **mismo formateador que la leyenda**: barra y leyenda no pueden
+decir números distintos a dos centímetros de distancia. El color del texto es el
+`--sc-*-ink` del literal, o sea el `color` del chip: el contraste ya estaba resuelto ahí.
+
+Que un tramo la lleve **depende de si cabe**, y eso es un ancho en píxeles. La etiqueta
+más larga (`AD 18.5%`) mide **58 px** contando el borde, y la barra ocupa el ancho de
+`.app-main` (tope 1200 px, **sin barra lateral**) menos 82 px de rellenos. De ahí los dos
+umbrales, que **los decide la vista** porque dependen del porcentaje:
+
+| Porcentaje | Etiqueta | Por qué |
+|---|---|---|
+| ≥ 25 % | siempre | cabe hasta en una ventana de 320 px (254 × 0,25 = 63 px) |
+| 8 – 25 % | solo ≥ 900 px de ventana | 818 × 0,08 = 65 px; sale con la clase `--media` y la enciende una media query |
+| < 8 % | nunca | no cabría ni en escritorio; su cifra está en la leyenda, que lista **los cuatro** literales pase lo que pase |
+
+Si no cupiera, el `overflow: hidden` del tramo la cortaría a media palabra. **Fallar hacia
+«sin etiqueta» es lo correcto**: la leyenda nunca deja de dar el dato. Verificado sin
+recortes en 320 · 375 · 641 · 768 · 899 · 900 · 1200 · 1400 px, en los dos estados de la
+media query.
+
+> ⚠️ **Esto querría ser `@container (min-width: 60px)` sobre el propio tramo**, que mide
+> lo que hay que medir en vez de deducirlo de la ventana. **No se puede todavía:**
+> `clean-css` 4.2.3 —el minificador que monta `gulp build`— **no conoce `@container` y se
+> lo come EN SILENCIO**, sin fallar la tarea; el SASS se ve correcto en el repo y la regla
+> no llega nunca al navegador. Comprobado el 02/09/2026. Hay un aserto que exige que la
+> media query sustituta esté en el CSS **servido**, justo para que un borrado silencioso
+> no vuelva a pasar desapercibido. Si algún día sube el minificador (`clean-css` 5.3.3 sí
+> la conserva, y su única otra diferencia sobre las 265 KB de `app.css` es entrecomillar
+> los `url()`), esta media query y los dos umbrales se sustituyen por **una** consulta de
+> contenedor. La otra mitad de la regla vive en la vista: hay que tocar los dos sitios.
+
+El contenedor de la barra **no lleva borde ni fondo propios**: el marco lo forman los
+bordes de los tramos. Antes tenía uno de `$border-color` y, con los rellenos pasteles, no
+se veía ni dónde acababa la barra ni dónde empezaba cada tramo.
+
+### La cantidad y el porcentaje son datos distintos
+
+En la leyenda van en elementos separados: la **cantidad** en negrita y `$text-primary`,
+con `min-width` y alineada a la derecha para que unidades y decenas queden en columna
+entre filas; el **porcentaje** en `$text-muted`, 11 px y entre paréntesis. Compartiendo
+color, tamaño y peso —`21 · 77.8%`— se leían como un solo dato. Las tarjetas siguen el
+mismo criterio: el porcentaje baja a su propia línea en gris, o se leía como parte del
+corte de aprobación («(AD + A + B) · 70.4 %»).
+
+La leyenda es una **cuadrícula con tope de columna** (`minmax(130px, 190px)` +
+`justify-content: start`), no `flex-wrap`: con flex cada ítem medía lo que su contenido
+y los números bailaban de una fila a otra; con `1fr` sin tope, en escritorio los cuatro
+quedaban a 275 px unos de otros y dejaban de leerse como una sola leyenda.
+
+### Verificación
+
+`database/verificaciones/verif_stats_competencia.php` — solo lectura, corre en producción.
+Sobre **50 competencias reales de los dos niveles**: los tres cuadres del universo, el
+contraste del contador de evaluados contra un `COUNT` escrito a mano (no derivado del
+helper), el render del parcial, y el corte por nivel **en sus dos ramas** (la misma
+competencia da menos aprobados en primaria que en secundaria, y la diferencia es
+exactamente el número de B).
+
+Cubre además que **dos competencias seguidas no se contaminan** (el `unset` del bucle),
+que **los ocho colores de la barra siguen siendo los del chip** en el CSS compilado y
+que **cada tramo pintado lleva su clase de literal** — sin ella saldría sin borde y
+ninguna prueba de servidor lo notaría.
+
+Desde el 02/09/2026 son **40 asertos** e incluyen la barra rehecha: que la barra reparta
+en `fr` y no en `%`, que **la etiqueta conserve el decimal** (`A 82.1%`, no `A 82%`), que
+barra y leyenda digan la misma cifra, las **dos bandas de umbral** (el tramo grande
+etiquetado siempre y el mediano con la clase `--media`), que el tramo por debajo del 8 %
+se pinte **sin** etiqueta, que **ningún tramo dependa de `:first-child`/`:last-child`**
+para su radio, y que **la media query llegue al CSS servido** —el aserto que atrapa el
+borrado silencioso del minificador—.
+
+Cuatro trampas que costaron una corrección cada una y no hay que repetir:
+
+- 🔴 **Tras montar el parcial, `$statsAlumnos` YA NO EXISTE.** El propio parcial la
+  `unset`ea al salir —a propósito, para no contaminar la siguiente vuelta del bucle—, así
+  que un `$statsAlumnos[] = ...` para encadenar un segundo caso **no amplía el array: crea
+  uno de un solo elemento**. El aserto del tramo < 8 % falló por esto la primera vez que
+  se escribió, y el fallo parecía un bug del código. Cada caso reconstruye su array entero.
+- **La muestra se pide nivel por nivel.** Con un solo `LIMIT` sobre el conjunto, primaria
+  se llevaba las 40 filas y la mitad de los asertos no medía secundaria.
+- **El `COUNT` de control filtra por la SECCIÓN DE LA CARGA.** Hay notas cuya matrícula
+  ya no pertenece a esa sección —un cambio de sección a mitad de bimestre deja la nota
+  donde se cursó— y el roster del modelo las excluye bien. Sin esa condición el control
+  acusaba una divergencia inexistente (medido: carga 118, matrícula 692).
+- **Las cargas con exoneración se añaden a la muestra a propósito.** Son dos en toda la
+  base; al azar no salían nunca y el aserto que justifica la regla 2 pasaba en verde sin
+  haber medido nada.
+
 ## REGLA DE NEGOCIO — autonomía del docente y periodo final (10/08/2026)
 
 > Regla del colegio, confirmada por el usuario. **Aprobada, SIN IMPLEMENTAR.**
