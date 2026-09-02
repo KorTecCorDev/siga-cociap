@@ -13,7 +13,10 @@ $porSeccion = $resumen['por_seccion'] ?? [];
 $porTipo    = $resumen['por_tipo']    ?? [];
 $genero   = $resumen['por_genero'] ?? ['m' => 0, 'f' => 0, 'sin_dato' => 0, 'cobertura' => 0];
 
-$hayDatos = !empty($kpis) && ($kpis['aprobadas'] ?? 0) > 0;
+// Se mide por ESTUDIANTES, no por aprobadas: un año recién abierto puede tener
+// todo en `pendiente` y aun así hay algo que contar. Con `aprobadas` esa pantalla
+// salía vacía diciendo que no hay estudiantes, que era falso.
+$hayDatos = !empty($kpis) && ($kpis['estudiantes'] ?? 0) > 0;
 
 $labelTipo = fn(string $t): string => match ($t) {
     'continuador' => 'Continuador',
@@ -81,9 +84,13 @@ $chartData = [
 ];
 ?>
 
+<?php // Orden canonico del page-header (ver docs/modulos/ui.md): back-link ·
+      // <div> SIN CLASE con titulo y subtitulo · acciones. El back-link iba DENTRO
+      // del div, asi que no era hijo directo del header y el selector de año no
+      // se empujaba a la derecha como en las otras 79 vistas. ?>
 <div class="page-header">
+    <a href="<?= url('matriculas') ?>" class="btn btn--secondary btn--sm">← Volver a matrículas</a>
     <div>
-        <a href="<?= url('matriculas') ?>" class="btn btn--secondary btn--sm">← Volver a matrículas</a>
         <h1 class="page-title">Resumen de matrículas</h1>
         <p class="page-subtitle">
             <?= $anioSel ? 'Año académico ' . e((string) $anioSel['anio']) : 'Sin año seleccionado' ?>
@@ -105,32 +112,58 @@ $chartData = [
 
 <?php if (!$hayDatos): ?>
     <div class="empty-state">
-        <p>No hay estudiantes matriculados (aprobados) en este año para generar estadísticas.</p>
+        <p>No hay estudiantes en este año para generar estadísticas.</p>
     </div>
 <?php else: ?>
 
-    <!-- KPIs -->
-    <div class="resumen-kpis">
-        <div class="resumen-kpi resumen-kpi--ok">
-            <span class="resumen-kpi__num"><?= (int) $kpis['aprobadas'] ?></span>
-            <span class="resumen-kpi__label">Matriculados</span>
+    <?php
+    // ── KPIs ────────────────────────────────────────────────────────────
+    // Marcado del COMPONENTE `.stats-comp__kpi`, no de un `.resumen-kpi` propio:
+    // era una de CINCO copias de la misma tarjeta de cifra en el proyecto, y esta
+    // es la unica que es componente global (ya importado en app.scss). Aqui se usa
+    // sin el envoltorio `.stats-comp`, que solo aporta padding y borde inferior.
+    //
+    // El color va en el NUMERO (`__n--ok/--err/--muted`), no en un borde lateral:
+    // es la convencion del componente.
+    $fueraDelConteo = (int) ($kpis['trasladados'] ?? 0) + (int) ($kpis['retirados'] ?? 0);
+    ?>
+    <div class="stats-comp__kpis mb-lg">
+        <div class="stats-comp__kpi">
+            <span class="stats-comp__n stats-comp__n--ok"><?= (int) $kpis['estudiantes'] ?></span>
+            <span class="stats-comp__t">Estudiantes</span>
+            <span class="stats-comp__kpi-pct">todos los estados</span>
         </div>
-        <div class="resumen-kpi">
-            <span class="resumen-kpi__num"><?= (int) $kpis['secciones'] ?></span>
-            <span class="resumen-kpi__label">Secciones</span>
+        <div class="stats-comp__kpi">
+            <span class="stats-comp__n"><?= (int) $kpis['secciones'] ?></span>
+            <span class="stats-comp__t">Secciones</span>
         </div>
-        <div class="resumen-kpi">
-            <span class="resumen-kpi__num"><?= e((string) $kpis['promedio_seccion']) ?></span>
-            <span class="resumen-kpi__label">Promedio por sección</span>
+        <div class="stats-comp__kpi">
+            <span class="stats-comp__n"><?= (int) $kpis['promedio_seccion'] ?></span>
+            <span class="stats-comp__t">Promedio por sección</span>
         </div>
-        <div class="resumen-kpi resumen-kpi--muted">
-            <span class="resumen-kpi__num"><?= (int) $kpis['desactivadas'] ?></span>
-            <span class="resumen-kpi__label">Desactivadas</span>
+        <div class="stats-comp__kpi">
+            <span class="stats-comp__n stats-comp__n--muted"><?= (int) $kpis['desactivadas'] ?></span>
+            <span class="stats-comp__t">Matrículas desactivadas</span>
         </div>
-        <?php if (($kpis['pendientes'] ?? 0) > 0): ?>
-            <div class="resumen-kpi resumen-kpi--warn">
-                <span class="resumen-kpi__num"><?= (int) $kpis['pendientes'] ?></span>
-                <span class="resumen-kpi__label">Pendientes</span>
+        <div class="stats-comp__kpi">
+            <?php // Sin `--err` a proposito: en este componente el rojo significa
+                  // DESAPROBADO, y una matricula pendiente no es un fallo sino algo
+                  // por resolver. En cero se apaga; con algo, color normal para que
+                  // se lea sin gritar. El componente no tiene un `--warn`, y anadirlo
+                  // por una sola pantalla no compensa. ?>
+            <span class="stats-comp__n <?= ($kpis['pendientes'] ?? 0) > 0 ? '' : 'stats-comp__n--muted' ?>"><?= (int) $kpis['pendientes'] ?></span>
+            <span class="stats-comp__t">Matrículas pendientes</span>
+        </div>
+        <?php // Si el total no cuadra con lo que alguien recuerda, la pantalla lo
+              // explica en vez de parecer un error. Mismo criterio que el
+              // "Exonerados · fuera del conteo" de _stats-competencia.php. ?>
+        <?php if ($fueraDelConteo > 0): ?>
+            <div class="stats-comp__kpi">
+                <span class="stats-comp__n stats-comp__n--muted"><?= $fueraDelConteo ?></span>
+                <span class="stats-comp__t">Trasladados y retirados &middot; fuera del conteo</span>
+                <span class="stats-comp__kpi-pct">
+                    <?= (int) $kpis['trasladados'] ?> trasladados &middot; <?= (int) $kpis['retirados'] ?> retirados
+                </span>
             </div>
         <?php endif; ?>
     </div>
