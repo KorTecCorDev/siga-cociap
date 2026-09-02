@@ -5,9 +5,9 @@
 
 
 
-## 🟡 BANNERS DE AVISO — COMPONENTE ÚNICO (02/09/2026)
+## 🟢 BANNERS DE AVISO — COMPONENTE ÚNICO (02/09/2026)
 
-En `dev`, **sin desplegar**. Sin migración. Salió de un bug de responsive reportado en el
+**DESPLEGADO el 02/09/2026** (merge `5c353f1`). Sin migración. Salió de un bug de responsive reportado en el
 banner de auditoría de `/consulta-notas/{p}/seccion/{s}/transversales`, y resultó ser el
 sistema entero: **47 banners en 29 vistas**. Detalle en `docs/modulos/ui.md`.
 
@@ -66,9 +66,9 @@ sistema entero: **47 banners en 29 vistas**. Detalle en `docs/modulos/ui.md`.
    CSS y arreglarlo **cambia lo que se ve**, así que queda fuera de este lote. (`auth/login.php`
    no cuenta: usa el layout `auth`, que no pinta flashes.)
 
-## 🟡 ESTADÍSTICAS POR COMPETENCIA (01/09/2026)
+## 🟢 ESTADÍSTICAS POR COMPETENCIA (01/09/2026)
 
-En `dev`, **sin desplegar**. Sin migración. Bloque de contadores encima de la tabla de
+**DESPLEGADO el 02/09/2026** (merge `5c353f1`), junto con la barra en rejilla del punto 8. Sin migración. Bloque de contadores encima de la tabla de
 alumnos en cuatro pantallas: el resumen del docente
 (`/docente/calificaciones/{carga}/resumen/{competencia}`),
 `/consulta-notas/{p}/carga/{c}`, el historial del docente de un bimestre cerrado y el
@@ -3047,6 +3047,24 @@ La competencia **C57** (área 24) nunca fue ensayo: la crea la migración `036`.
 
 ## Git
 
+- ✅ **02/09/2026 — DEPLOY. `origin/main` pasó de `2b74be0` a `5c353f1`**
+  (merge `--no-ff`, pedido por el usuario). **7 commits, SIN MIGRACIONES**: el lote
+  es de vistas, SASS, verificadores y documentación.
+  - **Qué entra:** las estadísticas por competencia del 01/09, la barra de literales
+    rehecha como rejilla de fracciones, y el banner de aviso unificado (47 banners en
+    29 vistas, tres declarantes fundidos en uno).
+  - **Verificado antes del merge:** `verif_stats_competencia` (40 asertos),
+    `verif_banners_aviso` (24, nuevo) y los 7 que auditan `app.css`, todos en verde
+    sobre `main` ya mergeado. En navegador: la barra en 8 anchos de 320 a 1400 px sin
+    recortes, los 6 casos reales de banner a 340 y 700 px sin desbordes, y **`/login`**
+    —la única vista pública, y la que más cambia al borrar la copia de `.alert` de
+    `pages/_auth.scss`— con sus tres alertas correctas.
+  - ⚠️ **Sin verificar con sesión.** Ninguna pantalla interna se abrió autenticada;
+    aplica a los tres puntos del lote. Lo más visible a revisar en producción: los 31
+    `.flash` cambian de tamaño y ganan borde e icono, y el botón de `alert__accion`
+    baja de línea en tres banners.
+  - **El archivo `-` de la raíz sigue existiendo**: el mensaje del merge se pasó con
+    `-F <ruta real>`. Nunca `-F -`.
 - ✅ **28/08/2026 — DEPLOY. `origin/main` pasó de `1b18e2c` a `2b74be0`**
   (merge `--no-ff`, autorizado por el usuario). **37 commits de contenido,
   SIN MIGRACIONES NUEVAS**: la 055 y la 056 ya estaban aplicadas a mano en
