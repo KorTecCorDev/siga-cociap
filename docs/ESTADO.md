@@ -50,13 +50,41 @@ Detalle y decisiones en `docs/modulos/calificaciones.md`.
    la curva. Comprobado a 5 aumentos en los tres casos (cuatro tramos con uno de 3,7 %,
    un único tramo al 100 % y dos tramos), con aserto sobre el CSS compilado porque es un
    defecto de 8 px que no se ve a tamaño real.
+8. 🆕 **02/09 — LA BARRA SE REHIZO COMO REJILLA DE FRACCIONES.** El punto 7 dejó un bug:
+   las dos reglas de los extremos usaban el **atajo** `border-radius` y un tramo único al
+   100 % casa con **las dos** —misma especificidad, gana la última entera, y el atajo
+   reemplaza las cuatro esquinas—, así que salía **recto por la izquierda**
+   (`TL:0px BL:0px`). El aserto no lo vio porque solo comprobaba que las reglas
+   *mencionaran* `border-radius`. Se pasó a `display: grid` con `minmax(0, X.Xfr)`, que
+   además **deroga la prohibición del `gap` del punto 6** (la rejilla descuenta los huecos
+   antes de repartir: proporciones exactas, medido a 1094 px y a 260 px) y **elimina el
+   hueco de fondo del redondeo**. Cada tramo lleva ahora **su cifra exacta con decimal
+   dentro** (`A 82.1%`), con dos umbrales de ancho (≥ 25 % siempre; 8–25 % solo ≥ 900 px
+   de ventana; < 8 % nunca) verificados sin recortes en 8 anchos de 320 a 1400 px.
+   Verificador: **23 → 40 asertos**. Detalle en `docs/modulos/calificaciones.md`.
+   🔴 **HALLAZGO DE BUILD, vale para todo el repo:** `clean-css` 4.2.3 —el minificador de
+   `gulp build`— **no conoce `@container` y lo borra EN SILENCIO**, sin fallar la tarea.
+   Por eso los umbrales son una media query sobre la ventana y no una consulta de
+   contenedor sobre el tramo, que es lo que el caso pide. `clean-css` 5.3.3 sí la
+   conserva y su **única** otra diferencia sobre las 265 KB de `app.css` es entrecomillar
+   los `url()` (medido con un diff de las dos salidas). **Subir el minificador está sin
+   decidir** — ver la lista de pendientes.
 
 ### Verificado
 
-- `verif_stats_competencia.php` en verde (**23 asertos**) sobre **50 competencias reales
-  de los dos niveles**: los tres cuadres del universo, el contador de evaluados contra un
-  `COUNT` independiente, el render del parcial, el corte por nivel en **sus dos ramas**,
-  el `unset` entre vueltas del bucle y los colores atados a `.nota-literal`.
+- `verif_stats_competencia.php` en verde (**40 asertos** desde el 02/09) sobre **50
+  competencias reales de los dos niveles**: los tres cuadres del universo, el contador de
+  evaluados contra un `COUNT` independiente, el render del parcial, el corte por nivel en
+  **sus dos ramas**, el `unset` entre vueltas del bucle, los colores atados a
+  `.nota-literal` y —desde el 02/09— el reparto en `fr`, el decimal de la etiqueta, las
+  dos bandas de umbral y que la media query llegue al CSS **servido**.
+- 🆕 **02/09 — la barra rehecha, en navegador y con el parcial REAL.** Siete repartos
+  (100 % en A, 100 % en AD, dos tramos 82.1/17.9, cuatro tramos con uno de 3,7 %, tramo
+  diminuto al inicio, 4 × 25 % y un caso de primaria) renderizados con el parcial de
+  verdad dentro de `.app-main` + `.card` y medidos con `getBoundingClientRect`:
+  **cero etiquetas recortadas** en 320 · 375 · 641 · 768 · 899 · 900 · 1200 · 1400 px, en
+  los dos estados de la media query, y las proporciones exactas al píxel en todos.
+  **Sigue faltando el flujo real con sesión.**
 - **Navegador, sin sesión** — las vistas se renderizaron a un HTML estático y se
   abrieron con el `app.css` compilado: `docente/resumen-competencia.php` y
   `consulta-notas/carga.php` **con datos reales** (carga 289, 27 alumnos, 24 aprobados
@@ -77,6 +105,25 @@ Detalle y decisiones en `docs/modulos/calificaciones.md`.
   matrícula 692): un cambio de sección deja la nota donde se cursó, y
   `getResumenCompetencia` las excluye correctamente. No es un defecto; era un aserto de
   control mal escrito.
+
+### Decisión abierta — subir `clean-css` (02/09/2026)
+
+**Sin decidir, no bloquea nada.** `clean-css` 4.2.3 (vía `gulp-clean-css` 4.3.0) **borra
+en silencio toda regla `@container`** al minificar: `gulp build` termina en verde y la
+regla no llega al navegador. No es exclusivo de este componente — **le pasará a cualquier
+CSS moderno que se escriba de aquí en adelante**, y no avisa.
+
+Medido el 02/09: `clean-css` 5.3.3 la conserva, y sobre las **265 KB** de `app.css` su
+única otra diferencia son las **comillas en los `url()`** (`url(../x.svg)` →
+`url("../x.svg")`), que es equivalente. El cambio sería un `overrides` en `package.json`,
+porque `gulp-clean-css` no tiene versión que traiga clean-css 5.
+
+Si se hace, **la barra de competencias gana**: sus dos umbrales de porcentaje y la media
+query de 900 px se sustituyen por **una** `@container (min-width: 60px)` sobre el tramo,
+que mide el ancho que de verdad importa en vez de deducirlo de la ventana. Hoy funciona
+porque el bloque siempre vive en una card a todo el ancho de `.app-main`; **si alguien lo
+metiera en una columna estrecha, las etiquetas se recortarían** y la media query no podría
+enterarse.
 ## 🟢 CUADROS — conducta y asistencia ampliadas + roster con punto único (27/08/2026)
 
 Lote grande en `dev`, **con verificación de navegador ya hecha** (no queda como

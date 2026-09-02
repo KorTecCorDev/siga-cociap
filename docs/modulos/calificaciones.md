@@ -112,30 +112,72 @@ en la celda de al lado. La coherencia local manda sobre la de `/admin/cuadros`.
 Si alguien retoca `.nota-literal` y no la barra, el vínculo se rompería en silencio —los
 dos seguirían siendo azules, pero ya no el mismo azul—.
 
-Detalles de la barra que no son cosméticos:
+### La barra es una REJILLA de fracciones (02/09/2026)
 
-- **El contenedor NO lleva borde propio**: el marco lo forman los bordes de los tramos.
-  Antes tenía uno de `$border-color` y, con los rellenos pasteles, no se veía ni dónde
-  acababa la barra ni dónde empezaba cada tramo.
-- 🔴 **Sin `gap` entre tramos, a propósito.** Los anchos son porcentajes que suman 100:
-  con separación el total pasaría de 100, flex los encogería y las proporciones dejarían
-  de ser las reales (poco en escritorio, ~2 % en un móvil de 300 px). De ahí también el
-  `box-sizing: border-box` y el `flex-shrink: 0`. El borde de color ya separa.
-- **16 px de alto**, no 10: cada tramo gasta 2 px en su borde, y el más estrecho medido
-  (1 de 27 = 3,7 %) necesita que le quede relleno visible dentro.
-- 🔴 **Los tramos de los EXTREMOS llevan `border-radius`, y no es decorativo.**
-  `overflow: hidden` **recorta** el contenido siguiendo el `border-radius` del
-  contenedor, no lo redondea: el trozo de borde recto del tramo que cae fuera del arco
-  se descarta, y el contorno se abría en las cuatro esquinas. Darle borde al contenedor
-  NO lo arregla —seguirían faltando los del tramo—; lo que hace falta es que el borde
-  del propio tramo trace la curva (`:first-child` / `:last-child`, mismo radio: no hay
-  padding entre ambos). Como los tramos con 0 estudiantes no se pintan, esos selectores
-  caen solos sobre los que existen, y un único tramo al 100 % recibe las dos reglas.
-  Hay aserto sobre el CSS compilado: es un defecto de 8 px que solo se ve con zoom.
-- **El hueco del redondeo no se compensa.** Los porcentajes van a un decimal y pueden
-  sumar 99,9 % (27 alumnos: 3,7 + 25,9 + 40,7 + 29,6), así que el último tramo acaba
-  ~1 px antes del borde. Estirarlo hasta el 100 % falsearía su proporción, que es justo
-  lo que el `flex-shrink: 0` y la ausencia de `gap` existen para impedir.
+Nació como flex con anchos en `%` y se rehízo como `display: grid` con unidades `fr`.
+El cambio lo disparó un bug, pero **quitó de en medio tres defectos de golpe**, y por eso
+no hay que volver al reparto en porcentajes:
+
+- 🔴 **El bug: un tramo al 100 % salía recto por la izquierda.** Los extremos trazaban la
+  curva con `:first-child` / `:last-child`, las dos reglas escritas con el **atajo**
+  `border-radius`. Un tramo único casa con **las dos**: misma especificidad, gana la
+  última **entera** —y el atajo no se fusiona, **reemplaza las cuatro esquinas**—, así
+  que se quedaba con `0 8px 8px 0`. Medido: `TL:0px TR:8px BR:8px BL:0px`. Ahora cada
+  tramo es su propia píldora con su radio: **el caso del 100 % dejó de existir**.
+  ⚠️ El aserto que había solo comprobaba que las dos reglas **mencionaran**
+  `border-radius`, cosa que hacían, así que **dio verde a la barra rota**. Los asertos
+  nuevos vigilan el síntoma (que no haya `:first-child`/`:last-child`), no la presencia.
+- **El `gap` ahora SÍ conserva las proporciones**, y deroga la nota anterior que lo
+  prohibía. Era cierto con flex y `%`: los tramos ya sumaban 100, el hueco desbordaba y
+  flex los encogía. **La rejilla descuenta los `gap` ANTES de repartir las fracciones.**
+  Medido a 1094 px y a 260 px: `18.5 / 55.6 / 22.2 / 3.7` idéntico en ambos.
+- **Desaparece el hueco del redondeo.** Con `%` los porcentajes podían sumar 99,9 y el
+  último tramo acababa ~1 px antes del borde (por eso el contenedor tenía `background`).
+  Las fracciones siempre llenan exacto, sin falsear ninguna proporción.
+
+La vista escribe `grid-template-columns` con `minmax(0, X.Xfr)` por tramo. El `minmax(0,…)`
+y el `min-width: 0` del tramo son los que impiden que **la etiqueta de dentro imponga un
+ancho mínimo**: la proporción manda sobre el texto, nunca al revés.
+
+**22 px de alto** (antes 16): ahora el tramo lleva su cifra dentro.
+
+### La cifra dentro del tramo, y por qué no siempre está
+
+Cada tramo muestra su literal y su porcentaje **exacto, con el decimal** (`A 82.1%`,
+nunca `A 82%`), con el **mismo formateador que la leyenda**: barra y leyenda no pueden
+decir números distintos a dos centímetros de distancia. El color del texto es el
+`--sc-*-ink` del literal, o sea el `color` del chip: el contraste ya estaba resuelto ahí.
+
+Que un tramo la lleve **depende de si cabe**, y eso es un ancho en píxeles. La etiqueta
+más larga (`AD 18.5%`) mide **58 px** contando el borde, y la barra ocupa el ancho de
+`.app-main` (tope 1200 px, **sin barra lateral**) menos 82 px de rellenos. De ahí los dos
+umbrales, que **los decide la vista** porque dependen del porcentaje:
+
+| Porcentaje | Etiqueta | Por qué |
+|---|---|---|
+| ≥ 25 % | siempre | cabe hasta en una ventana de 320 px (254 × 0,25 = 63 px) |
+| 8 – 25 % | solo ≥ 900 px de ventana | 818 × 0,08 = 65 px; sale con la clase `--media` y la enciende una media query |
+| < 8 % | nunca | no cabría ni en escritorio; su cifra está en la leyenda, que lista **los cuatro** literales pase lo que pase |
+
+Si no cupiera, el `overflow: hidden` del tramo la cortaría a media palabra. **Fallar hacia
+«sin etiqueta» es lo correcto**: la leyenda nunca deja de dar el dato. Verificado sin
+recortes en 320 · 375 · 641 · 768 · 899 · 900 · 1200 · 1400 px, en los dos estados de la
+media query.
+
+> ⚠️ **Esto querría ser `@container (min-width: 60px)` sobre el propio tramo**, que mide
+> lo que hay que medir en vez de deducirlo de la ventana. **No se puede todavía:**
+> `clean-css` 4.2.3 —el minificador que monta `gulp build`— **no conoce `@container` y se
+> lo come EN SILENCIO**, sin fallar la tarea; el SASS se ve correcto en el repo y la regla
+> no llega nunca al navegador. Comprobado el 02/09/2026. Hay un aserto que exige que la
+> media query sustituta esté en el CSS **servido**, justo para que un borrado silencioso
+> no vuelva a pasar desapercibido. Si algún día sube el minificador (`clean-css` 5.3.3 sí
+> la conserva, y su única otra diferencia sobre las 265 KB de `app.css` es entrecomillar
+> los `url()`), esta media query y los dos umbrales se sustituyen por **una** consulta de
+> contenedor. La otra mitad de la regla vive en la vista: hay que tocar los dos sitios.
+
+El contenedor de la barra **no lleva borde ni fondo propios**: el marco lo forman los
+bordes de los tramos. Antes tenía uno de `$border-color` y, con los rellenos pasteles, no
+se veía ni dónde acababa la barra ni dónde empezaba cada tramo.
 
 ### La cantidad y el porcentaje son datos distintos
 
@@ -165,8 +207,21 @@ que **los ocho colores de la barra siguen siendo los del chip** en el CSS compil
 que **cada tramo pintado lleva su clase de literal** — sin ella saldría sin borde y
 ninguna prueba de servidor lo notaría.
 
-Tres trampas que costaron una corrección cada una y no hay que repetir:
+Desde el 02/09/2026 son **40 asertos** e incluyen la barra rehecha: que la barra reparta
+en `fr` y no en `%`, que **la etiqueta conserve el decimal** (`A 82.1%`, no `A 82%`), que
+barra y leyenda digan la misma cifra, las **dos bandas de umbral** (el tramo grande
+etiquetado siempre y el mediano con la clase `--media`), que el tramo por debajo del 8 %
+se pinte **sin** etiqueta, que **ningún tramo dependa de `:first-child`/`:last-child`**
+para su radio, y que **la media query llegue al CSS servido** —el aserto que atrapa el
+borrado silencioso del minificador—.
 
+Cuatro trampas que costaron una corrección cada una y no hay que repetir:
+
+- 🔴 **Tras montar el parcial, `$statsAlumnos` YA NO EXISTE.** El propio parcial la
+  `unset`ea al salir —a propósito, para no contaminar la siguiente vuelta del bucle—, así
+  que un `$statsAlumnos[] = ...` para encadenar un segundo caso **no amplía el array: crea
+  uno de un solo elemento**. El aserto del tramo < 8 % falló por esto la primera vez que
+  se escribió, y el fallo parecía un bug del código. Cada caso reconstruye su array entero.
 - **La muestra se pide nivel por nivel.** Con un solo `LIMIT` sobre el conjunto, primaria
   se llevaba las 40 filas y la mitad de los asertos no medía secundaria.
 - **El `COUNT` de control filtra por la SECCIÓN DE LA CARGA.** Hay notas cuya matrícula
