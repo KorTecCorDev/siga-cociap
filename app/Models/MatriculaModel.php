@@ -233,18 +233,42 @@ class MatriculaModel extends BaseModel
 
     /**
      * Estadísticas de matrícula de un año para el dashboard /matriculas/resumen.
-     * "Matriculados" = estado='aprobada' (vigentes); las desactivadas se reportan
-     * aparte como KPI. Todo scopeado al año indicado.
+     *
+     * 🔴 LOS KPIs CUENTAN ESTUDIANTES DEL COLEGIO, NO MATRÍCULAS APROBADAS
+     * (02/09/2026, decisión del usuario). El universo son TODAS las matrículas
+     * del año con `roster_evaluacion()`, o sea SIN filtrar por `estado`:
+     * `pendiente` es el estado en que NACE toda matrícula y `desactivado` es una
+     * baja administrativa (deuda) de alguien que sigue asistiendo — los dos son
+     * estudiantes reales del colegio. Lo que se excluye es quien ya no está:
+     * `tipo IN ('trasladado','retirado')`.
+     *
+     * Reutilizar el helper —y no escribir el filtro a mano— trae gratis la
+     * deduplicación del RETORNO DE GRADO, que era un defecto real de esta
+     * pantalla: `getResumen()` contaba las DOS matrículas del retorno mientras
+     * `getCuadroMatricula()` (más abajo, en la misma página) excluye la
+     * operativa, así que las dos mitades daban totales distintos del mismo año.
+     *
+     * ⚠️ `kpis` lo consume TAMBIÉN `/admin/cuadros`
+     * (`Admin\CuadrosEstadisticosController`). Se pueden AÑADIR claves; renombrar
+     * o quitar las que ya existían rompe ese tablero.
+     *
+     * ⚠️ Los gráficos de más abajo (por grado, sección, tipo y género) siguen
+     * con `estado='aprobada'` A PROPÓSITO: describen la foto oficial de la
+     * matrícula, que es otra pregunta. Los KPIs responden «cuántos estudiantes
+     * hay»; los gráficos, «cómo quedó la matrícula aprobada».
      *
      * Retorna ['kpis'=>..., 'por_grado'=>[...], 'por_tipo'=>[...], 'por_genero'=>[...]].
      */
     public function getResumen(int $anioId): array
     {
-        // 1) KPIs por estado.
+        $roster = roster_evaluacion('m');
+
+        // 1) KPIs por estado, DENTRO del universo de estudiantes del colegio.
         $estados = $this->query("
             SELECT m.estado, COUNT(*) AS n
             FROM matriculas m
             WHERE m.anio_id = ?
+              {$roster}
             GROUP BY m.estado
         ", [$anioId]);
 
@@ -252,22 +276,47 @@ class MatriculaModel extends BaseModel
         foreach ($estados as $e) {
             $porEstado[$e['estado']] = (int) $e['n'];
         }
+        $totalEstudiantes = array_sum($porEstado);
 
+        // Secciones CON estudiantes (decisión del usuario): el promedio describe
+        // las aulas en uso. Antes contaba secciones con al menos un APROBADO, que
+        // no es lo mismo y sesgaba el promedio al alza.
         $secc = $this->queryOne("
             SELECT COUNT(DISTINCT m.seccion_id) AS n
             FROM matriculas m
-            WHERE m.anio_id = ? AND m.estado = 'aprobada'
+            WHERE m.anio_id = ?
+              {$roster}
         ", [$anioId]);
         $nSecciones = (int) ($secc['n'] ?? 0);
 
+        // Los que quedan FUERA del conteo. Se publican para que la pantalla pueda
+        // decir por qué el total no cuadra con lo que alguien recuerda, en vez de
+        // parecer un error (mismo criterio que "Exonerados · fuera del conteo").
+        $fuera = $this->queryOne("
+            SELECT
+                SUM(m.tipo = 'trasladado') AS trasladados,
+                SUM(m.tipo = 'retirado')   AS retirados
+            FROM matriculas m
+            WHERE m.anio_id = ?
+        ", [$anioId]);
+
         $kpis = [
+            // Claves HISTÓRICAS: las consume /admin/cuadros. `aprobadas` sigue
+            // significando lo mismo (matrículas en estado 'aprobada'), solo que
+            // ahora dentro del universo del roster.
             'aprobadas'    => $porEstado['aprobada'],
             'pendientes'   => $porEstado['pendiente'],
             'desactivadas' => $porEstado['desactivado'],
             'secciones'    => $nSecciones,
+            // 🔴 ENTERO, no decimal (decisión del usuario): "23,4 estudiantes por
+            // sección" sugiere una precisión que el dato no tiene.
             'promedio_seccion' => $nSecciones > 0
-                ? round($porEstado['aprobada'] / $nSecciones, 1)
-                : 0.0,
+                ? (int) round($totalEstudiantes / $nSecciones)
+                : 0,
+            // Claves NUEVAS.
+            'estudiantes'  => $totalEstudiantes,
+            'trasladados'  => (int) ($fuera['trasladados'] ?? 0),
+            'retirados'    => (int) ($fuera['retirados'] ?? 0),
         ];
 
         // 2) Matriculados por grado (agrupable por nivel en la vista).

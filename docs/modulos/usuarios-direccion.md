@@ -67,6 +67,66 @@ retorno de grado).
 Las vistas se pintan sin controles vía `$puedeEscribir`, pero **eso es UX, no
 control de acceso**: la guarda real está en el método.
 
+### 🔴 La UX iba nueve botones por detrás (02/09/2026)
+
+El servidor estaba **completo y correcto** —los 30 métodos guardados, verificador
+incluido—, pero **nueve controles seguían pintándose** para un director y su
+destino le devolvía un 403. Ninguno era un agujero de seguridad; los nueve eran
+la promesa de una acción que el sistema luego negaba.
+
+| Dónde | Control | Destino que cortaba |
+|---|---|---|
+| `admin/control/index.php` | **Resolver** (desempates) | `OrdenMeritoController@desempate` |
+| `director/reemplazos/historial.php` | **+ Nuevo reemplazo** | `ReemplazoDocenteController@form` |
+| `admin/control` (dato `tutores`) | Ir a secciones y tutores | `SeccionController` (`'admin'` a secas) |
+| `matriculas/index.php` | Traslados · Nómina detallada | `TrasladoController` · `nominaImprimir` |
+| `matriculas/show.php` | Imprimir constancia · Ver registro | `TrasladoController` |
+| `admin/cuadros/index.php` | enlace a Asistencia | `AsistenciaController@index` |
+
+**Cinco de los nueve no eran específicos de dirección**: rompían igual para las
+dos secretarías o para `registro_academico`, que también entran a esas pantallas.
+Por eso el gate correcto **no siempre es `$puedeEscribir`** — hay que mirar el
+`requireRole` del DESTINO y usar el flag que le corresponda (`$puedeGestionar`
+para traslados y nómina, `has_role('admin')` para secciones).
+
+Dos decisiones de forma que conviene no deshacer:
+
+- **«Reemplazos» de `director/cargas/seccion.php` NO se toca.** Abre el
+  HISTORIAL, que es lectura, y la regla del colegio es que el director *sí*
+  visualiza. La fuga estaba un nivel más abajo, en el botón que ese historial
+  pintaba.
+- **Cuando el gate deja una columna vacía, se oculta la COLUMNA.** En la tabla de
+  empates el `<th>Acción</th>` también va bajo `$puedeEscribir`: un encabezado
+  huérfano sigue prometiendo lo que no hay.
+
+### El aserto que faltaba, y por qué no las vio
+
+El bloque 4 de `verif_direccion_solo_lectura.php` pregunta *«¿las vistas que YA
+USAN `$puedeEscribir` lo reciben?»*. Es consistencia **sobre las vistas ya
+convertidas**, así que por construcción **no puede ver una vista que nunca adoptó
+el flag** — el modo de fallo exacto de las nueve.
+
+El bloque 6 (nuevo) hace la pregunta útil: *«¿alguna vista que un director puede
+ver ofrece un control hacia una ruta que no puede abrir?»*. Lo deriva todo del
+código —`routes/web.php` mapea ruta → `Controlador@metodo`— en vez de una lista a
+mano que caducaría con el siguiente botón. Hoy: **50 rutas cerradas de 204, 30
+vistas alcanzables, 0 fugas.**
+
+⚠️ **Tres precisiones que costaron un falso positivo cada una**, y que hay que
+conservar si alguien lo reescribe:
+
+1. Una vista que **solo alcanzan los escritores** (un formulario de alta) no
+   necesita gate interno: el director nunca llega a ella.
+2. Hay que quedarse con la ruta de **mejor ajuste**. Si no, `/admin/asistencia`
+   se lleva por delante a `/admin/asistencia/{id}/imprimir/{p}`, que es la de
+   verdad y sí está permitida.
+3. El gate se detecta con una **pila**, no mirando atrás N líneas: en
+   `matriculas/show.php` el bloque protegido tiene 180 líneas con varios `if`
+   anidados dentro, así que el `endif;` más cercano no dice nada.
+
+Se probó en **sus dos ramas**: reintroduciendo el gate del botón «Resolver», el
+aserto lo señala con archivo, línea y método destino; al restaurarlo, verde.
+
 ### Reasignaciones que trajo consigo
 
 | Controlador | Antes | Ahora | Por qué |

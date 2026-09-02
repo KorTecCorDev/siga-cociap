@@ -372,41 +372,14 @@
 }
 
 // ── Dashboard de resumen (/matriculas/resumen) ──────────────────
-.resumen-kpis {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: $spacing-md;
-    margin-bottom: $spacing-lg;
-}
-
-.resumen-kpi {
-    display: flex;
-    flex-direction: column;
-    gap: $spacing-xs;
-    padding: $spacing-lg;
-    background: #fff;
-    border: 1px solid $border-color;
-    border-left: 4px solid $text-muted;
-    border-radius: $border-radius;
-
-    &__num {
-        font-size: $font-size-2xl;
-        font-weight: 700;
-        color: $text-primary;
-        line-height: 1;
-    }
-
-    &__label {
-        font-size: $font-size-sm;
-        color: $text-secondary;
-        text-transform: uppercase;
-        letter-spacing: .02em;
-    }
-
-    &--ok    { border-left-color: $color-success; }
-    &--muted { border-left-color: $text-muted; }
-    &--warn  { border-left-color: $color-warning; }
-}
+// 🔴 `.resumen-kpi` VIVÍA AQUÍ y se retiró el 02/09/2026. Era una de CINCO copias
+// de la misma tarjeta de cifra en el proyecto (`.cuadros-kpi`, `.dpanel-kpi`,
+// `.actas-metrica`, `.bp-stat`), y la única que es COMPONENTE global —ya
+// importado en `app.scss`— es `.stats-comp__kpi`. La vista usa esa.
+//
+// La diferencia de criterio, por si alguien quiere revivirla: `.resumen-kpi`
+// ponía el color en un `border-left` de 4px; el componente lo pone en el NÚMERO
+// (`__n--ok/--err/--muted`), que es lo que el lector mira.
 
 .resumen-charts {
     display: grid;

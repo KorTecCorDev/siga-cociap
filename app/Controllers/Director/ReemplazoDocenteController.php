@@ -145,6 +145,12 @@ class ReemplazoDocenteController extends BaseController
             'titulo'     => 'Reemplazos — ' . ($carga['area_nombre'] ?? ''),
             'carga'      => $carga,
             'reemplazos' => $this->reemplazos->getHistorialPorCarga($id),
+            // El HISTORIAL es lectura y lo ve tambien el director; el boton
+            // "+ Nuevo reemplazo" que vive en el, NO: su destino es `form()`,
+            // que exige ROLES_ESCRIBEN. Era la fuga real de solo lectura en este
+            // modulo — `director/cargas/seccion.php` ya estaba correcta y el
+            // boton "Reemplazos" que trae aqui es legitimo (abre esta pantalla).
+            'puedeEscribir' => has_role(self::ROLES_ESCRIBEN),
         ]);
     }
 

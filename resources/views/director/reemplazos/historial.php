@@ -16,8 +16,10 @@
             — <?= e($carga['grado_nombre']) ?> <?= e($carga['seccion_nombre']) ?>
         </p>
     </div>
-    <a href="<?= url('director/cargas/' . (int) $carga['id'] . '/reemplazar') ?>"
-       class="btn btn--primary">+ Nuevo reemplazo</a>
+    <?php if ($puedeEscribir): ?>
+        <a href="<?= url('director/cargas/' . (int) $carga['id'] . '/reemplazar') ?>"
+           class="btn btn--primary">+ Nuevo reemplazo</a>
+    <?php endif; ?>
 </div>
 
 <?php if (empty($reemplazos)): ?>

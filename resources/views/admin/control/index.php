@@ -402,19 +402,29 @@ $badgeSeveridad = static fn(string $sev): string => match ($sev) {
                 <div class="tabla-responsive">
                 <table class="tabla-ranking">
                     <?php if ($clave === 'empates'): ?>
-                        <thead><tr><th>Nivel</th><th>Grado</th><th class="text-center">Grupos en empate</th><th class="text-center">Acción</th></tr></thead>
+                        <?php // 🔴 La columna "Accion" ENTERA depende de $puedeEscribir, no
+                              // solo su boton: resolver un empate es escritura
+                              // (`OrdenMeritoController::desempate` exige ROLES_ESCRIBEN y
+                              // devuelve 403), asi que a un director le sobra la columna,
+                              // no solo el enlace. Dejar el <th> y vaciar el <td> deja un
+                              // encabezado huerfano que sigue prometiendo una accion.
+                              // Mismo gate que el gemelo de este boton en
+                              // `director/orden-merito-periodo.php`, que ya lo tenia. ?>
+                        <thead><tr><th>Nivel</th><th>Grado</th><th class="text-center">Grupos en empate</th><?php if ($puedeEscribir): ?><th class="text-center">Acción</th><?php endif; ?></tr></thead>
                         <tbody>
                         <?php foreach ($c['items'] as $it): ?>
                             <tr>
                                 <td><?= e($it['nivel_nombre']) ?></td>
                                 <td><?= e($it['grado_nombre']) ?></td>
                                 <td class="text-center"><?= (int) $it['n_grupos'] ?></td>
+                                <?php if ($puedeEscribir): ?>
                                 <td class="text-center">
                                     <a class="btn btn--primary btn--sm"
                                        href="<?= url('director/orden-merito/' . (int) $periodo['id'] . '/desempate/' . (int) $it['grado_id']) ?>">
                                         Resolver
                                     </a>
                                 </td>
+                                <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
