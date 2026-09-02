@@ -103,5 +103,139 @@ foreach (array_merge(array_keys($plan), array_keys($entra)) as $rel) {
 }
 $chk('todos los controladores compilan', $sinErrores);
 
+// ─────────────────────────────────────────────────────────────────────────
+echo "\n6) NINGUNA VISTA OFRECE UN BOTON QUE ACABE EN 403\n";
+// 🔴 EL ASERTO QUE FALTABA, Y POR QUE (02/09/2026).
+//
+// El bloque 4 pregunta «¿las vistas que USAN $puedeEscribir lo reciben?». Es una
+// comprobacion de CONSISTENCIA sobre las vistas ya convertidas, y por eso NO
+// puede ver una vista que nunca adopto el flag — que es exactamente el modo de
+// fallo que se escapo: NUEVE botones en seis vistas que un director veia y cuyo
+// destino le devolvia un 403.
+//
+// Este bloque hace la pregunta util: ¿alguna vista que un director PUEDE VER
+// ofrece un control hacia una ruta que NO puede abrir? Se deriva todo del
+// codigo —`routes/web.php` mapea ruta -> Controlador@metodo— en vez de mantener
+// una lista de excepciones a mano, que caducaria con el siguiente boton.
+//
+// Tres precisiones que costaron un falso positivo cada una:
+//   · Una vista solo alcanzable por escritores (un formulario de alta) NO
+//     necesita gate interno: el director nunca llega a ella.
+//   · Hay que quedarse con la ruta de MEJOR AJUSTE. Si no, `/admin/asistencia`
+//     se lleva por delante a `/admin/asistencia/{id}/imprimir/{p}`, que es la de
+//     verdad y si esta permitida.
+//   · El gate se detecta con una PILA, no mirando atras N lineas: en
+//     `matriculas/show.php` el bloque protegido tiene 180 lineas y varios `if`
+//     anidados dentro, asi que el `endif;` mas cercano no dice nada.
+$leerVista = static function (string $ruta): array {
+    return preg_split('/\r?\n/', file_get_contents($ruta));
+};
+/** Trozos literales de una ruta: 'a/{id}/b' -> ['a/', '/b'] */
+$trozosDe = static function (string $ruta): array {
+    return array_values(array_filter(preg_split('/\{[^}]+\}/', trim($ruta, '/')),
+        static fn(string $t): bool => $t !== ''));
+};
+/** ¿Aparecen todos los trozos, en orden, en la linea? Devuelve el peso o null. */
+$casa = static function (string $linea, array $trozos): ?int {
+    $pos = 0; $peso = 0;
+    foreach ($trozos as $t) {
+        $pos = strpos($linea, $t, $pos);
+        if ($pos === false) { return null; }
+        $pos += strlen($t); $peso += strlen($t);
+    }
+    return $peso;
+};
+/** Trocea un controlador en [metodo => cuerpo]. */
+$metodosDe = static function (string $src): array {
+    $out = [];
+    if (preg_match_all('/public function (\w+)\(.*?(?=\n    (?:public|private|protected) function |\n\}\s*$)/s',
+        $src, $mm, PREG_SET_ORDER)) {
+        foreach ($mm as $m) { $out[$m[1]] = $m[0]; }
+    }
+    return $out;
+};
+/** ¿El cuerpo tiene una guarda propia que EXCLUYE a los directores? */
+$excluye = static function (string $cuerpo): bool {
+    return preg_match('/\$this->requireRole\((.{0,120}?)\);/s', $cuerpo, $m) === 1
+        && !str_contains($m[1], 'ROLES_DIRECCION');
+};
+
+$rutasSrc = file_get_contents(ROOT_PATH . '/routes/web.php');
+preg_match_all("/\\\$router->(?:get|post)\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/",
+    $rutasSrc, $mr, PREG_SET_ORDER);
+
+$todas = []; $ctrlSrc = [];
+foreach ($mr as [, $ruta, $destino]) {
+    [$ctrl, $metodo] = array_pad(explode('@', $destino), 2, '');
+    $a = ROOT_PATH . '/app/Controllers/' . str_replace('\\', '/', $ctrl) . '.php';
+    if (!is_file($a)) { continue; }
+    $ctrlSrc[$ctrl] ??= file_get_contents($a);
+    $ms = $metodosDe($ctrlSrc[$ctrl]);
+    if (!isset($ms[$metodo])) { continue; }
+    $tr = $trozosDe($ruta);
+    if (!$tr) { continue; }
+    $todas[] = ['ruta' => $ruta, 'destino' => $destino,
+                'trozos' => $tr, 'cerrada' => $excluye($ms[$metodo])];
+}
+$nCerradas = count(array_filter($todas, static fn(array $r): bool => $r['cerrada']));
+$chk('se derivan las rutas cerradas a direccion desde routes/web.php'
+    . " ({$nCerradas} de " . count($todas) . ')', $nCerradas > 20);
+
+// Vistas alcanzables: el constructor deja entrar al director y el metodo que las
+// renderiza no lo excluye.
+$alcanzables = [];
+$itC = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(ROOT_PATH . '/app/Controllers'));
+foreach ($itC as $fc) {
+    if (!str_ends_with($fc->getFilename(), '.php')) { continue; }
+    $ms = $metodosDe(file_get_contents($fc->getPathname()));
+    if (!isset($ms['__construct']) || !str_contains($ms['__construct'], 'ROLES_DIRECCION')) { continue; }
+    foreach ($ms as $nombre => $cuerpo) {
+        if ($nombre === '__construct' || $excluye($cuerpo)) { continue; }
+        if (preg_match_all("/\\\$this->view\('([^']+)'/", $cuerpo, $mv)) {
+            foreach ($mv[1] as $v) { $alcanzables[$v] = true; }
+        }
+    }
+}
+$chk('se identifican las vistas que un director alcanza (' . count($alcanzables) . ')',
+    count($alcanzables) > 15);
+
+$sinGate = [];
+$itV = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(ROOT_PATH . '/resources/views'));
+foreach ($itV as $fv) {
+    if (!str_ends_with($fv->getFilename(), '.php')) { continue; }
+    $p   = str_replace('\\', '/', $fv->getPathname());
+    $rel = substr($p, strpos($p, 'resources/views/') + 16);
+    if (!isset($alcanzables[substr($rel, 0, -4)])) { continue; }
+
+    $L = $leerVista($fv->getPathname());
+    $pila = [];
+    foreach ($L as $i => $linea) {
+        $dentroDeGate = in_array(true, $pila, true);
+
+        if (str_contains($linea, 'url(')) {
+            $mejor = null; $mejorPeso = -1;
+            foreach ($todas as $r) {
+                $peso = $casa($linea, $r['trozos']);
+                if ($peso !== null && $peso > $mejorPeso) { $mejorPeso = $peso; $mejor = $r; }
+            }
+            if ($mejor && $mejor['cerrada'] && !$dentroDeGate) {
+                $sinGate[] = $rel . ':' . ($i + 1) . ' -> ' . $mejor['ruta'];
+            }
+        }
+
+        foreach (preg_split('/(?=\bif\s*\(|\bendif\s*;)/', $linea) as $trozo) {
+            if (preg_match('/^if\s*\(.*\)\s*:/', $trozo)) {
+                $pila[] = str_contains($trozo, 'if ($puede') || str_contains($trozo, 'if (has_role');
+            } elseif (str_starts_with($trozo, 'endif')) {
+                array_pop($pila);
+            }
+        }
+    }
+}
+$sinGate = array_unique($sinGate);
+if ($sinGate) { echo '       ' . implode("\n       ", $sinGate) . "\n"; }
+$chk('ninguna vista alcanzable por un director ofrece una ruta cerrada sin gate',
+    $sinGate === []);
+
 echo "\n", $ok ? "== FASE 3 EN VERDE ==\n" : "== HAY FALLOS ==\n";
 exit($ok ? 0 : 1);

@@ -295,11 +295,17 @@ $labelDoc = [
                 <div class="info-item"><span class="info-item__label">IE destino</span><span class="info-item__value"><?= e($traslado['ie_destino_nombre']) ?></span></div>
                 <div class="info-item"><span class="info-item__label">Fecha</span><span class="info-item__value"><?= fecha_es($traslado['fecha_constancia']) ?></span></div>
             </div>
+            <?php // Los DATOS del traslado (arriba) los ve cualquiera que entre a la
+                  // matricula. Estos dos enlaces NO: `TrasladoController` exige admin/RA
+                  // en el constructor, asi que a directores y secretarias les devolvia
+                  // 403. El dato se queda; el acceso al modulo de traslados, no. ?>
+            <?php if ($puedeGestionar): ?>
             <div class="btn-group">
                 <a href="<?= url('traslados/' . $traslado['id'] . '/imprimir') ?>" target="_blank" rel="noopener"
                    class="btn btn--secondary btn--sm">Imprimir constancia</a>
                 <a href="<?= url('traslados') ?>" class="btn btn--secondary btn--sm">Ver registro</a>
             </div>
+            <?php endif; ?>
         </div>
     </div>
     <?php endif; ?>

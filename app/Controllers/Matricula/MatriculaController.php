@@ -165,6 +165,12 @@ class MatriculaController extends BaseController
             'titulo'      => 'Matrículas',
             // Los directores consultan la grilla; el alta es de quien matricula.
             'puedeMatricular' => has_role(self::ROLES_MATRICULAN),
+            // 🔴 NO es lo mismo que $puedeMatricular. "Traslados" y "Nomina
+            // detallada" exigen admin/RA en su destino (TrasladoController:39 y
+            // nominaImprimir:266), asi que las secretarias —que SI matriculan—
+            // tambien recibian 403 al pulsarlos, igual que los directores.
+            // Mismo flag y mismo valor que en `show` (linea 797).
+            'puedeGestionar'  => has_role(['admin', 'registro_academico']),
             'matriculas'  => $matriculas,
             'filtros'     => $filtros,
             'anios'       => $this->model->listarAnios(),

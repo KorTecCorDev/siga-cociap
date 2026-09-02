@@ -525,9 +525,17 @@ $pid = (int) $periodo['id'];
         <?php endif; ?>
     </div>
 
+    <?php // El enlace solo para quien puede abrir `/admin/asistencia`: su `index()`
+          // exige ROLES_REGISTRAN aunque el constructor deje entrar al director, asi
+          // que a el le devolvia 403. Sin enlace, la frase sigue diciendo donde vive
+          // el dato, que es la mitad util para quien no puede entrar. ?>
     <p class="text-sm text-muted">
         El registro por estudiante está en
-        <a href="<?= url('admin/asistencia') ?>">Asistencia</a>.
+        <?php if (has_role(['admin', 'registro_academico'])): ?>
+            <a href="<?= url('admin/asistencia') ?>">Asistencia</a>.
+        <?php else: ?>
+            Asistencia.
+        <?php endif; ?>
     </p>
 </section>
 

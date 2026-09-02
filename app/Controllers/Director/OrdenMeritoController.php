@@ -381,11 +381,15 @@ class OrdenMeritoController extends BaseController
     /**
      * GET /director/orden-merito/{periodo_id}/desempate/{grado_id}
      * Formulario para resolver los empates irreducibles de un grado.
+     *
+     * Resolver un empate es ESCRITURA: los directores NO entran (403). Habia
+     * aqui un segundo `requireRole` que SI los incluia, codigo MUERTO por ser
+     * mas permisivo que el de arriba; se retiro el 02/09/2026 porque al leerlo
+     * hacia creer lo contrario de lo que el metodo hace.
      */
     public function desempate(string $periodoId, string $gradoId): void
     {
         $this->requireRole(self::ROLES_ESCRIBEN);
-        $this->requireRole(['admin', 'registro_academico', ...ROLES_DIRECCION]);
 
         $periodoId = (int) $periodoId;
         $gradoId   = (int) $gradoId;
@@ -435,7 +439,6 @@ class OrdenMeritoController extends BaseController
     public function guardarDesempate(string $periodoId, string $gradoId): void
     {
         $this->requireRole(self::ROLES_ESCRIBEN);
-        $this->requireRole(['admin', 'registro_academico', ...ROLES_DIRECCION]);
         $this->validateCsrf();
 
         $periodoId = (int) $periodoId;

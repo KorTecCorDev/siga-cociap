@@ -115,7 +115,14 @@ class ControlOperativoController extends BaseController
                 'titulo'    => 'Secciones sin tutor asignado',
                 'severidad' => 'advertencia',
                 'accion'    => 'Ir a secciones y tutores',
-                'accion_url'=> url('admin/secciones'),
+                // 🔴 `/admin/secciones` exige 'admin' A SECAS (SeccionController:14),
+                // no ROLES_ESCRIBEN: este enlace devolvia 403 a los directores Y a
+                // `registro_academico`, que entra a este mismo Centro de control.
+                // Se apaga la URL en vez de ocultarlo en la vista, porque el rol que
+                // hace falta se conoce AQUI; la vista ya calla si no hay `accion_url`.
+                // El diagnostico —cuantas secciones no tienen tutor— lo siguen viendo
+                // todos: lo que se retira es el atajo que no pueden usar.
+                'accion_url'=> has_role('admin') ? url('admin/secciones') : null,
                 'items'     => $this->model->seccionesSinTutor(),
             ],
             'matriculas' => [

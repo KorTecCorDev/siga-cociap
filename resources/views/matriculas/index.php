@@ -68,10 +68,16 @@ $thOrden = function (string $key, string $label, string $thClass = '') use ($ord
         <p class="page-subtitle"><?= (int) $total ?> matrícula<?= $total !== 1 ? 's' : '' ?> encontrada<?= $total !== 1 ? 's' : '' ?></p>
     </div>
     <div class="btn-group">
+        <?php // "Resumen" es lectura: lo ve todo el que entra a la grilla, directores incluidos. ?>
         <a href="<?= url('matriculas/resumen') ?>" class="btn btn--secondary">Resumen</a>
-        <a href="<?= url('matriculas/nomina/imprimir' . (!empty($baseFiltros) ? '?' . http_build_query($baseFiltros) : '')) ?>"
-           class="btn btn--secondary" target="_blank" rel="noopener">Nómina detallada</a>
-        <a href="<?= url('traslados') ?>" class="btn btn--secondary">Traslados</a>
+        <?php // Estos DOS exigen admin/RA en su destino, asi que no caben bajo
+              // $puedeMatricular: las secretarias matriculan pero aqui recibian 403,
+              // igual que los directores. Ver el comentario del controlador. ?>
+        <?php if ($puedeGestionar): ?>
+            <a href="<?= url('matriculas/nomina/imprimir' . (!empty($baseFiltros) ? '?' . http_build_query($baseFiltros) : '')) ?>"
+               class="btn btn--secondary" target="_blank" rel="noopener">Nómina detallada</a>
+            <a href="<?= url('traslados') ?>" class="btn btn--secondary">Traslados</a>
+        <?php endif; ?>
         <?php if ($puedeMatricular): ?>
         <a href="<?= url('matriculas/crear') ?>" class="btn btn--primary">+ Nueva matrícula</a>
         <?php endif; ?>
