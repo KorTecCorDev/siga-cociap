@@ -6,7 +6,7 @@
 
 ## Estadísticas por competencia — contadores del resumen (01/09/2026)
 
-> **Estado: en `dev`, sin desplegar.** Sin migración, sin métodos de modelo nuevos,
+> **Estado: EN PRODUCCIÓN desde el 02/09/2026** (merge `5c353f1`). Sin migración, sin métodos de modelo nuevos,
 > sin consultas nuevas y sin JS. Bloque de cifras encima de la tabla de alumnos, en
 > **cuatro** pantallas: el resumen del docente, `/consulta-notas/{p}/carga/{c}`, el
 > historial del docente en un bimestre cerrado y el panel de tutoría
