@@ -434,12 +434,95 @@ ambas cosas sigan conviviendo.
 sin error**: la vista pinta un hueco. Hay un aserto que lee las claves que esa
 vista consume y comprueba que todas existan.
 
-### Pendiente conocido: `retirado` está huérfano en esta pantalla
+### ~~Pendiente: `retirado` huérfano~~ — CERRADO el 02/09/2026
 
-El pie «Por tipo de matrícula» descarta `retirado` **en silencio**
-(`resumen.php`, `$tipoOrden` no se actualizó tras la migración 045), y
-`getCuadroMatricula()` no tiene columna para él, así que
-`t_nuevo + t_cont + t_tras ≠ total`. Fuera de este lote; anotado en `ESTADO.md`.
+Estaba huérfano en los **dos** artefactos de la pantalla, y los dos se arreglaron:
+el pie «Por tipo de matrícula» (`$tipoOrden` en `resumen.php`, que lo descartaba en
+silencio) y el cuadro de abajo. Detalle en la sección siguiente.
+
+## El cuadro de matrícula por grado — que cuadre (02/09/2026)
+
+> **Estado: en `dev`, sin desplegar.** Sin migración.
+
+La tabla final de `/matriculas/resumen`, que además **se imprime** y va al comité
+directivo. Tenía tres defectos de cuadre; dos de ellos nadie los había visto.
+
+### A. Faltaba la columna `retirado`
+
+El enum de `matriculas.tipo` tiene **cuatro** valores desde la migración 045
+(`SHOW COLUMNS` lo confirma), pero el cuadro sumaba tres: **Primaria 3.º daba 48
+sobre un total de 49**. Ahora son cuatro columnas y suman siempre.
+
+Se descartó fusionar `trasladado` y `retirado` bajo un rótulo común: la 045 los
+distingue a propósito —el primero es traslado oficial con constancia e IE destino;
+el segundo es «dejó de venir» sin trámite, y es reversible— y esa diferencia es la
+que decide si se le puede readmitir.
+
+### B. 🔴 La exclusión del retorno era una TERCERA variante
+
+`retorno-grado.md` fija dos criterios INVERSOS, y el cuadro no usaba ninguno:
+**copió la forma del criterio DOCUMENTO y le pegó el `WHERE estado = 'activo'` del
+criterio EVALUACIÓN.**
+
+```sql
+-- Lo que había:  ... FROM retornos_grado WHERE estado = 'activo')   ← híbrido
+-- Lo que toca:   ... FROM retornos_grado)                           ← criterio DOCUMENTO
+```
+
+Con un retorno **`revertido`** ese híbrido no excluía **ninguna** de las dos
+matrículas: el estudiante contaba dos veces. Y la fila fantasma no caía en
+cualquier sitio — `revertir()` deja la operativa como `tipo='continuador'`,
+`estado='desactivado'` **en el grado inferior**, así que aparecía un alumno
+inexistente engordando justo la columna que el comité lee como morosidad.
+
+Era **latente**: el único retorno real está `activo`, así que hoy nadie lo veía.
+Y hay una ironía que conviene recordar: al arreglar los KPIs (más arriba)
+`getResumen()` pasó a deduplicar los revertidos vía `roster_evaluacion()`, de modo
+que el desajuste entre las dos mitades de la misma página **no se eliminó, se
+invirtió y se mudó al caso `revertido`**.
+
+**El cuadro es ahora un consumidor declarado del criterio DOCUMENTO**, igual que
+`BoletaPublicaModel`. Hay dos asertos: uno exige la forma canónica y otro exige que
+**no haya vuelto** ningún `WHERE estado` al subselect.
+
+### C. Género: se queda con M y F
+
+Decisión del usuario: **no se añade columna «Sin dato»**, se respeta el acuerdo
+previo. Lo único que cambia es que la nota al pie **da la cifra** («hay 508
+estudiantes sin sexo registrado») en vez de advertir en abstracto que M + F puede
+ser menor. La cobertura real es del **4,9 %** (26 de 535).
+
+### La fragilidad estructural que lo causaba
+
+Las celdas del parcial estaban escritas **a mano en tres sitios** y la lista `$cols`
+solo alimentaba los acumuladores: añadir una columna eran **cinco puntos** distintos
+y olvidarse de uno no daba ningún error, solo una tabla descuadrada. Es exactamente
+como `retirado` se quedó fuera.
+
+Ahora **todo se deriva de `$grupos`**: los encabezados de grupo con su `colspan`, los
+`<th>`, las celdas de las tres filas, los acumuladores y el `colspan` de la banda de
+nivel. **Añadir una columna es añadir una entrada.**
+
+### Verificación
+
+`verif_matriculas_resumen.php` sube a **34 asertos**. Los del cuadro comprueban la
+PROPIEDAD —que las columnas de un grupo sumen su total—, no una lista de tipos, para
+que un quinto valor del enum también salte.
+
+🔴 **La rama `revertido` se simula con transacción y ROLLBACK**, porque en la base no
+existe ningún retorno revertido y sin eso el arreglo B quedaría sin probar. El
+verificador comprueba además, con la consulta vieja escrita a mano, que **el filtro
+anterior sí duplicaba** (535 en vez de 534): un aserto que solo se ha visto pasar no
+prueba nada. Y confirma que el ROLLBACK dejó el retorno como estaba.
+
+**Cabe en papel**: 11 columnas miden 702 px sobre los 718 px útiles de un A4 portrait
+a 10px. No hizo falta tocar el SASS.
+
+### Recomendación no aplicada
+
+El mismo desajuste de `retirado` sigue en **el filtro de la grilla**
+(`matriculas/index.php`) y en **la nómina imprimible** (`nomina-imprimir.php`, cuyo
+controlador **sí** calcula el retirado pero no lo pinta). Fuera del alcance pedido.
 
 ### Verificación
 

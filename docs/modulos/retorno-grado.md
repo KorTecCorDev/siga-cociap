@@ -34,9 +34,18 @@ Es el error más fácil de cometer en este módulo:
 AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
 AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
 
--- DOCUMENTO (BoletaPublicaModel ×3, token público). Se emite con la OFICIAL:
+-- DOCUMENTO (BoletaPublicaModel ×3, token público, cuadro de /matriculas/resumen).
+-- Se emite con la OFICIAL, y SIN condición de estado:
 AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
 ```
+
+> 🔴 **Hay una tercera forma, y es la incorrecta: el híbrido.** El cuadro de
+> `/matriculas/resumen` copió la línea DOCUMENTO y le pegó el `WHERE estado = 'activo'`
+> de la de EVALUACIÓN. Con un retorno **`revertido`** ese híbrido no excluye NINGUNA
+> de las dos matrículas y el estudiante cuenta dos veces — y la fila fantasma cae en
+> el **grado inferior** como `continuador`/`desactivado`, que es como `revertir()`
+> deja la operativa. Corregido el 02/09/2026; era latente porque el único retorno
+> real está `activo`. **El `WHERE estado` es de la lista de arriba y de ninguna otra.**
 
 Arriba se excluye la **oficial**; abajo la **operativa**. Confundirlas produce
 exactamente los dos defectos de abajo.

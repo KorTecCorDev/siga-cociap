@@ -5,6 +5,42 @@
 
 
 
+## 🟡 EL CUADRO DE MATRÍCULA CUADRA (02/09/2026)
+
+En `dev`, **sin desplegar**. Sin migración. La tabla final de `/matriculas/resumen`, que
+además se imprime y va al comité. Detalle en `docs/modulos/matriculas.md`.
+
+### Qué entró
+
+1. **Columna `retirado`** — el enum tiene cuatro tipos desde la 045 y el cuadro sumaba
+   tres: **Primaria 3.º daba 48 sobre 49**. Cierra el pendiente que quedó abierto esta
+   misma mañana, junto con su gemelo (el pie «Por tipo de matrícula», que descartaba
+   `retirado` en silencio).
+2. 🔴 **La exclusión del retorno era un HÍBRIDO de los dos criterios** — copiaba la forma
+   del criterio DOCUMENTO con el `WHERE estado = 'activo'` del de EVALUACIÓN. Con un
+   retorno **`revertido`** no excluía ninguna de las dos matrículas: el estudiante contaba
+   **dos veces**, y la fila fantasma caía en el **grado inferior** como
+   `continuador`/`desactivado`, engordando justo la columna que se lee como morosidad.
+   **Latente** (el único retorno real está `activo`), así que no lo había visto nadie.
+   ⚠️ Ironía a recordar: el arreglo de los KPIs de esta mañana hizo que `getResumen()`
+   deduplique los revertidos, así que el desajuste entre las dos mitades de la página
+   **no se eliminó — se invirtió y se mudó al caso `revertido`**.
+3. **Las celdas del parcial se derivan de una sola lista.** Estaban escritas a mano en
+   tres sitios y añadir una columna eran cinco puntos: olvidarse de uno no daba error,
+   solo una tabla descuadrada. Es literalmente cómo `retirado` se quedó fuera.
+4. **Género se queda con M y F** (decisión del usuario). Solo cambia que la nota al pie da
+   la cifra —508 sin sexo registrado— en vez de advertirlo en abstracto.
+
+### Verificado
+
+- `verif_matriculas_resumen.php` sube de 20 a **34 asertos**; el cuadro no tenía ninguno.
+  Las 11 filas cuadran por tipo y por estado, y el TOTAL GENERAL da 534 por ambos ejes.
+- 🔴 **La rama `revertido` se simula con transacción y ROLLBACK** —no existe en la base—,
+  y se comprueba con la consulta vieja escrita a mano que **el filtro anterior sí
+  duplicaba** (535 en vez de 534). Un aserto que solo se ha visto pasar no prueba nada.
+- **Cabe en papel**: 702 px de tabla sobre los 718 px útiles del A4 portrait. Sin tocar SASS.
+- **Falta verlo con sesión**, y sobre todo **en papel de verdad**.
+
 ## 🟢 DIRECTORES SIN BOTONES + KPIs DE MATRÍCULA (02/09/2026)
 
 **DESPLEGADO el 02/09/2026** (merge `11c5b79`). Sin migración. Salió de tres ajustes pedidos sobre
@@ -55,7 +91,7 @@
 
 ### Pendiente que este trabajo destapó
 
-**`retirado` está huérfano en `/matriculas/resumen`**: el pie «Por tipo de
+~~**`retirado` está huérfano en `/matriculas/resumen`**~~ — **CERRADO el 02/09/2026**, ver el bloque del cuadro. Texto original:: el pie «Por tipo de
 matrícula» lo descarta en silencio (`$tipoOrden` no se actualizó tras la migración
 045) y `getCuadroMatricula()` no tiene columna para él, así que
 `t_nuevo + t_cont + t_tras ≠ total`. **Fuera de este lote**: cambia lo que se ve.
