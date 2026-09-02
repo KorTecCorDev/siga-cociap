@@ -5,9 +5,9 @@
 
 
 
-## 🟡 DIRECTORES SIN BOTONES + KPIs DE MATRÍCULA (02/09/2026)
+## 🟢 DIRECTORES SIN BOTONES + KPIs DE MATRÍCULA (02/09/2026)
 
-En `dev`, **sin desplegar**. Sin migración. Salió de tres ajustes pedidos sobre
+**DESPLEGADO el 02/09/2026** (merge `11c5b79`). Sin migración. Salió de tres ajustes pedidos sobre
 `director/cargas/seccion/{id}`, `/matriculas/resumen` y `admin/control`.
 
 ### Qué entró
@@ -3102,6 +3102,23 @@ La competencia **C57** (área 24) nunca fue ensayo: la crea la migración `036`.
 
 ## Git
 
+- ✅ **02/09/2026 (2.º del día) — DEPLOY. `origin/main` pasó de `c138851` a `11c5b79`**
+  (merge `--no-ff`, pedido por el usuario). **4 commits, SIN MIGRACIONES.**
+  - **Qué entra:** las 9 fugas de UX de dirección (botones que devolvían 403), el
+    bloque 6 nuevo del verificador, y los KPIs de `/matriculas/resumen` contando
+    estudiantes en vez de matrículas aprobadas —con el doble conteo por retorno de
+    grado corregido—.
+  - **Verificado antes del merge:** 9 verificadores en verde sobre `main` ya
+    mergeado; el bloque 6 probado en SUS DOS RAMAS; los KPIs contra datos reales
+    (523 estudiantes, 1 retorno de grado que ya no se duplica) y en navegador a
+    320/640/1120 px.
+  - 🔴 **NADA se abrió con SESIÓN DE DIRECTOR, que es justo el rol del que trata el
+    lote.** La prueba es estática y no sustituye recorrer las pantallas:
+    `director/cargas/seccion/{id}`, `admin/control?periodo_id={id}`,
+    `director/reemplazos/{id}` y `/matriculas`. Tampoco se ha visto `/admin/cuadros`,
+    que comparte `kpis` con el resumen.
+  - Sigue sin verse con sesión el cambio de aspecto de los 31 `.flash` del deploy
+    anterior y el botón de `alert__accion` que bajó de línea en tres banners.
 - ✅ **02/09/2026 — DEPLOY. `origin/main` pasó de `2b74be0` a `5c353f1`**
   (merge `--no-ff`, pedido por el usuario). **7 commits, SIN MIGRACIONES**: el lote
   es de vistas, SASS, verificadores y documentación.

@@ -378,7 +378,7 @@ siempre con `EXO`; ya no distingue si había notas.
 
 ## Los KPIs de `/matriculas/resumen` cuentan ESTUDIANTES (02/09/2026)
 
-> **Estado: en `dev`, sin desplegar.** Sin migración.
+> **Estado: EN PRODUCCIÓN desde el 02/09/2026** (merge `11c5b79`). Sin migración.
 
 Los cinco chips del resumen contaban `estado='aprobada'`, o sea **matrículas
 oficiales**. Ahora cuentan **estudiantes del colegio**, que es la pregunta que la
