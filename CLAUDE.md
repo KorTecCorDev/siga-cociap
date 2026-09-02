@@ -251,9 +251,14 @@ Versión de una línea; el porqué completo está en el doc del módulo.
 - **Retorno de grado: se EVALÚA en la operativa, se DOCUMENTA con la oficial**
   (Regla A, 05/08/2026). Los datos NO se copian ni se mueven entre matrículas:
   cada bimestre queda donde se cursó y la boleta une las fuentes al leer
-  (`boletaContexto`). ⚠️ Las dos exclusiones son **INVERSAS**: los 9 rosters de
-  evaluación excluyen la **oficial**; el lote de boletas y el token público
-  excluyen la **operativa**. Un retorno NO se registra a mitad de bimestre ya
+  (`boletaContexto`). ⚠️ Las dos exclusiones son **INVERSAS**, y **cada una tiene
+  su PUNTO ÚNICO en `helpers.php`** (27/08 y 02/09/2026): `roster_evaluacion()`
+  excluye la **oficial** (los rosters de evaluación) y `matricula_documento()`
+  excluye la **operativa** (lote de boletas, token público y **todas** las
+  estadísticas de `/matriculas/resumen`). Ninguna se escribe a mano. La tercera
+  forma —pegarle el `WHERE estado` de la primera a la segunda— es el **híbrido**,
+  y con un retorno `revertido` no excluye ninguna de las dos: lo impide
+  `verif_matricula_documento.php`. Un retorno NO se registra a mitad de bimestre ya
   evaluado (candado en `RetornoGradoController`), y se ancla en el DATO, no en la
   fecha: **los bimestres se solapan**. Ver `docs/modulos/retorno-grado.md`.
 - **Rosters de evaluación (calificaciones, conducta, transversales, tutoría)

@@ -5,6 +5,49 @@
 
 
 
+## 🟡 TODA `/matriculas/resumen` SE ANCLA EN LA MATRÍCULA OFICIAL (02/09/2026, 3.º del día)
+
+En `dev`, **sin desplegar**. Sin migración. Detalle en `docs/modulos/matriculas.md` y en
+`docs/modulos/retorno-grado.md`.
+
+Lo pidió el usuario mirando la vista: las estadísticas que listan secciones estaban
+tomando la **matrícula operativa**. Cierra el desajuste que los dos bloques anteriores
+de hoy dejaron abierto — de hecho lo **invirtieron y lo mudaron**, según decía la ironía
+anotada abajo.
+
+### Qué entró
+
+1. 🔴 **Los 5 gráficos no tenían NINGUNA de las dos exclusiones de retorno.** Como la
+   operativa nace `estado='aprobada'`, el estudiante en retorno **contaba dos veces** en
+   los cinco y la fila fantasma caía en el **grado inferior**. Medido: 1.º Primaria daba
+   **42** en vez de 41, 1°B Prim **20** en vez de 19, continuador **517** en vez de 516,
+   y las cuatro series sumaban **521** mientras el chip `aprobadas` decía **520**.
+2. **La página usaba TRES anclas distintas del mismo año**: los chips
+   `roster_evaluacion()` (conserva la operativa → 1°B), los gráficos ninguna (las dos a la
+   vez) y el cuadro DOCUMENTO (→ 2°B). Ahora las tres usan DOCUMENTO. **Ninguna cifra de
+   los chips cambió** (523 · 23 · 23 · 520 · 3): cambia de qué sección se le cuenta.
+3. **Punto único `matricula_documento()`** en `helpers.php`, gemelo de
+   `roster_evaluacion()`. La línea estaba a mano en tres sitios y este cambio habría
+   sumado cinco copias más; se migran las tres (`BoletaPublicaModel`, token público,
+   `getCuadroMatricula`). Nace también `matriculas_vigentes()`, y **`roster_evaluacion()`
+   pasa a componerse desde él con salida byte-idéntica**.
+
+### Verificado
+
+- **Nuevo `verif_matricula_documento.php`** (20 asertos). Los dos que muerden: el
+  **anti-híbrido** y el de **comportamiento**, que simula un retorno `revertido` con
+  transacción + ROLLBACK y exige que el helper excluya una matrícula mientras el híbrido
+  escrito a mano no excluye ninguna.
+- `verif_matriculas_resumen.php` sube de 36 a **44 asertos**: las cuatro series suman lo
+  mismo y ese mismo es el chip `aprobadas`; el desglose de sexo cierra sección a sección;
+  cada retorno entra por su oficial.
+- **Regresión de boletas medida, no supuesta**: el lote, el hub de tokens y las secciones
+  de los 4 bimestres dan huella MD5 idéntica antes y después de migrar
+  `BoletaPublicaModel`. `verif_retorno_grado.php`, `verif_roster_evaluacion.php` y
+  `verif_roster_asistencia.php` en verde sin tocarlos, y **la batería entera (34
+  verificadores) en verde**.
+- **Falta verlo con sesión en el navegador** — junto con el bloque de abajo.
+
 ## 🟡 EL CUADRO DE MATRÍCULA CUADRA (02/09/2026)
 
 En `dev`, **sin desplegar**. Sin migración. La tabla final de `/matriculas/resumen`, que
@@ -24,7 +67,8 @@ además se imprime y va al comité. Detalle en `docs/modulos/matriculas.md`.
    **Latente** (el único retorno real está `activo`), así que no lo había visto nadie.
    ⚠️ Ironía a recordar: el arreglo de los KPIs de esta mañana hizo que `getResumen()`
    deduplique los revertidos, así que el desajuste entre las dos mitades de la página
-   **no se eliminó — se invirtió y se mudó al caso `revertido`**.
+   **no se eliminó — se invirtió y se mudó al caso `revertido`**. Cerrado del todo por el
+   bloque de arriba, que ancla la pantalla entera en la oficial.
 3. **Las celdas del parcial se derivan de una sola lista.** Estaban escritas a mano en
    tres sitios y añadir una columna eran cinco puntos: olvidarse de uno no daba error,
    solo una tabla descuadrada. Es literalmente cómo `retirado` se quedó fuera.

@@ -26,18 +26,30 @@ a la estudiante rankeada en un grado con notas obtenidas en otro.
 
 ## Las dos exclusiones, que son INVERSAS entre sí
 
-Es el error más fácil de cometer en este módulo:
+Es el error más fácil de cometer en este módulo. **Cada una tiene su PUNTO ÚNICO en
+`app/Helpers/helpers.php`; ninguna se escribe a mano** (desde el 02/09/2026):
 
 ```sql
--- EVALUACIÓN (9 rosters: calificaciones, conducta, transversales, tutoría,
--- asistencia). Se evalúa donde el estudiante ESTÁ:
+-- EVALUACIÓN  →  roster_evaluacion()      Se evalúa donde el estudiante ESTÁ:
+AND m.tipo NOT IN ('trasladado', 'retirado')      -- ← matriculas_vigentes()
 AND m.id NOT IN (SELECT matricula_oficial_id   FROM retornos_grado WHERE estado = 'activo')
 AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'revertido')
 
--- DOCUMENTO (BoletaPublicaModel ×3, token público, cuadro de /matriculas/resumen).
--- Se emite con la OFICIAL, y SIN condición de estado:
+-- DOCUMENTO   →  matricula_documento()    Se emite con la OFICIAL, SIN condición de estado:
 AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
 ```
+
+Arriba se excluye la **oficial**; abajo la **operativa**. Confundirlas produce
+exactamente los dos defectos del final de este documento.
+
+| Criterio | Punto único | Quién lo usa |
+|---|---|---|
+| EVALUACIÓN | `roster_evaluacion()` | los rosters de calificaciones, conducta, transversales, tutoría y asistencia |
+| DOCUMENTO | `matricula_documento()` | `BoletaPublicaModel` ×3 · token público (`BoletaController`) · **toda `/matriculas/resumen`: chips, los 5 gráficos y el cuadro por grado** |
+
+`roster_evaluacion()` **compone** su primera condición desde `matriculas_vigentes()`, que
+existe aparte porque los chips de `/matriculas/resumen` necesitan «estudiantes que siguen
+en el colegio» combinado con el ancla **DOCUMENTO**, no con la de evaluación.
 
 > 🔴 **Hay una tercera forma, y es la incorrecta: el híbrido.** El cuadro de
 > `/matriculas/resumen` copió la línea DOCUMENTO y le pegó el `WHERE estado = 'activo'`
@@ -46,9 +58,17 @@ AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
 > el **grado inferior** como `continuador`/`desactivado`, que es como `revertir()`
 > deja la operativa. Corregido el 02/09/2026; era latente porque el único retorno
 > real está `activo`. **El `WHERE estado` es de la lista de arriba y de ninguna otra.**
+>
+> Ahora lo impide `database/verificaciones/verif_matricula_documento.php`, que además
+> de comprobar el texto emitido **mide el comportamiento en las dos ramas**: simula un
+> retorno `revertido` con transacción + rollback y exige que el helper excluya una
+> matrícula mientras el híbrido escrito a mano no excluye ninguna.
 
-Arriba se excluye la **oficial**; abajo la **operativa**. Confundirlas produce
-exactamente los dos defectos de abajo.
+⚠️ **No toda mención a `matricula_operativa_id ... WHERE estado = 'activo'` es el
+híbrido.** `SiagieExportModel`, `Padre\PanelController` y `Docente\PanelController` la
+usan legítimamente: son **listados operativos**, no el documento. El híbrido es
+específicamente pegarle ese `WHERE` a la línea que decide **quién recibe documento o se
+cuenta**.
 
 ## Candado: NO se puede retornar a mitad de un bimestre ya evaluado
 

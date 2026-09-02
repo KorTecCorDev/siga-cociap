@@ -384,8 +384,14 @@ Los cinco chips del resumen contaban `estado='aprobada'`, o sea **matrículas
 oficiales**. Ahora cuentan **estudiantes del colegio**, que es la pregunta que la
 pantalla dice responder.
 
-**El universo es `roster_evaluacion('m')` sobre todas las matrículas del año**, o
-sea SIN filtrar por `estado`:
+> ⚠️ **El ancla del retorno de grado cambió el mismo día, más tarde.** Estos chips
+> nacieron usando `roster_evaluacion('m')`, que **conserva la matrícula operativa** y
+> por tanto ubicaba al estudiante en el **grado inferior**. Desde el bloque
+> «Toda la pantalla se ancla en la matrícula oficial» (más abajo) el universo es
+> `matriculas_vigentes('m')` + `matricula_documento('m')`. **Todo lo demás de esta
+> sección sigue vigente**, y las cifras no cambiaron.
+
+**El universo son todas las matrículas del año SIN filtrar por `estado`**:
 
 - `pendiente` es el estado en que **nace** toda matrícula.
 - `desactivado` es una baja administrativa (deuda) de alguien que **sigue
@@ -425,6 +431,11 @@ lo dice en vez de parecer un error.
 matrícula, que es otra pregunta: los KPIs responden «cuántos estudiantes hay» y
 los gráficos «cómo quedó la matrícula aprobada». Hay un aserto que vigila que
 ambas cosas sigan conviviendo.
+
+> ⚠️ Esta frase se escribió cuando los gráficos **tampoco tenían ancla de retorno**.
+> Sigue siendo cierta en cuanto al UNIVERSO (`estado='aprobada'`), pero desde el
+> bloque de abajo los gráficos **sí comparten el ancla** con los chips y con el
+> cuadro. Lo que separa a las dos mitades de la pantalla es el universo, no el ancla.
 
 ### ⚠️ `kpis` tiene un segundo consumidor
 
@@ -532,3 +543,88 @@ derivado del helper: si saliera de la misma fuente no probaría nada), comprueba
 que el promedio sea entero, que las claves de `/admin/cuadros` sigan existiendo y
 —el que muerde— que **contar filas y contar estudiantes distintos dé lo mismo**,
 que es lo que se pone en rojo si alguien quita el helper y vuelve el doble conteo.
+
+## Toda `/matriculas/resumen` se ancla en la matrícula OFICIAL (02/09/2026)
+
+> **Estado: en `dev`, sin desplegar.** Sin migración.
+
+Cierra el tercer y último desajuste de esta pantalla. Lo pidió el usuario mirando la
+vista: *«todas las estadísticas que listan secciones deben mostrar SOLO MATRÍCULAS
+OFICIALES; se está tomando las secciones con matrículas operativas»*.
+
+### El defecto: los 5 gráficos no tenían NINGUNA de las dos exclusiones
+
+`getResumen()` tiene seis consultas. Los **cinco gráficos** (por grado, por sección,
+varones/mujeres por sección, por tipo y por género) no aplicaban **ni el criterio
+EVALUACIÓN ni el DOCUMENTO**. Como la operativa nace `estado='aprobada'`, el
+estudiante en retorno **contaba dos veces** en los cinco, y la fila fantasma caía en
+el **grado inferior**.
+
+Medido contra el retorno real de 2026 (oficial `id 190` en 2°B Prim ↔ operativa
+`id 692` en 1°B Prim):
+
+| Serie | Antes | Ahora |
+|---|---|---|
+| Por grado · 1.º Primaria | **42** | **41** (2.º Primaria sigue en 37) |
+| Por sección · 1°B Prim | **20** | **19** (2°B Prim sigue en 19) |
+| Por tipo · continuador | **517** | **516** |
+| Por género · sin dato | **496** | **495** |
+| Total de las cuatro series | **521** | **520** = el chip `aprobadas` |
+
+### Y la página se contradecía consigo misma
+
+Las tres mitades usaban **tres anclas distintas** del mismo año:
+
+| Bloque | Ancla que tenía | Dónde ubicaba al estudiante en retorno |
+|---|---|---|
+| Chips | `roster_evaluacion()` → conserva la **operativa** | 1°B Primaria |
+| 5 gráficos | ninguna | **en las dos a la vez** |
+| Cuadro por grado | criterio DOCUMENTO | 2°B Primaria |
+
+Ahora las tres usan **DOCUMENTO**. Los chips pasan a
+`matriculas_vigentes('m')` + `matricula_documento('m')`, y **ninguna cifra suya
+cambió** (523 estudiantes · 23 secciones · promedio 23 · 520 aprobadas · 3
+pendientes): lo que cambia es de qué sección se le cuenta, que hoy solo se notaría
+si la operativa fuera la única matrícula de su aula.
+
+**Por qué la oficial y no la operativa:** esta pantalla no evalúa a nadie,
+**describe** la matrícula del año, y el grado al que el estudiante *pertenece* es el
+oficial. Es la misma pregunta que responde el cuadro impreso que va al comité.
+
+### El punto único, que es lo que impide la recaída
+
+La línea DOCUMENTO estaba escrita **a mano en tres sitios**, y este cambio habría
+sumado **cinco copias más**. En su lugar nace `matricula_documento()` en
+`app/Helpers/helpers.php`, gemelo de `roster_evaluacion()`, y se migran las tres
+copias existentes: `BoletaPublicaModel` (era la constante privada
+`SQL_EXCLUIR_OPERATIVA`, ahora el método `sqlExcluirOperativa()`), el **token
+público** de `BoletaController` y `getCuadroMatricula()`.
+
+Aparece además `matriculas_vigentes()` —el filtro `tipo NOT IN
+('trasladado','retirado')`— porque los chips necesitan combinarlo con el ancla
+DOCUMENTO, no con la de evaluación. **`roster_evaluacion()` pasa a COMPONERSE desde
+él, con salida byte-idéntica**: es lo que impide que las dos definiciones del mismo
+filtro se separen.
+
+### Verificación
+
+**Nuevo: `database/verificaciones/verif_matricula_documento.php`** — 20 asertos,
+gemelo de `verif_roster_evaluacion.php`. Comprueba el texto emitido y el alias, que
+**nadie fuera de `helpers.php` repita la condición** (con espacios normalizados: la
+copia del cuadro estaba partida en tres líneas), que los consumidores declarados sí
+llamen al helper, y que `roster_evaluacion()` **componga** en vez de copiar.
+
+🔴 Los dos que muerden: el **anti-híbrido** (la condición no lleva `WHERE estado`) y
+el de **comportamiento**, que simula un retorno `revertido` con transacción +
+ROLLBACK y exige que el helper excluya una matrícula **mientras el híbrido escrito a
+mano no excluye ninguna** — la prueba de que el aserto no es vacuo.
+
+`verif_matriculas_resumen.php` sube a **44 asertos**. Los nuevos exigen que las
+cuatro series sumen lo mismo **y que ese mismo sea el chip `aprobadas`** (antes: 521
+contra 520), que el desglose de sexo cierre sección a sección, y que cada retorno
+entre por su matrícula **oficial**.
+
+⚠️ Sus consultas de control pasaron del criterio EVALUACIÓN al DOCUMENTO. Siguen
+escritas a mano a propósito: si salieran de los helpers no probarían nada.
+
+**Sin cambios en vistas, JS ni SASS**: la forma de `$chartData` no cambia.
