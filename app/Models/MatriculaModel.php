@@ -420,10 +420,34 @@ class MatriculaModel extends BaseModel
     /**
      * Cuadro cruzado de matrícula por grado (panorama del año para el comité):
      * filas = grado (agrupable por nivel), columnas = tipo × estado × género × total.
-     * Cuenta TODAS las matrículas del año (todos los estados). Retorno de grado:
-     * cuenta UNA sola vez por la matrícula OFICIAL (excluye la operativa) para no
-     * inflar el panorama. Filtro opcional por nivel. El género NO suma a quien no
-     * tiene sexo registrado (M + F puede ser < total, como acordado).
+     * Cuenta TODAS las matrículas del año, en todos los estados. Filtro opcional
+     * por nivel.
+     *
+     * 🔴 LAS CUATRO COLUMNAS DE TIPO SUMAN EL TOTAL, y hay que mantenerlo así.
+     * Eran tres —faltaba `retirado`, que existe desde la migración 045— y la fila
+     * de Primaria 3.º daba 48 sobre un total de 49 (02/09/2026). Si algún día
+     * nace un quinto tipo, aquí y en el parcial hay que añadirlo: el verificador
+     * pone en rojo cualquier fila cuyas columnas de tipo no sumen su total.
+     *
+     * 🔴 RETORNO DE GRADO — ESTE CUADRO ES UN **DOCUMENTO**, y usa el criterio
+     * DOCUMENTO de `docs/modulos/retorno-grado.md`: excluye TODA operativa, sin
+     * mirar el estado del retorno. Es la misma línea que `BoletaPublicaModel`.
+     *
+     *     AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
+     *
+     * ⚠️ Hasta el 02/09/2026 llevaba `WHERE estado = 'activo'` pegado al final:
+     * una TERCERA variante que no era ni el criterio documento ni el de
+     * evaluación —el `WHERE` es de este último—. Con un retorno `revertido` no
+     * excluía NINGUNA de las dos matrículas, así que el estudiante contaba dos
+     * veces, y la fila fantasma caía en el GRADO INFERIOR como
+     * `tipo='continuador'` + `estado='desactivado'` (así lo deja `revertir()`):
+     * un alumno inexistente engordando justo la columna que el comité lee como
+     * morosidad. Era latente —el único retorno real está `activo`— y por eso no
+     * lo vio nadie. Las dos exclusiones son INVERSAS: confundirlas es el error
+     * más fácil de este módulo, y está documentado como tal.
+     *
+     * El género NO suma a quien no tiene sexo registrado (M + F puede ser <
+     * total, como se acordó). La nota al pie del parcial da la cifra que falta.
      */
     public function getCuadroMatricula(int $anioId, ?int $nivelId = null): array
     {
@@ -444,11 +468,13 @@ class MatriculaModel extends BaseModel
                 SUM(m.tipo = 'nuevo')         AS t_nuevo,
                 SUM(m.tipo = 'continuador')   AS t_cont,
                 SUM(m.tipo = 'trasladado')    AS t_tras,
+                SUM(m.tipo = 'retirado')      AS t_retir,
                 SUM(m.estado = 'aprobada')    AS e_aprob,
                 SUM(m.estado = 'pendiente')   AS e_pend,
                 SUM(m.estado = 'desactivado') AS e_desact,
                 SUM(p.sexo = 'M')             AS gen_m,
                 SUM(p.sexo = 'F')             AS gen_f,
+                SUM(p.sexo IS NULL)           AS gen_nd,
                 COUNT(*)                      AS total
             FROM matriculas m
             INNER JOIN estudiantes e ON e.id = m.estudiante_id
@@ -457,8 +483,11 @@ class MatriculaModel extends BaseModel
             INNER JOIN grados g      ON g.id = s.grado_id
             INNER JOIN niveles n     ON n.id = g.nivel_id
             WHERE {$where}
+              -- Criterio DOCUMENTO: toda operativa fuera, SIN condicion de estado.
+              -- Ver el docblock: anadirle un `WHERE estado = ...` reintroduce el
+              -- doble conteo de los retornos revertidos.
               AND m.id NOT IN (
-                  SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'activo'
+                  SELECT matricula_operativa_id FROM retornos_grado
               )
             GROUP BY n.id, n.nombre, g.numero, g.nombre_display
             ORDER BY n.id, g.numero
@@ -472,11 +501,16 @@ class MatriculaModel extends BaseModel
             't_nuevo'  => (int) $r['t_nuevo'],
             't_cont'   => (int) $r['t_cont'],
             't_tras'   => (int) $r['t_tras'],
+            't_retir'  => (int) $r['t_retir'],
             'e_aprob'  => (int) $r['e_aprob'],
             'e_pend'   => (int) $r['e_pend'],
             'e_desact' => (int) $r['e_desact'],
             'gen_m'    => (int) $r['gen_m'],
             'gen_f'    => (int) $r['gen_f'],
+            // NO es una columna del cuadro: se acordo mostrar solo M y F. Alimenta
+            // la cifra de la nota al pie, que antes decia "M + F puede ser menor
+            // al total" sin decir cuanto.
+            'gen_nd'   => (int) $r['gen_nd'],
             'total'    => (int) $r['total'],
         ], $rows);
     }

@@ -22,16 +22,27 @@ $labelTipo = fn(string $t): string => match ($t) {
     'continuador' => 'Continuador',
     'nuevo'       => 'Nuevo',
     'trasladado'  => 'Trasladado',
+    'retirado'    => 'Retirado',
     default       => ucfirst($t),
 };
 
-// Orden canónico de tipos -> color estable (continuador, nuevo, trasladado).
-$tipoOrden = ['continuador', 'nuevo', 'trasladado'];
+// 🔴 LOS CUATRO valores del enum `matriculas.tipo`, en orden canónico -> color
+// estable. `retirado` FALTABA desde la migración 045 y este gráfico lo descartaba
+// EN SILENCIO: el pie no sumaba el total de matriculados y nadie lo notaba,
+// porque un pie no promete cuadrar. Mismo defecto que tenía el cuadro de abajo.
+// ⚠️ `$tipoOrden` y `$tipoColor` se tocan SIEMPRE JUNTOS: un tipo en el orden sin
+// su color revienta con un "undefined array key" al armar $tipoColors.
+$tipoOrden = ['continuador', 'nuevo', 'trasladado', 'retirado'];
 $tipoMap   = [];
 foreach ($porTipo as $t) {
     $tipoMap[$t['tipo']] = $t['n'];
 }
-$tipoColor  = ['continuador' => '#1e6fa8', 'nuevo' => '#0d9488', 'trasladado' => '#7c3aed'];
+$tipoColor  = [
+    'continuador' => '#1e6fa8',
+    'nuevo'       => '#0d9488',
+    'trasladado'  => '#7c3aed',
+    'retirado'    => '#9ca3af',   // gris: ya no asiste, igual que el "Sin dato" del pie de género
+];
 $tipoLabels = [];
 $tipoValues = [];
 $tipoColors = [];

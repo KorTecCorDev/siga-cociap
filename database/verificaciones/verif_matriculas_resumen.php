@@ -161,5 +161,174 @@ $chk("getResumen sigue teniendo consultas con estado='aprobada' (los gráficos)"
 $chk('los KPIs ya NO filtran por estado (usan roster_evaluacion)',
     str_contains($mg[0] ?? '', 'roster_evaluacion('));
 
-echo "\nRESULTADO: " . ($ok ? 'OK - los KPIs cuentan estudiantes del colegio, sin duplicar.' : 'HAY FALLOS') . "\n";
+// ═════════════════════════════════════════════════════════════════════════
+// EL CUADRO DE MATRÍCULA POR GRADO (la tabla final de la pantalla).
+// Hasta el 02/09/2026 no tenía NI UN SOLO aserto: este verificador cubría los
+// KPIs de arriba y no la tabla de abajo, que es justo la que se imprime y se
+// lleva al comité directivo.
+// ═════════════════════════════════════════════════════════════════════════
+
+$cuadro = $model->getCuadroMatricula($anioId);
+
+echo "\n=== 7. El cuadro CUADRA: las columnas suman su total ===\n";
+$chk('el cuadro devuelve filas', $cuadro !== [], count($cuadro) . ' grados');
+
+// 🔴 EL ASERTO QUE FALTABA. Las columnas de tipo sumaban `nuevo + continuador +
+// trasladado` y el enum tiene CUATRO valores desde la migración 045: la fila de
+// Primaria 3.º daba 48 sobre un total de 49. Se comprueba la PROPIEDAD —que las
+// columnas de un grupo sumen su total— y no una lista de tipos, para que un
+// quinto valor del enum también se ponga en rojo aquí.
+$malTipo = $malEstado = [];
+foreach ($cuadro as $r) {
+    $etq = $r['nivel_nombre'] . ' ' . $r['grado_nombre'];
+    if ($r['t_nuevo'] + $r['t_cont'] + $r['t_tras'] + $r['t_retir'] !== $r['total']) {
+        $malTipo[] = $etq . ' (' . ($r['t_nuevo'] + $r['t_cont'] + $r['t_tras'] + $r['t_retir'])
+                   . ' vs ' . $r['total'] . ')';
+    }
+    if ($r['e_aprob'] + $r['e_pend'] + $r['e_desact'] !== $r['total']) {
+        $malEstado[] = $etq;
+    }
+}
+$chk('las CUATRO columnas de tipo suman el total, fila a fila',
+    $malTipo === [], $malTipo === [] ? count($cuadro) . ' filas cuadradas' : implode(' · ', $malTipo));
+$chk('las TRES columnas de estado suman el total, fila a fila',
+    $malEstado === [], $malEstado === [] ? count($cuadro) . ' filas cuadradas' : implode(' · ', $malEstado));
+
+// El gran total es lo que el comité lee primero.
+$g = ['t' => 0, 'e' => 0, 'tot' => 0];
+foreach ($cuadro as $r) {
+    $g['t']   += $r['t_nuevo'] + $r['t_cont'] + $r['t_tras'] + $r['t_retir'];
+    $g['e']   += $r['e_aprob'] + $r['e_pend'] + $r['e_desact'];
+    $g['tot'] += $r['total'];
+}
+$chk('el TOTAL GENERAL cuadra por tipo y por estado',
+    $g['t'] === $g['tot'] && $g['e'] === $g['tot'],
+    "tipo {$g['t']} · estado {$g['e']} · total {$g['tot']}");
+
+// La columna nueva tiene que contener de verdad a los retirados del año.
+$retDb = $model->queryOne("
+    SELECT COUNT(*) n FROM matriculas m
+    WHERE m.anio_id = ? AND m.tipo = 'retirado'
+      AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
+", [$anioId]);
+$chk('la columna Retirados trae los retirados reales del año',
+    array_sum(array_column($cuadro, 't_retir')) === (int) $retDb['n'],
+    array_sum(array_column($cuadro, 't_retir')) . ' vs ' . (int) $retDb['n'] . ' en la base');
+
+echo "\n=== 8. Retorno de grado: criterio DOCUMENTO, y nadie cuenta dos veces ===\n";
+
+// El cuadro es un DOCUMENTO: excluye TODA operativa, sin condición de estado.
+// Es la misma línea que `BoletaPublicaModel`, que es el criterio canónico.
+$srcCuadro = '';
+if (preg_match('/public function getCuadroMatricula.*?\n    \}/s', $src, $mc)) { $srcCuadro = $mc[0]; }
+$chk('el cuadro excluye la operativa SIN condición de estado (criterio documento)',
+    preg_match('/NOT IN \(\s*SELECT matricula_operativa_id FROM retornos_grado\s*\)/s', $srcCuadro) === 1);
+// 🔴 El aserto que muerde de verdad: que NO haya vuelto el `WHERE estado`, que es
+// del criterio de EVALUACIÓN. Mezclarlos es el error más fácil de este módulo.
+$chk('NO se le ha vuelto a pegar un `WHERE estado` al subselect del retorno',
+    preg_match('/matricula_operativa_id FROM retornos_grado\s+WHERE/i', $srcCuadro) !== 1);
+$srcBoleta = file_get_contents(ROOT_PATH . '/app/Models/BoletaPublicaModel.php');
+$chk('coincide con la forma canónica de BoletaPublicaModel',
+    str_contains($srcBoleta, 'NOT IN (SELECT matricula_operativa_id FROM retornos_grado)'));
+
+$filas  = array_sum(array_column($cuadro, 'total'));
+$distDb = $model->queryOne("
+    SELECT COUNT(DISTINCT m.estudiante_id) n FROM matriculas m
+    INNER JOIN estudiantes e ON e.id = m.estudiante_id
+    INNER JOIN personas p    ON p.id = e.persona_id
+    INNER JOIN secciones s   ON s.id = m.seccion_id
+    INNER JOIN grados g      ON g.id = s.grado_id
+    INNER JOIN niveles n     ON n.id = g.nivel_id
+    WHERE m.anio_id = ?
+      AND m.id NOT IN (SELECT matricula_operativa_id FROM retornos_grado)
+", [$anioId]);
+$chk('cada estudiante aparece UNA vez en el cuadro',
+    $filas === (int) $distDb['n'], $filas . ' filas vs ' . (int) $distDb['n'] . ' estudiantes');
+
+// 🔴 LA RAMA QUE NO EXISTE EN LA BASE. Todos los retornos reales están `activo`,
+// así que el caso `revertido` —el que producía el doble conteo— no se probaría
+// nunca. Se simula DENTRO DE UNA TRANSACCIÓN CON ROLLBACK: CLAUDE.md prohíbe que
+// un script de `database/` limpie con DELETE lo que no creó, y ya pasó una vez
+// que una verificación borró el oficial de B1.
+$retorno = $model->queryOne("
+    SELECT rg.id FROM retornos_grado rg
+    INNER JOIN matriculas m ON m.id = rg.matricula_oficial_id
+    WHERE m.anio_id = ? AND rg.estado = 'activo' LIMIT 1
+", [$anioId]);
+
+if ($retorno === null) {
+    echo "  [--] sin retornos activos en el año: la rama `revertido` no se pudo simular\n";
+} else {
+    $pdo = Core\Database::get();
+    $pdo->beginTransaction();
+    try {
+        $st = $pdo->prepare("UPDATE retornos_grado SET estado = 'revertido' WHERE id = ?");
+        $st->execute([$retorno['id']]);
+
+        $simulado = $model->getCuadroMatricula($anioId);
+        $filasSim = array_sum(array_column($simulado, 'total'));
+
+        // Y el control: lo que HABRÍA contado el filtro viejo, escrito a mano.
+        $viejo = $model->queryOne("
+            SELECT COUNT(*) n FROM matriculas m
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas p    ON p.id = e.persona_id
+            INNER JOIN secciones s   ON s.id = m.seccion_id
+            INNER JOIN grados g      ON g.id = s.grado_id
+            INNER JOIN niveles n     ON n.id = g.nivel_id
+            WHERE m.anio_id = ?
+              AND m.id NOT IN (
+                  SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'activo'
+              )
+        ", [$anioId]);
+
+        $chk('con el retorno REVERTIDO el cuadro sigue contando lo mismo',
+            $filasSim === $filas, "{$filasSim} vs {$filas} con el retorno activo");
+        // Prueba de que el aserto no es vacuo: el filtro viejo SÍ se descuadraba.
+        $chk('y el filtro VIEJO sí duplicaba (prueba de que el aserto no es vacuo)',
+            (int) $viejo['n'] === $filas + 1,
+            'el viejo habría contado ' . (int) $viejo['n'] . ' en vez de ' . $filas);
+    } finally {
+        $pdo->rollBack();
+    }
+    $tras = $model->queryOne("SELECT estado FROM retornos_grado WHERE id = ?", [$retorno['id']]);
+    $chk('el ROLLBACK dejó el retorno como estaba',
+        ($tras['estado'] ?? '') === 'activo', 'estado = ' . ($tras['estado'] ?? '?'));
+}
+
+echo "\n=== 9. La tabla renderizada tiene columnas consistentes ===\n";
+// El parcial deriva TODAS las celdas de una sola lista, así que ya no se puede
+// olvidar una. Este aserto congela esa propiedad: si alguien vuelve a escribir
+// las celdas a mano y se deja una, las filas dejan de tener el mismo ancho.
+if (!defined('VIEW_PATH')) { define('VIEW_PATH', ROOT_PATH . '/resources/views'); }
+ob_start();
+require VIEW_PATH . '/matriculas/_cuadro-matricula.php';
+$html = ob_get_clean();
+
+preg_match_all('/<tr[^>]*>(.*?)<\/tr>/s', $html, $mt);
+// ⚠️ Solo las filas de DATOS (`<td>`), y sin la banda de nivel, que es una sola
+// celda con colspan. Mezclar aquí las dos filas de la cabecera da 5/9/11 —que es
+// la estructura CORRECTA de un `<thead>` con `rowspan`— y el aserto acusa a la
+// tabla de un descuadre que no existe. Pasó al escribirlo.
+$anchos = [];
+foreach ($mt[1] as $fila) {
+    if (!str_contains($fila, '<td')) { continue; }        // descarta la cabecera
+    $n = substr_count($fila, '<td');
+    if ($n > 1) { $anchos[] = $n; }                       // descarta la banda de nivel
+}
+$esperado = 1 + 4 + 3 + 2 + 1;   // grado + tipos + estados + genero + total
+$chk('todas las filas de datos tienen el mismo número de celdas',
+    count(array_unique($anchos)) === 1 && ($anchos[0] ?? 0) === $esperado,
+    implode('/', array_unique($anchos)) . " celdas (esperado {$esperado})");
+$chk('hay fila por grado, subtotal por nivel y total general',
+    count($anchos) === count($cuadro) + 3, count($anchos) . ' filas de datos');
+$chk('la cabecera declara los cuatro tipos',
+    str_contains($html, '<th>Retir.</th>') && str_contains($html, 'colspan="4">Tipo'));
+$chk('la banda de nivel abarca toda la tabla',
+    str_contains($html, 'colspan="' . $esperado . '"'), 'colspan ' . $esperado);
+$chk('la nota al pie da la CIFRA de sin-sexo, no solo la advertencia',
+    str_contains($html, 'sin sexo registrado')
+    && preg_match('/<strong>\d+ estudiantes?<\/strong>/', $html) === 1);
+
+echo "\nRESULTADO: " . ($ok ? 'OK - los KPIs y el cuadro cuadran, y nadie se cuenta dos veces.' : 'HAY FALLOS') . "\n";
 exit($ok ? 0 : 1);
