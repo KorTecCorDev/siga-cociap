@@ -58,19 +58,19 @@
         <!-- Alertas flash -->
         <?php if (!empty($flash_success)): ?>
             <div class="flash flash--success">
-                <span>✓</span> <?= e($flash_success) ?>
+                <?= e($flash_success) ?>
             </div>
         <?php endif; ?>
 
         <?php if (!empty($flash_error)): ?>
             <div class="flash flash--error">
-                <span>⚠</span> <?= e($flash_error) ?>
+                <?= e($flash_error) ?>
             </div>
         <?php endif; ?>
 
         <?php if (!empty($flash_warning)): ?>
             <div class="flash flash--warning">
-                <span>⚡</span> <?= e($flash_warning) ?>
+                <?= e($flash_warning) ?>
             </div>
         <?php endif; ?>
 

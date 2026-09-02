@@ -33,7 +33,7 @@ $labelComp = static function (array $c): string {
 </div>
 
 <?php if ($flash_success): ?>
-    <div class="flash flash--success">✓ <?= e($flash_success) ?></div>
+    <div class="flash flash--success"><?= e($flash_success) ?></div>
 <?php endif; ?>
 <?php if ($flash_error): ?>
     <div class="flash flash--error"><?= e($flash_error) ?></div>

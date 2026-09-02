@@ -140,20 +140,15 @@ details.card {
 }
 
 // ── Flash messages ───────────────────────────────────────────
-.flash {
-    display: flex;
-    align-items: center;
-    gap: $spacing-sm;
-    padding: 10px $spacing-lg;
-    border-radius: $border-radius;
-    margin-bottom: $spacing-md;
-    font-size: $font-size-base;
-
-    &--success { background: $color-success-bg; color: $color-success; }
-    &--error   { background: $color-error-bg;   color: $color-error;   }
-    &--warning { background: $color-warning-bg; color: $color-warning; }
-    &--info    { background: $color-info-bg;    color: $color-info;    }
-}
+// 🔴 `.flash` YA NO VIVE AQUI. Era una segunda definicion del mismo banner que
+// `.alert`, con otro tamano de letra y otro padding, y sin borde ni icono: el
+// mismo par $flash_success/$flash_error se pintaba con `.flash` en
+// `layouts/app.php` y con `.alert` en `auth/login.php`. Ahora comparte ruleset
+// con `.alert` en `components/_alerts.scss`, que es el punto unico.
+//
+// ⚠️ NO REINTRODUCIRLO AQUI: `app.scss` importa `components/cards` DESPUES de
+// `components/alerts`, asi que cualquier `.flash` que vuelva a este archivo
+// GANA por orden y reimpone el `display: flex` que rompia las frases.
 
 // ── Empty state ──────────────────────────────────────────────
 .empty-state {

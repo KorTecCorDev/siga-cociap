@@ -45,7 +45,7 @@ $pid      = (int) $periodoSel['id'];
 <!-- Estado del bimestre transversal -->
 <?php if ($cerrado): ?>
     <div class="flash flash--success">
-        ✅ Bimestre transversal cerrado el
+        Bimestre transversal cerrado el
         <strong><?= fechaLima($cierre['cerrado_en'], 'd/m/Y H:i') ?></strong>
         por <?= e($cierre['cerrado_por_nombre']) ?>.
         TIC y GAMA ya aparecen en las boletas de la sección.

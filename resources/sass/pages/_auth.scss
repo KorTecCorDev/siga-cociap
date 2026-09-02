@@ -162,22 +162,14 @@ body.auth-body {
 }
 
 // ── Alertas ──────────────────────────────────────────────────
-.alert {
-    display: flex;
-    align-items: flex-start;
-    gap: $spacing-sm;
-    padding: 10px $spacing-md;
-    border-radius: $border-radius;
-    font-size: $font-size-sm;
-    margin-bottom: $spacing-md;
-    line-height: 1.4;
-
-    &__icon { font-size: $font-size-base; flex-shrink: 0; margin-top: 1px; }
-
-    &--error   { background: $color-error-bg;   color: $color-error;   border: 1px solid lighten($color-error, 35%); }
-    &--success { background: $color-success-bg; color: $color-success; border: 1px solid lighten($color-success, 40%); }
-    &--warning { background: $color-warning-bg; color: $color-warning; border: 1px solid lighten($color-warning, 30%); }
-}
+// 🔴 AQUI NO VA NADA. Este archivo tenia una COPIA COMPLETA de `.alert` —sin
+// ningun selector de pagina que la acotara— y, como `app.scss` importa
+// `pages/auth` DESPUES de `components/alerts`, esa copia ganaba EN TODA LA
+// APLICACION, no solo en login: el `app.css` compilado traia dos bloques
+// `.alert{...}` y mandaba el de aqui. Ademas le faltaba la variante `--info` y
+// los `::before` del icono, y cambiaba `align-items` a `flex-start` para todos.
+// El componente vive en `components/_alerts.scss` y es el unico sitio.
+// Mismo fallo que el de `.tabla-leyenda` que ancla `verif_zona_resultado.php`.
 
 // ── Formulario ───────────────────────────────────────────────
 .login-form { display: flex; flex-direction: column; gap: 18px; }

@@ -1,22 +1,72 @@
-// _alerts.scss — Alertas globales
-.alert {
-    display: flex;
-    align-items: center;
-    gap: $spacing-sm;
+// ============================================================
+// _alerts.scss — EL banner de aviso del proyecto
+// ============================================================
+// PUNTO UNICO. Antes habia TRES definiciones para lo mismo: esta, `.flash` en
+// components/_cards.scss y una copia entera de `.alert` en pages/_auth.scss que
+// —por ir despues en el @import de app.scss— pisaba a esta EN TODA LA APP, no
+// solo en login. Las tres se han fundido aqui.
+//
+// `.flash` comparte selector con `.alert` a proposito: son el mismo componente
+// con dos nombres por accidente historico (el mismo par $flash_success /
+// $flash_error se pintaba con `.flash` en layouts/app.php y con `.alert` en
+// auth/login.php). Fundir los SELECTORES elimina hoy la divergencia visual;
+// unificar los NOMBRES es un lote aparte y tiene un bloqueante, anotado en
+// docs/ESTADO.md: `js/auth.js` autocierra `.alert--success` y `.alert--warning`
+// en todas las paginas, asi que renombrar los `.flash` haria que los mensajes
+// de sesion empezaran a desaparecer solos.
+//
+// Marcado y decisiones: docs/modulos/ui.md.
+
+.alert,
+.flash {
+    // 🔴 BLOCK. NUNCA `flex` NI `grid`, y esto no es una preferencia: los dos
+    // BLOCKIFICAN el contenido. Cada <strong> pasa a ser un item propio y cada
+    // trozo de texto suelto pasa a ser un item ANONIMO, de modo que
+    //
+    //     Texto... Cerrado el <strong>02/09/2026</strong> por Juan Perez.
+    //
+    // no es una frase sino TRES items en fila. Sin `flex-wrap` no envuelven:
+    // se aplastan en columnas raquiticas de alturas distintas que
+    // `align-items: center` ademas descuadra entre si. Medido en Chrome con un
+    // banner de 340px: los tres items caian en x=204 / x=340 / x=431 con
+    // alturas 143px / 42px / 80px. A 1100px tambien estaba roto, solo que menos
+    // obvio (la frase salia en tres columnas separadas por huecos).
+    //
+    // Los banners que se veian bien lo hacian POR CASUALIDAD: su contenido era
+    // un unico nodo de texto, o sea un solo item anonimo. Bastaba con meter un
+    // <strong> para romperlos. Con `block` el contenido fluye como el parrafo
+    // que es, y el envoltorio <span> del texto pasa a ser OPCIONAL.
+    display: block;
+    position: relative;   // ancla del icono, que sale del flujo
+
     padding: 10px $spacing-md;
+    // Hueco a la izquierda para el icono. Va en el padding y no en un `gap`
+    // porque el icono esta posicionado: asi TODAS las lineas del texto quedan
+    // alineadas bajo la primera, en vez de meterse debajo del icono.
+    padding-left: calc(#{$spacing-md} + 1.25em + #{$spacing-sm});
+
     border-radius: $border-radius;
-    font-size: $font-size-sm;
     margin-bottom: $spacing-md;
+    font-size: $font-size-sm;
     line-height: 1.4;
+
+    // Un nombre largo o una fecha con hora no pueden desbordar la caja.
+    overflow-wrap: break-word;
 
     // Icono automatico por variante: el SVG se usa como mascara pintada con
     // currentColor (mismo patron que .btn-icon), asi combina con el color de
     // cada variante. La geometria va aqui; el `content` y el `mask-image` los
-    // define cada modificador, de modo que un .alert sin variante no pinta nada.
+    // define cada modificador, de modo que un banner sin variante no pinta nada.
     &::before {
-        flex-shrink: 0;
+        position: absolute;
+        left: $spacing-md;
+        // 🔴 `top` = el padding-top y `height` = el line-height, atados a
+        // proposito: el icono se queda en la PRIMERA LINEA. El
+        // `align-items: center` de antes lo dejaba flotando en mitad de un
+        // banner de cuatro lineas, lejos del texto que califica.
+        top: 10px;
         width: 1.25em;
-        height: 1.25em;
+        height: 1.4em;
         background-color: currentColor;
         -webkit-mask-repeat: no-repeat;
                 mask-repeat: no-repeat;
@@ -26,46 +76,118 @@
                 mask-size: contain;
     }
 
-    // Si la alerta ya trae un icono manual, no duplicar con el automatico.
+    // Si el banner trae un icono MANUAL, no duplicar con el automatico. No es
+    // una chapuza heredada: hay dos casos donde el icono manual dice algo que
+    // la variante no —un candado en un aviso `--info`, un reloj de arena en uno
+    // `--warning`— y son deliberados.
     &:has(.alert__icon)::before,
     &:has(.btn-icon)::before { content: none; }
+}
 
-    &__icon { font-size: $font-size-base; flex-shrink: 0; }
+// El icono manual ocupa EXACTAMENTE el hueco del automatico, para que las dos
+// formas del banner se maqueten igual y el texto no salte de sitio.
+.alert__icon,
+.alert > .btn-icon,
+.flash > .btn-icon {
+    position: absolute;
+    left: $spacing-md;
+    top: 10px;
+    width: 1.25em;
+    height: 1.4em;
+}
 
-    &--error {
-        background: $color-error-bg; color: $color-error;
-        border: 1px solid lighten($color-error, 35%);
-        &::before {
-            content: '';
-            -webkit-mask-image: url('../assets/icons/error.svg');
-                    mask-image: url('../assets/icons/error.svg');
-        }
+.alert__icon {
+    font-size: $font-size-base;
+    line-height: 1.4;
+    text-align: center;
+}
+
+// ── Contenido estructurado ──────────────────────────────────
+// Un banner no siempre es una frase: `admin/actas_siagie/vinculos.php` mete una
+// <ul> dentro y `consulta-notas/conducta.php` separa dos frases con un <br>.
+// Con el contenedor en flujo esto ya se maqueta solo; lo unico que hace falta
+// es que el ultimo hijo no deje un margen colgando bajo el borde.
+.alert > p,
+.flash > p {
+    margin: 0 0 $spacing-xs;
+    &:last-child { margin-bottom: 0; }
+}
+
+.alert > ul, .alert > ol,
+.flash > ul, .flash > ol {
+    margin: $spacing-xs 0 0;
+    padding-left: 1.25em;
+
+    li { margin-bottom: 2px; }
+    &:last-child li:last-child { margin-bottom: 0; }
+}
+
+// Titulo opcional cuando el banner tiene cabecera y cuerpo.
+.alert__titulo {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+// ── Variantes ───────────────────────────────────────────────
+// Fondo, color de texto y borde del estado, mas el SVG del icono.
+.alert--error,
+.flash--error {
+    background: $color-error-bg; color: $color-error;
+    border: 1px solid lighten($color-error, 35%);
+    &::before {
+        content: '';
+        -webkit-mask-image: url('../assets/icons/error.svg');
+                mask-image: url('../assets/icons/error.svg');
     }
-    &--success {
-        background: $color-success-bg; color: $color-success;
-        border: 1px solid lighten($color-success, 40%);
-        &::before {
-            content: '';
-            -webkit-mask-image: url('../assets/icons/success.svg');
-                    mask-image: url('../assets/icons/success.svg');
-        }
+}
+
+.alert--success,
+.flash--success {
+    background: $color-success-bg; color: $color-success;
+    border: 1px solid lighten($color-success, 40%);
+    &::before {
+        content: '';
+        -webkit-mask-image: url('../assets/icons/success.svg');
+                mask-image: url('../assets/icons/success.svg');
     }
-    &--warning {
-        background: $color-warning-bg; color: $color-warning;
-        border: 1px solid lighten($color-warning, 30%);
-        &::before {
-            content: '';
-            -webkit-mask-image: url('../assets/icons/warning.svg');
-                    mask-image: url('../assets/icons/warning.svg');
-        }
+}
+
+.alert--warning,
+.flash--warning {
+    background: $color-warning-bg; color: $color-warning;
+    border: 1px solid lighten($color-warning, 30%);
+    &::before {
+        content: '';
+        -webkit-mask-image: url('../assets/icons/warning.svg');
+                mask-image: url('../assets/icons/warning.svg');
     }
-    &--info {
-        background: $color-info-bg; color: $color-info;
-        border: 1px solid lighten($color-info, 30%);
-        &::before {
-            content: '';
-            -webkit-mask-image: url('../assets/icons/info-circle.svg');
-                    mask-image: url('../assets/icons/info-circle.svg');
-        }
+}
+
+.alert--info,
+.flash--info {
+    background: $color-info-bg; color: $color-info;
+    border: 1px solid lighten($color-info, 30%);
+    &::before {
+        content: '';
+        -webkit-mask-image: url('../assets/icons/info-circle.svg');
+                mask-image: url('../assets/icons/info-circle.svg');
     }
+}
+
+// ── Accion dentro del banner ────────────────────────────────
+// 🔴 Vivia en pages/_registro-cierre.scss y dependia de `margin-left: auto`,
+// que solo empuja dentro de un contenedor flex. Al pasar el banner a `block`
+// hay que resolverlo con el flujo normal: el boton cae en SU PROPIA LINEA,
+// alineado a la derecha.
+//
+// NO se usa `float: right` para recuperar la fila en pantalla ancha: el
+// flotante se ancla a la ULTIMA linea del parrafo, asi que en un banner de tres
+// lineas el boton acababa a media altura y pegado al texto. Una linea propia se
+// lee igual de bien en escritorio y es lo correcto en movil.
+.alert__accion {
+    display: block;
+    width: fit-content;
+    margin: $spacing-sm 0 0 auto;
+    white-space: nowrap;
 }
