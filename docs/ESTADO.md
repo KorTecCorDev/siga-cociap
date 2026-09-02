@@ -5,6 +5,61 @@
 
 
 
+## 🟡 DIRECTORES SIN BOTONES + KPIs DE MATRÍCULA (02/09/2026)
+
+En `dev`, **sin desplegar**. Sin migración. Salió de tres ajustes pedidos sobre
+`director/cargas/seccion/{id}`, `/matriculas/resumen` y `admin/control`.
+
+### Qué entró
+
+1. 🔴 **Nueve controles que un director veía y que le devolvían 403.** El servidor
+   estaba **completo y correcto** (los 30 métodos guardados): no había agujero de
+   seguridad, solo la promesa de una acción que el sistema luego negaba. **Cinco
+   de los nueve no eran específicos de dirección** — rompían igual para las dos
+   secretarías o para `registro_academico`—, así que el gate correcto no siempre
+   es `$puedeEscribir`: hay que mirar el `requireRole` del DESTINO.
+2. **El bug 1 no estaba donde parecía.** `director/cargas/seccion.php` ya estaba
+   correcta; el botón «Reemplazos» abre el HISTORIAL, que es lectura, y **el
+   usuario decidió conservarlo** al saberlo. La fuga estaba un nivel más abajo:
+   el «+ Nuevo reemplazo» que ese historial pintaba.
+3. **Bloque 6 nuevo en `verif_direccion_solo_lectura.php`** — el aserto invertido.
+   El bloque 4 solo comprobaba que las vistas **que ya usan** `$puedeEscribir` lo
+   reciban, así que no podía ver una vista que nunca adoptó el flag. El nuevo
+   deriva de `routes/web.php` qué rutas cierran a dirección y qué vistas alcanza
+   un director, y cruza ambas: **50 rutas cerradas de 204, 30 vistas, 0 fugas.**
+4. **Los KPIs de `/matriculas/resumen` cuentan ESTUDIANTES**, no matrículas
+   aprobadas: universo `roster_evaluacion()` sin filtrar por `estado`. De paso
+   arregla el **doble conteo por retorno de grado** (las dos mitades de la misma
+   página daban totales distintos) y que «Secciones» contara secciones con
+   aprobados. Promedio **entero**, por decisión del usuario.
+5. **`.resumen-kpi` se retira**: era una de **cinco** copias de la tarjeta de
+   cifra. La vista migra a `.stats-comp__kpi`, el único componente global. Mismo
+   movimiento que el de los banners. Se corrige además el `page-header`, que metía
+   el back-link dentro del `<div>` sin clase y rompía la convención de las otras
+   79 vistas.
+
+### Verificado
+
+- **`verif_matriculas_resumen.php` nuevo, 20 asertos**, contra datos reales del
+  año 2026: **523 estudiantes · 23 secciones · promedio 23 · 3 pendientes · 11
+  fuera del conteo**. Contrasta con un `COUNT` escrito a mano, no derivado del
+  helper. Hay **1 retorno de grado real** en el año, así que el aserto del doble
+  conteo mide un caso vivo.
+- **`verif_direccion_solo_lectura.php` probado en SUS DOS RAMAS**: reintroduciendo
+  el gate del botón «Resolver», el bloque 6 lo señala con archivo, línea y método
+  destino; al restaurarlo, verde. Un aserto que solo se ha visto pasar no prueba nada.
+- **Los 9 verificadores del área en verde.**
+- **Navegador, sin sesión**: los KPIs reales renderizados a 320 / 640 / 1120 px.
+- **Falta el flujo con sesión de DIRECTOR** — es lo único que estas sondas no
+  alcanzan, y es justo el rol del que va el lote.
+
+### Pendiente que este trabajo destapó
+
+**`retirado` está huérfano en `/matriculas/resumen`**: el pie «Por tipo de
+matrícula» lo descarta en silencio (`$tipoOrden` no se actualizó tras la migración
+045) y `getCuadroMatricula()` no tiene columna para él, así que
+`t_nuevo + t_cont + t_tras ≠ total`. **Fuera de este lote**: cambia lo que se ve.
+
 ## 🟢 BANNERS DE AVISO — COMPONENTE ÚNICO (02/09/2026)
 
 **DESPLEGADO el 02/09/2026** (merge `5c353f1`). Sin migración. Salió de un bug de responsive reportado en el

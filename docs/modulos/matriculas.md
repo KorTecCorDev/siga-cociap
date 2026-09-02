@@ -375,3 +375,77 @@ siempre con `EXO`; ya no distingue si había notas.
   `IN ('trasladado','retirado')`).
 - **Migración 045** (`MODIFY tipo ENUM(...,'retirado')`, idempotente). `tipo_anterior`
   NO incluye `retirado` (nunca se revierte hacia él). Badge `matricula-badge--retirado`.
+
+## Los KPIs de `/matriculas/resumen` cuentan ESTUDIANTES (02/09/2026)
+
+> **Estado: en `dev`, sin desplegar.** Sin migración.
+
+Los cinco chips del resumen contaban `estado='aprobada'`, o sea **matrículas
+oficiales**. Ahora cuentan **estudiantes del colegio**, que es la pregunta que la
+pantalla dice responder.
+
+**El universo es `roster_evaluacion('m')` sobre todas las matrículas del año**, o
+sea SIN filtrar por `estado`:
+
+- `pendiente` es el estado en que **nace** toda matrícula.
+- `desactivado` es una baja administrativa (deuda) de alguien que **sigue
+  asistiendo**.
+- Se excluye a quien ya no está: `tipo IN ('trasladado','retirado')`.
+
+El usuario pidió excluir solo trasladados; se le preguntó por `retirado` —que
+existe desde la migración 045 y significa «ya no asiste, sin traslado oficial»— y
+**decidió excluirlo también**, que es lo coherente con los otros nueve rosters.
+
+| Chip | Qué cuenta |
+|---|---|
+| Estudiantes | el universo completo |
+| Secciones | `COUNT(DISTINCT seccion_id)` del universo |
+| Promedio por sección | estudiantes / secciones, **entero** |
+| Matrículas desactivadas | `estado='desactivado'` dentro del universo |
+| Matrículas pendientes | `estado='pendiente'` dentro del universo |
+| Trasladados y retirados | **fuera del conteo**, se publica para poder explicarlo |
+
+El último chip sigue el precedente de `_stats-competencia.php` («Exonerados ·
+fuera del conteo»): si el total no cuadra con lo que alguien recuerda, la pantalla
+lo dice en vez de parecer un error.
+
+### Dos defectos que esto arregló de paso
+
+- 🔴 **Doble conteo por RETORNO DE GRADO.** `getResumen()` no excluía ninguna de
+  las dos matrículas del retorno, mientras `getCuadroMatricula()` —en la **misma
+  página**— sí excluye la operativa: las dos mitades daban totales distintos del
+  mismo año. Lo resuelve el helper, que trae las exclusiones de retorno gratis.
+  Hay **1 retorno real** en el año 2026, así que el caso está medido, no supuesto.
+- **`Secciones` contaba secciones con al menos un APROBADO**, no secciones con
+  estudiantes, y el promedio heredaba el sesgo al alza.
+
+### Lo que NO cambió, a propósito
+
+**Los gráficos siguen con `estado='aprobada'`.** Describen la foto oficial de la
+matrícula, que es otra pregunta: los KPIs responden «cuántos estudiantes hay» y
+los gráficos «cómo quedó la matrícula aprobada». Hay un aserto que vigila que
+ambas cosas sigan conviviendo.
+
+### ⚠️ `kpis` tiene un segundo consumidor
+
+`Admin\CuadrosEstadisticosController` pinta estos mismos KPIs en `/admin/cuadros`.
+**Se pueden AÑADIR claves; renombrar o quitar las históricas** (`aprobadas`,
+`pendientes`, `desactivadas`, `secciones`, `promedio_seccion`) **rompe ese tablero
+sin error**: la vista pinta un hueco. Hay un aserto que lee las claves que esa
+vista consume y comprueba que todas existan.
+
+### Pendiente conocido: `retirado` está huérfano en esta pantalla
+
+El pie «Por tipo de matrícula» descarta `retirado` **en silencio**
+(`resumen.php`, `$tipoOrden` no se actualizó tras la migración 045), y
+`getCuadroMatricula()` no tiene columna para él, así que
+`t_nuevo + t_cont + t_tras ≠ total`. Fuera de este lote; anotado en `ESTADO.md`.
+
+### Verificación
+
+`database/verificaciones/verif_matriculas_resumen.php` — **20 asertos**, solo
+lectura. Contrasta los cinco KPIs contra un `COUNT` **escrito a mano** (no
+derivado del helper: si saliera de la misma fuente no probaría nada), comprueba
+que el promedio sea entero, que las claves de `/admin/cuadros` sigan existiendo y
+—el que muerde— que **contar filas y contar estudiantes distintos dé lo mismo**,
+que es lo que se pone en rojo si alguien quita el helper y vuelve el doble conteo.
