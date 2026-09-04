@@ -1050,14 +1050,43 @@ SELECT (SELECT COUNT(*) FROM calificaciones WHERE extraordinaria = 1)           
 | `snap_b2` (snapshot oficial de B2) | **520** desde el 12/08 (era 524 → 523 con la reconciliación del 11/08 → 520 al exigir matrícula aprobada). Si da 523, falta correr `sincronizar_roster_snapshot.php --confirmar` |
 | `publicado_b2` (filas de publicación) | **2** (un nivel cada una) |
 | Estados de periodo | B1 `cerrado` · B2 `cerrado` · **B3 `activo`** · B4 `pendiente` |
+| `SELECT COUNT(*) FROM roles` | **9** desde la migración **055**. Si da 8, falta aplicarla y el Director académico no existe |
+| `SELECT COUNT(*) FROM criterios_conducta WHERE codigo IS NOT NULL` | **10** desde la migración **056**. Si da 0, el mapa de calor de `/admin/cuadros` sale sin códigos `C1..C10` |
+
+*(Los cuatro primeros y estos dos, medidos de nuevo en local el 04/09/2026: 275 · 0 ·
+520 · 2 · 9 · 10, con `limite_notas` de B3 en `2026-10-16`.)*
 
 **Si `snap_b2` da 0 o B3 sigue `pendiente`, la copia es ANTERIOR al 10/08** y no sirve para
 medir nada de lo de abajo: resincronizar desde producción primero.
 
-**Estado del repo al cerrar la sesión (11/08/2026):** `dev` y `main` con el mismo árbol,
-todo pusheado, **sin migración pendiente** y sin código sin desplegar. Tres entregas ese
-día: el reporte de mérito firmable por sección, el roster del snapshot y el arreglo del
-candado de la versión rectificada.
+### Estado del repo al cerrar la sesión del 04/09/2026
+
+`dev` = **`ce2502c`**, pusheado. **`main` se quedó atrás: hay código en `dev` SIN
+desplegar** (los dos bloques de CUADROS del 04/09, arriba del todo, más lo del 02/09).
+**Sin migración pendiente**: nada de lo del 04/09 toca el esquema, así que una copia de
+BD que ya pasara la tabla de marcadores **sirve tal cual**.
+
+**Tras `git pull origin dev` en el otro equipo, en este orden:**
+
+1. **No hace falta `gulp build`.** `public/css/app.css` y `public/js/cuadros.js` van
+   compilados EN el commit. ⚠️ Si `app.css` da conflicto al mergear, no se resuelve a
+   mano: se toma un lado y se recompila (es un archivo generado; ver la nota de la
+   sección Git).
+2. **Comprobar la BD** con el bloque de marcadores de arriba antes de creerse ninguna
+   cifra — la copia del otro equipo puede ser más vieja.
+3. **Correr los dos verificadores del trabajo nuevo**, que son de solo lectura:
+   ```
+   php database/verificaciones/verif_cuadros_merito_motor.php
+   php database/verificaciones/verif_direccion_superficies.php
+   ```
+   El primero debe decir `TODO OK — 0 fallo(s)`; el segundo, `== FASES 4-7 EN VERDE ==`.
+   Si el primero falla en un bimestre ABIERTO, sospechar de la BD antes que del código:
+   compara el tablero contra `rankingGrado` y ambos dependen de qué haya bloqueado.
+4. **XAMPP**: si algo falla con `SQLSTATE[HY000] [2002]`, es que MySQL no está
+   levantado, no un bug. Pasó al abrir la sesión del 04/09 y costó un diagnóstico.
+
+**Lo que quedó sin hacer y NO es un olvido:** desplegar (merge `dev` → `main`), que se
+pregunta siempre antes.
 
 > ✅ **Reparación de datos APLICADA EN PRODUCCIÓN el 11/08/2026** (`sincronizar_roster_snapshot.php
 > --confirmar`, salida capturada allá): ESCUDERO TORRES `#456` salió del oficial de B2
@@ -1065,10 +1094,18 @@ candado de la versión rectificada.
 > snapshot quedó en **523 filas**, idéntico al ensayo local. Con eso B2 volvió a ser
 > rectificable y el orden refleja las 3 rectificaciones de 4.º de primaria.
 
-**Lo primero que toca al retomar:** el bloque de arriba con fecha límite (el roster del
-mérito en B2, antes de que se publique); capturar en PROD las cifras del snapshot de B2 y
-confirmar el `limite_notas` de B3; y luego el siguiente hito con fecha, la **regla del
-periodo final** (tope 05/10/2026).
+**Lo primero que toca al retomar (revisado el 04/09/2026):**
+
+1. **Decidir el despliegue** de todo lo acumulado en `dev` (CUADROS del 04/09 y lo del
+   02/09). Es lo único que separa a `main` de `dev`.
+2. El siguiente hito con fecha: la **regla del periodo final** (tope **05/10/2026**),
+   con sus 4 decisiones ya cerradas. ⚠️ Sería la **5.ª copia** de «carga dueña»:
+   extraer el punto único ANTES de implementarla.
+3. **Usuarios de Dirección sigue sin probarse en navegador CON UN DIRECTOR.** El
+   04/09 se recorrió `/admin/cuadros` y su A4 en navegador, pero **con sesión de
+   administrador**, así que no dice nada del acceso de los tres roles directivos.
+   Sigue faltando el DNI y el nombre del **Director académico de prueba**; sin ese
+   dato el rol no se puede ejercitar. Es dato del colegio: preguntar antes de crearlo.
 
 ## Migraciones
 - 🆕 **`056_codigo_criterios_conducta`** (25/08): añade `criterios_conducta.codigo`
@@ -3327,6 +3364,28 @@ La competencia **C57** (área 24) nunca fue ensayo: la crea la migración `036`.
   7:30pm-9:00pm. Detalle en `docs/decisiones-diferidas.md`.
 
 ## Git
+
+- 🟡 **04/09/2026 — PUSH A `dev`, NO ES UN DEPLOY. `origin/dev` pasó de `6e54c9b` a
+  `ce2502c`.** Un solo commit (19 archivos, +1670/−165) porque los dos bloques de
+  CUADROS tocan los mismos archivos y separarlos exigía partir hunks a mano.
+  **`main` NO se movió: sigue sin desplegarse.** Sin migraciones.
+  - **Qué entra:** el tablero de Dirección pasa al motor oficial del mérito
+    (`OrdenMeritoModel::statsPorGrado`), la sección «Estudiantes en riesgo», y las
+    tablas de valores que quitan al A4 su dependencia del tooltip.
+  - **Verificado antes del push:** `verif_cuadros_merito_motor.php` (nuevo) en
+    `TODO OK` y `verif_direccion_superficies.php` en verde, **repetidos después** de
+    revertir el `$nivelId` de abajo.
+  - ✅ **Cierra un pendiente del deploy del 02/09**, que decía «tampoco se ha visto
+    `/admin/cuadros`»: el 04/09 se recorrió en navegador, pantalla y A4. ⚠️ Pero
+    **con sesión de ADMINISTRADOR**, así que lo que sigue sin probarse es el acceso
+    de los tres roles directivos, no esta pantalla.
+  - 🔴 **Se dejó fuera del commit un `?int $nivelId = null` que se había añadido a dos
+    métodos de `ConductaModel`**: su docblock decía «filtro de `/admin/cuadros`», pero
+    **nadie lo llamaba** —la única aparición en todo el repo era la declaración— y
+    ningún verificador ejercitaba la rama filtrada. Se revirtió el archivo a `HEAD`.
+    Los otros `nivelId` del archivo (`getCriterios`, `totalCriterios`) son
+    preexistentes y sí se usan. Si algún día hace falta ese filtro, entra junto con
+    quien lo llame y su aserto.
 
 - ✅ **02/09/2026 (2.º del día) — DEPLOY. `origin/main` pasó de `c138851` a `11c5b79`**
   (merge `--no-ff`, pedido por el usuario). **4 commits, SIN MIGRACIONES.**
