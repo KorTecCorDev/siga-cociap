@@ -66,8 +66,14 @@
     // AD / A / B / C — los mismos valores que --lit-ad/-a/-b/-c en el SASS.
     var LITERALES = [VERDE, AZUL, AMBAR, ROJO];
 
-    var unidad = function (sufijo) {
-        return function (d) { return d + sufijo; };
+    // La unidad de cada serie ("% en logro", " faltas") NO se escribe aqui: la
+    // trae el propio dato, desde `_chart-data.php`. Antes estaba a mano en cada
+    // grafica y la tabla de valores del papel habria tenido que repetirla,
+    // creando otra regla duplicada de las que este repositorio ya ha visto
+    // divergir. Sin unidad, el tooltip muestra el numero desnudo.
+    var unidad = function (d) {
+        var sufijo = d.unidad || '';
+        return function (v) { return v + sufijo; };
     };
 
     // ── Registro: id del contenedor -> cómo se dibuja ────────────────
@@ -92,7 +98,7 @@
             colors: [AZUL, TEAL],
             axisOptions: { xAxisMode: 'tick' },
             lineOptions: { hideDots: 0, regionFill: 0 },
-            tooltipOptions: { formatTooltipY: unidad('% en logro') },
+            tooltipOptions: { formatTooltipY: unidad(d) },
             data: { labels: d.labels, datasets: d.datasets }
         });
     });
@@ -133,7 +139,7 @@
             colors: [PURPURA],
             axisOptions: { xAxisMode: 'tick' },
             barOptions: { spaceRatio: 0.35 },
-            tooltipOptions: { formatTooltipY: unidad('% calificado') },
+            tooltipOptions: { formatTooltipY: unidad(d) },
             data: { labels: d.labels, datasets: [{ name: 'Calificados', values: d.values }] }
         });
     });
@@ -147,7 +153,7 @@
             colors: LITERALES,
             axisOptions: { xAxisMode: 'tick' },
             barOptions: { stacked: 1, spaceRatio: 0.6 },
-            tooltipOptions: { formatTooltipY: unidad(' estudiantes') },
+            tooltipOptions: { formatTooltipY: unidad(d) },
             data: { labels: d.labels, datasets: d.datasets }
         });
     });
@@ -160,7 +166,7 @@
             colors: [AZUL, TEAL],
             axisOptions: { xAxisMode: 'tick' },
             lineOptions: { hideDots: 0, regionFill: 0 },
-            tooltipOptions: { formatTooltipY: unidad('% en logro') },
+            tooltipOptions: { formatTooltipY: unidad(d) },
             data: { labels: d.labels, datasets: d.datasets }
         });
     });
@@ -180,7 +186,7 @@
                     var i = d.labels.indexOf(etq);
                     return (i >= 0 && d.textos) ? etq + ' — ' + d.textos[i] : etq;
                 },
-                formatTooltipY: unidad('% no cumple')
+                formatTooltipY: unidad(d)
             },
             data: { labels: d.labels, datasets: [{ name: 'No cumple', values: d.values }] }
         });
@@ -196,7 +202,7 @@
             colors: [NARANJA],
             axisOptions: { xAxisMode: 'tick' },
             barOptions: { spaceRatio: 0.3 },
-            tooltipOptions: { formatTooltipY: unidad(' faltas') },
+            tooltipOptions: { formatTooltipY: unidad(d) },
             data: { labels: d.labels, datasets: [{ name: 'Faltas sin justificar', values: d.values }] }
         });
     });
@@ -208,7 +214,7 @@
             colors: [AMBAR],
             axisOptions: { xAxisMode: 'tick' },
             barOptions: { spaceRatio: 0.3 },
-            tooltipOptions: { formatTooltipY: unidad(' tardanzas') },
+            tooltipOptions: { formatTooltipY: unidad(d) },
             data: { labels: d.labels, datasets: [{ name: 'Tardanzas sin justificar', values: d.values }] }
         });
     });

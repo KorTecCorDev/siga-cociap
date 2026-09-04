@@ -426,39 +426,31 @@ class AnioAcademicoModel extends BaseModel
     // ── Indicadores de cierre ─────────────────────────────────
 
     /**
-     * Indicadores de cierre de un bimestre, calculados en tiempo real:
-     *  - por cada grado: primer puesto y los 2 de menor rendimiento
+     * Indicadores de cierre de un bimestre:
+     *  - por cada grado: primer puesto, los 2 de menor rendimiento, total de
+     *    competidores y los estudiantes en riesgo (3 o más competencias en C)
      *  - top de docentes que bloquearon todas sus competencias más rápido
+     *
+     * 🔴 ES UNA FACHADA: el bloque por grado lo calcula
+     * `OrdenMeritoModel::statsPorGrado`, el modelo DUEÑO del ranking. Hasta el
+     * 04/09/2026 este método tenía aquí su propio `getRankingGrado`, una copia
+     * simplificada del universo del mérito que devolvía cifras plausibles y
+     * falsas en el bimestre abierto (el porqué, medido, está en el docblock de
+     * `statsPorGrado`). Se conserva la firma y el shape para no tocar a sus tres
+     * consumidores: `/admin/cuadros`, `/director/periodos/{id}/stats` y el modal
+     * de cierre.
+     *
+     * NO escribir aquí ninguna consulta de ranking: sería reabrir la copia.
      */
     public function getStatsCierre(int $periodoId): array
     {
-        $grados   = $this->getGradosConCalificaciones($periodoId);
-        $porGrado = [];
-
-        foreach ($grados as $grado) {
-            $ranking = $this->getRankingGrado((int) $grado['id'], $periodoId);
-            if (empty($ranking)) {
-                continue;
-            }
-
-            $mejor  = $ranking[0];
-            // Los 2 de menor rendimiento, excluyendo al primer puesto.
-            $peores = array_values(array_filter(
-                array_slice($ranking, -2),
-                fn($e) => (int) $e['matricula_id'] !== (int) $mejor['matricula_id']
-            ));
-
-            $porGrado[] = [
-                'grado'  => $grado,
-                'mejor'  => $mejor,
-                'peores' => $peores,
-                'total'  => count($ranking),
-            ];
-        }
-
         return [
-            'por_grado' => $porGrado,
+            'por_grado' => (new OrdenMeritoModel())->statsPorGrado($periodoId),
             'docentes'  => $this->getDocentesMasRapidos($periodoId),
+            // El umbral viaja CON los datos para que la vista pueda rotularlo
+            // sin importar el modelo ni hardcodear un 3 que quedaría mudo si la
+            // constante cambia.
+            'riesgo_min_c' => OrdenMeritoModel::RIESGO_MIN_C,
         ];
     }
 
@@ -733,69 +725,6 @@ class AnioAcademicoModel extends BaseModel
         $this->cacheEvolucion[$anioId] = ['periodos' => $ejeX, 'niveles' => $niveles];
 
         return $this->cacheEvolucion[$anioId];
-    }
-
-    /** Grados con al menos un estudiante calificado en el periodo. */
-    private function getGradosConCalificaciones(int $periodoId): array
-    {
-        return $this->query("
-            SELECT DISTINCT
-                g.id,
-                g.numero,
-                g.nombre_display,
-                n.nombre AS nivel_nombre,
-                n.codigo AS nivel_codigo
-            FROM matriculas m
-            INNER JOIN secciones s        ON s.id = m.seccion_id
-            INNER JOIN grados g           ON g.id = s.grado_id
-            INNER JOIN niveles n          ON n.id = g.nivel_id
-            INNER JOIN calificaciones cal ON cal.matricula_id = m.id
-            WHERE cal.periodo_id = ?
-              AND m.estado = 'aprobada'
-            ORDER BY n.id, g.numero
-        ", [$periodoId]);
-    }
-
-    /**
-     * Ranking de estudiantes de un grado en el periodo, por promedio general.
-     * Excluye competencias transversales (mismo criterio que orden de mérito).
-     */
-    private function getRankingGrado(int $gradoId, int $periodoId): array
-    {
-        $estudiantes = $this->query("
-            SELECT
-                m.id AS matricula_id,
-                p.apellido_paterno,
-                p.apellido_materno,
-                p.nombres,
-                s.nombre AS seccion_nombre,
-                ROUND(AVG(cal.nota_numerica), 2) AS promedio_general
-            FROM matriculas m
-            INNER JOIN estudiantes e      ON e.id  = m.estudiante_id
-            INNER JOIN personas p         ON p.id  = e.persona_id
-            INNER JOIN secciones s        ON s.id  = m.seccion_id
-            INNER JOIN grados g           ON g.id  = s.grado_id
-            INNER JOIN calificaciones cal ON cal.matricula_id = m.id
-            INNER JOIN competencias comp  ON comp.id = cal.competencia_id
-            LEFT  JOIN subareas sa        ON sa.id   = comp.subarea_id
-            INNER JOIN areas a            ON a.id    = COALESCE(sa.area_id, comp.area_id)
-            WHERE g.id           = ?
-              AND cal.periodo_id = ?
-              AND m.estado       = 'aprobada'
-              AND a.tipo        != 'transversal'
-            GROUP BY m.id, p.apellido_paterno, p.apellido_materno,
-                     p.nombres, s.nombre
-            ORDER BY promedio_general DESC, " . orden_alfabetico('p', 1) . "
-        ", [$gradoId, $periodoId]);
-
-        foreach ($estudiantes as $i => &$est) {
-            $est['puesto']          = $i + 1;
-            $est['nombre_completo'] = $est['apellido_paterno'] . ' '
-                . $est['apellido_materno'] . ', ' . $est['nombres'];
-        }
-        unset($est);
-
-        return $estudiantes;
     }
 
     /**

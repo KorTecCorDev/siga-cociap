@@ -11,8 +11,17 @@ $porGrado = $porGrado ?? [];
 <section class="stats-bloque">
     <h3 class="stats-bloque__titulo">Rendimiento por grado</h3>
 
+    <?php // El motivo del vacio cambio el 04/09/2026, al pasar estos indicadores
+          // al motor oficial del merito: ya no basta con que existan
+          // calificaciones, tienen que estar BLOQUEADAS (aprobadas por el
+          // docente o forzadas por el cierre). Decir "aun no hay calificaciones"
+          // con notas ya registradas y sin bloquear mandaba a buscar el problema
+          // al sitio equivocado. ?>
     <?php if (empty($porGrado)): ?>
-        <p class="text-muted text-sm">Aún no hay calificaciones registradas en este bimestre.</p>
+        <p class="text-muted text-sm">
+            Aún no hay competencias bloqueadas en este bimestre: el rendimiento por grado
+            se calcula sobre las notas que los docentes ya aprobaron y bloquearon.
+        </p>
     <?php else: ?>
         <div class="stats-grados">
             <?php foreach ($porGrado as $g): ?>

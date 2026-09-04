@@ -550,6 +550,28 @@ auxiliares. Vive en `components/_tables.scss`, con las tablas.
 - ⚠️ **Esto NO gobierna todas las clases `*-leyenda` del sistema**: las de boleta
   impresa, horario y el donut de bloqueos son de otro contexto y no se unifican.
 
+### La misma regla, aplicada a los GRÁFICOS (04/09/2026)
+
+«Un tooltip no existe en móvil ni para quien navega con teclado» vale igual para
+el tooltip de Frappe Charts — y allí es peor, porque **es el único sitio donde
+están los valores**. En `/admin/cuadros` el A4 imprimía once gráficos y solo uno
+dejaba sus números legibles.
+
+- **Regla: un gráfico nunca es la única fuente de un número.** Va acompañado de
+  su tabla de valores (`_tabla-grafico.php`), plegada en pantalla y desplegada en
+  papel. Los gráficos **se añaden, no sustituyen** — ya era la regla del módulo
+  para las tablas, y aquí se aplica en el sentido inverso.
+- 🔴 **Un `<details>` cerrado NO IMPRIME SU CONTENIDO.** Es la trampa de plegar
+  algo que también va al papel: sale una hoja en blanco sin ningún error. Ya
+  costó una vista imprimible aparte en el explorador de criterios; aquí se
+  resuelve con un flag `$abierta` en el partial compartido.
+- **Lo que se plegue en pantalla y se imprima necesita un aserto.** Ninguna
+  prueba de servidor ve que un bloque no se imprimió: el verificador comprueba
+  que el imprimible no emita ni un `<details>`.
+- El mismo criterio se aplicó al `title` de una celda (`12 de 28 no cumplen` →
+  se pinta bajo el porcentaje). Un `title` puede acompañar, nunca ser la única
+  fuente.
+
 
 ## El chip de código, y su modificador `--solo` (25/08/2026)
 

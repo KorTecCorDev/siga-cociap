@@ -94,7 +94,13 @@ $k = $bloques['matricula']['kpis'];
                 <div class="cuadros-print__chart">
                     <h3 class="cuadros-print__h3">Evolución del % en logro por bimestre</h3>
                     <div id="chart-evolucion"></div>
+                    <?php $t = $chartTablas['evolucion'] ?? null; ?>
+                    <?php // La nota explica COMO leer el grafico y en papel es donde mas
+                          // falta hace: nadie puede preguntar. La de la brecha avisa de que
+                          // la distancia entre barras es la dispersion del grado, no su nivel. ?>
+                    <p class="cuadros-print__nota"><?= $t['nota'] ?></p>
                 </div>
+                <?php $abierta = true; require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
             <?php endif; ?>
         <?php endif; ?>
     </section>
@@ -140,8 +146,46 @@ $k = $bloques['matricula']['kpis'];
                 <div class="cuadros-print__chart">
                     <h3 class="cuadros-print__h3">Brecha interna de cada grado</h3>
                     <div id="chart-brecha"></div>
+                    <?php $t = $chartTablas['brecha'] ?? null; ?>
+                    <?php // La nota explica COMO leer el grafico y en papel es donde mas
+                          // falta hace: nadie puede preguntar. La de la brecha avisa de que
+                          // la distancia entre barras es la dispersion del grado, no su nivel. ?>
+                    <p class="cuadros-print__nota"><?= $t['nota'] ?></p>
                 </div>
+                <?php $abierta = true; require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
             <?php endif; ?>
+        <?php endif; ?>
+    </section>
+
+    <?php // ── 3b. ESTUDIANTES EN RIESGO ───────────────────────────── ?>
+    <?php // `--tabla` porque el bloque es un listado, no un panel: son las
+          // tablas por grado las que deben poder cortar entre hojas sin partir
+          // un grado por la mitad. ?>
+    <section class="cuadros-print__bloque cuadros-print__bloque--tabla">
+        <h2 class="cuadros-print__h2">Estudiantes en riesgo</h2>
+
+        <?php
+        $hayRiesgo = (bool) array_filter(
+            $bloques['merito']['por_grado'] ?? [],
+            static fn(array $g): bool => !empty($g['en_riesgo'])
+        );
+        ?>
+        <?php if (!$hayRiesgo): ?>
+            <?php // En papel el vacio importa MAS que en pantalla: el informe se
+                  // archiva, y "no hay nadie en riesgo" y "todavia no se puede
+                  // saber" son afirmaciones muy distintas para quien lo lea. ?>
+            <p class="cuadros-print__vacio">
+                <?php if (empty($bloques['merito']['por_grado'])): ?>
+                    Este bimestre todavía no tiene competencias bloqueadas: aún no puede
+                    determinarse quién está en riesgo.
+                <?php else: ?>
+                    Ningún estudiante acumula
+                    <?= (int) ($bloques['merito']['riesgo_min_c'] ?? 3) ?> competencias en C
+                    o más en este bimestre.
+                <?php endif; ?>
+            </p>
+        <?php else: ?>
+            <?php require VIEW_PATH . '/admin/cuadros/_estudiantes-riesgo.php'; ?>
         <?php endif; ?>
     </section>
 
@@ -174,11 +218,28 @@ $k = $bloques['matricula']['kpis'];
                 <span class="cuadros-kpi__n"><?= $delta > 0 ? '+' : '' ?><?= number_format($delta, 1) ?></span>
                 <span class="cuadros-kpi__t">Puntos frente a <?= e($nombrePrevio) ?></span>
             </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $lit['total'] ?></span>
+                <span class="cuadros-kpi__t">Estudiantes con conducta calificada</span>
+            </div>
             <?php endif; ?>
             <?php endif; ?>
             <div class="cuadros-kpi">
                 <span class="cuadros-kpi__n"><?= (int) $c['cerradas'] ?>/<?= (int) $c['secciones'] ?></span>
                 <span class="cuadros-kpi__t">Conducta cerrada</span>
+            </div>
+            <?php // Las dos etapas pendientes SOLO llegaban al papel por la leyenda
+                  // del grafico de embudo, y ese grafico no se registra cuando la
+                  // suma es cero: el informe podia quedarse sin decir a quien esta
+                  // esperando el cierre. Son cifras de PROCESO, asi que van fuera
+                  // del `if` de resultado, igual que "Conducta cerrada". ?>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $c['pend_tutor'] ?></span>
+                <span class="cuadros-kpi__t">Esperan al tutor</span>
+            </div>
+            <div class="cuadros-kpi">
+                <span class="cuadros-kpi__n"><?= (int) $c['pend_auxiliar'] ?></span>
+                <span class="cuadros-kpi__t">Esperan al auxiliar</span>
             </div>
             <div class="cuadros-kpi">
                 <span class="cuadros-kpi__n"><?= $pct((int) $c['calificados'], (int) $c['esperados']) ?>%</span>
@@ -193,35 +254,65 @@ $k = $bloques['matricula']['kpis'];
             <div class="cuadros-print__chart">
                 <h3 class="cuadros-print__h3">Distribución de conducta por nivel</h3>
                 <div id="chart-conducta-literales"></div>
+                <?php $t = $chartTablas['conductaLiterales'] ?? null; ?>
+                <?php // La nota explica COMO leer el grafico y en papel es donde mas
+                      // falta hace: nadie puede preguntar. La de la brecha avisa de que
+                      // la distancia entre barras es la dispersion del grado, no su nivel. ?>
+                <p class="cuadros-print__nota"><?= $t['nota'] ?></p>
             </div>
+            <?php $abierta = true; require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
         <?php endif; ?>
 
         <?php if (isset($chartData['conductaEvolucion'])): ?>
             <div class="cuadros-print__chart">
                 <h3 class="cuadros-print__h3">Evolución del % en logro de conducta</h3>
                 <div id="chart-conducta-evolucion"></div>
+                <?php $t = $chartTablas['conductaEvolucion'] ?? null; ?>
+                <?php // La nota explica COMO leer el grafico y en papel es donde mas
+                      // falta hace: nadie puede preguntar. La de la brecha avisa de que
+                      // la distancia entre barras es la dispersion del grado, no su nivel. ?>
+                <p class="cuadros-print__nota"><?= $t['nota'] ?></p>
             </div>
+            <?php $abierta = true; require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
         <?php endif; ?>
 
         <?php if (isset($chartData['conductaEmbudo'])): ?>
             <div class="cuadros-print__chart">
                 <h3 class="cuadros-print__h3">Etapa del cierre de conducta</h3>
                 <div id="chart-conducta-embudo"></div>
+                <?php $t = $chartTablas['conductaEmbudo'] ?? null; ?>
+                <?php // La nota explica COMO leer el grafico y en papel es donde mas
+                      // falta hace: nadie puede preguntar. La de la brecha avisa de que
+                      // la distancia entre barras es la dispersion del grado, no su nivel. ?>
+                <p class="cuadros-print__nota"><?= $t['nota'] ?></p>
             </div>
+            <?php $abierta = true; require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
         <?php endif; ?>
 
         <?php if (isset($chartData['conductaSecciones'])): ?>
             <div class="cuadros-print__chart">
                 <h3 class="cuadros-print__h3">Secciones con menor avance en conducta</h3>
                 <div id="chart-conducta-secciones"></div>
+                <?php $t = $chartTablas['conductaSecciones'] ?? null; ?>
+                <?php // La nota explica COMO leer el grafico y en papel es donde mas
+                      // falta hace: nadie puede preguntar. La de la brecha avisa de que
+                      // la distancia entre barras es la dispersion del grado, no su nivel. ?>
+                <p class="cuadros-print__nota"><?= $t['nota'] ?></p>
             </div>
+            <?php $abierta = true; require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
         <?php endif; ?>
 
         <?php if (isset($chartData['conductaCriterios'])): ?>
             <div class="cuadros-print__chart">
                 <h3 class="cuadros-print__h3">Criterios con mayor incumplimiento</h3>
                 <div id="chart-conducta-criterios"></div>
+                <?php $t = $chartTablas['conductaCriterios'] ?? null; ?>
+                <?php // La nota explica COMO leer el grafico y en papel es donde mas
+                      // falta hace: nadie puede preguntar. La de la brecha avisa de que
+                      // la distancia entre barras es la dispersion del grado, no su nivel. ?>
+                <p class="cuadros-print__nota"><?= $t['nota'] ?></p>
             </div>
+            <?php $abierta = true; require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
         <?php endif; ?>
     </section>
 
@@ -274,28 +365,52 @@ $k = $bloques['matricula']['kpis'];
             <div class="cuadros-print__chart">
                 <h3 class="cuadros-print__h3">Evolución de faltas y tardanzas sin justificar</h3>
                 <div id="chart-asis-evolucion"></div>
+                <?php $t = $chartTablas['asisEvolucion'] ?? null; ?>
+                <?php // La nota explica COMO leer el grafico y en papel es donde mas
+                      // falta hace: nadie puede preguntar. La de la brecha avisa de que
+                      // la distancia entre barras es la dispersion del grado, no su nivel. ?>
+                <p class="cuadros-print__nota"><?= $t['nota'] ?></p>
             </div>
+            <?php $abierta = true; require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
         <?php endif; ?>
 
         <?php if (isset($chartData['asisJustificacion'])): ?>
             <div class="cuadros-print__chart">
                 <h3 class="cuadros-print__h3">Justificadas frente a sin justificar, por nivel</h3>
                 <div id="chart-asis-justificacion"></div>
+                <?php $t = $chartTablas['asisJustificacion'] ?? null; ?>
+                <?php // La nota explica COMO leer el grafico y en papel es donde mas
+                      // falta hace: nadie puede preguntar. La de la brecha avisa de que
+                      // la distancia entre barras es la dispersion del grado, no su nivel. ?>
+                <p class="cuadros-print__nota"><?= $t['nota'] ?></p>
             </div>
+            <?php $abierta = true; require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
         <?php endif; ?>
 
         <?php if (isset($chartData['asisFaltas'])): ?>
             <div class="cuadros-print__chart">
                 <h3 class="cuadros-print__h3">Faltas sin justificar por sección</h3>
                 <div id="chart-asis-faltas"></div>
+                <?php $t = $chartTablas['asisFaltas'] ?? null; ?>
+                <?php // La nota explica COMO leer el grafico y en papel es donde mas
+                      // falta hace: nadie puede preguntar. La de la brecha avisa de que
+                      // la distancia entre barras es la dispersion del grado, no su nivel. ?>
+                <p class="cuadros-print__nota"><?= $t['nota'] ?></p>
             </div>
+            <?php $abierta = true; require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
         <?php endif; ?>
 
         <?php if (isset($chartData['asisTardanzas'])): ?>
             <div class="cuadros-print__chart">
                 <h3 class="cuadros-print__h3">Tardanzas sin justificar por sección</h3>
                 <div id="chart-asis-tardanzas"></div>
+                <?php $t = $chartTablas['asisTardanzas'] ?? null; ?>
+                <?php // La nota explica COMO leer el grafico y en papel es donde mas
+                      // falta hace: nadie puede preguntar. La de la brecha avisa de que
+                      // la distancia entre barras es la dispersion del grado, no su nivel. ?>
+                <p class="cuadros-print__nota"><?= $t['nota'] ?></p>
             </div>
+            <?php $abierta = true; require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
         <?php endif; ?>
     </section>
 

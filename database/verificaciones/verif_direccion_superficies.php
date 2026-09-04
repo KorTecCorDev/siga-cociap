@@ -391,13 +391,16 @@ foreach ($periodos as $p) {
     // dejaban de significar nada. Es justo lo que una futura "simplificacion"
     // volveria a juntar, y nada mas lo impediria.
     $nSecciones = count($datos['bloques']['asistencia_top']);
-    $nTablas    = substr_count($html, 'class="tabla-notas cuadros-top"');
-    $nCaptions  = substr_count($html, 'class="cuadros-top__caption"');
     $nBloques   = substr_count($html, 'class="cuadros-top__bloque"');
 
-    // Una tabla por seccion, y cada una con su <caption> y su <thead>. El
-    // <thead> se cuenta sobre las tablas de este partial, no sobre la pagina.
+    // Una tabla por seccion, y cada una con su <caption> y su <thead>. Ambos se
+    // cuentan DENTRO de las tablas de este partial, nunca como clases sueltas
+    // por la pagina: desde el 04/09/2026 el listado de "estudiantes en riesgo"
+    // reutiliza estas mismas clases base, y un `substr_count` global sumaba sus
+    // tablas a estas. El `<table>` de aquel lleva el modificador `--riesgo`, asi
+    // que este patron —con la comilla de cierre— no lo captura.
     preg_match_all('~<table class="tabla-notas cuadros-top">(.*?)</table>~s', $html, $mTablas);
+    $nTablas     = count($mTablas[1] ?? []);
     $sinCabecera = 0;
     foreach ($mTablas[1] ?? [] as $cuerpo) {
         if (!str_contains($cuerpo, '<caption') || !str_contains($cuerpo, '<thead>')) {
@@ -406,17 +409,75 @@ foreach ($periodos as $p) {
     }
 
     $chk("cada seccion de $etiquetaP tiene su propia tabla con encabezado",
-        $nTablas === $nSecciones && $nCaptions === $nSecciones
-            && $nBloques === $nSecciones && $sinCabecera === 0,
+        $nTablas === $nSecciones && $nBloques === $nSecciones && $sinCabecera === 0,
         $sinCabecera > 0
             ? "$sinCabecera tabla(s) sin caption o sin thead"
             : "$nTablas tabla(s) para $nSecciones seccion(es)");
+
+    // ── Estudiantes en riesgo (04/09/2026) ────────────────────────────
+    // Mismo contrato que el listado de arriba, una tabla por GRADO. Los
+    // modificadores `--riesgo` son los que hacen que estos conteos no se mezclen
+    // con los de inasistencias, que usan las mismas clases base.
+    $gradosRiesgo = array_values(array_filter(
+        $datos['bloques']['merito']['por_grado'],
+        static fn(array $g): bool => !empty($g['en_riesgo'])
+    ));
+    $nRiesgo = count($gradosRiesgo);
+    $bRiesgo = substr_count($html, 'cuadros-top__bloque--riesgo');
+
+    // El caption y el thead se comprueban DENTRO de cada tabla de riesgo, no
+    // contando clases sueltas por la pagina: asi el aserto no puede cuadrar por
+    // casualidad con las tablas del listado de inasistencias.
+    preg_match_all(
+        '~<table class="tabla-notas cuadros-top cuadros-top--riesgo">(.*?)</table>~s',
+        $html, $mRiesgo
+    );
+    $tRiesgo = count($mRiesgo[1] ?? []);
+    $mancas  = 0;
+    foreach ($mRiesgo[1] ?? [] as $cuerpo) {
+        if (!str_contains($cuerpo, '<caption') || !str_contains($cuerpo, '<thead>')) {
+            $mancas++;
+        }
+    }
+
+    $chk("estudiantes en riesgo de $etiquetaP: una tabla por grado, con encabezado",
+        $tRiesgo === $nRiesgo && $bRiesgo === $nRiesgo && $mancas === 0,
+        $mancas > 0
+            ? "$mancas tabla(s) sin caption o sin thead"
+            : "$tRiesgo tabla(s) para $nRiesgo grado(s) con casos");
+
+    // La seccion SIEMPRE esta, con o sin casos: si desaparece cuando nadie llega
+    // al umbral, el lector no distingue "no hay nadie en riesgo" de "se rompio".
+    $chk("la seccion de riesgo existe en $etiquetaP aunque este vacia",
+        str_contains($html, 'id="cuadros-g-riesgo"'),
+        $nRiesgo > 0 ? "$nRiesgo grado(s)" : 'sin casos, con estado vacio');
+
+    // Coherencia del dato: todo el que aparece llega al umbral, y el conteo de
+    // filas cuadra con lo que devolvio el modelo. Sin esto, un `>=` mal escrito
+    // en la vista listaria a gente de mas y las tablas seguirian bien formadas.
+    $umbral   = (int) $datos['bloques']['merito']['riesgo_min_c'];
+    $bajoUmbral = 0;
+    $filas      = 0;
+    foreach ($gradosRiesgo as $g) {
+        foreach ($g['en_riesgo'] as $al) {
+            $filas++;
+            if ((int) $al['num_c'] < $umbral) { $bajoUmbral++; }
+        }
+    }
+    $chk("nadie por debajo de $umbral C en la lista de $etiquetaP",
+        $bajoUmbral === 0,
+        $bajoUmbral > 0 ? "$bajoUmbral fila(s) indebidas" : "$filas fila(s)");
 
     // ── El JSON que consume cuadros.js ────────────────────────────────
     // Es el unico contrato de la pantalla que PHP no puede romper de forma
     // visible: un desajuste entre labels y values no da error, solo dibuja
     // un grafico corrido. Y con $chartData vacio, PHP serializa [] y el JS
     // encontraria undefined sin que nadie se entere.
+    // Se inicializa FUERA del `if`: un bimestre sin datos no emite el tag, y
+    // los asertos del A4 de mas abajo lo leen igual. Sin esto, ese caso daba
+    // "variable indefinida" justo en el escenario menos probado.
+    $nGraficos = 0;
+
     if (preg_match('~<script type="application/json" id="cuadros-data">(.*?)</script>~s', $html, $mJson)) {
         $payload = json_decode($mJson[1], true);
         $problemas = [];
@@ -475,6 +536,97 @@ foreach ($periodos as $p) {
         $chk("el JSON de graficos de $etiquetaP es valido y esta cuadrado",
             empty($problemas),
             $problemas ? $problemas[0] : implode(', ', array_keys($payload)));
+
+        // ── Tabla de valores por grafico (04/09/2026) ─────────────────
+        // Gemelo del aserto "cada grafico tiene donde dibujarse", que nacio de
+        // un grafico con JSON y sin <div>. Aqui el fallo simetrico: un grafico
+        // dibujado cuyos numeros solo existen en el tooltip — invisible en
+        // papel, en movil y para quien navega con teclado.
+        $nGraficos = count($payload);   // inicializado a 0 mas arriba
+        $nTablasV  = substr_count($html, 'class="tabla-notas cuadros-valores__tabla"');
+        $chk("cada grafico de $etiquetaP tiene su tabla de valores",
+            $nTablasV === $nGraficos,
+            "$nTablasV tabla(s) para $nGraficos grafico(s)");
+
+        // Coherencia celda a celda contra el MISMO JSON que dibuja el grafico.
+        // Si la tabla se armara por su cuenta, papel y pantalla podrian decir
+        // cifras distintas del mismo bimestre sin que nada fallara.
+        //
+        // Cada tabla se asocia a SU grafico por posicion: es la primera que
+        // aparece detras del <div id="chart-…"> correspondiente. Comprobar solo
+        // que el numero exista "en alguna parte del HTML" seria un aserto
+        // inerte —casi cualquier cifra aparece en una pagina de 300 KB—, que es
+        // peor que no tenerlo.
+        $idDeClave = [
+            'evolucion' => 'chart-evolucion',                'brecha' => 'chart-brecha',
+            'conductaEmbudo' => 'chart-conducta-embudo',     'conductaSecciones' => 'chart-conducta-secciones',
+            'conductaLiterales' => 'chart-conducta-literales', 'conductaEvolucion' => 'chart-conducta-evolucion',
+            'conductaCriterios' => 'chart-conducta-criterios', 'asisFaltas' => 'chart-asis-faltas',
+            'asisTardanzas' => 'chart-asis-tardanzas',       'asisEvolucion' => 'chart-asis-evolucion',
+            'asisJustificacion' => 'chart-asis-justificacion',
+        ];
+
+        $descuadres = [];
+        $contrastados = 0;
+        foreach ($payload as $clave => $d) {
+            $ancla = $idDeClave[$clave] ?? null;
+            if ($ancla === null) {
+                $descuadres[] = "$clave: grafico sin id conocido en el verificador";
+                continue;
+            }
+
+            $pos = strpos($html, 'id="' . $ancla . '"');
+            if ($pos === false) {
+                $descuadres[] = "$clave: no hay <div id=\"$ancla\">";
+                continue;
+            }
+
+            // Primera tabla de valores por detras de ese div.
+            if (!preg_match(
+                '~<table class="tabla-notas cuadros-valores__tabla">(.*?)</table>~s',
+                substr($html, $pos), $mTabla
+            )) {
+                $descuadres[] = "$clave: sin tabla de valores detras de su grafico";
+                continue;
+            }
+
+            // Celdas numericas de esa tabla, en orden de lectura (fila a fila).
+            preg_match_all('~<td class="text-center">\s*([^<\s]+)\s*</td>~', $mTabla[1], $mCeldas);
+            $enTabla = $mCeldas[1];
+
+            // El JSON va por SERIES (columnas) y la tabla por FILAS: se
+            // transpone antes de comparar, o el orden no coincidiria nunca.
+            if (isset($d['datasets'])) {
+                $series = array_map(static fn($ds) => $ds['values'], $d['datasets']);
+            } elseif (isset($d['mejor'])) {
+                $series = [$d['mejor'], $d['peor']];
+            } else {
+                $series = [$d['values'] ?? []];
+            }
+
+            $esperado = [];
+            foreach (($d['labels'] ?? []) as $i => $_) {
+                foreach ($series as $s) {
+                    $esperado[] = (string) ($s[$i] ?? '');
+                }
+            }
+
+            if (count($enTabla) !== count($esperado)) {
+                $descuadres[] = "$clave: " . count($enTabla) . ' celdas para '
+                    . count($esperado) . ' valores';
+                continue;
+            }
+            foreach ($esperado as $i => $v) {
+                if ($enTabla[$i] !== $v) {
+                    $descuadres[] = "$clave celda $i: tabla '{$enTabla[$i]}' vs json '$v'";
+                    break;
+                }
+            }
+            $contrastados++;
+        }
+        $chk("los valores tabulados de $etiquetaP salen del mismo JSON",
+            empty($descuadres),
+            $descuadres ? $descuadres[0] : "$contrastados grafico(s), celda a celda");
     } else {
         // Sin datos no se emite el tag: es correcto, pero que se vea.
         $chk("cuadros omite el JSON de graficos en $etiquetaP (sin datos)", true, 'sin tag cuadros-data');
@@ -508,6 +660,48 @@ foreach ($periodos as $p) {
             && !str_contains($htmlPrint, 'role="tablist"')
             && !preg_match('~<div[^>]*\shidden~', $htmlPrint),
         'sin role=tab ni hidden');
+
+    // ── Las tablas de valores en el A4 (04/09/2026) ───────────────────
+    // 🔴 NI UN `<details>` EN EL PAPEL. Un `<details>` cerrado no imprime su
+    // contenido: la tabla saldria en blanco, sin ningun error, y el informe
+    // volveria a quedarse sin los numeros que este trabajo vino a poner. Es el
+    // mismo motivo por el que el explorador de criterios tiene vista aparte —y
+    // ya hay un aserto gemelo para aquel, arriba en este mismo archivo.
+    $tablasA4 = substr_count($htmlPrint, 'class="tabla-notas cuadros-valores__tabla"');
+    $chk("el imprimible de $etiquetaP trae sus tablas de valores desplegadas",
+        !str_contains($htmlPrint, '<details') && $tablasA4 === $nGraficos,
+        str_contains($htmlPrint, '<details')
+            ? 'hay un <details>: no se imprimiria'
+            : "$tablasA4 tabla(s) para $nGraficos grafico(s)");
+
+    // La tabla es HERMANA de `.cuadros-print__chart`, nunca su hija: ese
+    // contenedor lleva `page-break-inside: avoid` y con la tabla dentro el
+    // bloque entero saltaria de hoja dejando media pagina en blanco.
+    $chk("en $etiquetaP ninguna tabla de valores cuelga de un bloque no partible",
+        !preg_match(
+            '~<div class="cuadros-print__chart">(?:(?!</div>).)*cuadros-valores__tabla~s',
+            $htmlPrint
+        ),
+        'todas fuera de .cuadros-print__chart');
+
+    // Los KPIs que la pantalla mostraba y el papel no. "Esperan al tutor" y
+    // "Esperan al auxiliar" llegaban al A4 SOLO por la leyenda del grafico de
+    // embudo, que no se registra cuando la suma es cero: el informe podia
+    // quedarse sin decir a quien esta esperando el cierre.
+    $kpisPapel = ['Esperan al tutor', 'Esperan al auxiliar'];
+    $faltan = array_values(array_filter(
+        $kpisPapel,
+        static fn(string $k): bool => !str_contains($htmlPrint, $k)
+    ));
+    $chk("el imprimible de $etiquetaP trae los KPIs de proceso de conducta",
+        empty($faltan),
+        $faltan ? 'falta: ' . $faltan[0] : implode(' · ', $kpisPapel));
+
+    // Cada grafico impreso lleva su nota de lectura: en papel nadie puede
+    // preguntar que significa lo que esta viendo.
+    $chk("cada grafico impreso de $etiquetaP lleva su nota de lectura",
+        substr_count($htmlPrint, 'cuadros-print__nota') === $nGraficos,
+        substr_count($htmlPrint, 'cuadros-print__nota') . " nota(s) para $nGraficos grafico(s)");
 
     // ── Coherencia de la distribucion de conducta ─────────────────────
     // Gemelo del aserto que ya compara getEvolucionAnual con getResumenBimestre:

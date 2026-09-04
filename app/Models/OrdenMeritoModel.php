@@ -63,6 +63,20 @@ class OrdenMeritoModel extends BaseModel
         )
     ";
 
+    /**
+     * Umbral de "estudiante en riesgo": cuántas competencias en C hacen que un
+     * estudiante entre en la lista de `statsPorGrado` (decisión del usuario,
+     * 04/09/2026). Es un umbral de PRESENTACIÓN, no de la escala: la escala vive
+     * en `helpers.php` y aquí solo se cuenta cuántas notas caen por debajo de
+     * ella. Quién es "C" lo decide `num_c` en las dos queries del ranking.
+     *
+     * ⚠️ NO confundir con el "en riesgo" de `AnioAcademicoModel::getResumenBimestre`,
+     * que es otra pregunta: allí es el PROMEDIO GENERAL por debajo de NOTA_MIN_B,
+     * contado por nivel. Las dos cifras conviven en `/admin/cuadros` y son
+     * legítimamente distintas; el pie de cada bloque lo explica.
+     */
+    public const RIESGO_MIN_C = 3;
+
     private DesempateMeritoModel $desempateModel;
     private PublicacionBoletaModel $publicacionModel;
 
@@ -505,6 +519,90 @@ class OrdenMeritoModel extends BaseModel
               AND (" . self::ROSTER_MERITO . ")
             ORDER BY n.id, g.numero
         ", [$periodoId]);
+    }
+
+    /**
+     * Indicadores por grado del bimestre, calculados SOBRE EL MOTOR OFICIAL:
+     * primer puesto, los de menor rendimiento, total de competidores y los
+     * estudiantes EN RIESGO (los que acumulan `$minC` competencias en C o más).
+     *
+     * 🔴 NACIÓ PARA MATAR UNA COPIA (04/09/2026). Hasta hoy estos indicadores los
+     * calculaba `AnioAcademicoModel::getRankingGrado`, un ranking PARALELO que no
+     * exigía competencias bloqueadas, no excluía extraordinarias ni áreas
+     * exoneradas, metía la TOE entera en vez de solo Ética, y no aplicaba
+     * ROSTER_MERITO, el anclaje de retorno ni la cascada de desempate. Medido en
+     * la BD del 04/09: en el bimestre ABIERTO anunciaba un 1.er puesto de 1.º
+     * primaria con 22 competidores donde el orden de mérito tiene CERO (nada
+     * bloqueado todavía), y el último puesto de 1.º secundaria salía 12.50 cuando
+     * el real es 15.00. En bimestre cerrado las dos fuentes coincidían, así que
+     * el defecto no tenía síntoma para quien mirara un bimestre ya cerrado.
+     * Es el mismo patrón que ya costó los 130 bloqueos fantasma y la card de
+     * empates irresolubles: una regla copiada a mano que devuelve un número
+     * plausible y falso.
+     *
+     * Vive AQUÍ, en el modelo dueño del ranking, y no en quien lo pinta.
+     * `AnioAcademicoModel::getStatsCierre` es hoy una fachada sobre este método.
+     *
+     * UN SOLO RECORRIDO de los grados: `rankingGrado` es snapshot-aware pero no
+     * está memoizado, y llamarlo dos veces por grado (una para el mérito, otra
+     * para el riesgo) duplicaría 11 consultas pesadas por render.
+     *
+     * @return array<int, array{grado:array, mejor:array, peores:array, total:int, en_riesgo:array}>
+     */
+    public function statsPorGrado(int $periodoId, int $minC = self::RIESGO_MIN_C): array
+    {
+        $porGrado = [];
+
+        foreach ($this->gradosConRanking($periodoId) as $grado) {
+            $ranking = $this->rankingGrado((int) $grado['id'], $periodoId);
+            if (empty($ranking)) {
+                continue;
+            }
+
+            // El motor no compone el nombre (trabaja con las tres columnas por
+            // separado para poder ordenar con COLLATE_ES). Las vistas sí lo
+            // esperan, y es el mismo formato que ya usaba el ranking anterior.
+            foreach ($ranking as &$fila) {
+                $fila['nombre_completo'] = $fila['apellido_paterno'] . ' '
+                    . $fila['apellido_materno'] . ', ' . $fila['nombres'];
+            }
+            unset($fila);
+
+            $mejor = $ranking[0];
+
+            // Los 2 de menor rendimiento, excluyendo al primer puesto (un grado
+            // de un solo estudiante no tiene "peores"). Regla anterior, intacta.
+            $peores = array_values(array_filter(
+                array_slice($ranking, -2),
+                static fn($e) => (int) $e['matricula_id'] !== (int) $mejor['matricula_id']
+            ));
+
+            // EN RIESGO: todos los que llegan al umbral de C, sin tope por grado
+            // (decisión del usuario, 04/09/2026). `num_c` ya viene calculado por
+            // el ranking sobre el universo del mérito, así que esta lista NO
+            // cuesta ninguna consulta y no puede desincronizarse del promedio y
+            // del puesto que se muestran en su misma fila.
+            $enRiesgo = array_values(array_filter(
+                $ranking,
+                static fn($e) => (int) $e['num_c'] >= $minC
+            ));
+
+            // Manda el número de C; a igual número, primero el peor promedio.
+            usort($enRiesgo, static function ($a, $b) {
+                return [(int) $b['num_c'], (float) $a['promedio_exacto'], (int) $a['puesto']]
+                   <=> [(int) $a['num_c'], (float) $b['promedio_exacto'], (int) $b['puesto']];
+            });
+
+            $porGrado[] = [
+                'grado'     => $grado,
+                'mejor'     => $mejor,
+                'peores'    => $peores,
+                'total'     => count($ranking),
+                'en_riesgo' => $enRiesgo,
+            ];
+        }
+
+        return $porGrado;
     }
 
     /**

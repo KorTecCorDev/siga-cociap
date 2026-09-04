@@ -799,6 +799,35 @@ Ante un cambio de escala hay que venir aquí y actualizar estas dos líneas a ma
 revisar `num_alto`/`num_16`, congelados desde el cambio anterior). Las dos queries del
 modelo (`rankingGradoLive` y `rankingPorSeccionLive`) llevan la misma copia.
 
+## El tablero de Dirección consume el motor (04/09/2026)
+
+`OrdenMeritoModel::statsPorGrado($periodoId, $minC)` es un punto de entrada nuevo
+para pantallas que necesitan **indicadores por grado** y no el ranking completo:
+devuelve, por grado, `mejor` · `peores` · `total` · `en_riesgo` (los que acumulan
+`RIESGO_MIN_C` competencias en C o más). Recorre `gradosConRanking` +
+`rankingGrado` —ambos snapshot-aware— y **no añade ninguna consulta**.
+
+De él cuelgan **tres pantallas**, vía la fachada
+`AnioAcademicoModel::getStatsCierre`: `/admin/cuadros`, su imprimible A4 y
+`/director/periodos/{id}/stats` (más el modal de cierre). Antes esas tres se
+alimentaban de un ranking paralelo que llevaba **seis reglas de menos** y mentía
+en el bimestre abierto. El caso medido y las consecuencias, en
+`docs/modulos/usuarios-direccion.md` § *El mérito de esta pantalla no era el
+mérito*; la lección general, en la memoria de reglas duplicadas.
+
+⚠️ **Un solo recorrido de grados**: `rankingGrado` es snapshot-aware pero **no
+está memoizado** (lo memoizado es `debeUsarSnapshot`). Quien necesite dos
+indicadores del mismo periodo debe sacarlos de una sola pasada, como hace
+`statsPorGrado`, y no llamar al ranking una vez por indicador.
+
+`RIESGO_MIN_C` (3) es un umbral de **presentación**, no de la escala: quién es
+«C» lo sigue decidiendo `num_c` en las dos queries del ranking. Y no tiene nada
+que ver con el «en riesgo» de `AnioAcademicoModel::getResumenBimestre`, que es el
+promedio general bajo `NOTA_MIN_B` por nivel — **dos preguntas distintas que
+comparten pantalla y rótulo**, así que están explícitamente separadas.
+
+Verificación: `verif_cuadros_merito_motor.php` (solo lectura, corre en prod).
+
 ## Estado operativo
 Ver `docs/ESTADO.md`. **Rediseño 1 COMPLETADO (25/07/2026):** A = filtro por tipo (en
 prod); B = inmutabilidad tras publicar + versión rectificada no oficial en Centro de

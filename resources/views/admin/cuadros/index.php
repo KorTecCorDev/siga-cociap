@@ -137,12 +137,12 @@ require VIEW_PATH . '/admin/cuadros/_chart-data.php';
             <div class="card__header"><h3 class="card__title">Evolución del % en logro por bimestre</h3></div>
             <div class="card__body">
                 <div id="chart-evolucion"></div>
-                <p class="cuadros-nota">
-                    Porcentaje de calificaciones en AD o A sobre el total del nivel.
-                    Solo aparecen los bimestres en los que <strong>todos</strong> los niveles ya
-                    tienen notas: incluir uno que recién arranca mostraría un salto que no es
-                    una mejora, sino una muestra todavía sin representatividad.
-                </p>
+                <?php $t = $chartTablas['evolucion'] ?? null; $abierta = false; ?>
+                <?php require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
+                <?php // La nota vive en `_chart-data.php` junto al resto de metadatos del
+                      // grafico: el imprimible tambien la necesita, y tenerla escrita a mano
+                      // en las dos vistas era una copia esperando a divergir. ?>
+                <p class="cuadros-nota"><?= $t['nota'] ?></p>
             </div>
         </div>
     </div>
@@ -193,14 +193,51 @@ require VIEW_PATH . '/admin/cuadros/_chart-data.php';
             <div class="card__header"><h3 class="card__title">Brecha interna de cada grado</h3></div>
             <div class="card__body">
                 <div id="chart-brecha"></div>
-                <p class="cuadros-nota">
-                    Promedio del primer puesto frente al del último, por grado. La distancia
-                    entre ambas barras es la dispersión del grado, no su nivel.
-                </p>
+                <?php $t = $chartTablas['brecha'] ?? null; $abierta = false; ?>
+                <?php require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
+                <?php // La nota vive en `_chart-data.php` junto al resto de metadatos del
+                      // grafico: el imprimible tambien la necesita, y tenerla escrita a mano
+                      // en las dos vistas era una copia esperando a divergir. ?>
+                <p class="cuadros-nota"><?= $t['nota'] ?></p>
             </div>
         </div>
     </div>
     <?php endif; ?>
+    <?php endif; ?>
+</section>
+
+<?php // ── 3b. ESTUDIANTES EN RIESGO ───────────────────────────────── ?>
+<?php
+// Cuelga del orden de merito y comparte su fuente: `en_riesgo` viene dentro de
+// cada grado de `$bloques['merito']`, calculado por el mismo `rankingGrado` que
+// da el puesto y el promedio de la fila. Por eso NO hay una clave nueva en el
+// controlador ni una consulta mas.
+$hayRiesgo = (bool) array_filter(
+    $bloques['merito']['por_grado'] ?? [],
+    static fn(array $g): bool => !empty($g['en_riesgo'])
+);
+?>
+<section class="dash-grupo" aria-labelledby="cuadros-g-riesgo">
+    <h2 id="cuadros-g-riesgo" class="dash-grupo__titulo">Estudiantes en riesgo</h2>
+    <?php if (!$hayRiesgo): ?>
+        <?php // El vacio dice POR QUE esta vacio. "Sin datos" a secas se lee como
+              // un fallo, y aqui las dos causas son opuestas: o nadie llego al
+              // umbral (buena noticia) o el bimestre aun no tiene competencias
+              // bloqueadas (todavia no se puede saber). ?>
+        <div class="empty-state">
+            <p>
+                <?php if (empty($bloques['merito']['por_grado'])): ?>
+                    Este bimestre todavía no tiene competencias bloqueadas: hasta que los
+                    docentes aprueben y bloqueen sus notas no se puede saber quién está en riesgo.
+                <?php else: ?>
+                    Ningún estudiante acumula
+                    <?= (int) ($bloques['merito']['riesgo_min_c'] ?? 3) ?> competencias en C
+                    o más en lo que va del bimestre.
+                <?php endif; ?>
+            </p>
+        </div>
+    <?php else: ?>
+        <?php require VIEW_PATH . '/admin/cuadros/_estudiantes-riesgo.php'; ?>
     <?php endif; ?>
 </section>
 
@@ -280,10 +317,12 @@ $pid = (int) $periodo['id'];
                 <div class="card__header"><h3 class="card__title">Distribución por nivel</h3></div>
                 <div class="card__body">
                     <div id="chart-conducta-literales"></div>
-                    <p class="cuadros-nota">
-                        Reparto AD / A / B / C en el bimestre a la vista. La altura de cada barra
-                        es cuántos estudiantes tienen conducta calificada en ese nivel.
-                    </p>
+                    <?php $t = $chartTablas['conductaLiterales'] ?? null; $abierta = false; ?>
+                    <?php require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
+                    <?php // La nota vive en `_chart-data.php` junto al resto de metadatos del
+                          // grafico: el imprimible tambien la necesita, y tenerla escrita a mano
+                          // en las dos vistas era una copia esperando a divergir. ?>
+                    <p class="cuadros-nota"><?= $t['nota'] ?></p>
                 </div>
             </div>
             <?php endif; ?>
@@ -293,10 +332,12 @@ $pid = (int) $periodo['id'];
                 <div class="card__header"><h3 class="card__title">Evolución del % en logro</h3></div>
                 <div class="card__body">
                     <div id="chart-conducta-evolucion"></div>
-                    <p class="cuadros-nota">
-                        Porcentaje en AD o A por bimestre. Solo aparecen los bimestres en que
-                        ambos niveles tienen conducta registrada.
-                    </p>
+                    <?php $t = $chartTablas['conductaEvolucion'] ?? null; $abierta = false; ?>
+                    <?php require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
+                    <?php // La nota vive en `_chart-data.php` junto al resto de metadatos del
+                          // grafico: el imprimible tambien la necesita, y tenerla escrita a mano
+                          // en las dos vistas era una copia esperando a divergir. ?>
+                    <p class="cuadros-nota"><?= $t['nota'] ?></p>
                 </div>
             </div>
             <?php endif; ?>
@@ -333,9 +374,12 @@ $pid = (int) $periodo['id'];
                 <div class="card__header"><h3 class="card__title">Etapa del cierre de conducta</h3></div>
                 <div class="card__body">
                     <div id="chart-conducta-embudo"></div>
-                    <p class="cuadros-nota">
-                        Secciones por etapa: el auxiliar bloquea primero y el tutor cierra después.
-                    </p>
+                    <?php $t = $chartTablas['conductaEmbudo'] ?? null; $abierta = false; ?>
+                    <?php require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
+                    <?php // La nota vive en `_chart-data.php` junto al resto de metadatos del
+                          // grafico: el imprimible tambien la necesita, y tenerla escrita a mano
+                          // en las dos vistas era una copia esperando a divergir. ?>
+                    <p class="cuadros-nota"><?= $t['nota'] ?></p>
                 </div>
             </div>
             <?php endif; ?>
@@ -345,9 +389,12 @@ $pid = (int) $periodo['id'];
                 <div class="card__header"><h3 class="card__title">Secciones con menor avance</h3></div>
                 <div class="card__body">
                     <div id="chart-conducta-secciones"></div>
-                    <p class="cuadros-nota">
-                        Porcentaje de estudiantes ya calificados en conducta. (P) primaria, (S) secundaria.
-                    </p>
+                    <?php $t = $chartTablas['conductaSecciones'] ?? null; $abierta = false; ?>
+                    <?php require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
+                    <?php // La nota vive en `_chart-data.php` junto al resto de metadatos del
+                          // grafico: el imprimible tambien la necesita, y tenerla escrita a mano
+                          // en las dos vistas era una copia esperando a divergir. ?>
+                    <p class="cuadros-nota"><?= $t['nota'] ?></p>
                 </div>
             </div>
             <?php endif; ?>
@@ -369,10 +416,12 @@ $pid = (int) $periodo['id'];
                 <div class="card__header"><h3 class="card__title">Criterios con mayor incumplimiento</h3></div>
                 <div class="card__body">
                     <div id="chart-conducta-criterios"></div>
-                    <p class="cuadros-nota">
-                        Porcentaje de respuestas &laquo;No cumple&raquo; sobre el total registrado
-                        en el colegio. Pasa el cursor por una barra para leer el criterio completo.
-                    </p>
+                    <?php $t = $chartTablas['conductaCriterios'] ?? null; $abierta = false; ?>
+                    <?php require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
+                    <?php // La nota vive en `_chart-data.php` junto al resto de metadatos del
+                          // grafico: el imprimible tambien la necesita, y tenerla escrita a mano
+                          // en las dos vistas era una copia esperando a divergir. ?>
+                    <p class="cuadros-nota"><?= $t['nota'] ?></p>
                 </div>
             </div>
             <?php endif; ?>
@@ -453,10 +502,12 @@ $pid = (int) $periodo['id'];
                 <div class="card__header"><h3 class="card__title">Evolución en el año</h3></div>
                 <div class="card__body">
                     <div id="chart-asis-evolucion"></div>
-                    <p class="cuadros-nota">
-                        Total de faltas y tardanzas sin justificar por bimestre. Solo aparecen
-                        los bimestres con asistencia registrada.
-                    </p>
+                    <?php $t = $chartTablas['asisEvolucion'] ?? null; $abierta = false; ?>
+                    <?php require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
+                    <?php // La nota vive en `_chart-data.php` junto al resto de metadatos del
+                          // grafico: el imprimible tambien la necesita, y tenerla escrita a mano
+                          // en las dos vistas era una copia esperando a divergir. ?>
+                    <p class="cuadros-nota"><?= $t['nota'] ?></p>
                 </div>
             </div>
             <?php endif; ?>
@@ -466,10 +517,12 @@ $pid = (int) $periodo['id'];
                 <div class="card__header"><h3 class="card__title">Justificadas frente a sin justificar</h3></div>
                 <div class="card__body">
                     <div id="chart-asis-justificacion"></div>
-                    <p class="cuadros-nota">
-                        Cuánto se justifica en cada nivel. Son contadores independientes:
-                        una falta justificada no se descuenta de las faltas.
-                    </p>
+                    <?php $t = $chartTablas['asisJustificacion'] ?? null; $abierta = false; ?>
+                    <?php require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
+                    <?php // La nota vive en `_chart-data.php` junto al resto de metadatos del
+                          // grafico: el imprimible tambien la necesita, y tenerla escrita a mano
+                          // en las dos vistas era una copia esperando a divergir. ?>
+                    <p class="cuadros-nota"><?= $t['nota'] ?></p>
                 </div>
             </div>
             <?php endif; ?>
@@ -486,10 +539,12 @@ $pid = (int) $periodo['id'];
                 <div class="card__header"><h3 class="card__title">Faltas sin justificar por sección</h3></div>
                 <div class="card__body">
                     <div id="chart-asis-faltas"></div>
-                    <p class="cuadros-nota">
-                        Secciones ordenadas de mayor a menor. (P) primaria, (S) secundaria.
-                        Son totales de la sección, no promedios por estudiante.
-                    </p>
+                    <?php $t = $chartTablas['asisFaltas'] ?? null; $abierta = false; ?>
+                    <?php require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
+                    <?php // La nota vive en `_chart-data.php` junto al resto de metadatos del
+                          // grafico: el imprimible tambien la necesita, y tenerla escrita a mano
+                          // en las dos vistas era una copia esperando a divergir. ?>
+                    <p class="cuadros-nota"><?= $t['nota'] ?></p>
                 </div>
             </div>
             <?php endif; ?>
@@ -499,9 +554,12 @@ $pid = (int) $periodo['id'];
                 <div class="card__header"><h3 class="card__title">Tardanzas sin justificar por sección</h3></div>
                 <div class="card__body">
                     <div id="chart-asis-tardanzas"></div>
-                    <p class="cuadros-nota">
-                        Mismo criterio que el gráfico anterior, aplicado a las tardanzas.
-                    </p>
+                    <?php $t = $chartTablas['asisTardanzas'] ?? null; $abierta = false; ?>
+                    <?php require VIEW_PATH . '/admin/cuadros/_tabla-grafico.php'; ?>
+                    <?php // La nota vive en `_chart-data.php` junto al resto de metadatos del
+                          // grafico: el imprimible tambien la necesita, y tenerla escrita a mano
+                          // en las dos vistas era una copia esperando a divergir. ?>
+                    <p class="cuadros-nota"><?= $t['nota'] ?></p>
                 </div>
             </div>
             <?php endif; ?>
