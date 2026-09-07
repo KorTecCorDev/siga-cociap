@@ -220,11 +220,18 @@
     });
 
     // Línea: evolución anual de faltas y tardanzas sin justificar.
+    //
+    // ROJO + ÁMBAR, no naranja + ámbar (07/09/2026). Dos motivos, y el segundo
+    // es el que manda: naranja #e07b1a y ámbar #d97706 son casi el mismo tono y
+    // en dos líneas finas no se distinguen; y aquí las series NO son categorías
+    // sueltas, tienen orden de gravedad —una falta pesa más que una tardanza—,
+    // así que les toca la paleta de ESTADOS, igual que al embudo de conducta.
+    // Ver la nota de las dos paletas en la cabecera de este archivo.
     registrar('chart-asis-evolucion', 'asisEvolucion', function (d, id) {
         new frappe.Chart('#' + id, {
             type: 'line',
             height: 280,
-            colors: [NARANJA, AMBAR],
+            colors: [ROJO, AMBAR],
             axisOptions: { xAxisMode: 'tick' },
             lineOptions: { hideDots: 0, regionFill: 0 },
             data: { labels: d.labels, datasets: d.datasets }
