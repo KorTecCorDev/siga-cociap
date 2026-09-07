@@ -822,3 +822,9 @@ Todas son de **solo lectura** y corren en producción.
 > Cuando estos cambios se mergeen a `main`, ese contraste dejará de tener sentido
 > (HEAD ya traerá el código nuevo) — es un verificador **de la migración**, no
 > permanente.
+
+> **Actualización 07/09/2026 — banda sobre fondo claro.** Mérito azul
+> (`$color-info-bg` + `$color-info`) y riesgo rojo (`$color-error-bg` +
+> `$color-error`), acento de 5 px. Nacieron sobre `$brand-dark` y era un error
+> de contraste DE ACENTO: azul sobre azul no se separaba, y el rojo había que
+> aclararlo hasta perder el rojo. Contrastes medidos: 10,9:1 y 5,9:1.

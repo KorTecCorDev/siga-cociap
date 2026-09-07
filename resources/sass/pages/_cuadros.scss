@@ -432,11 +432,6 @@
 // banda comunica es la MAGNITUD del bloque, que hasta hoy no estaba escrita en
 // ninguna parte (habia que sumar once <caption> a mano).
 //
-// 🔴 EL COLOR ES `$brand-dark`, EL AZUL INSTITUCIONAL DEL TOPBAR Y DEL LOGIN.
-// No es rojo ni ambar —que en este sistema significan estado de un proceso— ni
-// ninguno de los cuatro tonos de wayfinding, que estan tomados por conceptos
-// del dashboard docente. Es el unico tono con fuerza suficiente que no dice ya
-// otra cosa en otra pantalla.
 // ── Banda de magnitud: el PAR merito <-> riesgo ──────────────────────
 // Un solo bloque para las dos secciones, porque son la misma pieza: la cifra
 // que hasta ahora no estaba escrita en ninguna parte. Lo que cambia es el
@@ -449,9 +444,15 @@
 // en todas ellas. Es el mismo criterio con el que se eligieron los cuatro
 // tonos de wayfinding en _variables.scss.
 //
-// 🔴 Y EL ROJO VA CONTENIDO: borde izquierdo y cifra, sobre el MISMO fondo azul
-// oscuro que la banda de merito. No un rectangulo rojo entero. La seccion de
-// riesgo lista niños con nombre y apellido, y un bloque rojo a pantalla completa
+// 🔴 FONDO CLARO TINTADO, NO UN BLOQUE OSCURO. La banda nacio con `$brand-dark`
+// y era un error de contraste de ACENTO, no de legibilidad: sobre azul marino el
+// acento AZUL del merito casi no se separaba del fondo —azul sobre azul— y el
+// rojo del riesgo habia que aclararlo hasta #fca5a5 para que se leyera, con lo
+// que dejaba de parecer rojo. Sobre fondo claro los dos acentos van a su tono
+// PLENO y el par se distingue de verdad.
+//
+// 🔴 Y EL ROJO SIGUE CONTENIDO: fondo rojo MUY palido (#fef2f2), no saturado. La
+// seccion de riesgo lista niños con nombre y apellido, y un bloque rojo intenso
 // sobre esa lista se lee como una acusacion. Las filas, ademas, siguen neutras
 // (ver la nota larga de `.cuadros-top`).
 .cuadros-banda {
@@ -461,12 +462,13 @@
     gap: $spacing-sm $spacing-lg;
     padding: $spacing-md $spacing-lg;
     margin-bottom: $spacing-md;
-    background: $brand-dark;
-    color: $text-white;
+    background: $bg-secondary;
+    color: $text-primary;
+    border: 1px solid $border-color;
     border-radius: $border-radius;
-    // Reservado para el acento: sin el, las dos bandas quedarian desalineadas
-    // entre si (una con borde y otra sin el).
-    border-left: 5px solid transparent;
+    // El acento. Va en la BASE, no solo en los modificadores: sin el, una banda
+    // sin modificador quedaria 5px mas estrecha que su pareja.
+    border-left: 5px solid $border-color;
 
     &__cifra {
         display: flex;
@@ -502,29 +504,36 @@
         gap: $spacing-xs $spacing-md;
         font-size: $font-size-sm;
 
-        // #cbd5e1 sobre #1a3a5c da 8,4:1. `$text-muted` (#94a3b8) se quedaba en
-        // 4,3:1, al limite de AA para 12px.
-        color: #cbd5e1;
+        // `$text-secondary` (#475569) y no `$text-muted` (#94a3b8): en 12px el
+        // gris claro sobre estos fondos casi blancos queda al limite de AA. Es
+        // la misma correccion que ya se hizo en `badge--espera`.
+        color: $text-secondary;
 
-        strong { color: $text-white; font-weight: 700; }
+        strong { color: $text-primary; font-weight: 700; }
     }
 
-    // Los mejores: acento azul del sistema.
+    // Los mejores: azul. Se usan los tokens de ESTADO (`info`), NO los de
+    // wayfinding: aquellos ya significan "cargas academicas" en el panel del
+    // docente, y reusarlos aqui le robaria el significado a ese atajo.
     &--merito {
-        border-left-color: $brand-mid;
+        background: $color-info-bg;              // #f0f9ff
+        border-color: lighten($color-info, 40%);
+        border-left-color: $color-info;          // #0284c7
 
-        .cuadros-banda__n { color: #bfdbfe; }
+        // #1a3a5c sobre #f0f9ff da 10,9:1 (medido en navegador).
+        .cuadros-banda__n { color: $brand-dark; }
     }
 
-    // Los que necesitan apoyo: acento rojo.
-    // ⚠️ La cifra NO va en `$color-error` (#dc2626): sobre #1a3a5c da 2,5:1 y
-    // seria ilegible. #fca5a5 da 7,1:1 y se sigue leyendo como rojo. El borde
-    // si lleva el rojo pleno, porque un borde no tiene que contrastar como
-    // texto — solo separarse del fondo.
+    // Los que necesitan apoyo: rojo, sobre fondo rojo muy palido.
     &--riesgo {
-        border-left-color: $color-error;
+        background: $color-error-bg;             // #fef2f2
+        border-color: lighten($color-error, 35%);
+        border-left-color: $color-error;         // #dc2626
 
-        .cuadros-banda__n { color: #fca5a5; }
+        // #b91c1c sobre #fef2f2 da 5,9:1 medido. `$color-error` (#dc2626) daria 4,6:1:
+        // pasa AA, pero en una cifra de 2,4rem el tono mas oscuro se lee mejor y
+        // ademas se separa del borde, que si lleva el rojo pleno.
+        .cuadros-banda__n { color: #b91c1c; }
     }
 }
 
