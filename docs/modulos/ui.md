@@ -849,3 +849,70 @@ hay que escribir la variante `[hidden]` explícita.** Un `<tr>` o un `<div>` sin
 **Y necesita aserto sobre el CSS SERVIDO**, no sobre el marcado: desde PHP el
 HTML se ve perfecto. Está en `verif_direccion_superficies.php`, con el mismo
 método que `verif_banners_aviso.php`.
+
+## Responsive: lo que se midió antes de tocar nada (07/09/2026)
+
+Auditoría de `/admin/cuadros` en pantallas pequeñas. **El método importa**: se midió con un
+**iframe de ancho fijo** dentro de la propia página, porque un iframe dispara las media
+queries según su propio ancho. `resize_window` de la extensión de Chrome **reporta éxito y
+no cambia el viewport** en este entorno — con él se mide el escritorio creyendo medir un
+móvil.
+
+### Dos diagnósticos que la medición desmintió
+
+- 🔴 **«La página desborda en tablet»: NO.** Lo que parecía scroll horizontal a 748 px era
+  **1 px de redondeo** (749 vs 748) con **0 elementos** realmente fuera. Antes de perseguir
+  un desborde, comprobar si algún elemento se sale de verdad.
+- 🔴 **«Los gráficos no se readaptan al rotar»: SÍ se readaptan.** Frappe Charts 1.6.2
+  registra `resize` y `orientationchange` por instancia, y funcionan (medido: el SVG pasa
+  de 289 a 783 px). Lo que **no** actúa es su `ResizeObserver` interno — coherente con el
+  `NotFoundError: removeChild` ya documentado—, así que un cambio de *contenedor* sin
+  cambio de *ventana* no redibuja. **No añadir un listener de `resize` propio**: duplicaría
+  el trabajo que la librería ya hace bien.
+
+### Lo que sí fallaba, y cómo se arregló
+
+| Defecto | Antes (371 px) | Después |
+|---|---|---|
+| Tabla de riesgo | suelo de 950 px → 2,8× de scroll | 700 px → 2,2× |
+| Barra de filtros | 333 px de alto (44 % de pantalla) | 194 px |
+| Chips de nivel y grado | se apilaban en varias filas | scroll lateral |
+| `.form-inline` | **usada en el marcado sin existir en el SASS** | definida |
+
+**Ninguna columna se oculta y no hay layout de tarjeta** (decisión del usuario; las tarjetas
+ya se habían descartado el 25/08/2026 para la grilla de notas). Lo que se reduce es el aire:
+relleno y tamaño de letra.
+
+**Los chips copian el bloque de `.tabs`** (`components/_tabs.scss`), que ya resolvía esto:
+`nowrap` + `overflow-x: auto` + `scrollbar-width: none`. Tercer consumidor del mismo patrón
+junto con `.cuadros-indice`.
+
+### Señal de que una tabla continúa (`.tabla-notas-wrapper`)
+
+Sombra en los bordes que aparece y desaparece sola, sin JS: dos capas de gradiente `local`
+(se desplazan con el contenido) tapando a dos `scroll` (fijas al marco).
+
+⚠️ **Solo funciona si las celdas del borde NO tienen `background` propio**: el gradiente se
+pinta en el wrapper y cualquier fondo de celda lo tapa. Hoy se ve porque solo el `thead` y
+la columna sticky tienen fondo. Si algún día se le da fondo a las últimas columnas, esta
+señal desaparece **en silencio**.
+
+### Deuda anotada: los breakpoints no están unificados
+
+**640 px es el breakpoint del sistema** (48 usos; el único presente en navbar, tabs, tables
+y `.app-main`). Pero el repo tiene además 760, 761, 900, 820, 600, 560, 540, 480, 400 y 360
+escritos a mano, casi todos de **un solo uso**. `_cuadros.scss` usa tres (640, 760 y 761) y
+es el único archivo con `761px`.
+
+**No se unificaron a propósito**: los de 760/761 gobiernan la rejilla de gráficos y el panel
+de literales, funcionan, y migrarlos a 640 metería dos columnas de gráfico en tablet. Sería
+un cambio de maquetación disfrazado de limpieza. No hay variables SASS de breakpoint; si
+algún día se crean, este es el inventario.
+
+### Un aserto de CSS compilado no puede asumir el orden de las declaraciones
+
+⚠️ **Autoprefixer reordena y añade propiedades.** Un aserto que buscaba
+`.cuadros-riesgo__chips{flex-wrap:nowrap` **falló con la regla correcta ya compilada**,
+porque gulp emite `{-ms-flex-wrap:nowrap;flex-wrap:nowrap;…}`. Estos asertos van con
+**regex sobre el cuerpo de la regla** (`\{[^}]*propiedad`), nunca con la declaración
+literal pegada a la llave.

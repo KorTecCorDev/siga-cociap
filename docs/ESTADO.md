@@ -5,6 +5,48 @@
 
 
 
+## 🟡 CUADROS — responsive de la pantalla (07/09/2026)
+
+En `dev`, **sin desplegar**. Sin migración. Detalle en `docs/modulos/ui.md`
+§ «Responsive: lo que se midió antes de tocar nada».
+
+**Método**: iframe de ancho fijo dentro de la propia página (dispara las media queries de
+verdad). ⚠️ `resize_window` de la extensión **reporta éxito y NO cambia el viewport** en
+este entorno: con él se mide el escritorio creyendo medir un móvil.
+
+**DOS DIAGNÓSTICOS MÍOS QUE LA MEDICIÓN DESMINTIÓ** (y por eso no se tocó nada de eso):
+- «la página desborda en tablet» → era **1 px de redondeo** (749 vs 748), 0 elementos fuera;
+- «los gráficos no se readaptan al rotar» → **sí lo hacen**: Frappe 1.6.2 registra `resize`
+  y `orientationchange` y funcionan (SVG 289 → 783 px). Solo su `ResizeObserver` interno no
+  actúa. **No se añadió listener propio**: duplicaría lo que la librería ya hace.
+
+**Lo que sí fallaba** (medido a 371 px → después):
+- tabla de riesgo: suelo 950 px / 2,8× de scroll → **700 px / 2,2×**;
+- barra de filtros: **333 px de alto (44 % de pantalla) → 194 px**;
+- chips de nivel y grado: se apilaban → **scroll lateral** (mismo bloque que `.tabs`);
+- tipografía de escritorio en móvil (banda 2,4 rem, KPI 1,6 rem) → reducida;
+- 🔴 **`.form-inline` se usaba SIN EXISTIR**: la clase estaba en el marcado del selector
+  de bimestre desde que nació el tablero y **no había ni una regla** en todo el SASS.
+
+**Ninguna columna se oculta y no hay tarjetas** (decisión del usuario; las tarjetas ya se
+descartaron el 25/08 para la grilla de notas). Se reduce el aire, no la información.
+
+**Señal de scroll** en `.tabla-notas-wrapper`: sombra por gradientes `local`+`scroll`, sin
+JS. ⚠️ **Solo funciona si las celdas del borde no tienen `background`** —hoy se cumple—;
+si un día se les da fondo, la señal desaparece en silencio.
+
+**Breakpoints NO unificados, a propósito.** 640 px es el del sistema (48 usos), pero el repo
+tiene 760/761/900/820/600/560/540/480/400/360 escritos a mano, casi todos de un solo uso.
+Los de 760/761 de `_cuadros.scss` gobiernan la rejilla de gráficos y funcionan: migrarlos
+sería un cambio de maquetación disfrazado de limpieza. Queda como deuda en `ui.md`.
+
+**Verificación**: 36 verificadores en verde; `verif_direccion_superficies` gana 3 asertos
+sobre el **CSS servido** (ninguna prueba de servidor ve una media query).
+⚠️ **Un aserto de CSS compilado no puede asumir el orden de las declaraciones**: el primero
+buscaba `.cuadros-riesgo__chips{flex-wrap:nowrap` y **falló con la regla correcta ya
+compilada**, porque autoprefixer emite `{-ms-flex-wrap:nowrap;flex-wrap:nowrap;…}`. Van con
+regex sobre el cuerpo de la regla.
+
 ## 🟡 CUADROS — desglose de las competencias en C (07/09/2026)
 
 En `dev`, **sin desplegar**. Sin migración. Detalle en

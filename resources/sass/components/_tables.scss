@@ -5,6 +5,31 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     border-radius: $border-radius-sm;
+
+    // ── Señal de que la tabla continua (07/09/2026) ──────────────────
+    // Medido en /admin/cuadros a 371px: 37 de 45 tablas piden scroll lateral,
+    // la peor a 2,8x. Sin ninguna marca, el usuario no tiene forma de saber
+    // que a la derecha hay mas columnas: la tabla se corta limpiamente contra
+    // el borde y parece que ahi se acaba.
+    //
+    // Sombra que APARECE Y DESAPARECE sola, sin una linea de JS: dos capas de
+    // gradiente, una `local` (se desplaza con el contenido) que tapa a la otra
+    // `scroll` (fija al marco). Cuando el scroll llega al final, la blanca
+    // cubre a la gris.
+    //
+    // ⚠️ FUNCIONA SOLO SI LAS CELDAS NO TIENEN FONDO PROPIO: el gradiente se
+    // pinta en el WRAPPER y cualquier `background` de celda lo tapa. Aqui se
+    // ve porque el fondo lo ponen las celdas STICKY (a la izquierda) y el
+    // hover, no las celdas de la derecha. Si un dia se le da fondo a las
+    // ultimas columnas, esta señal desaparece en silencio.
+    background:
+        linear-gradient(to right, $bg-white 30%, rgba(255, 255, 255, 0)) left center,
+        linear-gradient(to left,  $bg-white 30%, rgba(255, 255, 255, 0)) right center,
+        linear-gradient(to right, rgba(15, 23, 42, .18), rgba(15, 23, 42, 0)) left center,
+        linear-gradient(to left,  rgba(15, 23, 42, .18), rgba(15, 23, 42, 0)) right center;
+    background-repeat: no-repeat;
+    background-size: 28px 100%, 28px 100%, 14px 100%, 14px 100%;
+    background-attachment: local, local, scroll, scroll;
 }
 
 .tabla-notas {

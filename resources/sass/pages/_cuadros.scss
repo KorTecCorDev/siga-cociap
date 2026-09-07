@@ -698,6 +698,92 @@ tr.fila-riesgo-detalle > td {
     }
 }
 
+// ── Pantallas pequenas (07/09/2026) ──────────────────────────────────
+// 640px es EL breakpoint del sistema: 48 usos, y el unico presente en los
+// componentes globales (navbar, tabs, tables, .app-main). Este archivo ya
+// traia 760 y 761 escritos a mano para la rejilla de graficos y el panel de
+// literales; NO se migran, funcionan y cambiarlos meteria dos columnas de
+// grafico en tablet. Lo nuevo va todo aqui, a 640.
+//
+// Medido con un iframe a 371px antes de tocar nada (un iframe dispara las
+// media queries de verdad; `resize_window` de la extension no cambia el
+// viewport en este entorno):
+//   · 37 de 45 tablas pedian scroll lateral, la peor a 2,8x
+//   · la barra de filtros de riesgo ocupaba 333px de alto (44% de pantalla)
+//   · la pagina media 26 000px de alto contra 20 000 en escritorio
+@media (max-width: 640px) {
+
+    // ── La tabla de riesgo se COMPRIME, no se recorta ─────────────────
+    // Decision del usuario (07/09/2026): ninguna columna se oculta y no hay
+    // layout de tarjeta —ese ya se descarto el 25/08 para la grilla de notas—.
+    // Los datos se ven integros; lo que se reduce es el aire.
+    //
+    // 950 -> 700px baja el scroll de 2,8x a ~1,9x. El suelo sigue existiendo:
+    // por debajo de el, nueve columnas se aplastan hasta ser ilegibles y es
+    // preferible desplazar. La columna de nombre sigue `sticky`, asi que al
+    // desplazar nunca se pierde de quien es la fila.
+    .cuadros-top--riesgo {
+        min-width: 700px;
+        font-size: $font-size-sm;
+
+        th, td { padding-left: $spacing-sm; padding-right: $spacing-sm; }
+
+        // La celda de nombre repite el padding porque su regla de escritorio
+        // lo fija en $spacing-md y gana por especificidad (0,3,2).
+        tbody th.col-nombre {
+            padding-left: $spacing-sm;
+            padding-right: $spacing-sm;
+            font-size: $font-size-sm;
+        }
+
+        .col-nombre { min-width: 0; }
+    }
+
+    // El desglose de C hereda el ancho de su tabla madre; solo baja la fuente.
+    .riesgo-detalle__tabla { font-size: 11px; }
+
+    // ── Los chips se desplazan, no se apilan ──────────────────────────
+    // Con 3 chips de nivel + 11 de grado envolviendo, la barra de filtros se
+    // comia 333px. Es el MISMO tratamiento que components/_tabs.scss ya da a
+    // las pestañas y `.cuadros-indice` a las anclas: se copia esa forma en vez
+    // de inventar otra.
+    .cuadros-riesgo__chips {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar { display: none; }
+
+        .orden-chip { white-space: nowrap; flex: 0 0 auto; }
+    }
+
+    // El buscador ocupa la fila entera: un campo de texto estrecho en movil es
+    // dificil de acertar y aqui es la herramienta que mas rinde.
+    .cuadros-riesgo__campo { flex: 1 1 100%; }
+
+    .cuadros-riesgo__filtros { padding: $spacing-sm; gap: $spacing-sm; }
+
+    // ── Tipografia y aire ─────────────────────────────────────────────
+    // Las cifras grandes estaban dimensionadas para escritorio. Reducirlas no
+    // quita informacion y acorta una pagina que medía 26 000px.
+    .cuadros-banda {
+        padding: $spacing-sm $spacing-md;
+        gap: $spacing-xs $spacing-md;
+    }
+
+    .cuadros-banda__n { font-size: 1.8rem; }
+    .cuadros-banda__q { font-size: $font-size-base; }
+
+    .cuadros-kpi {
+        padding: $spacing-sm;
+
+        &__n { font-size: 1.35rem; }
+    }
+
+    .cuadros-kpis { gap: $spacing-sm; }
+}
+
 // ── Version imprimible (A4 portrait, layout print) ───────────────────
 // Esta vista SOLO se ve dentro del layout print, asi que no necesita
 // @media print: igual que .resumen-print, los estilos aplican siempre.

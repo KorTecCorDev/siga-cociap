@@ -208,6 +208,44 @@ foreach ([
         str_contains($css, $regla) ? $regla : "falta $regla en app.css (¿sin gulp build?)");
 }
 
+// ── Responsive de /admin/cuadros (07/09/2026) ─────────────────────────
+// 🔴 SE MIDE EL CSS SERVIDO PORQUE NINGUNA PRUEBA DE SERVIDOR VE UNA MEDIA
+// QUERY. El HTML es idéntico en móvil y en escritorio: lo único que cambia es
+// qué reglas aplican, y eso solo existe en `app.css`. Sin estos asertos, una
+// recompilación a medias o un `@media` borrado dejan la pantalla rota en el
+// dispositivo que más se usa y todo lo demás sigue en verde.
+//
+// Línea base medida con un iframe a 371px ANTES de este trabajo: 37 de 45
+// tablas con scroll lateral (peor 2,8x) y la barra de filtros ocupando 333px
+// de alto. Después: peor 2,2x y 194px.
+//
+// ⚠️ Son asertos sobre CSS minificado: comprueban que la regla EXISTE, no que se
+// vea bien. Lo segundo se mira en el navegador.
+//
+// ⚠️ Y van con REGEX, no con `str_contains` de la declaración literal, porque
+// AUTOPREFIXER REORDENA Y AÑADE PROPIEDADES. La primera versión buscaba
+// `.cuadros-riesgo__chips{flex-wrap:nowrap` y falló con la regla correcta ya
+// compilada: gulp emite `{-ms-flex-wrap:nowrap;flex-wrap:nowrap;...}` y el
+// prefijo se cuela justo delante. Un aserto de CSS compilado no puede dar por
+// hecho ni el orden ni la vecindad de las declaraciones.
+$movil = [
+    '~\.cuadros-top--riesgo\{[^}]*min-width:700px~'
+        => 'la tabla de riesgo se comprime en móvil (950 -> 700px)',
+    '~\.cuadros-riesgo__chips\{[^}]*flex-wrap:nowrap[^}]*overflow-x:auto~'
+        => 'los chips de filtro se desplazan en vez de apilarse',
+];
+foreach ($movil as $regla => $queEs) {
+    $chk("el CSS servido trae $queEs",
+        (bool) preg_match($regla, $css),
+        preg_match($regla, $css) ? 'presente' : 'no está compilado (¿sin gulp build?)');
+}
+
+// `.form-inline` se usaba SIN EXISTIR desde que nació el tablero: la clase
+// estaba en el marcado y no había ni una regla para ella en todo el SASS.
+$chk('la clase `.form-inline` del selector de bimestre existe en el CSS',
+    str_contains($css, '.form-inline{'),
+    str_contains($css, '.form-inline{') ? 'definida' : 'se usa en la vista pero no está definida');
+
 $anio = new App\Models\AnioAcademicoModel();
 $periodos = $anio->query("SELECT p.id, p.numero, p.nombre_display, p.estado, p.anio_id, a.anio
     FROM periodos p INNER JOIN anios_academicos a ON a.id = p.anio_id
