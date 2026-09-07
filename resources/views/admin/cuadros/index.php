@@ -65,6 +65,43 @@ require VIEW_PATH . '/admin/cuadros/_chart-data.php';
     <div class="empty-state"><p>No hay bimestres disponibles.</p></div>
 <?php else: ?>
 
+<?php // ── Índice de la página ─────────────────────────────────────────
+      // Seis bloques, doce gráficos y cuatro tablas largas: sin índice, la
+      // única forma de saber que existe "Estudiantes en riesgo" —el cuarto
+      // bloque, detrás de dos tablas y dos gráficos— es desplazarse hasta
+      // toparse con él.
+      //
+      // NO va en el imprimible: en papel el índice sería una lista de enlaces
+      // muertos, y el A4 ya se recorre pasando hojas.
+      //
+      // Las entradas se ARMAN, no se escriben a mano en el HTML: Reaperturas es
+      // condicional, y un ancla a un `id` que la página no emitió es un enlace
+      // que no lleva a ninguna parte. El verificador comprueba justo eso.
+      $resRiesgo = riesgo_resumen($bloques['merito']['por_grado'] ?? []);
+
+      $indice = [
+          ['cuadros-g-matricula',     'Matrícula',             null],
+          ['cuadros-g-calificaciones','Calificaciones',        null],
+          ['cuadros-g-merito',        'Orden de mérito',       null],
+          ['cuadros-g-riesgo',        'Estudiantes en riesgo', $resRiesgo['total'] ?: null],
+          ['cuadros-g-conducta',      'Conducta',              null],
+          ['cuadros-g-asistencia',    'Asistencia',            null],
+      ];
+      if (!empty($bloques['reaperturas'])) {
+          $indice[] = ['cuadros-g-reaperturas', 'Reaperturas', count($bloques['reaperturas'])];
+      }
+?>
+<nav class="cuadros-indice" aria-label="Secciones del tablero">
+    <?php foreach ($indice as [$ancla, $rotulo, $n]): ?>
+        <a class="orden-chip" href="#<?= e($ancla) ?>">
+            <?= e($rotulo) ?>
+            <?php if ($n !== null): ?>
+                <span class="cuadros-indice__n"><?= (int) $n ?></span>
+            <?php endif; ?>
+        </a>
+    <?php endforeach; ?>
+</nav>
+
 <?php // ── 1. MATRÍCULA ────────────────────────────────────────────── ?>
 <?php $k = $bloques['matricula']['kpis']; ?>
 <section class="dash-grupo" aria-labelledby="cuadros-g-matricula">
@@ -99,7 +136,13 @@ require VIEW_PATH . '/admin/cuadros/_chart-data.php';
                     <th class="text-center">C</th>
                     <th class="text-center">% en logro</th>
                     <th class="text-center">Estudiantes</th>
-                    <th class="text-center">En riesgo</th>
+                    <?php // NO se llama "En riesgo" desde el 07/09/2026. Esta columna cuenta
+                          // a quien tiene el PROMEDIO GENERAL bajo NOTA_MIN_B, por nivel; la
+                          // sección "Estudiantes en riesgo" de más abajo cuenta a quien
+                          // acumula 3 C o más, por grado. Son dos preguntas distintas y en
+                          // B2 daban 0 y 77: con el mismo rótulo, la misma pantalla mostraba
+                          // dos números contradictorios y solo un pie de página los separaba. ?>
+                    <th class="text-center">Promedio en C</th>
                 </tr>
             </thead>
             <tbody>
@@ -237,6 +280,10 @@ $hayRiesgo = (bool) array_filter(
             </p>
         </div>
     <?php else: ?>
+        <?php // La pantalla SI lleva buscador y chips; el A4 no define este flag
+              // a proposito. El partial es uno solo y la diferencia la pone el
+              // llamador, igual que `$abierta` en `_tabla-grafico.php`.
+              $riesgoInteractivo = true; ?>
         <?php require VIEW_PATH . '/admin/cuadros/_estudiantes-riesgo.php'; ?>
     <?php endif; ?>
 </section>
@@ -619,6 +666,12 @@ $pid = (int) $periodo['id'];
       // grafico; antes, porque cuadros.js se apoya en su evento `tabs:mostrado`
       // para dibujar los graficos que nacen dentro de un panel oculto. ?>
 <script src="<?= url('js/tabs.js') ?>"></script>
+<?php // Igual que tabs.js: FUERA del `if`. El filtrado de "Estudiantes en riesgo"
+      // tiene que funcionar en un bimestre sin ni un grafico, y ademas es el
+      // script que DESTAPA la barra de filtros —que nace `hidden` para que sin
+      // JS no queden controles muertos en pantalla—. Dentro del `if`, un
+      // bimestre sin datos de grafico dejaba la barra invisible para siempre. ?>
+<script src="<?= url('js/cuadros-riesgo.js') ?>"></script>
 <?php if ($chartData): ?>
     <script type="application/json" id="cuadros-data"><?= json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?></script>
     <script src="<?= url('js/frappe-charts.min.js') ?>"></script>

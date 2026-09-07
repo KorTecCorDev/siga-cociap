@@ -65,7 +65,11 @@ $k = $bloques['matricula']['kpis'];
                         <th class="text-center">C</th>
                         <th class="text-center">% en logro</th>
                         <th class="text-center">Estudiantes</th>
-                        <th class="text-center">En riesgo</th>
+                        <?php // "Promedio en C", no "En riesgo": cuenta el promedio general
+                              // bajo NOTA_MIN_B por nivel, que es otra pregunta que la
+                              // seccion "Estudiantes en riesgo" de mas abajo (3 C o mas, por
+                              // grado). Ver el comentario gemelo en index.php. ?>
+                        <th class="text-center">Promedio en C</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -185,6 +189,12 @@ $k = $bloques['matricula']['kpis'];
                 <?php endif; ?>
             </p>
         <?php else: ?>
+            <?php // ⚠️ AQUI NO SE DEFINE `$riesgoInteractivo`, y es DELIBERADO: el
+                  // partial lo lee con `!empty()`, asi que en papel no salen ni el
+                  // buscador ni los chips ni el contador. No "arreglar" la variable
+                  // que falta — es el mismo idioma que `$abierta` en
+                  // `_tabla-grafico.php`, donde un <details> cerrado imprimia una
+                  // hoja en blanco. La banda de cifras SI sale: es dato, no control. ?>
             <?php require VIEW_PATH . '/admin/cuadros/_estudiantes-riesgo.php'; ?>
         <?php endif; ?>
     </section>

@@ -605,14 +605,26 @@ usuario): un grado aporta las filas que tenga, y un grado sin casos no aparece.
   C»), y la sección **nunca desaparece** — si se ocultara, no habría forma de
   distinguir «no hay nadie en riesgo» de «se rompió».
 
-🔴 **HAY DOS «EN RIESGO» EN ESTA PANTALLA Y NO SON EL MISMO NÚMERO.** El del
+🔴 **HAY DOS PREGUNTAS DISTINTAS Y YA NO COMPARTEN RÓTULO (07/09/2026).** La del
 bloque de Calificaciones es el **promedio general** por debajo de `NOTA_MIN_B`,
-contado por NIVEL (`getResumenBimestre`). El de esta sección es el **número de
+contado por NIVEL (`getResumenBimestre`). La de esta sección es el **número de
 C**, contado por GRADO sobre el universo del mérito. Medido en B2: **0** por
-promedio contra **77** por número de C. Son preguntas distintas, la separación es
-deliberada y el pie de la sección lo explica al lector. **No unificarlas**; el
-verificador imprime las dos cifras juntas en cada corrida para que la diferencia
-siga a la vista.
+promedio contra **77** por número de C.
+
+Hasta el 07/09/2026 las dos se llamaban **«En riesgo»** en la misma pantalla, a
+media pantalla de distancia, y lo único que las separaba era un pie de tres
+párrafos. Se resolvió **en el origen, no con una nota al pie**: aquella columna
+pasó a llamarse **«Promedio en C»** (`index.php`, `imprimir.php` y
+`director/anios/_panel-bimestre.php`, que también pinta
+`/director/periodos/{id}/stats`). Se eligió el literal y no «Promedio bajo 11»
+porque el 11 es `NOTA_MIN_B`: hardcodearlo en un rótulo lo desincroniza en
+silencio si la escala se mueve.
+
+**No unificar las cifras** — son preguntas legítimamente distintas. Dos
+verificadores lo sostienen: `verif_cuadros_merito_motor.php` imprime las dos
+juntas en cada corrida, y `verif_direccion_superficies.php` falla si la cadena
+«En riesgo» vuelve a aparecer en el HTML (el rótulo vivo es «Estudiantes en
+riesgo»).
 
 **Volumen medido:** B1 → 118 filas en 10 grados; B2 → 77 en 8; el bloque mayor,
 28 filas (1.º secundaria). Cabe holgado en la hoja A4 (~400 px de 1047 útiles).
@@ -622,6 +634,81 @@ siga a la vista.
 del segundo llevan el modificador **`--riesgo`**, que en el bloque es un
 **marcador sin estilo a propósito**: es lo que permite al verificador contar «una
 tabla por unidad» sin mezclar los dos listados. No borrarlo por parecer inerte.
+
+### Rediseño de la sección: que se vea y que se pueda recorrer (07/09/2026)
+
+La sección era correcta y **inencontrable**: bloque 4 de 7, detrás de dos tablas
+y dos gráficos, sin decir en ninguna parte cuántos eran (había que sumar once
+`<caption>` a mano) y sin forma de ubicar a una persona entre 118 filas.
+
+**Banda de magnitud** (`.cuadros-riesgo__banda`) — total, grados con casos, % del
+alumnado evaluado y el caso más alto. Va en pantalla **y en el A4**: es dato, no
+control.
+
+🔴 **EL PESO VISUAL ES DE LA SECCIÓN, NO DE LAS PERSONAS.** Las filas siguen
+neutras: ni rojo, ni ámbar, ni semáforo por gravedad. La regla de
+`_cuadros.scss` («hay personas, no procesos») **no se derogó** — se precisó: lo
+prohibido es teñir a alguien por su gravedad, no dar jerarquía al bloque. Ojo al
+revisarlo: el motivo de esa regla **no es el mismo en los dos consumidores**. En
+inasistencias es **normativo** (no hay retiro automático por faltas); en riesgo
+es por analogía, porque comparten clases CSS. La banda usa `$brand-dark`, el azul
+institucional del topbar y del login: no es color de estado ni tono de
+wayfinding, así que no le roba significado a nada.
+🔴 **El A4 la imprime PLANA** (fondo blanco, borde negro). `.cuadros-print` lleva
+`print-color-adjust: exact`, así que sin esa contraparte cada informe salía con
+un rectángulo macizo de tinta azul marino.
+
+**Filtrado en cliente** (`resources/js/cuadros-riesgo.js`): buscador por nombre,
+sección o grado + chips de nivel + chips de grado, los tres en conjunción. El
+buscador reutiliza el normalizador canónico de `nomina.js` (NFD sin diacríticos),
+así que «nunez» encuentra a «NÚÑEZ» y al revés. Un grado sin filas visibles
+oculta **su bloque entero** —dejarlo con el rótulo y el cuerpo vacío se lee como
+un grado sin casos—, y los chips de grado se acotan al nivel elegido.
+
+**Cuarto estado vacío**: «tu filtro no encontró a nadie», que no es ninguno de
+los tres anteriores. El contador es `role="status"` para que el resultado del
+filtro también exista para quien no ve desaparecer las filas.
+
+🔴 **LA BARRA DE FILTROS NACE `hidden` Y LA DESTAPA EL JS.** Sin JS no quedan en
+pantalla un buscador que no busca y unos chips que no filtran; el informe se
+sigue leyendo entero, que es lo que el A4 demuestra que basta. Misma regla que
+las pestañas.
+⚠️ **Y eso necesitó una regla de CSS que no es obvia.** `[hidden] {display:none}`
+vive en la hoja del NAVEGADOR con especificidad (0,0,1), y cualquier `display:
+flex` sobre una clase es (0,1,0) y le gana: el atributo estaba puesto y el
+elemento se veía igual. Le pasaba a la barra **y** a los chips (`.orden-chip` es
+`inline-flex`). Hacen falta `.cuadros-riesgo__filtros[hidden]` y
+`.orden-chip[hidden]` explícitos, y hay aserto sobre el CSS **servido** porque
+desde PHP el defecto es invisible.
+
+**Perfil AD/A/B/C por estudiante**, no solo el número de C: responde «qué tan
+grave es» sin salir de la página. `num_a` **se deriva por resta** en
+`OrdenMeritoModel::statsPorGrado` (los cuatro literales son disjuntos y
+exhaustivos sobre 00-20) — cero consultas nuevas, y sale igual por las dos rutas
+del ranking, en vivo y snapshot. Hay aserto de que `AD+A+B+C = competencias` y de
+que A nunca es negativo: si esa premisa cayera, la tabla enseñaría un perfil
+plausible y falso sin ningún error.
+⚠️ La celda del nombre pasó a `th scope="row"` (nueve columnas: un lector de
+pantalla necesita saber de quién es cada celda) y se disfraza de `td` dentro de
+`--riesgo`. Esa regla **se colaba en el papel** —(0,3,2) le gana a
+`.cuadros-print .cuadros-top` (0,2,0)— e imprimía el nombre a 14 px con la fila a
+8 px, partiendo cada fila en dos. El bloque `.cuadros-print` la reescribe.
+
+**Anchos en porcentaje + `table-layout: fixed`.** Con el reparto automático cada
+tabla medía sus columnas según el largo de los nombres que le tocaron: medido en
+B1, «Sección» caía en x=529 en 1.º de primaria y en x=624 en 2.º. Son diez tablas
+apiladas que se leen como una sola. En porcentaje y no en px porque el mismo
+marcado se pinta en ~1150 px en pantalla y en 718 px en el A4.
+
+**Índice de anclas** (`.cuadros-indice`, solo pantalla): un chip por sección
+realmente renderizada —Reaperturas es condicional— con el conteo en el de riesgo.
+Resuelve el hallazgo de **toda** la página. Su destino es `.dash-grupo__titulo`,
+que ganó `scroll-margin-top` porque el topbar es `sticky`: sin él, saltar a un
+ancla deja el rótulo tapado por la barra.
+
+⚠️ **`.orden-chip` tiene ahora dos consumidores** (`/matriculas` sobre `<a>`,
+`/admin/cuadros` sobre `<button>` y sobre `<a>`). El reset de `<button>` va en un
+selector `button.orden-chip` acotado a propósito: `/matriculas` no lo ve.
 
 ### El papel no tiene cursor (04/09/2026)
 

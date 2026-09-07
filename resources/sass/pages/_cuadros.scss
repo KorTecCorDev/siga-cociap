@@ -260,6 +260,19 @@
 // en riesgo academico no es un estado administrativo. El rojo y el ambar de este
 // sistema significan estado de un proceso (docs/modulos/ui.md), y aqui no hay
 // proceso que senalar, hay personas. Nada de semaforos.
+//
+// 🔴 PRECISION DEL 07/09/2026 — LA REGLA ES DE LA FILA, NO DE LA SECCION.
+// "Estudiantes en riesgo" gano una banda de cabecera con peso visual fuerte
+// (`.cuadros-riesgo__banda`), y eso NO deroga nada: la banda describe la SECCION
+// —cuantos son, en cuantos grados, que parte del alumnado— y las filas de abajo
+// siguen exactamente igual de neutras. Lo que esta prohibido es tenir a una
+// PERSONA por su gravedad, no dar jerarquia al bloque.
+//
+// Ojo al pedirlo o al revisarlo: el motivo de la regla NO es el mismo en los dos
+// consumidores. En inasistencias es NORMATIVO (no hay retiro automatico por
+// faltas); en riesgo es por analogia, porque comparten estas clases. Si algun
+// dia se deroga para uno, no se deroga solo con cambiar el CSS: hay que decirlo
+// aqui, y el otro listado no viene incluido.
 .cuadros-top {
     .col-nombre {
         position: sticky;
@@ -308,11 +321,48 @@
     //      con las mismas clases, sus conteos mezclaban las tablas de faltas con
     //      las de riesgo y el aserto medía algo que no era.
     &--riesgo {
-        .col-nombre { min-width: 180px; }
+        // 🔴 `table-layout: fixed` + anchos en PORCENTAJE, y ninguna de las dos
+        // cosas es cosmetica. Con el reparto automatico cada tabla mide SUS
+        // propias columnas segun el largo de los nombres que le tocaron: medido
+        // el 07/09/2026 en B1, la columna "Seccion" caia en x=529 en la tabla de
+        // 1.o de primaria y en x=624 en la de 2.o. Son diez tablas apiladas que
+        // se leen como una sola, y con las columnas bailando entre ellas la
+        // comparacion de un grado con otro deja de ser posible de un vistazo.
+        //
+        // En PORCENTAJE y no en px porque la misma tabla se pinta en un
+        // contenedor de ~1150px en pantalla y de 718px en el A4: unos anchos
+        // fijos que cuadran en uno desbordan el otro.
+        table-layout: fixed;
 
-        // Puesto ("12 de 47") y Competencias necesitan mas aire que un contador
-        // de faltas de dos digitos.
-        .cuadros-top__n { width: auto; min-width: 84px; }
+        // Suelo para que las nueve columnas no se aplasten en pantallas
+        // estrechas. Por debajo manda el scroll horizontal del wrapper, con la
+        // columna de nombre pegada. El A4 lo anula (ver `.cuadros-print`).
+        min-width: 950px;
+
+        .col-nombre       { width: 31%; min-width: 0; }
+        .cuadros-top__sec { width: 9%; }
+
+        // Puesto ("12 de 47") y Promedio necesitan mas aire que un contador de
+        // faltas de dos digitos.
+        .cuadros-top__n { width: 11%; min-width: 0; }
+
+        // Las cuatro columnas del perfil de literales son de una o dos cifras.
+        .cuadros-top__lit { width: 6%; min-width: 0; }
+
+        // "Competencias" es el rotulo mas largo de la fila de encabezados.
+        th:last-child, td:last-child { width: 14%; }
+
+        // La celda del nombre es un `th scope="row"` (nueve columnas: un lector
+        // de pantalla necesita saber de quien es cada celda). Aqui se le quita
+        // todo lo que `.tabla-notas th` le pone de encabezado para que se lea
+        // como el `td` que era. Acotado a `tbody`: el `thead` sigue intacto.
+        tbody th.col-nombre {
+            font-weight: 400;
+            font-size: $font-size-base;
+            color: $text-primary;
+            padding: 7px $spacing-md;
+            border-bottom: 0.5px solid $border-color;
+        }
     }
 
     // Bloque contenedor de CADA seccion. Va fuera de `.cuadros-top` porque
@@ -333,6 +383,194 @@
 
         // La tabla ya no necesita su propio margen inferior: lo da el bloque.
         .tabla-notas { margin-bottom: 0; }
+    }
+}
+
+// ── Indice de la pagina (anclas a los bloques) ───────────────────────
+// Seis bloques, doce graficos y cuatro tablas largas: sin esto, la unica forma
+// de saber que existe "Estudiantes en riesgo" —cuarto bloque, detras de dos
+// tablas y dos graficos— es desplazarse hasta toparse con el.
+//
+// Reutiliza `.orden-chip` (pages/_matriculas.scss) en vez de inventar un chip
+// nuevo: es el mismo objeto —una pastilla que es un enlace y puede estar
+// activa—. Aqui se usa sobre `<a>`, como en su origen.
+.cuadros-indice {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-xs $spacing-sm;
+    margin-bottom: $spacing-lg;
+
+    // Sin `:focus-visible` propio el foco de teclado se pierde: `.orden-chip`
+    // solo tenia estado `:hover`, y un indice es justo lo que se recorre con
+    // el tabulador.
+    .orden-chip:focus-visible {
+        outline: 2px solid $brand-accent;
+        outline-offset: 2px;
+    }
+
+    // El contador del ancla. Es el mismo objeto que `.cuadros-riesgo__cont`
+    // pero sobre fondo de chip, no de boton.
+    &__n {
+        font-weight: 700;
+        color: $text-primary;
+    }
+
+    // En movil la tira no se parte en cinco lineas: se desplaza, igual que
+    // `.tabs`.
+    @media (max-width: 640px) {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+
+        .orden-chip { white-space: nowrap; }
+    }
+}
+
+// ── Estudiantes en riesgo: banda, filtros y contador ─────────────────
+// 🔴 EL PESO VISUAL ES DE LA SECCION, NO DE LAS PERSONAS. Ver la nota larga
+// sobre `.cuadros-top`: las filas siguen neutras y sin semaforo. Lo que la
+// banda comunica es la MAGNITUD del bloque, que hasta hoy no estaba escrita en
+// ninguna parte (habia que sumar once <caption> a mano).
+//
+// 🔴 EL COLOR ES `$brand-dark`, EL AZUL INSTITUCIONAL DEL TOPBAR Y DEL LOGIN.
+// No es rojo ni ambar —que en este sistema significan estado de un proceso— ni
+// ninguno de los cuatro tonos de wayfinding, que estan tomados por conceptos
+// del dashboard docente. Es el unico tono con fuerza suficiente que no dice ya
+// otra cosa en otra pantalla.
+.cuadros-riesgo {
+
+    &__banda {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: $spacing-sm $spacing-lg;
+        padding: $spacing-md $spacing-lg;
+        margin-bottom: $spacing-md;
+        background: $brand-dark;
+        color: $text-white;
+        border-radius: $border-radius;
+    }
+
+    &__cifra {
+        display: flex;
+        align-items: baseline;
+        gap: $spacing-sm;
+        margin: 0;
+        flex: 1 1 320px;
+        min-width: 0;
+    }
+
+    &__n {
+        font-size: 2.4rem;
+        font-weight: 700;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__q {
+        font-size: $font-size-lg;
+        line-height: 1.3;
+
+        // El <strong> no puede ir mas oscuro sobre fondo oscuro: se distingue
+        // por peso, no por color.
+        strong { font-weight: 700; }
+    }
+
+    &__datos {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-xs $spacing-md;
+        font-size: $font-size-sm;
+
+        // #cbd5e1 sobre #1a3a5c da 8.4:1. `$text-muted` (#94a3b8) se quedaba en
+        // 4.3:1, al limite de AA para 12px.
+        color: #cbd5e1;
+
+        strong { color: $text-white; font-weight: 700; }
+    }
+
+    // ── Barra de filtros ─────────────────────────────────────────
+    // Nace `hidden` desde el servidor y la destapa `cuadros-riesgo.js`: sin JS
+    // no quedan controles muertos en pantalla. Mismo molde que
+    // `.criterios-filtros` de _consulta-notas.scss.
+    &__filtros {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: $spacing-sm $spacing-lg;
+        padding: $spacing-md;
+        margin-bottom: $spacing-sm;
+        background: $bg-secondary;
+        border: 1px solid $border-color;
+        border-radius: $border-radius-sm;
+
+        // 🔴 SIN ESTO EL `hidden` DEL SERVIDOR NO HACE NADA. La hoja del
+        // navegador trae `[hidden] { display: none }` con especificidad (0,0,1)
+        // y la linea de arriba es (0,1,0): gana el `flex`. Medido en Chrome el
+        // 07/09/2026 — el atributo estaba puesto y la barra se veia igual.
+        //
+        // No es cosmetico: la barra nace `hidden` precisamente para que, si el
+        // JS no carga, no queden en pantalla un buscador que no busca y unos
+        // chips que no filtran. Sin esta linea esa defensa era inerte y el
+        // fallo solo se veria el dia que fallara el JS.
+        &[hidden] { display: none; }
+    }
+
+    // El campo NO se estira: con `flex: 1 1` se comia todo el ancho sobrante y
+    // salia un buscador de 790px para escribir un apellido.
+    &__campo {
+        flex: 0 1 320px;
+        min-width: 0;
+
+        .form-label { display: block; margin-bottom: $spacing-xs; }
+        .form-input { width: 100%; }
+    }
+
+    &__grupo {
+        flex: 0 1 auto;
+        min-width: 0;
+    }
+
+    &__rotulo {
+        display: block;
+        margin-bottom: $spacing-xs;
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &__chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-xs;
+
+        // Mismo caso que `&__filtros[hidden]`: `.orden-chip` es `inline-flex`
+        // (0,1,0) y le gana al `[hidden]` de la hoja del navegador (0,0,1). El
+        // JS oculta los chips de los grados que no son del nivel elegido; sin
+        // esta linea los marcaba y se seguian viendo los once.
+        .orden-chip[hidden] { display: none; }
+    }
+
+    // El conteo dentro de un chip. Va en el mismo tono que su chip para no
+    // convertirse en un segundo foco de atencion dentro de un control.
+    &__cont {
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__contador {
+        margin: 0 0 $spacing-md;
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    // El CUARTO estado vacio (los otros tres los pintan las vistas): "tu filtro
+    // no encontro a nadie". Menos aire que un `.empty-state` normal: aparece y
+    // desaparece al teclear, y a `$spacing-2xl` la pagina daba un salto.
+    &__sin-resultados {
+        padding: $spacing-lg;
     }
 }
 
@@ -520,6 +758,58 @@
         &__n { font-size: 1.1rem; }
         &__t { font-size: 9px; }
     }
+
+    // ── Estudiantes en riesgo en papel ───────────────────────────
+    // 🔴 LA BANDA SALE PLANA. `.cuadros-print` lleva `print-color-adjust: exact`
+    // —lo necesita el mapa de calor—, asi que sin esta regla los 1.a3a5c de la
+    // banda se imprimen de verdad: un rectangulo macizo de tinta azul marino en
+    // CADA informe de Direccion, y con el texto en blanco sobre el.
+    // La jerarquia en papel la dan el borde y la negrita, que no gastan tinta.
+    .cuadros-riesgo__banda {
+        background: transparent;
+        color: #000;
+        border: 1px solid #000;
+        border-radius: 0;
+        padding: $spacing-xs $spacing-sm;
+        margin-bottom: $spacing-sm;
+        page-break-inside: avoid;
+    }
+
+    // El suelo de 950px es de PANTALLA (evita que nueve columnas se aplasten
+    // antes de que aparezca el scroll del wrapper). En papel no hay scroll y la
+    // hoja mide 718px: dejarlo desbordaria la tabla por el margen derecho. Los
+    // porcentajes se reparten igual sobre el ancho que haya.
+    .cuadros-top--riesgo { min-width: 0; }
+
+    // 🔴 LA CELDA DEL NOMBRE ES UN `th`, Y ESO SE COLABA EN EL PAPEL. La regla
+    // de pantalla que la disfraza de `td` —`.cuadros-top--riesgo tbody
+    // th.col-nombre`, especificidad (0,3,2)— le gana a `.cuadros-print
+    // .cuadros-top` (0,2,0), asi que el A4 imprimia el nombre a 14px con el
+    // resto de la fila a 8px: cada nombre largo partia su fila en dos y el
+    // bloque ocupaba casi el doble de alto. Medido el 07/09/2026.
+    //
+    // Se reescriben las tres propiedades que vienen de aquella regla, no un
+    // `all: unset` ni una clase nueva: el `font-weight: 400` y el color SI se
+    // quieren tambien en papel (es una celda de datos, no un encabezado).
+    .cuadros-top--riesgo tbody th.col-nombre {
+        font-size: inherit;
+        padding: 2px 3px;
+        border: 1px solid #000;
+    }
+
+    .cuadros-riesgo__n     { font-size: 1.4rem; }
+    .cuadros-riesgo__q     { font-size: 10px; }
+    .cuadros-riesgo__datos { font-size: 8px; color: #000; }
+    .cuadros-riesgo__datos strong { color: #000; }
+
+    // Red de seguridad, no la defensa principal: el A4 no define
+    // `$riesgoInteractivo`, asi que este marcado NO se emite. Si alguien
+    // "arregla" esa variable que falta, esto evita que el informe salga con un
+    // buscador impreso; el aserto del verificador es lo que lo delata.
+    .cuadros-riesgo__filtros,
+    .cuadros-riesgo__contador,
+    .cuadros-riesgo__sin-resultados,
+    .cuadros-indice { display: none; }
 
     &__footer {
         margin-top: $spacing-xl;

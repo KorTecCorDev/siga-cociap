@@ -565,6 +565,24 @@ class OrdenMeritoModel extends BaseModel
             foreach ($ranking as &$fila) {
                 $fila['nombre_completo'] = $fila['apellido_paterno'] . ' '
                     . $fila['apellido_materno'] . ', ' . $fila['nombres'];
+
+                // `num_a` NO se consulta: se DERIVA. Los cuatro literales son
+                // disjuntos y exhaustivos sobre 00-20 —AD (>= NOTA_MIN_AD),
+                // A (14-17), B (11-13), C (<= 10)—, así que A es lo que queda al
+                // restar los otros tres del total de competencias contadas.
+                //
+                // Se hace AQUÍ, en el modelo dueño, y no en la vista, por dos
+                // motivos: es la regla de la escala (helpers.php), y así sale
+                // igual por las DOS rutas de `rankingGrado` —en vivo y snapshot—,
+                // que traen las mismas cuatro columnas. Cero consultas añadidas:
+                // esta clase promete un solo recorrido de los grados.
+                //
+                // ⚠️ No usar `num_alto` para esto: (15,16) SOLAPA con A, es un
+                // desempate, no un tramo de la escala.
+                $fila['num_a'] = (int) $fila['num_competencias']
+                               - (int) $fila['num_ad']
+                               - (int) $fila['num_b']
+                               - (int) $fila['num_c'];
             }
             unset($fila);
 

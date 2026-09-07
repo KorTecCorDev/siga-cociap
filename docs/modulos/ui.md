@@ -794,3 +794,58 @@ contenedor no vuelva a ser flex ni grid), no valores concretos de padding o colo
 —el prefijo consume el `}` de cierre y la siguiente se queda sin delimitador—. Allí
 funciona porque se usa con `preg_match`, una sola regla. El aserto acusaba al CSS de algo
 que no pasaba.
+
+---
+
+## Índice de anclas de una página larga (07/09/2026)
+
+`/admin/cuadros` acumuló seis bloques, doce gráficos y cuatro tablas largas. La
+única forma de saber que existía «Estudiantes en riesgo» —cuarto bloque, detrás
+de dos tablas y dos gráficos— era desplazarse hasta toparse con él.
+
+Componente: `.cuadros-indice` (`pages/_cuadros.scss`), una tira de anclas que
+**reutiliza `.orden-chip`** en vez de inventar un chip nuevo.
+
+- **Las entradas se ARMAN en PHP, no se escriben a mano en el HTML.** En esa
+  página «Reaperturas» es condicional, y un ancla a un `id` que la página no
+  emitió es un enlace que no lleva a ninguna parte. Hay aserto: cada `href="#x"`
+  debe tener su `id="x"` en el mismo documento.
+- **No se imprime.** En papel el índice sería una lista de enlaces muertos.
+- 🔴 **El destino necesita `scroll-margin-top`.** El topbar es `position: sticky`
+  y mide `$topbar-height` (56 px): sin margen de desplazamiento, saltar a un
+  ancla deja el rótulo justo debajo de la barra y parece que el enlace llevó al
+  sitio equivocado. Vive en `.dash-grupo__titulo` (`pages/_dashboard.scss`), que
+  es quien lleva el `id`. Solo afecta al salto por ancla, así que las vistas sin
+  anclas no cambian.
+
+⚠️ **`.orden-chip` tiene ahora dos consumidores** — `/matriculas` (sobre `<a>`,
+ordena la tabla) y `/admin/cuadros` (sobre `<button>` en los filtros de riesgo, y
+sobre `<a>` en este índice). Un `<button>` no hereda la fuente de la página y
+trae `cursor: default`; el reset va en un selector `button.orden-chip` acotado a
+propósito, para que los usos sobre `<a>` no lo vean. **No moverlo dentro de
+`.orden-chip`**: allí un `font-family` reabre la puerta a que un shorthand `font`
+pise el `font-size` del componente.
+
+## El atributo `hidden` no siempre oculta (07/09/2026)
+
+🔴 **`[hidden] { display: none }` vive en la hoja del NAVEGADOR con especificidad
+(0,0,1).** Cualquier `display: flex` / `inline-flex` / `grid` escrito sobre una
+clase es (0,1,0) **y le gana**. El elemento lleva el atributo, el JS lo pone y lo
+quita correctamente, y se sigue viendo. No hay error en ninguna parte.
+
+Se pagó dos veces el mismo día en la sección «Estudiantes en riesgo»:
+
+- `.cuadros-riesgo__filtros` (`display: flex`) nace `hidden` desde el servidor
+  justo para que, si el JS no carga, no queden en pantalla un buscador que no
+  busca y unos chips que no filtran. **La defensa entera era inerte**, y el fallo
+  solo se habría visto el día que fallara el JS.
+- `.orden-chip` (`inline-flex`): el JS ocultaba los chips de los grados de otro
+  nivel y se seguían viendo los once.
+
+**Regla: si un elemento se oculta con `hidden` y su clase declara un `display`,
+hay que escribir la variante `[hidden]` explícita.** Un `<tr>` o un `<div>` sin
+`display` propio funcionan solos; el problema aparece justo en los componentes.
+
+**Y necesita aserto sobre el CSS SERVIDO**, no sobre el marcado: desde PHP el
+HTML se ve perfecto. Está en `verif_direccion_superficies.php`, con el mismo
+método que `verif_banners_aviso.php`.

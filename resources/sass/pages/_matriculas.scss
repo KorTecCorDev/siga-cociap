@@ -466,6 +466,29 @@
     }
 }
 
+// ⚠️ `.orden-chip` TIENE DOS CONSUMIDORES desde el 07/09/2026 — al tocarlo,
+// probar los dos:
+//   · `/matriculas`         → sobre <a>, ordena la tabla (recarga con ?orden=)
+//   · `/admin/cuadros`      → sobre <button>, filtra en cliente la seccion
+//                             "Estudiantes en riesgo", y ademas sobre <a> en el
+//                             indice de anclas de la pagina.
+//
+// Un <button> no hereda la fuente de la pagina y trae `cursor: default`. El
+// selector es elemento+clase (0,1,1) y acotado a `button` A PROPOSITO: los usos
+// sobre <a> no lo ven, asi que `/matriculas` no cambia ni un pixel. NO mover
+// estas tres lineas dentro de `.orden-chip`: alli `font-family` reabriria la
+// puerta a que un `font` shorthand pisara el `font-size` del componente.
+button.orden-chip {
+    font-family: inherit;
+    font-size: $font-size-sm;
+    cursor: pointer;
+
+    &:focus-visible {
+        outline: 2px solid $brand-accent;
+        outline-offset: 2px;
+    }
+}
+
 // Encabezado clicable (ordenable) dentro de .tabla-notas.
 .th-orden {
     display: inline-flex;

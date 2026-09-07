@@ -824,7 +824,30 @@ indicadores del mismo periodo debe sacarlos de una sola pasada, como hace
 «C» lo sigue decidiendo `num_c` en las dos queries del ranking. Y no tiene nada
 que ver con el «en riesgo» de `AnioAcademicoModel::getResumenBimestre`, que es el
 promedio general bajo `NOTA_MIN_B` por nivel — **dos preguntas distintas que
-comparten pantalla y rótulo**, así que están explícitamente separadas.
+compartían pantalla y rótulo**. Desde el 07/09/2026 ya no comparten el rótulo:
+aquélla se llama **«Promedio en C»**. Detalle en
+`docs/modulos/usuarios-direccion.md`.
+
+### `num_a` se DERIVA, no se consulta (07/09/2026)
+
+`statsPorGrado` añade `num_a` a cada fila del ranking por **resta**:
+`num_competencias − num_ad − num_b − num_c`. Es exacto porque los cuatro
+literales son **disjuntos y exhaustivos** sobre 00-20 —AD (≥ `NOTA_MIN_AD`),
+A (14-17), B (11-13), C (≤ 10)—, así que lo que no es AD, B ni C es A.
+
+- **Cero consultas**: las otras tres columnas ya venían, y salen igual por las
+  dos rutas de `rankingGrado` (en vivo y snapshot, que las guarda tal cual).
+- ⚠️ **No usar `num_alto` para esto**: `(15,16)` **solapa** con A. Es un criterio
+  de desempate, no un tramo de la escala.
+- 🔴 **Es una premisa, y las premisas se vigilan.** Si algún día un tramo se
+  solapara, un `SUM()` cambiara de condición o un `COUNT()` contara notas que los
+  `SUM()` no cuentan, `num_a` saldría negativo o descuadrado y la tabla enseñaría
+  un perfil **plausible y falso**, sin ningún error. Hay aserto en
+  `verif_cuadros_merito_motor.php`: `AD+A+B+C = num_competencias` y `A >= 0` en
+  toda fila listada, en los tres bimestres. Probado con mutante.
+
+Lo consume el perfil por estudiante de «Estudiantes en riesgo» en
+`/admin/cuadros`.
 
 Verificación: `verif_cuadros_merito_motor.php` (solo lectura, corre en prod).
 

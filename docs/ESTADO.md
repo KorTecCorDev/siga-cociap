@@ -5,6 +5,71 @@
 
 
 
+## 🟡 CUADROS — «Estudiantes en riesgo» se ve y se puede recorrer (07/09/2026)
+
+En `dev`, **sin desplegar**. Sin migración. Detalle en
+`docs/modulos/usuarios-direccion.md` § «Rediseño de la sección».
+
+La sección nació el 04/09 correcta y **inencontrable**: bloque 4 de 7, detrás de
+dos tablas y dos gráficos, sin decir cuántos eran (había que sumar once
+`<caption>` a mano) y sin forma de ubicar a una persona entre **118 filas en 10
+grados** (B1; B2 son 77 en 8; B3, 0).
+
+**Qué entra**
+- **Banda de magnitud** con total, grados con casos, % del alumnado evaluado y
+  caso más alto. En pantalla y en el A4 —es dato, no control—. Azul
+  institucional `$brand-dark`; **el A4 la imprime PLANA** (con
+  `print-color-adjust: exact`, sin esa contraparte cada informe salía con un
+  rectángulo macizo de tinta).
+- **Filtrado en cliente** (`resources/js/cuadros-riesgo.js`, nuevo): buscador +
+  chips de nivel + chips de grado, en conjunción. Normalizador NFD reutilizado de
+  `nomina.js` —«nunez» encuentra a «NÚÑEZ»—. Cuarto estado vacío para «tu filtro
+  no encontró a nadie», contador `role="status"`.
+- **Perfil AD/A/B/C por estudiante.** `num_a` se **deriva por resta** en
+  `OrdenMeritoModel::statsPorGrado`: cero consultas, y sale igual por las dos
+  rutas del ranking (comprobado en B2, que lee del snapshot).
+- **Índice de anclas** de toda la página (`.cuadros-indice`, solo pantalla), con
+  el conteo en el chip de riesgo. `.dash-grupo__titulo` gana `scroll-margin-top`
+  porque el topbar es `sticky`.
+- **Fin de la colisión de rótulos**: la columna «En riesgo» del bloque de
+  Calificaciones pasa a **«Promedio en C»** (`index.php`, `imprimir.php` y
+  `director/anios/_panel-bimestre.php`). En B2 decían **0** y **77** bajo el mismo
+  nombre, a media pantalla de distancia, separadas solo por un pie.
+- Punto único nuevo: **`riesgo_resumen()`** en `helpers.php` —lo llaman el índice,
+  la banda y el verificador—.
+
+**La regla de «nada de semáforos» NO se derogó**, se precisó: el peso visual es de
+la SECCIÓN, las filas siguen neutras. Su motivo es **normativo** en el listado de
+inasistencias y solo analógico en el de riesgo, aunque compartan clases.
+
+**Tres fallos que solo aparecieron en navegador** (ninguna prueba de servidor los
+ve, y quedan anotados en `docs/modulos/ui.md`):
+1. 🔴 **`[hidden]` no ocultaba nada.** La regla del navegador es (0,0,1) y un
+   `display:flex` de clase es (0,1,0): la barra de filtros tenía el atributo
+   puesto y se veía igual —o sea, toda la defensa de «sin JS no hay controles
+   muertos» era **inerte**—, y los chips de grado de otro nivel tampoco se
+   ocultaban. Hacen falta `.cuadros-riesgo__filtros[hidden]` y
+   `.orden-chip[hidden]` explícitos. Hay aserto sobre el CSS **servido**.
+2. **Las columnas bailaban entre tablas**: cada una medía las suyas según el largo
+   de sus nombres (medido: «Sección» en x=529 y en x=624). `table-layout: fixed`
+   + anchos en **porcentaje** (en px cuadraban en pantalla y desbordaban el A4).
+3. **El nombre se imprimía a 14 px con la fila a 8 px.** La celda pasó a
+   `th scope="row"` (nueve columnas) y la regla que la disfraza de `td` (0,3,2) le
+   gana a `.cuadros-print .cuadros-top` (0,2,0): cada fila se partía en dos.
+
+**Verificación** · `verif_cuadros_merito_motor.php` gana el aserto del perfil
+(`AD+A+B+C = competencias`, `A >= 0`), probado con mutante;
+`verif_direccion_superficies.php` gana 9 asertos (banda en las dos superficies y
+cuadrando con las filas, controles solo en pantalla, barra `hidden`, script fuera
+del `if ($chartData)`, índice sin anclas rotas y sin imprimirse, «En riesgo» ya no
+aparece, y las dos reglas `[hidden]` del CSS servido), probado con mutante.
+Recorrido real en navegador sobre B1/B2/B3, pantalla y A4, con un banco
+autocontenido: 10/10 tablas alineadas, 0 desbordes, foco de teclado visible, A4 en
+700 px de 718 y sin ningún control impreso.
+⚠️ **Falta abrirlo CON SESIÓN en `/admin/cuadros`**: el banco monta el partial real
+con datos reales, pero no la página entera —ni el índice conviviendo con los
+gráficos, ni `/director/periodos/2/stats`, que comparte `_panel-bimestre.php`—.
+
 ## 🟡 CUADROS — el informe A4 deja de depender del cursor (04/09/2026, 2.º del día)
 
 En `dev`, **sin desplegar**. Sin migración. Detalle en

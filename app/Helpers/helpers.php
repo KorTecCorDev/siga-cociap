@@ -546,6 +546,59 @@ function stats_competencia(array $alumnos, array $exonerados, string $nivelCodig
         ],
     ];
 }
+/**
+ * Agregado de "estudiantes en riesgo" sobre lo que ya devolvió
+ * `OrdenMeritoModel::statsPorGrado` (PUNTO ÚNICO, 07/09/2026).
+ *
+ * Es una función PURA: no consulta nada, solo recorre en memoria la lista de
+ * grados que la vista ya recibió. Vive aquí, junto a `stats_competencia()`, y no
+ * en el modelo ni en el controlador, porque la necesitan TRES sitios de
+ * `/admin/cuadros` que no pueden llamarse entre sí:
+ *   · el índice de anclas de `index.php`, que pinta la cifra ANTES de la sección,
+ *   · la banda de `_estudiantes-riesgo.php`, compartida por pantalla y A4,
+ *   · `verif_direccion_superficies.php`, que asevera contra la misma cuenta.
+ * Sumarlo a mano en cada uno es exactamente la copia latente con la que ya
+ * divergieron cuatro reglas en este repositorio.
+ *
+ * 🔴 EL DENOMINADOR SON TODOS LOS GRADOS CON RANKING, no solo los que tienen
+ * casos: la pregunta es qué parte del alumnado EVALUADO está en riesgo, y
+ * limitarla a los grados afectados infla el porcentaje sin avisar (en B1, 20 %
+ * contra 20 %; en un bimestre con dos grados afectados de once, la diferencia
+ * es de cinco veces).
+ *
+ * @param  array $porGrado  `$bloques['merito']['por_grado']` tal cual
+ * @return array{total:int, evaluados:int, pct:int, grados:int, grados_total:int, max_c:int}
+ */
+function riesgo_resumen(array $porGrado): array
+{
+    $total = $evaluados = $grados = $maxC = 0;
+
+    foreach ($porGrado as $g) {
+        $evaluados += (int) ($g['total'] ?? 0);
+
+        if (empty($g['en_riesgo'])) {
+            continue;
+        }
+
+        $grados++;
+        $total += count($g['en_riesgo']);
+
+        foreach ($g['en_riesgo'] as $al) {
+            $maxC = max($maxC, (int) $al['num_c']);
+        }
+    }
+
+    return [
+        'total'        => $total,
+        'evaluados'    => $evaluados,
+        // Sin evaluados no hay porcentaje: 0 % seria un dato FALSO, no ausente.
+        'pct'          => $evaluados > 0 ? (int) round($total / $evaluados * 100) : 0,
+        'grados'       => $grados,
+        'grados_total' => count($porGrado),
+        'max_c'        => $maxC,
+    ];
+}
+
 /** Formatea una fecha en español peruano */
 function fecha_es(string $fecha): string
 {

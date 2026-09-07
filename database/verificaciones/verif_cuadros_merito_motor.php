@@ -165,6 +165,28 @@ foreach ($periodos as $p) {
             "  $etq · en riesgo = num_c >= " . OrdenMeritoModel::RIESGO_MIN_C . ', de mayor a menor',
             count($obtenidos) . ' de ' . count($rank));
 
+        // 3b. El perfil de literales CUADRA (07/09/2026). `num_a` es la única
+        // de las cuatro cifras que no sale de una consulta: se DERIVA por
+        // resta en `statsPorGrado`, porque AD/A/B/C son disjuntos y exhaustivos
+        // sobre 00-20. Si esa premisa dejara de ser cierta —una nota nula que
+        // COUNT() sí cuenta, un tramo de la escala que se solapa, un SUM() que
+        // cambia de condición— `num_a` saldría negativo o descuadrado y la
+        // tabla enseñaría un perfil plausible y falso, sin ningún error.
+        //
+        // Se mide en las DOS rutas de `rankingGrado`: B1/B3 en vivo, B2 desde
+        // el snapshot, que trae las mismas cuatro columnas de otra tabla.
+        $descuadre = 0;
+        foreach ($g['en_riesgo'] as $al) {
+            $suma = (int) $al['num_ad'] + (int) $al['num_a']
+                  + (int) $al['num_b']  + (int) $al['num_c'];
+            if ($suma !== (int) $al['num_competencias'] || (int) $al['num_a'] < 0) {
+                $descuadre++;
+            }
+        }
+        $ok($descuadre === 0,
+            "  $etq · perfil AD+A+B+C = competencias, y A nunca es negativo",
+            $descuadre > 0 ? "$descuadre fila(s) descuadradas" : count($obtenidos) . ' fila(s)');
+
         $filasRiesgo += count($obtenidos);
     }
     echo "\n";

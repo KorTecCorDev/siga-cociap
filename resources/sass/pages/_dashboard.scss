@@ -78,6 +78,15 @@
         margin: 0 0 $spacing-md;
         padding-bottom: $spacing-xs;
         border-bottom: 1px solid $border-color;
+
+        // El titulo es el destino de las anclas del indice de /admin/cuadros
+        // (lleva el `id`). La topbar es `position: sticky` y mide
+        // $topbar-height (56px): sin este margen de desplazamiento, saltar a un
+        // ancla deja el rotulo JUSTO DEBAJO de la barra y parece que el enlace
+        // llevo al sitio equivocado. Precedente: `.asistencia-fila` en
+        // _asistencia.scss. Solo afecta al desplazamiento por ancla, asi que en
+        // las vistas sin anclas no cambia nada.
+        scroll-margin-top: $topbar-height + $spacing-md;
     }
 }
 

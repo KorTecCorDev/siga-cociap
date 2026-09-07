@@ -180,6 +180,34 @@ foreach (token_get_all($leer('/app/Controllers/Admin/CuadrosEstadisticosControll
 $chk('CuadrosEstadisticosController no escribe NINGUN SELECT (fuera de comentarios)',
     !preg_match('/\bSELECT\b/i', $codigo));
 
+// ── El `hidden` de la seccion de riesgo tiene que GANAR (07/09/2026) ──
+// 🔴 ESTE ASERTO EXISTE POR UN FALLO REAL, y mide el CSS SERVIDO porque desde
+// PHP el defecto es invisible: el HTML llevaba el atributo `hidden` puesto y
+// correcto, y el elemento se veia igual.
+//
+// La causa es la cascada: `[hidden] { display: none }` vive en la hoja del
+// NAVEGADOR con especificidad (0,0,1), y cualquier `display: flex` escrito
+// sobre una clase es (0,1,0) y le gana. Le pasaba a dos cosas de esta seccion:
+//   · `.cuadros-riesgo__filtros`, que nace `hidden` para que sin JS no queden
+//     en pantalla un buscador que no busca y unos chips que no filtran —o sea,
+//     la defensa entera era inerte, y solo se habria notado el dia que fallara
+//     el JS—;
+//   · `.orden-chip`, que es `inline-flex`: el JS ocultaba los chips de los
+//     grados de otro nivel y se seguian viendo los once.
+//
+// Es un aserto de CADENA sobre el CSS compilado, como los de
+// `verif_banners_aviso.php`: no ejecuta el navegador, pero si alguien reescribe
+// el bloque y se lleva la regla por delante, aqui falla.
+$css = $leer('/public/css/app.css');
+foreach ([
+    '.cuadros-riesgo__filtros[hidden]' => 'la barra de filtros',
+    '.orden-chip[hidden]'              => 'los chips de grado',
+] as $regla => $queEs) {
+    $chk("el CSS servido deja que `hidden` oculte $queEs",
+        str_contains($css, $regla) && str_contains($css, $regla . '{display:none'),
+        str_contains($css, $regla) ? $regla : "falta $regla en app.css (¿sin gulp build?)");
+}
+
 $anio = new App\Models\AnioAcademicoModel();
 $periodos = $anio->query("SELECT p.id, p.numero, p.nombre_display, p.estado, p.anio_id, a.anio
     FROM periodos p INNER JOIN anios_academicos a ON a.id = p.anio_id
@@ -702,6 +730,86 @@ foreach ($periodos as $p) {
     $chk("cada grafico impreso de $etiquetaP lleva su nota de lectura",
         substr_count($htmlPrint, 'cuadros-print__nota') === $nGraficos,
         substr_count($htmlPrint, 'cuadros-print__nota') . " nota(s) para $nGraficos grafico(s)");
+
+    // ── Rediseño de "Estudiantes en riesgo" (07/09/2026) ──────────────
+    // El partial es UNO y las superficies son DOS, separadas por el flag
+    // `$riesgoInteractivo` que pone el llamador. Lo que se vigila aqui es
+    // exactamente ese reparto: el DATO va a las dos, el CONTROL solo a la
+    // pantalla. Sin aserto, "arreglar" la variable que le falta al A4 —que
+    // parece un olvido y no lo es— imprime un buscador en cada informe.
+    $res = riesgo_resumen($datos['bloques']['merito']['por_grado']);
+
+    $chk("la banda de riesgo de $etiquetaP esta en pantalla y en papel, con la misma cifra",
+        $nRiesgo === 0
+            ? !str_contains($html, 'cuadros-riesgo__banda') && !str_contains($htmlPrint, 'cuadros-riesgo__banda')
+            : str_contains($html, 'cuadros-riesgo__banda')
+                && str_contains($htmlPrint, 'cuadros-riesgo__banda')
+                && substr_count($html, '>' . $res['total'] . '</span>') > 0,
+        $nRiesgo === 0
+            ? 'sin casos: no hay banda que pintar'
+            : $res['total'] . ' estudiante(s) · ' . $res['pct'] . '% de ' . $res['evaluados']);
+
+    // El total de la banda sale del PUNTO UNICO `riesgo_resumen()`, no de una
+    // suma escrita a mano en la vista: si alguien la vuelve a sumar in situ,
+    // este aserto sigue verde pero el de abajo —la cuenta de filas— es el que
+    // ata la cifra al dato.
+    $chk("la cifra de la banda de $etiquetaP cuadra con las filas listadas",
+        $res['total'] === $filas,
+        $res['total'] . ' en la banda · ' . $filas . ' fila(s) en las tablas');
+
+    // Los controles: en pantalla si, en papel NO. Y en pantalla nacen `hidden`
+    // —los destapa cuadros-riesgo.js—, para que sin JS no queden un buscador
+    // que no busca y unos chips que no filtran.
+    $controles = ['id="riesgo-filtros"', 'id="riesgo-contador"', 'id="riesgo-sin-resultados"'];
+    $enPantalla = $enPapel = 0;
+    foreach ($controles as $c) {
+        if (str_contains($html, $c))      { $enPantalla++; }
+        if (str_contains($htmlPrint, $c)) { $enPapel++; }
+    }
+    $chk("los controles de riesgo de $etiquetaP son de pantalla, no de papel",
+        $enPapel === 0 && $enPantalla === ($nRiesgo > 0 ? count($controles) : 0),
+        $enPapel > 0
+            ? "$enPapel control(es) impresos"
+            : "$enPantalla en pantalla · 0 en papel");
+
+    $chk("la barra de filtros de $etiquetaP nace oculta (sin JS no hay controles muertos)",
+        $nRiesgo === 0 || str_contains($html, 'id="riesgo-filtros" hidden'),
+        $nRiesgo === 0 ? 'sin casos' : 'hidden presente');
+
+    // El script que la destapa va FUERA del `if ($chartData)`: un bimestre sin
+    // ni un grafico tambien necesita filtrar, y sin el script la barra se queda
+    // oculta para siempre.
+    $chk("cuadros-riesgo.js se carga en $etiquetaP haya o no graficos",
+        str_contains($html, 'js/cuadros-riesgo.js') && !str_contains($htmlPrint, 'cuadros-riesgo.js'),
+        $nGraficos . ' grafico(s) en este bimestre');
+
+    // ── Indice de anclas ──────────────────────────────────────────────
+    // Un ancla a un `id` que la pagina no emitio es un enlace que no lleva a
+    // ninguna parte, y Reaperturas es condicional: las entradas se ARMAN.
+    preg_match_all('~<a class="orden-chip" href="#([\w-]+)"~', $html, $mAnclas);
+    $rotas = array_values(array_filter(
+        $mAnclas[1] ?? [],
+        static fn(string $id): bool => !str_contains($html, 'id="' . $id . '"')
+    ));
+    $chk("el indice de $etiquetaP no tiene anclas rotas",
+        !empty($mAnclas[1]) && empty($rotas),
+        $rotas ? 'rota: #' . $rotas[0] : count($mAnclas[1] ?? []) . ' ancla(s)');
+
+    $chk("el indice de $etiquetaP no se imprime",
+        !str_contains($htmlPrint, 'cuadros-indice'));
+
+    // ── La colision de rotulos no vuelve ──────────────────────────────
+    // Hasta el 07/09/2026 "En riesgo" nombraba DOS cifras distintas en la misma
+    // pantalla: la columna del bloque de Calificaciones (promedio general bajo
+    // NOTA_MIN_B, por nivel) y esta seccion (3 C o mas, por grado). En B2 daban
+    // 0 y 77. Aquella columna se llama ahora "Promedio en C", asi que el rotulo
+    // debe quedar en UN solo sitio: el <h2> de la seccion.
+    foreach ([['pantalla', $html], ['papel', $htmlPrint]] as [$dondeEtq, $doc]) {
+        $chk("\"En riesgo\" nombra una sola cosa en $dondeEtq de $etiquetaP",
+            substr_count($doc, 'En riesgo') === 0,
+            substr_count($doc, 'Estudiantes en riesgo') . ' vez/veces "Estudiantes en riesgo"'
+                . ' · ' . substr_count($doc, 'Promedio en C') . ' vez/veces "Promedio en C"');
+    }
 
     // ── Coherencia de la distribucion de conducta ─────────────────────
     // Gemelo del aserto que ya compara getEvolucionAnual con getResumenBimestre:

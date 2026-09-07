@@ -79,13 +79,18 @@ $literales = [
                     </div>
                 </div>
 
-                <!-- Estudiantes en riesgo -->
+                <?php // Estudiantes con el PROMEDIO GENERAL en C (bajo NOTA_MIN_B).
+                      // Ya no se rotula "en riesgo" (07/09/2026): en /admin/cuadros
+                      // este panel convive con la seccion "Estudiantes en riesgo",
+                      // que cuenta otra cosa —3 C o mas, por grado— y da otro numero
+                      // (en B2: 0 aqui, 77 alli). Dos preguntas distintas ya no
+                      // comparten nombre. ?>
                 <div class="bimestre-riesgo">
                     <span class="bimestre-riesgo__icono" aria-hidden="true">&#9888;</span>
                     <span class="bimestre-riesgo__num"><?= (int) $n['en_riesgo'] ?></span>
                     <span class="bimestre-riesgo__txt">
-                        estudiante<?= (int) $n['en_riesgo'] !== 1 ? 's' : '' ?> en riesgo
-                        <small>(promedio general en C)</small>
+                        estudiante<?= (int) $n['en_riesgo'] !== 1 ? 's' : '' ?> con promedio en C
+                        <small>(promedio general por debajo de <?= (int) NOTA_MIN_B ?>)</small>
                     </span>
                 </div>
 
