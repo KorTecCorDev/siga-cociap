@@ -437,19 +437,36 @@
 // ninguno de los cuatro tonos de wayfinding, que estan tomados por conceptos
 // del dashboard docente. Es el unico tono con fuerza suficiente que no dice ya
 // otra cosa en otra pantalla.
-.cuadros-riesgo {
-
-    &__banda {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: $spacing-sm $spacing-lg;
-        padding: $spacing-md $spacing-lg;
-        margin-bottom: $spacing-md;
-        background: $brand-dark;
-        color: $text-white;
-        border-radius: $border-radius;
-    }
+// ── Banda de magnitud: el PAR merito <-> riesgo ──────────────────────
+// Un solo bloque para las dos secciones, porque son la misma pieza: la cifra
+// que hasta ahora no estaba escrita en ninguna parte. Lo que cambia es el
+// ACENTO, no el bloque.
+//
+// 🔴 AZUL <-> ROJO, Y EL PAR ESTA ELEGIDO, NO IMPROVISADO. El par obvio para
+// "los mejores" contra "los que necesitan apoyo" seria verde <-> rojo, y es
+// justo el que NO se distingue en las formas comunes de daltonismo
+// (protanopia y deuteranopia, ~8 % de los hombres). Azul contra rojo se separa
+// en todas ellas. Es el mismo criterio con el que se eligieron los cuatro
+// tonos de wayfinding en _variables.scss.
+//
+// 🔴 Y EL ROJO VA CONTENIDO: borde izquierdo y cifra, sobre el MISMO fondo azul
+// oscuro que la banda de merito. No un rectangulo rojo entero. La seccion de
+// riesgo lista niños con nombre y apellido, y un bloque rojo a pantalla completa
+// sobre esa lista se lee como una acusacion. Las filas, ademas, siguen neutras
+// (ver la nota larga de `.cuadros-top`).
+.cuadros-banda {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: $spacing-sm $spacing-lg;
+    padding: $spacing-md $spacing-lg;
+    margin-bottom: $spacing-md;
+    background: $brand-dark;
+    color: $text-white;
+    border-radius: $border-radius;
+    // Reservado para el acento: sin el, las dos bandas quedarian desalineadas
+    // entre si (una con borde y otra sin el).
+    border-left: 5px solid transparent;
 
     &__cifra {
         display: flex;
@@ -471,7 +488,7 @@
         font-size: $font-size-lg;
         line-height: 1.3;
 
-        // El <strong> no puede ir mas oscuro sobre fondo oscuro: se distingue
+        // Sobre fondo oscuro el <strong> no puede ir mas oscuro: se distingue
         // por peso, no por color.
         strong { font-weight: 700; }
     }
@@ -485,12 +502,33 @@
         gap: $spacing-xs $spacing-md;
         font-size: $font-size-sm;
 
-        // #cbd5e1 sobre #1a3a5c da 8.4:1. `$text-muted` (#94a3b8) se quedaba en
-        // 4.3:1, al limite de AA para 12px.
+        // #cbd5e1 sobre #1a3a5c da 8,4:1. `$text-muted` (#94a3b8) se quedaba en
+        // 4,3:1, al limite de AA para 12px.
         color: #cbd5e1;
 
         strong { color: $text-white; font-weight: 700; }
     }
+
+    // Los mejores: acento azul del sistema.
+    &--merito {
+        border-left-color: $brand-mid;
+
+        .cuadros-banda__n { color: #bfdbfe; }
+    }
+
+    // Los que necesitan apoyo: acento rojo.
+    // ⚠️ La cifra NO va en `$color-error` (#dc2626): sobre #1a3a5c da 2,5:1 y
+    // seria ilegible. #fca5a5 da 7,1:1 y se sigue leyendo como rojo. El borde
+    // si lleva el rojo pleno, porque un borde no tiene que contrastar como
+    // texto — solo separarse del fondo.
+    &--riesgo {
+        border-left-color: $color-error;
+
+        .cuadros-banda__n { color: #fca5a5; }
+    }
+}
+
+.cuadros-riesgo {
 
     // ── Barra de filtros ─────────────────────────────────────────
     // Nace `hidden` desde el servidor y la destapa `cuadros-riesgo.js`: sin JS
@@ -765,7 +803,7 @@
     // banda se imprimen de verdad: un rectangulo macizo de tinta azul marino en
     // CADA informe de Direccion, y con el texto en blanco sobre el.
     // La jerarquia en papel la dan el borde y la negrita, que no gastan tinta.
-    .cuadros-riesgo__banda {
+    .cuadros-banda {
         background: transparent;
         color: #000;
         border: 1px solid #000;
@@ -797,10 +835,10 @@
         border: 1px solid #000;
     }
 
-    .cuadros-riesgo__n     { font-size: 1.4rem; }
-    .cuadros-riesgo__q     { font-size: 10px; }
-    .cuadros-riesgo__datos { font-size: 8px; color: #000; }
-    .cuadros-riesgo__datos strong { color: #000; }
+    .cuadros-banda__n     { font-size: 1.4rem; }
+    .cuadros-banda__q     { font-size: 10px; }
+    .cuadros-banda__datos { font-size: 8px; color: #000; }
+    .cuadros-banda__datos strong { color: #000; }
 
     // Red de seguridad, no la defensa principal: el A4 no define
     // `$riesgoInteractivo`, asi que este marcado NO se emite. Si alguien

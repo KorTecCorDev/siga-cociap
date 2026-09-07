@@ -70,15 +70,15 @@ foreach ($riesgoGrados as $g) {
           // lleva el azul institucional (el del topbar y el login), que no es un
           // color de estado ni un tono de wayfinding; las filas de abajo siguen
           // neutras. Ver el comentario de `.cuadros-top` en _cuadros.scss. ?>
-    <div class="cuadros-riesgo__banda">
-        <p class="cuadros-riesgo__cifra">
-            <span class="cuadros-riesgo__n"><?= (int) $res['total'] ?></span>
-            <span class="cuadros-riesgo__q">
+    <div class="cuadros-banda cuadros-banda--riesgo">
+        <p class="cuadros-banda__cifra">
+            <span class="cuadros-banda__n"><?= (int) $res['total'] ?></span>
+            <span class="cuadros-banda__q">
                 estudiante<?= $res['total'] !== 1 ? 's' : '' ?> con
                 <strong><?= $riesgoMinC ?> competencias en C o más</strong> en el bimestre
             </span>
         </p>
-        <ul class="cuadros-riesgo__datos">
+        <ul class="cuadros-banda__datos">
             <li><strong><?= (int) $res['grados'] ?> de <?= (int) $res['grados_total'] ?></strong> grados con casos</li>
             <li><strong><?= (int) $res['pct'] ?>%</strong> del alumnado evaluado</li>
             <li>caso más alto: <strong><?= (int) $res['max_c'] ?> C</strong></li>

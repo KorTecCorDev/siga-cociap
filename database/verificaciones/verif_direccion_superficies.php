@@ -741,9 +741,9 @@ foreach ($periodos as $p) {
 
     $chk("la banda de riesgo de $etiquetaP esta en pantalla y en papel, con la misma cifra",
         $nRiesgo === 0
-            ? !str_contains($html, 'cuadros-riesgo__banda') && !str_contains($htmlPrint, 'cuadros-riesgo__banda')
-            : str_contains($html, 'cuadros-riesgo__banda')
-                && str_contains($htmlPrint, 'cuadros-riesgo__banda')
+            ? !str_contains($html, 'cuadros-banda--riesgo') && !str_contains($htmlPrint, 'cuadros-banda--riesgo')
+            : str_contains($html, 'cuadros-banda--riesgo')
+                && str_contains($htmlPrint, 'cuadros-banda--riesgo')
                 && substr_count($html, '>' . $res['total'] . '</span>') > 0,
         $nRiesgo === 0
             ? 'sin casos: no hay banda que pintar'
@@ -753,6 +753,19 @@ foreach ($periodos as $p) {
     // suma escrita a mano en la vista: si alguien la vuelve a sumar in situ,
     // este aserto sigue verde pero el de abajo —la cuenta de filas— es el que
     // ata la cifra al dato.
+    // El PAR merito <-> riesgo: las dos bandas existen y llevan acentos DISTINTOS.
+    // Sin esto, un refactor que dejara las dos con el mismo modificador borraria
+    // en silencio la unica pista visual que separa "los mejores" de "los que
+    // necesitan apoyo", y la pagina seguiria renderizando perfecta.
+    $conRanking = !empty($datos['bloques']['merito']['por_grado']);
+    foreach ([['pantalla', $html], ['papel', $htmlPrint]] as [$dondeB, $docB]) {
+        $chk("el par merito/riesgo se distingue en $dondeB de $etiquetaP",
+            substr_count($docB, 'cuadros-banda--merito') === ($conRanking ? 1 : 0)
+                && substr_count($docB, 'cuadros-banda--riesgo') === ($nRiesgo > 0 ? 1 : 0),
+            'merito=' . substr_count($docB, 'cuadros-banda--merito')
+                . ' riesgo=' . substr_count($docB, 'cuadros-banda--riesgo'));
+    }
+
     $chk("la cifra de la banda de $etiquetaP cuadra con las filas listadas",
         $res['total'] === $filas,
         $res['total'] . ' en la banda · ' . $filas . ' fila(s) en las tablas');

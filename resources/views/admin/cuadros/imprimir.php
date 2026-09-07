@@ -123,6 +123,7 @@ $k = $bloques['matricula']['kpis'];
         <?php if (empty($bloques['merito']['por_grado'])): ?>
             <p class="cuadros-print__vacio">Este bimestre todavía no tiene ranking.</p>
         <?php else: ?>
+            <?php require VIEW_PATH . '/admin/cuadros/_banda-merito.php'; ?>
             <table class="tabla-resumen">
                 <thead>
                     <tr>

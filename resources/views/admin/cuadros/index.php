@@ -205,6 +205,7 @@ require VIEW_PATH . '/admin/cuadros/_chart-data.php';
     <?php if (empty($bloques['merito']['por_grado'])): ?>
         <div class="empty-state"><p>Este bimestre todavía no tiene ranking.</p></div>
     <?php else: ?>
+    <?php require VIEW_PATH . '/admin/cuadros/_banda-merito.php'; ?>
     <div class="tabla-responsive">
         <table class="tabla-resumen">
             <thead>
