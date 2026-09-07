@@ -85,6 +85,15 @@
 
             f.hidden = !ok;
             if (ok) visibles++;
+
+            // La fila del desglose viaja con su fila madre. NO lleva
+            // `data-riesgo-fila` a proposito —contaria doble en `TOTAL` y en el
+            // contador—, asi que hay que ocultarla a mano: si no, al filtrar
+            // quedaban desgloses sueltos bajo el estudiante equivocado.
+            var det = f.nextElementSibling;
+            if (det && det.hasAttribute('data-riesgo-detalle')) {
+                det.hidden = !ok;
+            }
         });
 
         // Un grado sin ninguna fila visible desaparece ENTERO. Dejar el bloque

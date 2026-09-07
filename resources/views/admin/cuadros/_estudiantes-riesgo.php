@@ -234,6 +234,96 @@ foreach ($riesgoGrados as $g) {
                                 <td class="text-center cuadros-top__v--destaca"><?= (int) $al['num_c'] ?></td>
                                 <td class="text-center text-muted"><?= (int) $al['num_competencias'] ?></td>
                             </tr>
+
+                            <?php // ── Desglose: QUE competencias estan en C ──────────────
+                                  // Fila HERMANA con `colspan`, no un `<tr>` que se muestra y
+                                  // oculta: es el patron que ya resolvio esto en el panel de
+                                  // bloqueos (`director/bloqueos/index.php`), con `<details>`
+                                  // nativo y cero JS.
+                                  //
+                                  // ⚠️ SIN `data-riesgo-fila`. Ese atributo es lo que cuenta
+                                  // `cuadros-riesgo.js` para el TOTAL y para "Mostrando N de
+                                  // 118": si esta fila lo llevara, el contador diria el doble.
+                                  // Lleva `data-riesgo-detalle` + `data-de`, y el JS la oculta
+                                  // junto a su fila madre.
+                                  //
+                                  // 🔴 `detalle_c === null` NO es lo mismo que `[]`. El modelo
+                                  // pone NULL cuando el desglose EN VIVO no cuadra con el
+                                  // `num_c` de la fila —que en un bimestre cerrado viene del
+                                  // snapshot congelado, y el snapshot no guarda detalle—. Ahi
+                                  // se dice que no se puede mostrar, en vez de pintar un
+                                  // desglose que contradice a su propia fila.
+                                  $det = $al['detalle_c'] ?? null; ?>
+                            <tr class="fila-riesgo-detalle"
+                                data-riesgo-detalle
+                                data-de="<?= (int) $al['matricula_id'] ?>">
+                                <td colspan="9">
+                                    <?php if ($det === null): ?>
+                                        <p class="riesgo-detalle__aviso">
+                                            El desglose no coincide con el dato oficial del cierre
+                                            (las notas cambiaron despues de cerrar el bimestre), asi
+                                            que se omite para no mostrar dos cifras distintas.
+                                        </p>
+                                    <?php elseif (!empty($det)): ?>
+                                        <?php if ($interactivo): ?>
+                                        <?php // Nace cerrado: 778 filas abiertas de golpe (B1)
+                                              // convertirian la seccion en un muro. El navegador
+                                              // ya sabe abrirlo al buscar con Ctrl+F.
+                                              //
+                                              // ⚠️ El rotulo NO puede contener la cadena "En
+                                              // riesgo": hay un aserto que exige que ese texto
+                                              // nombre UNA sola cosa en la pagina. ?>
+                                        <details class="riesgo-detalle">
+                                            <summary class="riesgo-detalle__summary">
+                                                Ver las <?= count($det) ?> competencias en C
+                                            </summary>
+                                        <?php endif; ?>
+
+                                        <table class="tabla-notas riesgo-detalle__tabla">
+                                            <?php if (!$interactivo): ?>
+                                                <?php // En papel no hay `<summary>` que diga de quien
+                                                      // es este bloque, y una tabla puede quedar en otra
+                                                      // hoja que su fila madre. El <caption> lo ancla. ?>
+                                                <caption class="riesgo-detalle__caption">
+                                                    Competencias en C &middot; <?= e($al['nombre_completo']) ?>
+                                                </caption>
+                                            <?php endif; ?>
+                                            <thead>
+                                                <tr>
+                                                    <th scope="col">Área</th>
+                                                    <th scope="col">Curso</th>
+                                                    <th scope="col">Competencia</th>
+                                                    <th scope="col" class="text-center">Nota</th>
+                                                    <th scope="col">Docente</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+<?php // ⚠️ ESTE BUCLE VA SIN INDENTAR, Y NO ES DESCUIDO. Se repite 778 veces en
+      // B1 y esta anidado ocho niveles: con la sangria natural, cada fila
+      // arrastraba ~250 bytes de espacios. Medido el 07/09/2026 sobre la
+      // seccion completa: 1 289 KB con sangria contra 486 KB sin ella — el
+      // 62 % del peso del bloque eran espacios en blanco, y el imprimible
+      // entero pasaba de 425 KB a 1,5 MB.
+      // No hay minificador de HTML en el pipeline (gulp solo toca SASS y JS),
+      // asi que el unico sitio donde se puede arreglar es aqui.
+      foreach ($det as $d): ?>
+<tr>
+<td><?= e($d['area']) ?></td>
+<td class="text-muted"><?= $d['curso'] !== null ? e($d['curso']) : '&mdash;' ?></td>
+<td><?php if ($d['codigo'] !== null): ?><span class="competencia-card__codigo competencia-card__codigo--solo"><?= e($d['codigo']) ?></span> <?php endif; ?><?= e($d['competencia']) ?></td>
+<td class="text-center cuadros-top__v--destaca"><?= (int) $d['nota'] ?></td>
+<td class="text-muted"><?= e($d['docente']) ?></td>
+</tr>
+<?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+
+                                        <?php if ($interactivo): ?>
+                                        </details>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>

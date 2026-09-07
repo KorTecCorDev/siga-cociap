@@ -92,6 +92,11 @@ $periodos = $pdo->query("
 // ── 1-3. Los datos, periodo a periodo ─────────────────────────────
 $gradosMedidos = 0;
 $filasRiesgo   = 0;
+// Desglose de las C (07/09/2026). `$sinDetalle` cuenta las filas que el modelo
+// marcó como "no cuadra con el snapshot": no es un fallo, es una medición — si
+// un día se dispara, es que algo cambió las notas después de cerrar.
+$filasDetalle  = 0;
+$sinDetalle    = 0;
 
 foreach ($periodos as $p) {
     $pid = (int) $p['id'];
@@ -187,6 +192,65 @@ foreach ($periodos as $p) {
             "  $etq · perfil AD+A+B+C = competencias, y A nunca es negativo",
             $descuadre > 0 ? "$descuadre fila(s) descuadradas" : count($obtenidos) . ' fila(s)');
 
+        // 3c. EL DESGLOSE DE LAS C CUADRA CON LA FILA (07/09/2026).
+        //
+        // Es el aserto que sostiene la sección desplegable: `detalle_c` sale de
+        // `detalleCompetenciasC`, una consulta APARTE que replica a mano el
+        // universo del mérito (bloqueadas, sin extraordinarias, sin transversales
+        // salvo Ética, sin exoneradas). Si esa réplica se desvía en un solo
+        // filtro, el desglose deja de sumar `num_c` y la pantalla muestra dos
+        // cifras que se contradicen —exactamente el patrón de fallo que ya costó
+        // cuatro reglas divergentes en este repositorio— SIN ningún error.
+        //
+        // 🔴 UN `detalle_c === null` CUENTA COMO FALLO, Y ESO ES DELIBERADO.
+        //
+        // El modelo pone NULL cuando el desglose en vivo no coincide con `num_c`.
+        // La primera versión de este aserto trataba ese NULL como "legítimo" —un
+        // bimestre cerrado y luego rectificado lo produce— y con eso el aserto
+        // quedaba CIEGO: se probó con dos mutantes (quitar el filtro de
+        // extraordinarias y quitar el de transversales) y NO detectó ninguno,
+        // porque una réplica rota devuelve otro número de filas, el modelo lo
+        // convierte en NULL, y el verificador lo daba por bueno. El guard que
+        // protege la pantalla estaba enmascarando exactamente los bugs que este
+        // verificador existe para cazar.
+        //
+        // Por eso el umbral es CERO. Hoy cuadran los 195 alumnos de B1+B2. Si
+        // algún día falla, hay que mirar cuál de las dos cosas pasó:
+        //   · una rectificación legítima tras el cierre → el dato es correcto y
+        //     este aserto hay que ajustarlo a mano, dejando escrito el caso;
+        //   · `detalleCompetenciasC` dejó de replicar el universo del mérito →
+        //     es un bug, y es el motivo de que esto esté aquí.
+        // Lo que NO se debe hacer es relajar el umbral para que vuelva a verde.
+        $descuadre = $malaNota = $nulos = 0;
+        foreach ($g['en_riesgo'] as $al) {
+            if (!array_key_exists('detalle_c', $al)) {
+                $descuadre++;   // ni siquiera se pobló
+                continue;
+            }
+            if ($al['detalle_c'] === null) {
+                $nulos++;
+                $sinDetalle++;
+                continue;
+            }
+            if (count($al['detalle_c']) !== (int) $al['num_c']) {
+                $descuadre++;
+            }
+            foreach ($al['detalle_c'] as $d) {
+                if ((int) $d['nota'] > NOTA_MIN_B - 1) { $malaNota++; }
+            }
+            $filasDetalle += count($al['detalle_c']);
+        }
+
+        $ok($descuadre === 0 && $malaNota === 0 && $nulos === 0,
+            "  $etq · el desglose de C cuadra con num_c, y solo lista C",
+            $descuadre > 0
+                ? "$descuadre fila(s) descuadradas"
+                : ($malaNota > 0
+                    ? "$malaNota nota(s) que no son C"
+                    : ($nulos > 0
+                        ? "$nulos alumno(s) sin desglose: el vivo no cuadra con el cierre"
+                        : count($obtenidos) . ' alumno(s)')));
+
         $filasRiesgo += count($obtenidos);
     }
     echo "\n";
@@ -197,6 +261,11 @@ $ok($gradosMedidos > 0, 'la comparación midió grados de verdad', "$gradosMedid
 // Un verificador que pasa en verde sin haber ejercitado la rama que vigila es
 // peor que uno roto: avisa en vez de dar luz verde sobre una premisa falsa.
 $ok($filasRiesgo > 0, 'la rama "en riesgo" es observable en estos datos', "$filasRiesgo fila(s)");
+// Un verificador que pasa en verde sin haber ejercitado la rama que vigila es
+// peor que uno roto: si el desglose no devolviera NADA, el aserto de arriba
+// seguiria verde (0 === 0) y nadie se enteraria.
+$ok($filasDetalle > 0, 'el desglose de C es observable en estos datos',
+    "$filasDetalle fila(s) de C" . ($sinDetalle > 0 ? " · $sinDetalle sin desglose (no cuadran)" : ' · todas cuadran'));
 
 // ── 4. La copia no puede renacer ──────────────────────────────────
 echo "\n== Estructura ==\n";

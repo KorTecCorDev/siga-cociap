@@ -828,3 +828,56 @@ Todas son de **solo lectura** y corren en producción.
 > `$color-error`), acento de 5 px. Nacieron sobre `$brand-dark` y era un error
 > de contraste DE ACENTO: azul sobre azul no se separaba, y el rojo había que
 > aclararlo hasta perder el rojo. Contrastes medidos: 10,9:1 y 5,9:1.
+
+## Desglose de las competencias en C (07/09/2026)
+
+Cada estudiante de la lista trae una fila hermana con **qué competencias tiene en C**:
+área, curso, competencia, nota y **docente responsable**. En pantalla va en un
+`<details>` plegado; en el A4 va **suelto**. Decisión del usuario: solo las C, en las
+dos superficies, y con docente.
+
+- **Punto único**: `OrdenMeritoModel::detalleCompetenciasC()`. Vive en el modelo del
+  mérito, no en `CalificacionModel`, porque **replica el universo del mérito**. Sacarlo
+  de `getBoletaAlumno` —que incluye extraordinarias, tutoría entera y las transversales
+  agregadas— listaría notas que la fila no cuenta.
+- ⚠️ **Replica los filtros de la NOTA, no los del ALUMNO.** Van: bloqueo,
+  `extraordinaria = 0`, transversal/tutoría salvo Ética, exoneraciones. **NO** van
+  `ROSTER_MERITO` ni el anclaje de retorno: esos deciden quién compite y la lista de
+  matrículas ya viene resuelta por el ranking. Volver a aplicarlos solo podría quitar
+  filas de una matrícula ya seleccionada —justo una que viene del snapshot y hoy no
+  pasaría el roster— y produciría un descuadre falso.
+- **Una sola consulta** para todos los grados (`IN`), llamada al final de
+  `statsPorGrado`. Coste medido: `getStatsCierre` pasa de 26 ms a 40 ms en B1.
+- **El docente sale de `cal.carga_id`**, camino que el mérito no usa para calcular. Es
+  seguro: dentro de este universo hay **cero** competencias con dos cargas (el JOIN a
+  `bloqueos_competencia` fija la carga dueña). Fuera de él hay 1 072 duplicadas y 1 052
+  notas en cargas inactivas.
+
+🔴 **EL GUARD DEL DESCUADRE.** `orden_merito_snapshot` guarda **solo agregados**: en un
+bimestre cerrado la fila viene congelada y el desglose se calcula en vivo. Si
+`count(detalle) !== num_c`, el modelo deja `detalle_c` en **NULL** y la vista dice que no
+puede mostrarlo, en vez de pintar dos cifras que se contradicen. `NULL` y `[]` significan
+cosas distintas. Hoy cuadran **195 de 195** (B1 118, B2 77).
+
+🔴 **EL ASERTO ESTUVO CIEGO Y HAY QUE SABER POR QUÉ.** La primera versión trataba ese
+NULL como legítimo, y con eso no detectó **ninguno** de los dos mutantes probados (quitar
+el filtro de extraordinarias y quitar el de transversales): una réplica rota devuelve otro
+número de filas, el modelo lo convierte en NULL y el verificador lo daba por bueno — **el
+guard que protege la pantalla enmascaraba justo los bugs que el verificador existe para
+cazar**. El umbral es CERO a propósito. Si algún día falla, hay que distinguir si fue una
+rectificación legítima tras el cierre o una réplica rota; **no relajar el umbral**.
+
+⚠️ **El mutante de extraordinarias no es observable con los datos actuales**: las 275
+extraordinarias de B1 tienen todas nota > 10, así que quitar ese filtro no cambia el
+desglose de C. El filtro es correcto y necesario, pero esa rama no está ejercitada.
+
+**Peso.** El desglose son 778 filas en B1 y 429 en B2 (~+9 hojas de A4). El HTML pasó de
+425 KB a 1,5 MB, y **el 62 % de eso eran espacios de indentación**: el bucle interno se
+repite 778 veces anidado ocho niveles. Se emite **sin sangrar** a propósito y el
+imprimible baja a 816 KB. No hay minificador de HTML en el pipeline (gulp solo toca SASS
+y JS), así que el único sitio donde se puede arreglar es la propia vista.
+
+⚠️ **`.cuadros-top__bloque--riesgo` pasa a `page-break-inside: auto` en el A4.** El
+`avoid` se midió cuando un grado eran ~28 filas (~400 px de 1047); con el desglose un
+grado se pasa de hoja y el `avoid` lo empujaría entero, dejando media página en blanco.
+Las FILAS conservan su `avoid`.

@@ -796,6 +796,44 @@ foreach ($periodos as $p) {
         str_contains($html, 'js/cuadros-riesgo.js') && !str_contains($htmlPrint, 'cuadros-riesgo.js'),
         $nGraficos . ' grafico(s) en este bimestre');
 
+    // ── Desglose de las C (07/09/2026) ────────────────────────────────
+    // El desglose va a las DOS superficies, pero de forma distinta: en pantalla
+    // dentro de un `<details>` plegado, en papel suelto. La diferencia la pone
+    // el mismo flag `$riesgoInteractivo`.
+    //
+    // 🔴 EL ASERTO QUE DE VERDAD IMPORTA ES EL DEL PAPEL, y ya existe unas
+    // lineas mas arriba: `!str_contains($htmlPrint, '<details')`. Un `<details>`
+    // cerrado NO IMPRIME SU CONTENIDO, asi que si alguien "simplifica" el
+    // partial y emite el `<details>` tambien en el A4, el informe saldria con
+    // 778 filas en blanco y sin ningun error. Aqui se comprueba lo
+    // complementario: que el desglose ESTE en el papel.
+    $detPantalla = substr_count($html, 'data-riesgo-detalle');
+    $detPapel    = substr_count($htmlPrint, 'data-riesgo-detalle');
+
+    $chk("el desglose de C esta en las dos superficies de $etiquetaP",
+        $detPantalla === $filas && $detPapel === $filas,
+        "pantalla $detPantalla · papel $detPapel · $filas estudiante(s)");
+
+    $chk("el desglose de $etiquetaP se pliega en pantalla y va suelto en papel",
+        ($filas === 0 || str_contains($html, '<details class="riesgo-detalle"'))
+            && !str_contains($htmlPrint, 'riesgo-detalle"><summary')
+            && !str_contains($htmlPrint, '<details'),
+        $filas === 0 ? 'sin casos' : substr_count($html, '<details class="riesgo-detalle"') . ' plegado(s) en pantalla, 0 en papel');
+
+    // 🔴 LA FILA DEL DESGLOSE NO PUEDE LLEVAR `data-riesgo-fila`. Ese atributo
+    // es lo que `cuadros-riesgo.js` cuenta para el TOTAL y para "Mostrando N de
+    // 118": si se le colara, el contador diria el doble y nadie veria un error.
+    preg_match_all('~<tr class="fila-riesgo-detalle"[^>]*>~', $html, $mDet);
+    $contaminadas = 0;
+    foreach ($mDet[0] ?? [] as $tag) {
+        if (str_contains($tag, 'data-riesgo-fila')) { $contaminadas++; }
+    }
+    $chk("las filas de desglose de $etiquetaP no cuentan como estudiantes",
+        $contaminadas === 0,
+        $contaminadas > 0
+            ? "$contaminadas fila(s) con data-riesgo-fila"
+            : count($mDet[0] ?? []) . ' fila(s) de desglose');
+
     // ── Indice de anclas ──────────────────────────────────────────────
     // Un ancla a un `id` que la pagina no emitio es un enlace que no lleva a
     // ninguna parte, y Reaperturas es condicional: las entradas se ARMAN.

@@ -432,6 +432,83 @@
 // banda comunica es la MAGNITUD del bloque, que hasta hoy no estaba escrita en
 // ninguna parte (habia que sumar once <caption> a mano).
 //
+// ── Desglose: que competencias estan en C (07/09/2026) ───────────────
+// Fila hermana con `colspan` dentro de la tabla de riesgo. Modelado sobre
+// `.bloqueos-transversales` (pages/_admin.scss), que es el unico precedente del
+// repo de un detalle DENTRO de una tabla: `<details>` nativo, cero JS.
+//
+// Nace cerrado porque en B1 son 778 filas de C repartidas en 118 estudiantes:
+// abiertas de golpe convierten la seccion en un muro.
+tr.fila-riesgo-detalle > td {
+    padding: 0;
+    background: $bg-secondary;
+}
+
+.riesgo-detalle {
+    &__summary {
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+        padding: $spacing-xs $spacing-md;
+        font-size: $font-size-sm;
+        font-weight: 600;
+        color: $text-secondary;
+
+        &::-webkit-details-marker { display: none; }
+        &::marker                 { display: none; }
+
+        // El triangulo lo dibuja el summary: el marcador nativo no se puede
+        // colorear y no es fiable entre navegadores. Mismo criterio que
+        // `.cuadros-valores__summary`.
+        &::before {
+            content: '▸ ';
+            display: inline-block;
+        }
+
+        &:hover { color: $brand-mid; }
+
+        &:focus-visible {
+            outline: 2px solid $brand-accent;
+            outline-offset: -2px;
+        }
+    }
+
+    &[open] > &__summary {
+        border-bottom: 1px solid $border-color;
+        &::before { content: '▾ '; }
+    }
+
+    // La sub-tabla vive dentro de otra: se distingue por FONDO, no por borde,
+    // para no duplicar lineas con la tabla que la contiene.
+    &__tabla {
+        margin: 0;
+        font-size: $font-size-sm;
+
+        th, td { background: $bg-white; }
+
+        // La tabla madre es `table-layout: fixed` con 9 anchos en porcentaje;
+        // esta es independiente y se reparte sola.
+        table-layout: auto;
+    }
+
+    &__caption {
+        text-align: left;
+        padding: $spacing-xs $spacing-md;
+        font-size: $font-size-sm;
+        font-weight: 700;
+        color: $text-primary;
+    }
+
+    // Cuando el desglose en vivo no cuadra con el `num_c` congelado del
+    // snapshot. Es informativo, no una alerta: no se pinta en rojo.
+    &__aviso {
+        margin: 0;
+        padding: $spacing-sm $spacing-md;
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+}
+
 // ── Banda de magnitud: el PAR merito <-> riesgo ──────────────────────
 // Un solo bloque para las dos secciones, porque son la misma pieza: la cifra
 // que hasta ahora no estaba escrita en ninguna parte. Lo que cambia es el
@@ -780,6 +857,34 @@
         margin-bottom: $spacing-sm;
         border-color: #000;
     }
+
+    // 🔴 EL BLOQUE DE RIESGO SE PUEDE PARTIR, Y DESDE EL 07/09/2026 TIENE QUE
+    // PODER. El `avoid` de arriba se midio cuando un grado eran ~28 filas (~400px
+    // de los 1047 utiles de la hoja). Con el desglose de las C debajo de cada
+    // estudiante, un grado de 28 alumnos pasa holgadamente de una hoja: el
+    // `avoid` lo empujaria ENTERO a la siguiente y dejaria media pagina en
+    // blanco, hoja tras hoja. Las FILAS conservan su `avoid` (viene de
+    // `__bloque--tabla`), que es lo que impide partir a un estudiante por la
+    // mitad. Coste medido: 778 filas de C en B1, 429 en B2.
+    .cuadros-top__bloque--riesgo { page-break-inside: auto; }
+
+    // El desglose en papel: sin `<details>` (lo emite suelto el partial) y con
+    // los mismos bordes negros que el resto del A4.
+    .riesgo-detalle__tabla {
+        width: 100%;
+        font-size: 8px;
+        page-break-inside: auto;
+
+        th, td   { border: 1px solid #000; padding: 2px 3px; }
+        thead th { background: #eee; }
+        thead    { display: table-header-group; }
+        tr       { page-break-inside: avoid; }
+    }
+
+    .riesgo-detalle__caption { font-size: 8px; padding: 2px 3px; }
+    .riesgo-detalle__aviso   { font-size: 8px; padding: 2px 3px; }
+
+    tr.fila-riesgo-detalle > td { padding: 0; background: transparent; }
 
     .cuadros-top__caption {
         padding: 2px 3px;

@@ -849,6 +849,28 @@ A (14-17), B (11-13), C (≤ 10)—, así que lo que no es AD, B ni C es A.
 Lo consume el perfil por estudiante de «Estudiantes en riesgo» en
 `/admin/cuadros`.
 
+### `detalleCompetenciasC` — el desglose que cuadra (07/09/2026)
+
+`detalleCompetenciasC(array $matriculaIds, int $periodoId)` devuelve, por matrícula, las
+competencias en C con área, curso, nota y docente. Alimenta el desplegable de
+«Estudiantes en riesgo».
+
+Vive en ESTE modelo porque **replica el universo del mérito**; ninguna otra consulta del
+repo puede cuadrar con `num_c` (la de boleta incluye extraordinarias, tutoría entera y
+transversales agregadas).
+
+⚠️ **Replica los filtros de la NOTA, no los del ALUMNO.** Bloqueo, `extraordinaria = 0`,
+transversal/tutoría salvo Ética y exoneraciones **sí**. `ROSTER_MERITO` y el anclaje de
+retorno **no**: la lista de matrículas ya viene resuelta por el ranking, y volver a
+aplicarlos solo podría quitar filas de una matrícula ya seleccionada.
+
+Una sola consulta con `IN` para todos los grados — `statsPorGrado` promete un solo
+recorrido. Coste: `getStatsCierre` pasa de 26 ms a 40 ms en B1.
+
+🔴 El snapshot **no guarda detalle**, así que en bimestre cerrado la fila está congelada y
+esto va en vivo: si no cuadran, `statsPorGrado` deja `detalle_c` en NULL. Detalle del
+guard y del aserto (que estuvo ciego) en `docs/modulos/usuarios-direccion.md`.
+
 Verificación: `verif_cuadros_merito_motor.php` (solo lectura, corre en prod).
 
 ## Estado operativo

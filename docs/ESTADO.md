@@ -5,6 +5,45 @@
 
 
 
+## 🟡 CUADROS — desglose de las competencias en C (07/09/2026)
+
+En `dev`, **sin desplegar**. Sin migración. Detalle en
+`docs/modulos/usuarios-direccion.md` § «Desglose de las competencias en C».
+
+Cada estudiante de la lista trae ahora **qué competencias tiene en C**: área, curso,
+competencia, nota y **docente**. Plegado en pantalla, suelto en el A4. Decisión del
+usuario: solo las C, en las dos superficies, con docente.
+
+- Punto único: **`OrdenMeritoModel::detalleCompetenciasC()`**, UNA consulta con `IN` para
+  todos los grados. `getStatsCierre` pasa de 26 ms a **40 ms** en B1.
+- Replica los filtros de la NOTA del mérito, **no** los del ALUMNO (`ROSTER_MERITO` y el
+  anclaje ya los resolvió el ranking; repetirlos daría descuadres falsos).
+- El **docente** sale de `cal.carga_id`: seguro porque dentro de este universo hay **cero**
+  competencias con dos cargas (fuera hay 1 072, y 1 052 notas en cargas inactivas).
+- **Guard del descuadre**: el snapshot solo guarda agregados, así que en bimestre cerrado
+  la fila está congelada y el desglose va en vivo. Si no cuadran, `detalle_c` queda en
+  NULL y la vista lo dice, en vez de pintar dos cifras que se contradicen. Hoy cuadran
+  **195 de 195**.
+
+🔴 **El aserto estuvo CIEGO y quedo documentado.** La primera version trataba ese NULL
+como legitimo y **no detecto ninguno de los dos mutantes** probados: el guard que protege
+la pantalla enmascaraba los bugs que el verificador existe para cazar. El umbral es CERO a
+proposito; si falla, distinguir rectificacion legitima de replica rota y **no relajarlo**.
+⚠️ El mutante de extraordinarias **no es observable**: las 275 de B1 tienen todas nota > 10.
+
+**Peso.** 778 filas en B1 (429 en B2), ~+9 hojas de A4. El HTML se fue a 1,5 MB y **el
+62 % eran espacios de indentacion**: el bucle interno se emite SIN SANGRAR y el imprimible
+queda en **816 KB** (desde 425 KB). No hay minificador de HTML en el pipeline.
+⚠️ `.cuadros-top__bloque--riesgo` pasa a `page-break-inside: auto` en el A4: con el
+desglose un grado ya no cabe en una hoja y el `avoid` dejaria media pagina en blanco.
+
+**Verificacion**: 36 verificadores en verde; `verif_cuadros_merito_motor` gana el aserto
+del desglose (probado con mutante, ver arriba) y `verif_direccion_superficies` otros tres
+(el desglose esta en las dos superficies, se pliega solo en pantalla y **el A4 sigue sin un
+solo `<details>`**, y las filas de desglose no cuentan como estudiantes).
+⚠️ **SIN PROBAR EN NAVEGADOR**: la extension de Chrome se desconecto. Falta abrir
+`/admin/cuadros?periodo_id=1`, desplegar, filtrar y revisar el A4.
+
 ## 🟡 CUADROS — «Estudiantes en riesgo» se ve y se puede recorrer (07/09/2026)
 
 En `dev`, **sin desplegar**. Sin migración. Detalle en
