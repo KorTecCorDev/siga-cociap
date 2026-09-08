@@ -1,10 +1,43 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **02/09/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **08/09/2026**.
+> **Versión desplegada: v1.0.1** (`config/app.php` + tag anotado `v1.0.1`).
 
 
 
+
+## 🟢 RELEASE v1.0.1 — DESPLEGADA EN PRODUCCIÓN (08/09/2026)
+
+Merge `dev` → `main` con **15 commits** (02/09 → 08/09). **Sin migraciones**: lo único que
+entra en `database/` son verificadores, que son de solo lectura. El auto-deploy de código
+basta — no hay dato que reparar a mano.
+
+**La versión se marca en DOS sitios**, como en la v1.0.0: `config/app.php` (`'version'`) y
+un **tag anotado** de git sobre el commit de merge en `main`. ⚠️ `config('version')` **no
+lo lee nadie todavía**: hoy es documental.
+
+### Qué se desplegó
+
+- **Cuadros/A4** (este trabajo): el imprimible deja de heredar los estilos de pantalla de
+  sus tablas y la hoja deja de aplastarse. Los 11 gráficos pasan de imprimirse al 40 % del
+  papel a hacerlo al 100 % desde un móvil.
+- **Layout `print` (raíz compartida, 14 documentos)**: la hoja A4 simulada no se encoge y
+  los botones del documento vuelven a ser pulsables en móvil.
+- **Cuadros/pantalla** (07/09): responsive de `/admin/cuadros` medido con iframe.
+- **Estudiantes en riesgo** (04-07/09): sección nueva, desglose de competencias en C, banda
+  de magnitud y el par mérito ↔ riesgo.
+- **El tablero pasa al motor oficial del mérito** (`ce2502c`) — cambio de MODELO, no solo
+  CSS: `OrdenMeritoModel::statsPorGrado` sustituye a un ranking paralelo con seis reglas de
+  menos.
+- **Matrículas** (02/09): `/matriculas/resumen` anclado entero en la matrícula oficial y el
+  cuadro por grado deja de duplicar los retornos revertidos.
+
+### Pendiente de la release
+
+🔴 **Comprobar en producción lo que no pudo medirse en local**: vista previa de impresión
+(Ctrl+P), el PDF generado desde un móvil frente al de escritorio, y —por el cambio en la
+raíz compartida— una boleta imprimible, una constancia y el reporte de mérito en móvil.
 ## 🟡 CUADROS — responsive del A4 imprimible (08/09/2026)
 
 En `dev`, **sin desplegar**. Sin migración. Commits `53f0faa` (cuadros) y `3a1de82`
