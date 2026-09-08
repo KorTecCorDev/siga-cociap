@@ -891,3 +891,114 @@ y JS), así que el único sitio donde se puede arreglar es la propia vista.
 `avoid` se midió cuando un grado eran ~28 filas (~400 px de 1047); con el desglose un
 grado se pasa de hoja y el `avoid` lo empujaría entero, dejando media página en blanco.
 Las FILAS conservan su `avoid`.
+
+---
+
+## PLAN APROBADO, SIN IMPLEMENTAR — Dirección solo ve bimestres CERRADOS (08/09/2026)
+
+Aprobado por el usuario en la sesión del 08/09/2026, **sin escribir una línea de código**.
+Extiende la «regla del dato oficial» de arriba al **bimestre entero**.
+
+### Por qué
+
+Un director puede hoy abrir `/admin/cuadros` sobre el bimestre **activo**, que está a
+medio llenar. Medido en la base local:
+
+| Bimestre | Estado | Calificaciones | Primaria | Secundaria |
+|---|---|---|---|---|
+| I | cerrado | 12 322 | 5 588 | 6 734 |
+| II | cerrado | 28 282 | 11 081 | 17 201 |
+| **III** | **activo** | **222** | **22** | **200** |
+
+Ve porcentajes, rankings y una línea de tendencia calculados sobre el **0,8 %** de los
+datos, presentados igual que los del bimestre cerrado.
+
+🔴 **Y la serie de evolución lo incluye HOY.** `$bimestresComparables`
+(`_chart-data.php:55-79`) solo descarta un bimestre si **algún nivel tiene CERO**, y aquí
+los dos tienen algo. El último punto cae en picado — no porque baje el rendimiento, sino
+porque hay 22 notas de 11 081. Es el «desplome falso» que este tablero ya sufrió una vez.
+
+### Decisiones cerradas (NO re-preguntar)
+
+1. **Exclusivo para `ROLES_DIRECCION`.** `admin` y `registro_academico` conservan intacto
+   el comportamiento actual, **incluido ver el bimestre activo EN VIVO**: son quienes
+   tienen que vigilar el avance.
+2. Las **series anuales se cortan** en el último cerrado para el director.
+3. El **imprimible A4 lleva la misma restricción**. Hoy `?periodo_id=3` funciona sin
+   validar nada, y el A4 va firmado con el sello del Director EBR.
+4. **Sin excepciones dentro de la pantalla**: «se debe ver la información hasta donde el
+   select de bimestres lo permita, no se puede ver información adicional».
+   ⚠️ **Esto DEROGA para el director, EN ESTA SUPERFICIE, la excepción de la asistencia
+   en vivo** documentada más arriba. La excepción sigue viva en
+   `/consulta-notas/{p}/seccion/{s}/asistencia`, que el director conserva.
+5. Sin ningún bimestre cerrado → **estado vacío explicativo**.
+
+### Restricciones verificadas que condicionan el diseño
+
+- 🔴 **El controlador no puede contener la palabra `SELECT`** fuera de comentarios:
+  `verif_direccion_superficies.php:180` lo comprueba sobre los *tokens* de PHP. El filtro
+  va en **PHP sobre lo que ya devuelve el modelo**.
+- 🔴 **`ControlOperativoModel::getPeriodos()` es COMPARTIDO** con `/admin/control` y
+  `/consulta-notas`. **No se toca.**
+- 🔴 **Los modelos de las series anuales tampoco se tocan.** Tienen un único consumidor de
+  producción, pero `verif_direccion_superficies.php:365` y `:443` **exigen que la
+  evolución contenga la celda del bimestre ACTIVO**. Y `AnioAcademicoModel:682` ya dice:
+  *«que un bimestre vacío se pinte como hueco o como cero es decisión de la vista»*.
+- ⚠️ **`getPeriodoPorDefecto()` no sirve tal cual**: devuelve el activo y, si no hay,
+  `getPeriodos()[0]`, que con `ORDER BY anio DESC, numero ASC` es el **bimestre 1**, no el
+  último cerrado.
+- ⚠️ **G6 (`conductaLiterales`) comparte fuente con G7** pero se recorta a `$pidActual`
+  (`_chart-data.php:179`). El filtro debe ir al **eje de las series**, no a la fuente, o G6
+  desaparecería.
+- 🔴 **No existe punto único de «cerrado»**: copiado a mano en **17+ sitios con 5
+  redacciones**. No añadir la 18.ª copia inline.
+
+### Qué hay que tocar
+
+**1. `app/Helpers/helpers.php`** — punto único, junto a `ROLES_DIRECCION` (:216):
+`solo_bimestres_cerrados(): bool`, `periodos_cerrados(array): array`,
+`ultimo_periodo_cerrado(array): ?array`. Imita a
+`Padre\PanelController::getPeriodoVigentePadre()` (:329-341), que ya resuelve «esta
+audiencia solo ve cerrados» con un resolutor propio de la audiencia.
+
+**2. `app/Controllers/Admin/CuadrosEstadisticosController.php`** — en `index()` e
+`imprimir()`: filtrar la lista, **validar que el `?periodo_id` pertenece a ella** (hoy no
+se hace: `getPeriodo()` consulta `WHERE p.id = ?` sin mirar `estado`), y usar
+`ultimo_periodo_cerrado()` como defecto. `imprimir()` debe pedir la lista (hoy no la pide)
+y responder `notFound()`; `index()` cae al último cerrado con el banner de aviso.
+
+**3. `resources/views/admin/cuadros/_chart-data.php`** — afecta a **tres gráficos y solo
+tres**: G2 `evolucion`, G7 `conductaEvolucion`, G11 `asisEvolucion`. El controlador pasa a
+ambas vistas un `$serieIds`; para admin/RA es la lista completa → **comportamiento
+idéntico al actual**. ⚠️ El filtro va **por ids, no por `estado`**: solo G2 expone `estado`
+en su salida; G7 y G11 no. G11 tiene bucle propio (:252-260). **Actualizar las tres notas
+de lectura** (`:345`, `:381`, `:411`), que hoy describen otro criterio.
+
+**4. `resources/views/admin/cuadros/index.php`** — el `<select>` (:44-52) se restringe solo
+con el punto 2. Precedente de ramificación por rol en esa misma vista: `:640`.
+
+### Verificación
+
+Asertos en `verif_direccion_superficies.php` (ya renderiza de verdad e itera
+`foreach (ROLES_DIRECCION as $rol)` en :74-82):
+
+- por cada rol de dirección, la lista trae **solo** `estado === 'cerrado'`;
+- **para `admin` y `registro_academico` la lista SIGUE trayendo el activo** — es la mitad
+  que protege la decisión 1 y **la que se rompe en silencio**;
+- un `periodo_id` activo no se resuelve para dirección **y sí** para admin;
+- el defecto de dirección es el **último** cerrado, no el primero;
+- las series de los 3 gráficos anuales no traen ids no cerrados para dirección **y sí**
+  para admin;
+- `solo_bimestres_cerrados()` es el único sitio que lo decide.
+
+⚠️ **Probar las DOS ramas de cada guarda.**
+
+En navegador hay **dos usuarios de dirección activos en la BD local**: `director_ebr`
+(id 35) y `director_academico` (id 41). 🔴 Probarlo **con sesión de director** cerraría de
+paso el pendiente que lleva tres deploys abierto: ninguna superficie de Dirección se ha
+abierto nunca con ese rol — todas las pruebas se hicieron como administrador.
+
+### Fuera de alcance (decidido)
+
+- `/consulta-notas/{p}/seccion/{s}/asistencia` seguirá mostrando el bimestre activo.
+- `/admin/control` admite directores y usa el mismo `getPeriodos()` sin restricción.
