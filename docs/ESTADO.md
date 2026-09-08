@@ -5,6 +5,78 @@
 
 
 
+## 🟡 CUADROS — responsive del A4 imprimible (08/09/2026)
+
+En `dev`, **sin desplegar**. Sin migración. Commits `53f0faa` (cuadros) y `3a1de82`
+(raíz compartida del layout print). Detalle en `docs/modulos/ui.md` § «Un documento
+imprimible que reutiliza una tabla de pantalla» y en `docs/modulos/usuarios-direccion.md`
+§ «El imprimible A4».
+
+**Decisión del usuario: «visor fiel del documento».** La hoja conserva sus 718 px siempre;
+lo que se adapta es el visor. El PDF desde un móvil tiene que ser idéntico al de
+escritorio. **No se reflowea el A4** — la lectura cómoda ya la da `/admin/cuadros`.
+
+**Síntoma reportado:** «encabezados desbordados en las tablas, tamaño de letra en los
+encabezados y títulos de las tablas». Eran **dos defectos independientes**:
+
+1. **La cabecera no heredaba el tamaño de su tabla.** `_tables.scss` declara `font-size`
+   sobre `.tabla-notas th` / `.tabla-resumen th` con (0,1,1); el A4 lo fijaba en el
+   `<table>`. Las **seis** tablas imprimían el cuerpo a 8-10 px y la cabecera a 12 px.
+   **Segunda aparición de la misma fuga**: el 07/09 se corrigió para una sola celda y no
+   se generalizó al `thead`.
+2. **El desborde lo causaba que la hoja se aplastaba**, no la tipografía. Medido: la fila
+   de cabecera pide **600 px** contra 702 útiles — **a 718 px no desbordaba nada**; el
+   desborde empezaba por debajo de ~677 px de viewport, así que **también afectaba a
+   tablets**. (La estimación previa con métricas de fuente daba 432 px y ~509: se quedó
+   corta. Una aritmética de anchos no sustituye a una medición.)
+
+**Efecto que no se veía venir:** con la hoja fluida, **desde un móvil los 11 gráficos
+salían impresos al 43 % del ancho del papel**, porque `cuadros.js` corre antes que
+`print-fit.js` y Frappe medía el contenedor sin ajustar.
+
+🔴 **`print-fit.js` no podía arreglar la ventana estrecha y no se tocó por eso**: el
+`<meta viewport>` es un mecanismo **exclusivamente móvil**. Cambiar su `screen.width` por
+`innerWidth` —que era mi propuesta inicial— no habría servido **y habría roto el móvil en
+horizontal**.
+
+### Verificado
+
+- 36 verificadores en verde; `verif_direccion_superficies` pasa de 147 a **171 asertos**.
+- 11 asertos nuevos de CSS servido + 1 de cobertura sobre el HTML renderizado (toda tabla
+  del A4 debe llevar una clase que `.cuadros-print` dimensione: la red que faltaba).
+- Dos vigilan la **causa**: que nadie vuelva a fijar la cabecera en px, y que `min-width`
+  y `max-width` de la hoja sean el mismo número.
+- **Probados con mutantes** (6, incluidas las dos ramas de la guarda de `print-fit.js`),
+  con `app.css` y `print-fit.js` restaurados byte a byte por `md5`.
+
+### Pendiente
+
+- ✅ **MEDIDO EN NAVEGADOR** (A/B contra el `app.css` de `066c2e3`, hoja real del II
+  Bimestre servida con `php -S`). A 371 px: hoja **294 → 718 px**, tablas que desbordan
+  **34/122 → 0/122**, los 11 gráficos **278 px (40 % del papel) → 702 px (100 %)**, `th`
+  **12 px → el de su tabla**. En escritorio (1024/1280) **nada cambia** y el documento sale
+  632 px más corto. Detalle en `ui.md` § «Línea base medida».
+- 🔴 **FALTA lo que exige un dispositivo real o sesión iniciada**: la **vista previa de
+  impresión** (Ctrl+P) y **comparar el PDF generado desde un móvil con el de escritorio**,
+  que es el criterio de aceptación de la decisión «visor fiel». El botón se midió con la
+  escala simulada (16,6 → 35,6 px físicos), no en un teléfono.
+- ⚠️ **La captura de pantalla de la extensión hace timeout en este entorno**; las
+  mediciones numéricas sí funcionan.
+- 🔴 **La raíz compartida toca los 14 imprimibles.** Hay que reabrir en móvil y en ventana
+  estrecha: boleta imprimible, constancia de traslado y reporte de mérito. Todo el cambio
+  va en `@media screen`, así que la vista previa de impresión debe salir **idéntica**.
+- **NO implementado, detectado y reportado**: el panel de literales
+  (`director/anios/_panel-bimestre.php`) entra al A4 **sin ninguna regla de papel** —
+  título a 16 px en un documento cuyo `h2` es 13 px y cuyas tablas son de 8 px, donut de
+  120 px, grises `#94a3b8`. Es la fuga de mayor superficie que queda. Se dejó fuera por
+  alcance: cambia el aspecto de un bloque entero y merece revisión visual propia.
+- Menor: `.cuadros-kpi__n` (1,1rem) y `.cuadros-banda__n` (1,4rem) son las dos únicas
+  medidas del A4 en `rem`; se moverían si alguien tocara `html{font-size:14px}`.
+- Menor: `body.boleta-body.doc-landscape` conserva solo `max-width: 297mm` (hoy **sin
+  consumidor**, documentado); si algún día se usa, querrá su `min-width` igual que el
+  vertical.
+
+
 ## 🟡 CUADROS — responsive de la pantalla (07/09/2026)
 
 En `dev`, **sin desplegar**. Sin migración. Detalle en `docs/modulos/ui.md`

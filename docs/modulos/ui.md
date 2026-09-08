@@ -946,10 +946,16 @@ denominador de la matriz a 9 px dentro de celdas de 8 px, los grises `#94a3b8` a
 
 ### El desborde no lo causaba la tipografía: la hoja se aplastaba
 
-Medido con métricas Arial, la fila de cabecera de la tabla de 9 columnas pide **432 px**
-con los `th` a 12 px y `nowrap`, contra **702 px** útiles: **a 718 px no desbordaba nada**.
-Reventaba por debajo de ~448 px de contenedor. La causa era que `.cuadros-print` solo tenía
-`max-width`, así que en pantalla estrecha se comprimía.
+La estimación con métricas Arial daba **432 px** de ancho mínimo para la fila de cabecera
+de la tabla de 9 columnas; **medido en el navegador son 600 px**, y eso cambia el alcance:
+el desborde empezaba por debajo de **~677 px de viewport**, no ~509. **Afectaba también a
+tablets en vertical.** Lo que sí se confirmó es que **a 718 px no desbordaba nada**: la causa
+no era la tipografía sino que `.cuadros-print` solo tenía `max-width` y se comprimía.
+
+⚠️ **Una aritmética de anchos con métricas de fuente es una estimación, no una medición.**
+Se quedó 168 px corta (432 contra 600) porque no cuenta lo que aportan los `td`, el
+reparto del algoritmo de tabla ni el redondeo. Sirve para decidir *si hay un problema*,
+nunca para fijar el umbral en el que aparece.
 
 🔴 **`print-fit.js` no podía arreglarlo, y conviene entender por qué antes de tocarlo:**
 reescribe el `<meta viewport>`, que es un **mecanismo exclusivamente móvil**. Chrome,
@@ -959,8 +965,8 @@ es CSS: `min-width` igual al `max-width`.
 
 ### El efecto que no se veía venir: el PDF de los móviles
 
-Con la hoja fluida, **los 11 gráficos salían impresos al 43 % del ancho del papel desde un
-móvil**. `layouts/print.php` carga `cuadros.js` dentro del `$content`, **antes** que
+Con la hoja fluida, **los 11 gráficos salían impresos al 40 % del ancho del papel desde un
+móvil** (medido: 278 px de 702). `layouts/print.php` carga `cuadros.js` dentro del `$content`, **antes** que
 `print-fit.js`, y su `barrer()` es síncrono: Frappe medía el contenedor (311 px en un móvil
 de 371) y le escribía ese `width` al SVG antes de que el viewport se ajustara. **Un ancho
 fijo elimina la dependencia de orden entre los dos scripts sin tocar ninguno de los dos.**
@@ -998,3 +1004,33 @@ Dos correcciones en `_boleta.scss` + `print-fit.js`, del mismo día y por la mis
 ⚠️ **Al escribir asertos sobre `transform`, `flex` o cualquier propiedad prefijada, el
 mutante tiene que borrar LAS DOS declaraciones.** Un mutante que solo quitaba `transform:`
 dejó vivo el `-webkit-transform:` y el aserto pasó — el aserto era correcto, el mutante no.
+
+### Línea base medida (II Bimestre, datos reales, iframe a 371 px)
+
+Método: la hoja real volcada con el **mismo controlador** (`componerBloques` por reflexión,
+saltándose el constructor que exige sesión) y servida con `php -S`, con el `app.css` de
+`066c2e3` al lado para el A/B. 11 gráficos, 122 tablas, 0 avisos.
+
+| a 371 px | antes | después |
+|---|---|---|
+| ancho de la hoja | **294 px** (aplastada) | **718 px** |
+| tablas que desbordan | **34 de 122** | **0 de 122** |
+| desborde máximo | **314 px** | 0 |
+| los 11 gráficos (SVG) | **278 px = 40 % del papel** | **702 px = 100 %** |
+| `th` de las 6 tablas | **12 px** sobre cuerpos de 8-10 px | igual que su tabla |
+| color del `th` | `#475569` | `#111` |
+| botón `🖨` (móvil de 371) | **16,6 px físicos** | **35,6 px** |
+
+Barrido de anchos, desborde de la tabla de calificaciones fuera de la hoja:
+**371 px → 314 · 500 px → 185 · 768 px → 0 · 1024 px → 0**. Después: **0 en los cuatro**.
+
+**En escritorio (1024 y 1280) no cambia nada**, que es el criterio de no-regresión del
+papel: hoja 718, SVG 702, 0 desbordes antes y después. Lo único que se mueve es que el
+documento sale **632 px más corto** (26 371 → 25 739), porque las cabeceras dejan de ser
+un 50 % más grandes que su contenido.
+
+⚠️ **La captura de pantalla de la extensión hace *timeout* en este entorno**, incluso con
+una página ligera y una pestaña recién creada (`Page.captureScreenshot timed out`). No es
+la página y no sirve reintentar: es distinto del «captura en blanco por encima de ~7 000 px»
+ya documentado. **Las mediciones numéricas por `getBoundingClientRect` y `getComputedStyle`
+sí funcionan**, y son las que prueban el cambio.
