@@ -967,3 +967,34 @@ fijo elimina la dependencia de orden entre los dos scripts sin tocar ninguno de 
 
 Aserto que lo vigila: `min-width` y `max-width` de la hoja deben ser **el mismo número**.
 Si divergen, vuelve el defecto en silencio.
+
+### El visor del layout `print` (raíz compartida de los 14 imprimibles)
+
+Dos correcciones en `_boleta.scss` + `print-fit.js`, del mismo día y por la misma causa:
+
+1. **`body.boleta-body` gana `min-width: 210mm`** junto a su `max-width`. Con solo el techo,
+   en una ventana estrecha el marco de la hoja simulada dibujaba 340 px mientras el
+   contenido se salía por la derecha: **la vista previa mentía sobre dónde cae el corte de
+   página**, justo lo que su propio comentario pide evitar. En móvil no cambia nada
+   (`anchoNatural()` ya medía ~794 px para todos). ⚠️ Efecto de borde aceptado: con la hoja
+   más ancha que la ventana, el `auto` del margen se resuelve a 0 y la hoja se pega a la
+   izquierda — comportamiento estándar de un bloque *over-constrained* en LTR.
+2. **Los botones `✕ / 🖨` compensan la escala del visor.** Cuando `print-fit.js` encoge la
+   hoja en un móvil, el navegador dibuja toda la página al ~47 % y los botones quedaban en
+   **~16 px físicos**, por debajo del mínimo de 24 px de WCAG 2.5.8 (AA).
+
+   🔴 **No se podía arreglar con una media query**, y esto es lo que hay que recordar: en
+   cuanto `print-fit` reescribe el `<meta viewport>` a 794, **el viewport CSS *es* 794** y un
+   `max-width: 640px` no dispara en el móvil. `(pointer: coarse)` tampoco sirve: el problema
+   no es el puntero, es el factor de zoom, que **ninguna media query expone**. Así que la
+   escala la publica quien la conoce —`print-fit.js`, en una custom property— y el CSS la
+   invierte con `transform`. El documento no se toca: los controles no son el documento.
+
+   ⚠️ **La propiedad se publica en una rama y se limpia en la otra, y las dos hacen falta.**
+   Si se calculara siempre, en escritorio `screen.width` vale 1920 contra una hoja de 794 y
+   los botones saldrían **encogidos** a 0,41. Si no se limpiara al volver a caber, un
+   teléfono que rota se quedaría con los botones agrandados.
+
+⚠️ **Al escribir asertos sobre `transform`, `flex` o cualquier propiedad prefijada, el
+mutante tiene que borrar LAS DOS declaraciones.** Un mutante que solo quitaba `transform:`
+dejó vivo el `-webkit-transform:` y el aserto pasó — el aserto era correcto, el mutante no.

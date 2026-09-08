@@ -31,13 +31,35 @@
     function ajustar() {
         var w = anchoNatural();
         var pantalla = (window.screen && window.screen.width) || window.innerWidth;
+        var raiz = document.documentElement;
 
         if (!w || w <= pantalla) {
             // La hoja cabe: comportamiento normal.
             meta.setAttribute('content', 'width=device-width, initial-scale=1.0');
+
+            // Se LIMPIA, no se deja a 1: si el telefono rota y la hoja pasa a
+            // caber, un valor viejo dejaria los botones agrandados sin motivo.
+            raiz.style.removeProperty('--doc-escala-inv');
         } else {
             // La hoja es mas ancha que la pantalla: el navegador la ajusta a lo ancho.
             meta.setAttribute('content', 'width=' + w);
+
+            // El navegador va a encajar una hoja de `w` px en `pantalla` px, asi
+            // que TODO se ve a `pantalla/w` de su tamano: en un movil de 371px
+            // con una hoja de 794 eso es un 47 %, y los botones de accion (11pt,
+            // ~34px de alto) quedan en ~16px FISICOS. El minimo tactil es 24px
+            // (WCAG 2.5.8 AA) y 44px en AAA: estabamos por debajo incluso del AA.
+            //
+            // El DOCUMENTO no se toca -es un visor fiel- pero los CONTROLES no
+            // son el documento: se compensan con la inversa de la escala.
+            //
+            // 🔴 SOLO SE PUBLICA EN ESTA RAMA. Si se calculara siempre, en
+            // escritorio `screen.width` vale 1920, la hoja 794, y los botones
+            // saldrian encogidos a 0,41 sin que nadie lo hubiera pedido. El tope
+            // de 2,5 evita un boton absurdo en una pantalla muy pequena.
+            raiz.style.setProperty(
+                '--doc-escala-inv', Math.min(2.5, w / pantalla).toFixed(3)
+            );
         }
     }
 

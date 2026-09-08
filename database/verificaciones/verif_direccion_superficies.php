@@ -309,6 +309,37 @@ $chk('la hoja de cuadros tiene ancho FIJO (min-width == max-width)',
     str_contains($cuerpoHoja, 'min-width:718px') && str_contains($cuerpoHoja, 'max-width:718px'),
     $cuerpoHoja ?: 'no existe la regla .cuadros-print');
 
+// ── El visor del layout print, que es RAIZ COMPARTIDA (08/09/2026) ────
+// ⚠️ ESTOS TRES ASERTOS NO SON DE DIRECCION: vigilan `_boleta.scss` y
+// `print-fit.js`, que usan las 14 vistas del layout print. Viven aqui porque
+// este es el unico verificador que ya lee el CSS SERVIDO con este metodo y
+// porque el cambio existe PARA que funcione el visor de `.cuadros-print`, cuyo
+// aserto hermano esta justo arriba. Si algun dia nace un
+// `verif_layout_print.php`, su sitio es ese.
+$compartida = [
+    '~body\.boleta-body\{[^}]*min-width:210mm~'
+        => 'la hoja A4 simulada no se encoge en una ventana estrecha',
+    '~\.boleta-acciones\{[^}]*--doc-escala-inv~'
+        => 'los botones del documento compensan la escala del visor en móvil',
+];
+foreach ($compartida as $regla => $queEs) {
+    $chk("el CSS servido trae que $queEs",
+        (bool) preg_match($regla, $css),
+        preg_match($regla, $css) ? 'presente' : 'no está compilado (¿sin gulp build?)');
+}
+
+// 🔴 LA PROPIEDAD SE PUBLICA EN UNA RAMA Y SE LIMPIA EN LA OTRA, y las dos
+// hacen falta. Si se calculara siempre, en escritorio `screen.width` vale 1920
+// contra una hoja de 794 y los botones saldrian ENCOGIDOS a 0,41. Y si no se
+// limpiara al volver a caber, un telefono que rota se quedaria con los botones
+// agrandados. Es la prueba de las DOS ramas de la guarda, no solo de una.
+$jsFit = $leer('/resources/js/print-fit.js');
+$chk('print-fit.js publica la escala al encoger Y la limpia al volver a caber',
+    substr_count($jsFit, "setProperty(\n                '--doc-escala-inv'") === 1
+        || (substr_count($jsFit, "'--doc-escala-inv'") === 2
+            && str_contains($jsFit, "removeProperty('--doc-escala-inv')")),
+    substr_count($jsFit, "'--doc-escala-inv'") . ' referencia(s) a la propiedad');
+
 $anio = new App\Models\AnioAcademicoModel();
 $periodos = $anio->query("SELECT p.id, p.numero, p.nombre_display, p.estado, p.anio_id, a.anio
     FROM periodos p INNER JOIN anios_academicos a ON a.id = p.anio_id
