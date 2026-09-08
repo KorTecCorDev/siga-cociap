@@ -180,6 +180,166 @@ foreach (token_get_all($leer('/app/Controllers/Admin/CuadrosEstadisticosControll
 $chk('CuadrosEstadisticosController no escribe NINGUN SELECT (fuera de comentarios)',
     !preg_match('/\bSELECT\b/i', $codigo));
 
+// ── El `hidden` de la seccion de riesgo tiene que GANAR (07/09/2026) ──
+// 🔴 ESTE ASERTO EXISTE POR UN FALLO REAL, y mide el CSS SERVIDO porque desde
+// PHP el defecto es invisible: el HTML llevaba el atributo `hidden` puesto y
+// correcto, y el elemento se veia igual.
+//
+// La causa es la cascada: `[hidden] { display: none }` vive en la hoja del
+// NAVEGADOR con especificidad (0,0,1), y cualquier `display: flex` escrito
+// sobre una clase es (0,1,0) y le gana. Le pasaba a dos cosas de esta seccion:
+//   · `.cuadros-riesgo__filtros`, que nace `hidden` para que sin JS no queden
+//     en pantalla un buscador que no busca y unos chips que no filtran —o sea,
+//     la defensa entera era inerte, y solo se habria notado el dia que fallara
+//     el JS—;
+//   · `.orden-chip`, que es `inline-flex`: el JS ocultaba los chips de los
+//     grados de otro nivel y se seguian viendo los once.
+//
+// Es un aserto de CADENA sobre el CSS compilado, como los de
+// `verif_banners_aviso.php`: no ejecuta el navegador, pero si alguien reescribe
+// el bloque y se lleva la regla por delante, aqui falla.
+$css = $leer('/public/css/app.css');
+foreach ([
+    '.cuadros-riesgo__filtros[hidden]' => 'la barra de filtros',
+    '.orden-chip[hidden]'              => 'los chips de grado',
+] as $regla => $queEs) {
+    $chk("el CSS servido deja que `hidden` oculte $queEs",
+        str_contains($css, $regla) && str_contains($css, $regla . '{display:none'),
+        str_contains($css, $regla) ? $regla : "falta $regla en app.css (¿sin gulp build?)");
+}
+
+// ── Responsive de /admin/cuadros (07/09/2026) ─────────────────────────
+// 🔴 SE MIDE EL CSS SERVIDO PORQUE NINGUNA PRUEBA DE SERVIDOR VE UNA MEDIA
+// QUERY. El HTML es idéntico en móvil y en escritorio: lo único que cambia es
+// qué reglas aplican, y eso solo existe en `app.css`. Sin estos asertos, una
+// recompilación a medias o un `@media` borrado dejan la pantalla rota en el
+// dispositivo que más se usa y todo lo demás sigue en verde.
+//
+// Línea base medida con un iframe a 371px ANTES de este trabajo: 37 de 45
+// tablas con scroll lateral (peor 2,8x) y la barra de filtros ocupando 333px
+// de alto. Después: peor 2,2x y 194px.
+//
+// ⚠️ Son asertos sobre CSS minificado: comprueban que la regla EXISTE, no que se
+// vea bien. Lo segundo se mira en el navegador.
+//
+// ⚠️ Y van con REGEX, no con `str_contains` de la declaración literal, porque
+// AUTOPREFIXER REORDENA Y AÑADE PROPIEDADES. La primera versión buscaba
+// `.cuadros-riesgo__chips{flex-wrap:nowrap` y falló con la regla correcta ya
+// compilada: gulp emite `{-ms-flex-wrap:nowrap;flex-wrap:nowrap;...}` y el
+// prefijo se cuela justo delante. Un aserto de CSS compilado no puede dar por
+// hecho ni el orden ni la vecindad de las declaraciones.
+$movil = [
+    '~\.cuadros-top--riesgo\{[^}]*min-width:700px~'
+        => 'la tabla de riesgo se comprime en móvil (950 -> 700px)',
+    '~\.cuadros-riesgo__chips\{[^}]*flex-wrap:nowrap[^}]*overflow-x:auto~'
+        => 'los chips de filtro se desplazan en vez de apilarse',
+];
+foreach ($movil as $regla => $queEs) {
+    $chk("el CSS servido trae $queEs",
+        (bool) preg_match($regla, $css),
+        preg_match($regla, $css) ? 'presente' : 'no está compilado (¿sin gulp build?)');
+}
+
+// `.form-inline` se usaba SIN EXISTIR desde que nació el tablero: la clase
+// estaba en el marcado y no había ni una regla para ella en todo el SASS.
+$chk('la clase `.form-inline` del selector de bimestre existe en el CSS',
+    str_contains($css, '.form-inline{'),
+    str_contains($css, '.form-inline{') ? 'definida' : 'se usa en la vista pero no está definida');
+
+// ── El A4 de cuadros no imprime estilos de pantalla (08/09/2026) ──────
+// 🔴 ESTA HOJA ES LA UNICA DE LAS 14 QUE REUTILIZA LOS COMPONENTES DE TABLA DE
+// PANTALLA (`.tabla-notas`, `.tabla-resumen`). Las otras trece definen su tabla
+// desde cero —`.criterios-print__tabla`, `.resumen-print .cuadro-matricula`…— y
+// por eso ninguna sufre esta familia de fugas. Compartir los partials entre
+// pantalla y papel es CORRECTO (los datos no divergen), pero obliga a un bloque
+// de reseteo explícito, y ese reseteo se había ido escribiendo a trocitos.
+//
+// Lo que fallaba: `.cuadros-print` fija el `font-size` en el `<table>`, pero
+// `_tables.scss` lo declara OTRA VEZ sobre `.tabla-notas th` / `.tabla-resumen
+// th` con (0,1,1). Un elemento con declaración propia no hereda la de su tabla,
+// así que las SEIS tablas del informe imprimían el cuerpo a 8-10px y la
+// cabecera a 12px — con `color:#475569` y `white-space:nowrap` de propina.
+// Es el mismo fallo que `_cuadros.scss` ya había corregido para UNA celda
+// (`.cuadros-top--riesgo tbody th.col-nombre`) sin generalizarlo al `thead`.
+//
+// ⚠️ REGEX Y NO `str_contains` DE LA DECLARACION LITERAL: además de que
+// autoprefixer reordena, cssnano FUSIONA selectores con el mismo cuerpo y los
+// reordena alfabéticamente (comprobado: la regla de grises sale como
+// `.cuadros-print .cuadros-kpi__t,.cuadros-print .riesgo-detalle__aviso,…`).
+// Ni el selector ni el orden de las declaraciones son estables.
+$papel = [
+    '~\.cuadros-print thead th\{[^}]*font-size:inherit~'
+        => 'la cabecera del A4 hereda el tamaño de SU tabla (no los 12px de pantalla)',
+    '~\.cuadros-print thead th\{[^}]*white-space:normal~'
+        => 'los encabezados largos pueden partirse (sin el `nowrap` de .tabla-resumen)',
+    '~\.cuadros-print\{[^}]*min-width:718px~'
+        => 'la hoja conserva sus 718px en cualquier ventana (visor fiel)',
+    '~\.cuadros-print \.competencia-card__codigo\{[^}]*font-size:inherit~'
+        => 'el código de competencia se imprime como texto, no como pastilla naranja',
+    '~\.cuadros-print \.cuadros-matriz__den\{[^}]*font-size:7px~'
+        => 'el denominador de la matriz es más chico que su celda, no más grande',
+    '~\.cuadros-print \.col-nombre\{[^}]*min-width:0~'
+        => 'la columna de nombre suelta el suelo de 200px de pantalla',
+];
+foreach ($papel as $regla => $queEs) {
+    $chk("el CSS servido trae que $queEs",
+        (bool) preg_match($regla, $css),
+        preg_match($regla, $css) ? 'presente' : 'no está compilado (¿sin gulp build?)');
+}
+
+// ── Dos asertos que vigilan la CAUSA, no el sintoma ───────────────────
+// Son los que habrian atrapado esto el primer dia.
+
+// Si alguien vuelve a escribir un tamaño en px sobre una cabecera del A4, es
+// que ha vuelto a COPIAR el valor en vez de heredarlo, y la proxima tabla
+// volvera a descuadrarse en silencio.
+$chk('ninguna regla de `.cuadros-print` fija en px el tamaño de una cabecera',
+    !preg_match('~\.cuadros-print[^{}]*thead th\{[^}]*font-size:\d~', $css),
+    'la cabecera debe heredar de su tabla');
+
+// 🔴 `min-width` y `max-width` de la hoja tienen que ser EL MISMO NUMERO. Si
+// divergen, el documento vuelve a reflowearse en pantalla estrecha y —lo que
+// no se ve venir— los graficos de Frappe vuelven a nacer del ancho de la
+// VENTANA: `cuadros.js` se ejecuta antes que `print-fit.js` y mide el
+// contenedor en ese momento. Con la hoja fluida, el PDF de un movil salia con
+// los 11 graficos al 43 % del ancho del papel.
+preg_match('~\.cuadros-print\{([^}]*)\}~', $css, $mmHoja);
+$cuerpoHoja = $mmHoja[1] ?? '';
+$chk('la hoja de cuadros tiene ancho FIJO (min-width == max-width)',
+    str_contains($cuerpoHoja, 'min-width:718px') && str_contains($cuerpoHoja, 'max-width:718px'),
+    $cuerpoHoja ?: 'no existe la regla .cuadros-print');
+
+// ── El visor del layout print, que es RAIZ COMPARTIDA (08/09/2026) ────
+// ⚠️ ESTOS TRES ASERTOS NO SON DE DIRECCION: vigilan `_boleta.scss` y
+// `print-fit.js`, que usan las 14 vistas del layout print. Viven aqui porque
+// este es el unico verificador que ya lee el CSS SERVIDO con este metodo y
+// porque el cambio existe PARA que funcione el visor de `.cuadros-print`, cuyo
+// aserto hermano esta justo arriba. Si algun dia nace un
+// `verif_layout_print.php`, su sitio es ese.
+$compartida = [
+    '~body\.boleta-body\{[^}]*min-width:210mm~'
+        => 'la hoja A4 simulada no se encoge en una ventana estrecha',
+    '~\.boleta-acciones\{[^}]*--doc-escala-inv~'
+        => 'los botones del documento compensan la escala del visor en móvil',
+];
+foreach ($compartida as $regla => $queEs) {
+    $chk("el CSS servido trae que $queEs",
+        (bool) preg_match($regla, $css),
+        preg_match($regla, $css) ? 'presente' : 'no está compilado (¿sin gulp build?)');
+}
+
+// 🔴 LA PROPIEDAD SE PUBLICA EN UNA RAMA Y SE LIMPIA EN LA OTRA, y las dos
+// hacen falta. Si se calculara siempre, en escritorio `screen.width` vale 1920
+// contra una hoja de 794 y los botones saldrian ENCOGIDOS a 0,41. Y si no se
+// limpiara al volver a caber, un telefono que rota se quedaria con los botones
+// agrandados. Es la prueba de las DOS ramas de la guarda, no solo de una.
+$jsFit = $leer('/resources/js/print-fit.js');
+$chk('print-fit.js publica la escala al encoger Y la limpia al volver a caber',
+    substr_count($jsFit, "setProperty(\n                '--doc-escala-inv'") === 1
+        || (substr_count($jsFit, "'--doc-escala-inv'") === 2
+            && str_contains($jsFit, "removeProperty('--doc-escala-inv')")),
+    substr_count($jsFit, "'--doc-escala-inv'") . ' referencia(s) a la propiedad');
+
 $anio = new App\Models\AnioAcademicoModel();
 $periodos = $anio->query("SELECT p.id, p.numero, p.nombre_display, p.estado, p.anio_id, a.anio
     FROM periodos p INNER JOIN anios_academicos a ON a.id = p.anio_id
@@ -391,13 +551,16 @@ foreach ($periodos as $p) {
     // dejaban de significar nada. Es justo lo que una futura "simplificacion"
     // volveria a juntar, y nada mas lo impediria.
     $nSecciones = count($datos['bloques']['asistencia_top']);
-    $nTablas    = substr_count($html, 'class="tabla-notas cuadros-top"');
-    $nCaptions  = substr_count($html, 'class="cuadros-top__caption"');
     $nBloques   = substr_count($html, 'class="cuadros-top__bloque"');
 
-    // Una tabla por seccion, y cada una con su <caption> y su <thead>. El
-    // <thead> se cuenta sobre las tablas de este partial, no sobre la pagina.
+    // Una tabla por seccion, y cada una con su <caption> y su <thead>. Ambos se
+    // cuentan DENTRO de las tablas de este partial, nunca como clases sueltas
+    // por la pagina: desde el 04/09/2026 el listado de "estudiantes en riesgo"
+    // reutiliza estas mismas clases base, y un `substr_count` global sumaba sus
+    // tablas a estas. El `<table>` de aquel lleva el modificador `--riesgo`, asi
+    // que este patron —con la comilla de cierre— no lo captura.
     preg_match_all('~<table class="tabla-notas cuadros-top">(.*?)</table>~s', $html, $mTablas);
+    $nTablas     = count($mTablas[1] ?? []);
     $sinCabecera = 0;
     foreach ($mTablas[1] ?? [] as $cuerpo) {
         if (!str_contains($cuerpo, '<caption') || !str_contains($cuerpo, '<thead>')) {
@@ -406,17 +569,75 @@ foreach ($periodos as $p) {
     }
 
     $chk("cada seccion de $etiquetaP tiene su propia tabla con encabezado",
-        $nTablas === $nSecciones && $nCaptions === $nSecciones
-            && $nBloques === $nSecciones && $sinCabecera === 0,
+        $nTablas === $nSecciones && $nBloques === $nSecciones && $sinCabecera === 0,
         $sinCabecera > 0
             ? "$sinCabecera tabla(s) sin caption o sin thead"
             : "$nTablas tabla(s) para $nSecciones seccion(es)");
+
+    // ── Estudiantes en riesgo (04/09/2026) ────────────────────────────
+    // Mismo contrato que el listado de arriba, una tabla por GRADO. Los
+    // modificadores `--riesgo` son los que hacen que estos conteos no se mezclen
+    // con los de inasistencias, que usan las mismas clases base.
+    $gradosRiesgo = array_values(array_filter(
+        $datos['bloques']['merito']['por_grado'],
+        static fn(array $g): bool => !empty($g['en_riesgo'])
+    ));
+    $nRiesgo = count($gradosRiesgo);
+    $bRiesgo = substr_count($html, 'cuadros-top__bloque--riesgo');
+
+    // El caption y el thead se comprueban DENTRO de cada tabla de riesgo, no
+    // contando clases sueltas por la pagina: asi el aserto no puede cuadrar por
+    // casualidad con las tablas del listado de inasistencias.
+    preg_match_all(
+        '~<table class="tabla-notas cuadros-top cuadros-top--riesgo">(.*?)</table>~s',
+        $html, $mRiesgo
+    );
+    $tRiesgo = count($mRiesgo[1] ?? []);
+    $mancas  = 0;
+    foreach ($mRiesgo[1] ?? [] as $cuerpo) {
+        if (!str_contains($cuerpo, '<caption') || !str_contains($cuerpo, '<thead>')) {
+            $mancas++;
+        }
+    }
+
+    $chk("estudiantes en riesgo de $etiquetaP: una tabla por grado, con encabezado",
+        $tRiesgo === $nRiesgo && $bRiesgo === $nRiesgo && $mancas === 0,
+        $mancas > 0
+            ? "$mancas tabla(s) sin caption o sin thead"
+            : "$tRiesgo tabla(s) para $nRiesgo grado(s) con casos");
+
+    // La seccion SIEMPRE esta, con o sin casos: si desaparece cuando nadie llega
+    // al umbral, el lector no distingue "no hay nadie en riesgo" de "se rompio".
+    $chk("la seccion de riesgo existe en $etiquetaP aunque este vacia",
+        str_contains($html, 'id="cuadros-g-riesgo"'),
+        $nRiesgo > 0 ? "$nRiesgo grado(s)" : 'sin casos, con estado vacio');
+
+    // Coherencia del dato: todo el que aparece llega al umbral, y el conteo de
+    // filas cuadra con lo que devolvio el modelo. Sin esto, un `>=` mal escrito
+    // en la vista listaria a gente de mas y las tablas seguirian bien formadas.
+    $umbral   = (int) $datos['bloques']['merito']['riesgo_min_c'];
+    $bajoUmbral = 0;
+    $filas      = 0;
+    foreach ($gradosRiesgo as $g) {
+        foreach ($g['en_riesgo'] as $al) {
+            $filas++;
+            if ((int) $al['num_c'] < $umbral) { $bajoUmbral++; }
+        }
+    }
+    $chk("nadie por debajo de $umbral C en la lista de $etiquetaP",
+        $bajoUmbral === 0,
+        $bajoUmbral > 0 ? "$bajoUmbral fila(s) indebidas" : "$filas fila(s)");
 
     // ── El JSON que consume cuadros.js ────────────────────────────────
     // Es el unico contrato de la pantalla que PHP no puede romper de forma
     // visible: un desajuste entre labels y values no da error, solo dibuja
     // un grafico corrido. Y con $chartData vacio, PHP serializa [] y el JS
     // encontraria undefined sin que nadie se entere.
+    // Se inicializa FUERA del `if`: un bimestre sin datos no emite el tag, y
+    // los asertos del A4 de mas abajo lo leen igual. Sin esto, ese caso daba
+    // "variable indefinida" justo en el escenario menos probado.
+    $nGraficos = 0;
+
     if (preg_match('~<script type="application/json" id="cuadros-data">(.*?)</script>~s', $html, $mJson)) {
         $payload = json_decode($mJson[1], true);
         $problemas = [];
@@ -475,6 +696,97 @@ foreach ($periodos as $p) {
         $chk("el JSON de graficos de $etiquetaP es valido y esta cuadrado",
             empty($problemas),
             $problemas ? $problemas[0] : implode(', ', array_keys($payload)));
+
+        // ── Tabla de valores por grafico (04/09/2026) ─────────────────
+        // Gemelo del aserto "cada grafico tiene donde dibujarse", que nacio de
+        // un grafico con JSON y sin <div>. Aqui el fallo simetrico: un grafico
+        // dibujado cuyos numeros solo existen en el tooltip — invisible en
+        // papel, en movil y para quien navega con teclado.
+        $nGraficos = count($payload);   // inicializado a 0 mas arriba
+        $nTablasV  = substr_count($html, 'class="tabla-notas cuadros-valores__tabla"');
+        $chk("cada grafico de $etiquetaP tiene su tabla de valores",
+            $nTablasV === $nGraficos,
+            "$nTablasV tabla(s) para $nGraficos grafico(s)");
+
+        // Coherencia celda a celda contra el MISMO JSON que dibuja el grafico.
+        // Si la tabla se armara por su cuenta, papel y pantalla podrian decir
+        // cifras distintas del mismo bimestre sin que nada fallara.
+        //
+        // Cada tabla se asocia a SU grafico por posicion: es la primera que
+        // aparece detras del <div id="chart-…"> correspondiente. Comprobar solo
+        // que el numero exista "en alguna parte del HTML" seria un aserto
+        // inerte —casi cualquier cifra aparece en una pagina de 300 KB—, que es
+        // peor que no tenerlo.
+        $idDeClave = [
+            'evolucion' => 'chart-evolucion',                'brecha' => 'chart-brecha',
+            'conductaEmbudo' => 'chart-conducta-embudo',     'conductaSecciones' => 'chart-conducta-secciones',
+            'conductaLiterales' => 'chart-conducta-literales', 'conductaEvolucion' => 'chart-conducta-evolucion',
+            'conductaCriterios' => 'chart-conducta-criterios', 'asisFaltas' => 'chart-asis-faltas',
+            'asisTardanzas' => 'chart-asis-tardanzas',       'asisEvolucion' => 'chart-asis-evolucion',
+            'asisJustificacion' => 'chart-asis-justificacion',
+        ];
+
+        $descuadres = [];
+        $contrastados = 0;
+        foreach ($payload as $clave => $d) {
+            $ancla = $idDeClave[$clave] ?? null;
+            if ($ancla === null) {
+                $descuadres[] = "$clave: grafico sin id conocido en el verificador";
+                continue;
+            }
+
+            $pos = strpos($html, 'id="' . $ancla . '"');
+            if ($pos === false) {
+                $descuadres[] = "$clave: no hay <div id=\"$ancla\">";
+                continue;
+            }
+
+            // Primera tabla de valores por detras de ese div.
+            if (!preg_match(
+                '~<table class="tabla-notas cuadros-valores__tabla">(.*?)</table>~s',
+                substr($html, $pos), $mTabla
+            )) {
+                $descuadres[] = "$clave: sin tabla de valores detras de su grafico";
+                continue;
+            }
+
+            // Celdas numericas de esa tabla, en orden de lectura (fila a fila).
+            preg_match_all('~<td class="text-center">\s*([^<\s]+)\s*</td>~', $mTabla[1], $mCeldas);
+            $enTabla = $mCeldas[1];
+
+            // El JSON va por SERIES (columnas) y la tabla por FILAS: se
+            // transpone antes de comparar, o el orden no coincidiria nunca.
+            if (isset($d['datasets'])) {
+                $series = array_map(static fn($ds) => $ds['values'], $d['datasets']);
+            } elseif (isset($d['mejor'])) {
+                $series = [$d['mejor'], $d['peor']];
+            } else {
+                $series = [$d['values'] ?? []];
+            }
+
+            $esperado = [];
+            foreach (($d['labels'] ?? []) as $i => $_) {
+                foreach ($series as $s) {
+                    $esperado[] = (string) ($s[$i] ?? '');
+                }
+            }
+
+            if (count($enTabla) !== count($esperado)) {
+                $descuadres[] = "$clave: " . count($enTabla) . ' celdas para '
+                    . count($esperado) . ' valores';
+                continue;
+            }
+            foreach ($esperado as $i => $v) {
+                if ($enTabla[$i] !== $v) {
+                    $descuadres[] = "$clave celda $i: tabla '{$enTabla[$i]}' vs json '$v'";
+                    break;
+                }
+            }
+            $contrastados++;
+        }
+        $chk("los valores tabulados de $etiquetaP salen del mismo JSON",
+            empty($descuadres),
+            $descuadres ? $descuadres[0] : "$contrastados grafico(s), celda a celda");
     } else {
         // Sin datos no se emite el tag: es correcto, pero que se vea.
         $chk("cuadros omite el JSON de graficos en $etiquetaP (sin datos)", true, 'sin tag cuadros-data');
@@ -508,6 +820,200 @@ foreach ($periodos as $p) {
             && !str_contains($htmlPrint, 'role="tablist"')
             && !preg_match('~<div[^>]*\shidden~', $htmlPrint),
         'sin role=tab ni hidden');
+
+    // ── Toda tabla del A4 tiene que estar dimensionada (08/09/2026) ───
+    // 🔴 LA RED QUE FALTABA. El informe reutiliza los componentes de tabla de
+    // PANTALLA, cuyo `th` trae su propio `font-size:12px` desde
+    // `_tables.scss`. Una tabla nueva que no lleve una de estas clases no la
+    // dimensiona nadie: se imprimira a 14px con el resto de la hoja a 8px, sin
+    // ningun error y sin que ningun otro aserto lo note. Asi empezo esto.
+    // Se mide sobre el HTML RENDERIZADO, no sobre la vista, para que cuente
+    // tambien las tablas que emiten los partials compartidos.
+    $dimensionadas = ['tabla-resumen', 'cuadros-valores__tabla', 'cuadros-matriz',
+                      'cuadros-top', 'riesgo-detalle__tabla'];
+    preg_match_all('~<table[^>]*class="([^"]*)"~', $htmlPrint, $mTablas);
+    foreach (array_unique($mTablas[1]) as $clasesTabla) {
+        $cubierta = (bool) array_filter(
+            $dimensionadas,
+            static fn(string $c): bool => str_contains($clasesTabla, $c)
+        );
+        $chk("en $etiquetaP la tabla `$clasesTabla` del A4 tiene tamaño de letra propio",
+            $cubierta,
+            $cubierta ? 'dimensionada por .cuadros-print' : 'heredaria los 12px de pantalla');
+    }
+
+    // ── Las tablas de valores en el A4 (04/09/2026) ───────────────────
+    // 🔴 NI UN `<details>` EN EL PAPEL. Un `<details>` cerrado no imprime su
+    // contenido: la tabla saldria en blanco, sin ningun error, y el informe
+    // volveria a quedarse sin los numeros que este trabajo vino a poner. Es el
+    // mismo motivo por el que el explorador de criterios tiene vista aparte —y
+    // ya hay un aserto gemelo para aquel, arriba en este mismo archivo.
+    $tablasA4 = substr_count($htmlPrint, 'class="tabla-notas cuadros-valores__tabla"');
+    $chk("el imprimible de $etiquetaP trae sus tablas de valores desplegadas",
+        !str_contains($htmlPrint, '<details') && $tablasA4 === $nGraficos,
+        str_contains($htmlPrint, '<details')
+            ? 'hay un <details>: no se imprimiria'
+            : "$tablasA4 tabla(s) para $nGraficos grafico(s)");
+
+    // La tabla es HERMANA de `.cuadros-print__chart`, nunca su hija: ese
+    // contenedor lleva `page-break-inside: avoid` y con la tabla dentro el
+    // bloque entero saltaria de hoja dejando media pagina en blanco.
+    $chk("en $etiquetaP ninguna tabla de valores cuelga de un bloque no partible",
+        !preg_match(
+            '~<div class="cuadros-print__chart">(?:(?!</div>).)*cuadros-valores__tabla~s',
+            $htmlPrint
+        ),
+        'todas fuera de .cuadros-print__chart');
+
+    // Los KPIs que la pantalla mostraba y el papel no. "Esperan al tutor" y
+    // "Esperan al auxiliar" llegaban al A4 SOLO por la leyenda del grafico de
+    // embudo, que no se registra cuando la suma es cero: el informe podia
+    // quedarse sin decir a quien esta esperando el cierre.
+    $kpisPapel = ['Esperan al tutor', 'Esperan al auxiliar'];
+    $faltan = array_values(array_filter(
+        $kpisPapel,
+        static fn(string $k): bool => !str_contains($htmlPrint, $k)
+    ));
+    $chk("el imprimible de $etiquetaP trae los KPIs de proceso de conducta",
+        empty($faltan),
+        $faltan ? 'falta: ' . $faltan[0] : implode(' · ', $kpisPapel));
+
+    // Cada grafico impreso lleva su nota de lectura: en papel nadie puede
+    // preguntar que significa lo que esta viendo.
+    $chk("cada grafico impreso de $etiquetaP lleva su nota de lectura",
+        substr_count($htmlPrint, 'cuadros-print__nota') === $nGraficos,
+        substr_count($htmlPrint, 'cuadros-print__nota') . " nota(s) para $nGraficos grafico(s)");
+
+    // ── Rediseño de "Estudiantes en riesgo" (07/09/2026) ──────────────
+    // El partial es UNO y las superficies son DOS, separadas por el flag
+    // `$riesgoInteractivo` que pone el llamador. Lo que se vigila aqui es
+    // exactamente ese reparto: el DATO va a las dos, el CONTROL solo a la
+    // pantalla. Sin aserto, "arreglar" la variable que le falta al A4 —que
+    // parece un olvido y no lo es— imprime un buscador en cada informe.
+    $res = riesgo_resumen($datos['bloques']['merito']['por_grado']);
+
+    $chk("la banda de riesgo de $etiquetaP esta en pantalla y en papel, con la misma cifra",
+        $nRiesgo === 0
+            ? !str_contains($html, 'cuadros-banda--riesgo') && !str_contains($htmlPrint, 'cuadros-banda--riesgo')
+            : str_contains($html, 'cuadros-banda--riesgo')
+                && str_contains($htmlPrint, 'cuadros-banda--riesgo')
+                && substr_count($html, '>' . $res['total'] . '</span>') > 0,
+        $nRiesgo === 0
+            ? 'sin casos: no hay banda que pintar'
+            : $res['total'] . ' estudiante(s) · ' . $res['pct'] . '% de ' . $res['evaluados']);
+
+    // El total de la banda sale del PUNTO UNICO `riesgo_resumen()`, no de una
+    // suma escrita a mano en la vista: si alguien la vuelve a sumar in situ,
+    // este aserto sigue verde pero el de abajo —la cuenta de filas— es el que
+    // ata la cifra al dato.
+    // El PAR merito <-> riesgo: las dos bandas existen y llevan acentos DISTINTOS.
+    // Sin esto, un refactor que dejara las dos con el mismo modificador borraria
+    // en silencio la unica pista visual que separa "los mejores" de "los que
+    // necesitan apoyo", y la pagina seguiria renderizando perfecta.
+    $conRanking = !empty($datos['bloques']['merito']['por_grado']);
+    foreach ([['pantalla', $html], ['papel', $htmlPrint]] as [$dondeB, $docB]) {
+        $chk("el par merito/riesgo se distingue en $dondeB de $etiquetaP",
+            substr_count($docB, 'cuadros-banda--merito') === ($conRanking ? 1 : 0)
+                && substr_count($docB, 'cuadros-banda--riesgo') === ($nRiesgo > 0 ? 1 : 0),
+            'merito=' . substr_count($docB, 'cuadros-banda--merito')
+                . ' riesgo=' . substr_count($docB, 'cuadros-banda--riesgo'));
+    }
+
+    $chk("la cifra de la banda de $etiquetaP cuadra con las filas listadas",
+        $res['total'] === $filas,
+        $res['total'] . ' en la banda · ' . $filas . ' fila(s) en las tablas');
+
+    // Los controles: en pantalla si, en papel NO. Y en pantalla nacen `hidden`
+    // —los destapa cuadros-riesgo.js—, para que sin JS no queden un buscador
+    // que no busca y unos chips que no filtran.
+    $controles = ['id="riesgo-filtros"', 'id="riesgo-contador"', 'id="riesgo-sin-resultados"'];
+    $enPantalla = $enPapel = 0;
+    foreach ($controles as $c) {
+        if (str_contains($html, $c))      { $enPantalla++; }
+        if (str_contains($htmlPrint, $c)) { $enPapel++; }
+    }
+    $chk("los controles de riesgo de $etiquetaP son de pantalla, no de papel",
+        $enPapel === 0 && $enPantalla === ($nRiesgo > 0 ? count($controles) : 0),
+        $enPapel > 0
+            ? "$enPapel control(es) impresos"
+            : "$enPantalla en pantalla · 0 en papel");
+
+    $chk("la barra de filtros de $etiquetaP nace oculta (sin JS no hay controles muertos)",
+        $nRiesgo === 0 || str_contains($html, 'id="riesgo-filtros" hidden'),
+        $nRiesgo === 0 ? 'sin casos' : 'hidden presente');
+
+    // El script que la destapa va FUERA del `if ($chartData)`: un bimestre sin
+    // ni un grafico tambien necesita filtrar, y sin el script la barra se queda
+    // oculta para siempre.
+    $chk("cuadros-riesgo.js se carga en $etiquetaP haya o no graficos",
+        str_contains($html, 'js/cuadros-riesgo.js') && !str_contains($htmlPrint, 'cuadros-riesgo.js'),
+        $nGraficos . ' grafico(s) en este bimestre');
+
+    // ── Desglose de las C (07/09/2026) ────────────────────────────────
+    // El desglose va a las DOS superficies, pero de forma distinta: en pantalla
+    // dentro de un `<details>` plegado, en papel suelto. La diferencia la pone
+    // el mismo flag `$riesgoInteractivo`.
+    //
+    // 🔴 EL ASERTO QUE DE VERDAD IMPORTA ES EL DEL PAPEL, y ya existe unas
+    // lineas mas arriba: `!str_contains($htmlPrint, '<details')`. Un `<details>`
+    // cerrado NO IMPRIME SU CONTENIDO, asi que si alguien "simplifica" el
+    // partial y emite el `<details>` tambien en el A4, el informe saldria con
+    // 778 filas en blanco y sin ningun error. Aqui se comprueba lo
+    // complementario: que el desglose ESTE en el papel.
+    $detPantalla = substr_count($html, 'data-riesgo-detalle');
+    $detPapel    = substr_count($htmlPrint, 'data-riesgo-detalle');
+
+    $chk("el desglose de C esta en las dos superficies de $etiquetaP",
+        $detPantalla === $filas && $detPapel === $filas,
+        "pantalla $detPantalla · papel $detPapel · $filas estudiante(s)");
+
+    $chk("el desglose de $etiquetaP se pliega en pantalla y va suelto en papel",
+        ($filas === 0 || str_contains($html, '<details class="riesgo-detalle"'))
+            && !str_contains($htmlPrint, 'riesgo-detalle"><summary')
+            && !str_contains($htmlPrint, '<details'),
+        $filas === 0 ? 'sin casos' : substr_count($html, '<details class="riesgo-detalle"') . ' plegado(s) en pantalla, 0 en papel');
+
+    // 🔴 LA FILA DEL DESGLOSE NO PUEDE LLEVAR `data-riesgo-fila`. Ese atributo
+    // es lo que `cuadros-riesgo.js` cuenta para el TOTAL y para "Mostrando N de
+    // 118": si se le colara, el contador diria el doble y nadie veria un error.
+    preg_match_all('~<tr class="fila-riesgo-detalle"[^>]*>~', $html, $mDet);
+    $contaminadas = 0;
+    foreach ($mDet[0] ?? [] as $tag) {
+        if (str_contains($tag, 'data-riesgo-fila')) { $contaminadas++; }
+    }
+    $chk("las filas de desglose de $etiquetaP no cuentan como estudiantes",
+        $contaminadas === 0,
+        $contaminadas > 0
+            ? "$contaminadas fila(s) con data-riesgo-fila"
+            : count($mDet[0] ?? []) . ' fila(s) de desglose');
+
+    // ── Indice de anclas ──────────────────────────────────────────────
+    // Un ancla a un `id` que la pagina no emitio es un enlace que no lleva a
+    // ninguna parte, y Reaperturas es condicional: las entradas se ARMAN.
+    preg_match_all('~<a class="orden-chip" href="#([\w-]+)"~', $html, $mAnclas);
+    $rotas = array_values(array_filter(
+        $mAnclas[1] ?? [],
+        static fn(string $id): bool => !str_contains($html, 'id="' . $id . '"')
+    ));
+    $chk("el indice de $etiquetaP no tiene anclas rotas",
+        !empty($mAnclas[1]) && empty($rotas),
+        $rotas ? 'rota: #' . $rotas[0] : count($mAnclas[1] ?? []) . ' ancla(s)');
+
+    $chk("el indice de $etiquetaP no se imprime",
+        !str_contains($htmlPrint, 'cuadros-indice'));
+
+    // ── La colision de rotulos no vuelve ──────────────────────────────
+    // Hasta el 07/09/2026 "En riesgo" nombraba DOS cifras distintas en la misma
+    // pantalla: la columna del bloque de Calificaciones (promedio general bajo
+    // NOTA_MIN_B, por nivel) y esta seccion (3 C o mas, por grado). En B2 daban
+    // 0 y 77. Aquella columna se llama ahora "Promedio en C", asi que el rotulo
+    // debe quedar en UN solo sitio: el <h2> de la seccion.
+    foreach ([['pantalla', $html], ['papel', $htmlPrint]] as [$dondeEtq, $doc]) {
+        $chk("\"En riesgo\" nombra una sola cosa en $dondeEtq de $etiquetaP",
+            substr_count($doc, 'En riesgo') === 0,
+            substr_count($doc, 'Estudiantes en riesgo') . ' vez/veces "Estudiantes en riesgo"'
+                . ' · ' . substr_count($doc, 'Promedio en C') . ' vez/veces "Promedio en C"');
+    }
 
     // ── Coherencia de la distribucion de conducta ─────────────────────
     // Gemelo del aserto que ya compara getEvolucionAnual con getResumenBimestre:

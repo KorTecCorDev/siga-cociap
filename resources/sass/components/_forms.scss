@@ -63,3 +63,30 @@
         box-shadow: 0 0 0 3px rgba($brand-accent, .1);
     }
 }
+// ── Formulario en una fila ───────────────────────────────────────────
+// 🔴 ESTA CLASE SE USABA SIN EXISTIR. `admin/cuadros/index.php` la lleva desde
+// que nacio el tablero, y no habia ni una regla para ella en todo
+// `resources/sass/`: el label y el select se maquetaban con el defecto del
+// navegador (el `<form>` en bloque, el label encima). Descubierto el
+// 07/09/2026 al auditar el responsive de esa pantalla.
+//
+// UN SOLO CONSUMIDOR hoy (el selector de bimestre). Se define aqui, en
+// componentes, y no en la pagina, porque el patron "label + control en linea"
+// no tiene nada de propio del tablero.
+.form-inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $spacing-sm;
+
+    .form-label { margin-bottom: 0; }
+
+    // El select no se estira a todo el ancho en escritorio -un desplegable de
+    // cuatro bimestres no necesita 1100px- pero SI ocupa la fila entera en
+    // movil, donde un control estrecho es mas dificil de acertar con el dedo.
+    .form-select { max-width: 320px; }
+
+    @media (max-width: 640px) {
+        .form-select { max-width: none; width: 100%; }
+    }
+}

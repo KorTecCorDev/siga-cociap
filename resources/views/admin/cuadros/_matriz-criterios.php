@@ -13,6 +13,10 @@
  * móvil ni para quien navega con teclado—: la explicación es la leyenda de
  * abajo, que sale de la misma fuente de datos.
  *
+ * Ese mismo criterio se aplicó a la CELDA el 04/09/2026: el `n/N` que antes
+ * solo estaba en su `title` ahora se pinta bajo el porcentaje. Un tooltip no
+ * se imprime, y sin el denominador un 50 % no dice si son 1 de 2 o 14 de 28.
+ *
  * @var array $condCrit  {criterios, secciones} de ConductaModel::getIncumplimientoCriterios
  */
 
@@ -60,9 +64,16 @@ $calor = static function (float $pct): string {
                                   // leeria como "aqui nadie lo incumple", un dato inventado. ?>
                             <td class="cuadros-matriz__c cuadros-matriz__c--sd">&ndash;</td>
                         <?php else: ?>
+                            <?php // 🔴 EL DENOMINADOR SE IMPRIME, no se deja en el `title`.
+                                  // Hasta el 04/09/2026 la celda solo mostraba el porcentaje y
+                                  // el "12 de 28" vivia unicamente en el tooltip: en papel, un
+                                  // 50 % podia ser 1 de 2 o 14 de 28, que son dos realidades
+                                  // distintas para quien tiene que decidir algo. El `title` se
+                                  // conserva para el raton, pero ya no es la unica fuente. ?>
                             <td class="cuadros-matriz__c cuadros-matriz__c--<?= $calor($pctK) ?>"
                                 title="<?= (int) $celda['no_cumple'] ?> de <?= (int) $celda['respondidos'] ?> no cumplen">
                                 <?= $pctK > 0 ? (int) round($pctK) . '%' : '&mdash;' ?>
+                                <span class="cuadros-matriz__den"><?= (int) $celda['no_cumple'] ?>/<?= (int) $celda['respondidos'] ?></span>
                             </td>
                         <?php endif; ?>
                     <?php endforeach; ?>

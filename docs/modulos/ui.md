@@ -550,6 +550,28 @@ auxiliares. Vive en `components/_tables.scss`, con las tablas.
 - ⚠️ **Esto NO gobierna todas las clases `*-leyenda` del sistema**: las de boleta
   impresa, horario y el donut de bloqueos son de otro contexto y no se unifican.
 
+### La misma regla, aplicada a los GRÁFICOS (04/09/2026)
+
+«Un tooltip no existe en móvil ni para quien navega con teclado» vale igual para
+el tooltip de Frappe Charts — y allí es peor, porque **es el único sitio donde
+están los valores**. En `/admin/cuadros` el A4 imprimía once gráficos y solo uno
+dejaba sus números legibles.
+
+- **Regla: un gráfico nunca es la única fuente de un número.** Va acompañado de
+  su tabla de valores (`_tabla-grafico.php`), plegada en pantalla y desplegada en
+  papel. Los gráficos **se añaden, no sustituyen** — ya era la regla del módulo
+  para las tablas, y aquí se aplica en el sentido inverso.
+- 🔴 **Un `<details>` cerrado NO IMPRIME SU CONTENIDO.** Es la trampa de plegar
+  algo que también va al papel: sale una hoja en blanco sin ningún error. Ya
+  costó una vista imprimible aparte en el explorador de criterios; aquí se
+  resuelve con un flag `$abierta` en el partial compartido.
+- **Lo que se plegue en pantalla y se imprima necesita un aserto.** Ninguna
+  prueba de servidor ve que un bloque no se imprimió: el verificador comprueba
+  que el imprimible no emita ni un `<details>`.
+- El mismo criterio se aplicó al `title` de una celda (`12 de 28 no cumplen` →
+  se pinta bajo el porcentaje). Un `title` puede acompañar, nunca ser la única
+  fuente.
+
 
 ## El chip de código, y su modificador `--solo` (25/08/2026)
 
@@ -772,3 +794,243 @@ contenedor no vuelva a ser flex ni grid), no valores concretos de padding o colo
 —el prefijo consume el `}` de cierre y la siguiente se queda sin delimitador—. Allí
 funciona porque se usa con `preg_match`, una sola regla. El aserto acusaba al CSS de algo
 que no pasaba.
+
+---
+
+## Índice de anclas de una página larga (07/09/2026)
+
+`/admin/cuadros` acumuló seis bloques, doce gráficos y cuatro tablas largas. La
+única forma de saber que existía «Estudiantes en riesgo» —cuarto bloque, detrás
+de dos tablas y dos gráficos— era desplazarse hasta toparse con él.
+
+Componente: `.cuadros-indice` (`pages/_cuadros.scss`), una tira de anclas que
+**reutiliza `.orden-chip`** en vez de inventar un chip nuevo.
+
+- **Las entradas se ARMAN en PHP, no se escriben a mano en el HTML.** En esa
+  página «Reaperturas» es condicional, y un ancla a un `id` que la página no
+  emitió es un enlace que no lleva a ninguna parte. Hay aserto: cada `href="#x"`
+  debe tener su `id="x"` en el mismo documento.
+- **No se imprime.** En papel el índice sería una lista de enlaces muertos.
+- 🔴 **El destino necesita `scroll-margin-top`.** El topbar es `position: sticky`
+  y mide `$topbar-height` (56 px): sin margen de desplazamiento, saltar a un
+  ancla deja el rótulo justo debajo de la barra y parece que el enlace llevó al
+  sitio equivocado. Vive en `.dash-grupo__titulo` (`pages/_dashboard.scss`), que
+  es quien lleva el `id`. Solo afecta al salto por ancla, así que las vistas sin
+  anclas no cambian.
+
+⚠️ **`.orden-chip` tiene ahora dos consumidores** — `/matriculas` (sobre `<a>`,
+ordena la tabla) y `/admin/cuadros` (sobre `<button>` en los filtros de riesgo, y
+sobre `<a>` en este índice). Un `<button>` no hereda la fuente de la página y
+trae `cursor: default`; el reset va en un selector `button.orden-chip` acotado a
+propósito, para que los usos sobre `<a>` no lo vean. **No moverlo dentro de
+`.orden-chip`**: allí un `font-family` reabre la puerta a que un shorthand `font`
+pise el `font-size` del componente.
+
+## El atributo `hidden` no siempre oculta (07/09/2026)
+
+🔴 **`[hidden] { display: none }` vive en la hoja del NAVEGADOR con especificidad
+(0,0,1).** Cualquier `display: flex` / `inline-flex` / `grid` escrito sobre una
+clase es (0,1,0) **y le gana**. El elemento lleva el atributo, el JS lo pone y lo
+quita correctamente, y se sigue viendo. No hay error en ninguna parte.
+
+Se pagó dos veces el mismo día en la sección «Estudiantes en riesgo»:
+
+- `.cuadros-riesgo__filtros` (`display: flex`) nace `hidden` desde el servidor
+  justo para que, si el JS no carga, no queden en pantalla un buscador que no
+  busca y unos chips que no filtran. **La defensa entera era inerte**, y el fallo
+  solo se habría visto el día que fallara el JS.
+- `.orden-chip` (`inline-flex`): el JS ocultaba los chips de los grados de otro
+  nivel y se seguían viendo los once.
+
+**Regla: si un elemento se oculta con `hidden` y su clase declara un `display`,
+hay que escribir la variante `[hidden]` explícita.** Un `<tr>` o un `<div>` sin
+`display` propio funcionan solos; el problema aparece justo en los componentes.
+
+**Y necesita aserto sobre el CSS SERVIDO**, no sobre el marcado: desde PHP el
+HTML se ve perfecto. Está en `verif_direccion_superficies.php`, con el mismo
+método que `verif_banners_aviso.php`.
+
+## Responsive: lo que se midió antes de tocar nada (07/09/2026)
+
+Auditoría de `/admin/cuadros` en pantallas pequeñas. **El método importa**: se midió con un
+**iframe de ancho fijo** dentro de la propia página, porque un iframe dispara las media
+queries según su propio ancho. `resize_window` de la extensión de Chrome **reporta éxito y
+no cambia el viewport** en este entorno — con él se mide el escritorio creyendo medir un
+móvil.
+
+### Dos diagnósticos que la medición desmintió
+
+- 🔴 **«La página desborda en tablet»: NO.** Lo que parecía scroll horizontal a 748 px era
+  **1 px de redondeo** (749 vs 748) con **0 elementos** realmente fuera. Antes de perseguir
+  un desborde, comprobar si algún elemento se sale de verdad.
+- 🔴 **«Los gráficos no se readaptan al rotar»: SÍ se readaptan.** Frappe Charts 1.6.2
+  registra `resize` y `orientationchange` por instancia, y funcionan (medido: el SVG pasa
+  de 289 a 783 px). Lo que **no** actúa es su `ResizeObserver` interno — coherente con el
+  `NotFoundError: removeChild` ya documentado—, así que un cambio de *contenedor* sin
+  cambio de *ventana* no redibuja. **No añadir un listener de `resize` propio**: duplicaría
+  el trabajo que la librería ya hace bien.
+
+### Lo que sí fallaba, y cómo se arregló
+
+| Defecto | Antes (371 px) | Después |
+|---|---|---|
+| Tabla de riesgo | suelo de 950 px → 2,8× de scroll | 700 px → 2,2× |
+| Barra de filtros | 333 px de alto (44 % de pantalla) | 194 px |
+| Chips de nivel y grado | se apilaban en varias filas | scroll lateral |
+| `.form-inline` | **usada en el marcado sin existir en el SASS** | definida |
+
+**Ninguna columna se oculta y no hay layout de tarjeta** (decisión del usuario; las tarjetas
+ya se habían descartado el 25/08/2026 para la grilla de notas). Lo que se reduce es el aire:
+relleno y tamaño de letra.
+
+**Los chips copian el bloque de `.tabs`** (`components/_tabs.scss`), que ya resolvía esto:
+`nowrap` + `overflow-x: auto` + `scrollbar-width: none`. Tercer consumidor del mismo patrón
+junto con `.cuadros-indice`.
+
+### Señal de que una tabla continúa (`.tabla-notas-wrapper`)
+
+Sombra en los bordes que aparece y desaparece sola, sin JS: dos capas de gradiente `local`
+(se desplazan con el contenido) tapando a dos `scroll` (fijas al marco).
+
+⚠️ **Solo funciona si las celdas del borde NO tienen `background` propio**: el gradiente se
+pinta en el wrapper y cualquier fondo de celda lo tapa. Hoy se ve porque solo el `thead` y
+la columna sticky tienen fondo. Si algún día se le da fondo a las últimas columnas, esta
+señal desaparece **en silencio**.
+
+### Deuda anotada: los breakpoints no están unificados
+
+**640 px es el breakpoint del sistema** (48 usos; el único presente en navbar, tabs, tables
+y `.app-main`). Pero el repo tiene además 760, 761, 900, 820, 600, 560, 540, 480, 400 y 360
+escritos a mano, casi todos de **un solo uso**. `_cuadros.scss` usa tres (640, 760 y 761) y
+es el único archivo con `761px`.
+
+**No se unificaron a propósito**: los de 760/761 gobiernan la rejilla de gráficos y el panel
+de literales, funcionan, y migrarlos a 640 metería dos columnas de gráfico en tablet. Sería
+un cambio de maquetación disfrazado de limpieza. No hay variables SASS de breakpoint; si
+algún día se crean, este es el inventario.
+
+### Un aserto de CSS compilado no puede asumir el orden de las declaraciones
+
+⚠️ **Autoprefixer reordena y añade propiedades.** Un aserto que buscaba
+`.cuadros-riesgo__chips{flex-wrap:nowrap` **falló con la regla correcta ya compilada**,
+porque gulp emite `{-ms-flex-wrap:nowrap;flex-wrap:nowrap;…}`. Estos asertos van con
+**regex sobre el cuerpo de la regla** (`\{[^}]*propiedad`), nunca con la declaración
+literal pegada a la llave.
+
+## Un documento imprimible que reutiliza una tabla de pantalla (08/09/2026)
+
+Auditoría del A4 de `/admin/cuadros/imprimir`. **Síntoma reportado:** «encabezados
+desbordados en las tablas, tamaño de letra en los encabezados y títulos de las tablas».
+Resultaron ser **dos defectos independientes** que se manifestaban juntos.
+
+### 🔴 La regla general: en un imprimible, el `th` necesita `font-size: inherit`
+
+`.cuadros-print` fijaba el tamaño en el `<table>`, pero `components/_tables.scss` declara
+`font-size`, `color`, `font-weight` y `white-space` **directamente sobre**
+`.tabla-notas th` y `.tabla-resumen th`, con especificidad (0,1,1). **Un elemento con
+declaración propia no hereda la de su tabla**: las seis tablas del informe imprimían el
+cuerpo a 8-10 px y **la cabecera a 12 px**, en gris `#475569` y con `white-space: nowrap`.
+
+⚠️ **Es la segunda vez que aparece esta misma fuga.** El 07/09/2026 se corrigió para UNA
+celda (`.cuadros-top--riesgo tbody th.col-nombre`, que imprimía a 14 px sobre una fila de
+8 px) y **no se generalizó al `thead`**. La corrección de ahora es una sola regla
+`.cuadros-print thead th { font-size: inherit; … }` —especificidad (0,1,2): la mínima que
+gana a la fuga y no le gana a los overrides del propio bloque, que son (0,2,1) y (0,2,2)—.
+
+**`/admin/cuadros/imprimir` es la única de las 14 vistas del layout `print` que reutiliza
+los componentes de tabla de pantalla.** Las otras trece definen su tabla desde cero y por
+eso nunca sufrieron esto. Compartir partials entre pantalla y papel es correcto —los datos
+no divergen— pero **obliga a un bloque de reseteo explícito**, y ese reseteo se había ido
+escribiendo a trocitos: `min-width` de `.col-nombre`, el chip naranja de código, el
+denominador de la matriz a 9 px dentro de celdas de 8 px, los grises `#94a3b8` a 8 px.
+
+### El desborde no lo causaba la tipografía: la hoja se aplastaba
+
+La estimación con métricas Arial daba **432 px** de ancho mínimo para la fila de cabecera
+de la tabla de 9 columnas; **medido en el navegador son 600 px**, y eso cambia el alcance:
+el desborde empezaba por debajo de **~677 px de viewport**, no ~509. **Afectaba también a
+tablets en vertical.** Lo que sí se confirmó es que **a 718 px no desbordaba nada**: la causa
+no era la tipografía sino que `.cuadros-print` solo tenía `max-width` y se comprimía.
+
+⚠️ **Una aritmética de anchos con métricas de fuente es una estimación, no una medición.**
+Se quedó 168 px corta (432 contra 600) porque no cuenta lo que aportan los `td`, el
+reparto del algoritmo de tabla ni el redondeo. Sirve para decidir *si hay un problema*,
+nunca para fijar el umbral en el que aparece.
+
+🔴 **`print-fit.js` no podía arreglarlo, y conviene entender por qué antes de tocarlo:**
+reescribe el `<meta viewport>`, que es un **mecanismo exclusivamente móvil**. Chrome,
+Firefox y Safari de escritorio lo ignoran. Cambiar su `screen.width` por `innerWidth` no
+habría arreglado la ventana estrecha **y habría roto el móvil en horizontal**. La solución
+es CSS: `min-width` igual al `max-width`.
+
+### El efecto que no se veía venir: el PDF de los móviles
+
+Con la hoja fluida, **los 11 gráficos salían impresos al 40 % del ancho del papel desde un
+móvil** (medido: 278 px de 702). `layouts/print.php` carga `cuadros.js` dentro del `$content`, **antes** que
+`print-fit.js`, y su `barrer()` es síncrono: Frappe medía el contenedor (311 px en un móvil
+de 371) y le escribía ese `width` al SVG antes de que el viewport se ajustara. **Un ancho
+fijo elimina la dependencia de orden entre los dos scripts sin tocar ninguno de los dos.**
+
+Aserto que lo vigila: `min-width` y `max-width` de la hoja deben ser **el mismo número**.
+Si divergen, vuelve el defecto en silencio.
+
+### El visor del layout `print` (raíz compartida de los 14 imprimibles)
+
+Dos correcciones en `_boleta.scss` + `print-fit.js`, del mismo día y por la misma causa:
+
+1. **`body.boleta-body` gana `min-width: 210mm`** junto a su `max-width`. Con solo el techo,
+   en una ventana estrecha el marco de la hoja simulada dibujaba 340 px mientras el
+   contenido se salía por la derecha: **la vista previa mentía sobre dónde cae el corte de
+   página**, justo lo que su propio comentario pide evitar. En móvil no cambia nada
+   (`anchoNatural()` ya medía ~794 px para todos). ⚠️ Efecto de borde aceptado: con la hoja
+   más ancha que la ventana, el `auto` del margen se resuelve a 0 y la hoja se pega a la
+   izquierda — comportamiento estándar de un bloque *over-constrained* en LTR.
+2. **Los botones `✕ / 🖨` compensan la escala del visor.** Cuando `print-fit.js` encoge la
+   hoja en un móvil, el navegador dibuja toda la página al ~47 % y los botones quedaban en
+   **~16 px físicos**, por debajo del mínimo de 24 px de WCAG 2.5.8 (AA).
+
+   🔴 **No se podía arreglar con una media query**, y esto es lo que hay que recordar: en
+   cuanto `print-fit` reescribe el `<meta viewport>` a 794, **el viewport CSS *es* 794** y un
+   `max-width: 640px` no dispara en el móvil. `(pointer: coarse)` tampoco sirve: el problema
+   no es el puntero, es el factor de zoom, que **ninguna media query expone**. Así que la
+   escala la publica quien la conoce —`print-fit.js`, en una custom property— y el CSS la
+   invierte con `transform`. El documento no se toca: los controles no son el documento.
+
+   ⚠️ **La propiedad se publica en una rama y se limpia en la otra, y las dos hacen falta.**
+   Si se calculara siempre, en escritorio `screen.width` vale 1920 contra una hoja de 794 y
+   los botones saldrían **encogidos** a 0,41. Si no se limpiara al volver a caber, un
+   teléfono que rota se quedaría con los botones agrandados.
+
+⚠️ **Al escribir asertos sobre `transform`, `flex` o cualquier propiedad prefijada, el
+mutante tiene que borrar LAS DOS declaraciones.** Un mutante que solo quitaba `transform:`
+dejó vivo el `-webkit-transform:` y el aserto pasó — el aserto era correcto, el mutante no.
+
+### Línea base medida (II Bimestre, datos reales, iframe a 371 px)
+
+Método: la hoja real volcada con el **mismo controlador** (`componerBloques` por reflexión,
+saltándose el constructor que exige sesión) y servida con `php -S`, con el `app.css` de
+`066c2e3` al lado para el A/B. 11 gráficos, 122 tablas, 0 avisos.
+
+| a 371 px | antes | después |
+|---|---|---|
+| ancho de la hoja | **294 px** (aplastada) | **718 px** |
+| tablas que desbordan | **34 de 122** | **0 de 122** |
+| desborde máximo | **314 px** | 0 |
+| los 11 gráficos (SVG) | **278 px = 40 % del papel** | **702 px = 100 %** |
+| `th` de las 6 tablas | **12 px** sobre cuerpos de 8-10 px | igual que su tabla |
+| color del `th` | `#475569` | `#111` |
+| botón `🖨` (móvil de 371) | **16,6 px físicos** | **35,6 px** |
+
+Barrido de anchos, desborde de la tabla de calificaciones fuera de la hoja:
+**371 px → 314 · 500 px → 185 · 768 px → 0 · 1024 px → 0**. Después: **0 en los cuatro**.
+
+**En escritorio (1024 y 1280) no cambia nada**, que es el criterio de no-regresión del
+papel: hoja 718, SVG 702, 0 desbordes antes y después. Lo único que se mueve es que el
+documento sale **632 px más corto** (26 371 → 25 739), porque las cabeceras dejan de ser
+un 50 % más grandes que su contenido.
+
+⚠️ **La captura de pantalla de la extensión hace *timeout* en este entorno**, incluso con
+una página ligera y una pestaña recién creada (`Page.captureScreenshot timed out`). No es
+la página y no sirve reintentar: es distinto del «captura en blanco por encima de ~7 000 px»
+ya documentado. **Las mediciones numéricas por `getBoundingClientRect` y `getComputedStyle`
+sí funcionan**, y son las que prueban el cambio.

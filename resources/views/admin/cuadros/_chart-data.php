@@ -303,3 +303,155 @@ if ($lblJust && (array_sum($vSin) > 0 || array_sum($vJust) > 0)) {
         ],
     ];
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// TABLAS DE VALORES — que el papel no dependa del cursor (04/09/2026)
+//
+// 🔴 EL PROBLEMA QUE RESUELVE: Frappe Charts escribe los valores SOLO en el
+// tooltip. En pantalla se leen pasando el cursor; en papel no existen. Medido
+// antes de este cambio: el A4 imprimía 11 gráficos y solo UNO —el pie del
+// embudo, cuya leyenda SVG escribe "Cerradas: 12"— dejaba sus números
+// legibles. Los otros diez se imprimían mudos, y ninguno tenía al lado una
+// tabla con esos mismos valores. Y el tooltip tampoco existe en móvil ni para
+// quien navega con teclado (es la misma razón por la que las grillas de datos
+// llevan `.tabla-pie__leyenda` en vez de fiarlo todo a un `title`).
+//
+// LA UNIDAD ES DATO, NO CÓDIGO. Hasta hoy el sufijo de cada valor ("% en
+// logro", " estudiantes", " faltas") estaba escrito a mano en `cuadros.js`.
+// Que la tabla lo repitiera habría sido otra regla duplicada de las que este
+// repositorio ya ha visto divergir cinco veces. Vive aquí, se copia a
+// `$chartData` para el tooltip y la lee la tabla: una sola fuente para el
+// gráfico, el tooltip y el papel.
+//
+// LAS NOTAS TAMBIÉN. Estaban escritas a mano en `index.php` y el A4 no las
+// imprimía: un gráfico sin su nota se lee al revés —la de la brecha avisa de
+// que la distancia entre barras es la dispersión del grado, no su nivel—.
+// Copiarlas al imprimible habría sido una segunda copia; se traen aquí y las
+// leen las dos vistas.
+//
+// ⚠️ `$chartData` NO CAMBIA DE FORMA. Sigue con sus tres estructuras
+// (`values`, `datasets`, y el `mejor`/`peor` de la brecha): `cuadros.js` lee
+// `d.mejor`/`d.peor` y `verif_direccion_superficies` valida esa forma exacta.
+// La normalización vive solo en `$chartTablas`, que es una estructura aparte.
+// ─────────────────────────────────────────────────────────────────────
+
+// Metadatos por gráfico. El orden de las claves no importa: cada vista pide
+// la suya por nombre. `serie` solo hace falta cuando el dato es un `values`
+// suelto, que no trae nombre de serie consigo.
+$metaGraficos = [
+    'evolucion' => [
+        'col'    => 'Bimestre',
+        'unidad' => '% en logro',
+        'nota'   => 'Porcentaje de calificaciones en AD o A sobre el total del nivel. '
+                  . 'Solo aparecen los bimestres en los que <strong>todos</strong> los niveles '
+                  . 'ya tienen notas: incluir uno que recién arranca mostraría un salto que no '
+                  . 'es una mejora, sino una muestra todavía sin representatividad.',
+    ],
+    'brecha' => [
+        'col'    => 'Grado',
+        'unidad' => '',
+        // La brecha es el único gráfico cuyo dato no viene en `values` ni en
+        // `datasets`: se arma con dos claves sueltas.
+        'de'     => ['Primer puesto' => 'mejor', 'Último puesto' => 'peor'],
+        'nota'   => 'Promedio del primer puesto frente al del último, por grado. La distancia '
+                  . 'entre ambas barras es la dispersión del grado, no su nivel.',
+    ],
+    'conductaEmbudo' => [
+        'col'    => 'Etapa',
+        'serie'  => 'Secciones',
+        'unidad' => '',
+        'nota'   => 'Secciones por etapa: el auxiliar bloquea primero y el tutor cierra después.',
+    ],
+    'conductaSecciones' => [
+        'col'    => 'Sección',
+        'serie'  => 'Calificados',
+        'unidad' => '% calificado',
+        'nota'   => 'Porcentaje de estudiantes ya calificados en conducta. '
+                  . '(P) primaria, (S) secundaria.',
+    ],
+    'conductaLiterales' => [
+        'col'    => 'Nivel',
+        'unidad' => ' estudiantes',
+        'nota'   => 'Reparto AD / A / B / C en el bimestre a la vista. La altura de cada barra '
+                  . 'es cuántos estudiantes tienen conducta calificada en ese nivel.',
+    ],
+    'conductaEvolucion' => [
+        'col'    => 'Bimestre',
+        'unidad' => '% en logro',
+        'nota'   => 'Porcentaje en AD o A por bimestre. Solo aparecen los bimestres en que '
+                  . 'ambos niveles tienen conducta registrada.',
+    ],
+    'conductaCriterios' => [
+        'col'       => 'Código',
+        'serie'     => 'No cumple',
+        'unidad'    => '% no cumple',
+        // El texto del criterio SOLO vivía en el tooltip: un eje de códigos
+        // C1..C10 no dice nada por sí solo, y en papel no hay tooltip.
+        'extra'     => 'textos',
+        'extra_col' => 'Criterio',
+        'nota'      => 'Porcentaje de respuestas &laquo;No cumple&raquo; sobre el total '
+                     . 'registrado en el colegio.',
+    ],
+    'asisFaltas' => [
+        'col'    => 'Sección',
+        'serie'  => 'Faltas sin justificar',
+        'unidad' => ' faltas',
+        'nota'   => 'Secciones ordenadas de mayor a menor. (P) primaria, (S) secundaria. '
+                  . 'Son totales de la sección, no promedios por estudiante.',
+    ],
+    'asisTardanzas' => [
+        'col'    => 'Sección',
+        'serie'  => 'Tardanzas sin justificar',
+        'unidad' => ' tardanzas',
+        'nota'   => 'Mismo criterio que el gráfico anterior, aplicado a las tardanzas.',
+    ],
+    'asisEvolucion' => [
+        'col'    => 'Bimestre',
+        'unidad' => '',
+        'nota'   => 'Total de faltas y tardanzas sin justificar por bimestre. Solo aparecen '
+                  . 'los bimestres con asistencia registrada.',
+    ],
+    'asisJustificacion' => [
+        'col'    => 'Nivel',
+        'unidad' => '',
+        'nota'   => 'Cuánto se justifica en cada nivel. Son contadores independientes: '
+                  . 'una falta justificada no se descuenta de las faltas.',
+    ],
+];
+
+$chartTablas = [];
+
+foreach ($metaGraficos as $clave => $meta) {
+    if (!isset($chartData[$clave])) {
+        continue;   // un bimestre a medio llenar simplemente tiene menos gráficos
+    }
+
+    $d = $chartData[$clave];
+
+    // La unidad viaja con el dato para que el tooltip la lea de aquí.
+    if ($meta['unidad'] !== '') {
+        $chartData[$clave]['unidad'] = $meta['unidad'];
+    }
+
+    // Las tres formas de $chartData, normalizadas a una sola.
+    if (isset($meta['de'])) {
+        $series = [];
+        foreach ($meta['de'] as $nombre => $campo) {
+            $series[] = ['name' => $nombre, 'values' => $d[$campo] ?? []];
+        }
+    } elseif (isset($d['datasets'])) {
+        $series = $d['datasets'];
+    } else {
+        $series = [['name' => $meta['serie'] ?? 'Valor', 'values' => $d['values'] ?? []]];
+    }
+
+    $chartTablas[$clave] = [
+        'col'       => $meta['col'],
+        'labels'    => $d['labels'],
+        'series'    => $series,
+        'unidad'    => $meta['unidad'],
+        'extra'     => isset($meta['extra']) ? ($d[$meta['extra']] ?? null) : null,
+        'extra_col' => $meta['extra_col'] ?? null,
+        'nota'      => $meta['nota'],
+    ];
+}

@@ -74,6 +74,29 @@ body.boleta-body {
 
     @media screen {
         max-width: 210mm;
+
+        // 🔴 EL MISMO NUMERO QUE `max-width` (08/09/2026). Con solo el techo, en
+        // una ventana estrecha la hoja simulada SE ENCOGIA: el marco -borde y
+        // sombra- dibujaba 340px mientras el contenido se salia por la derecha,
+        // asi que la vista previa mentia sobre donde cae el corte de pagina,
+        // que es justo lo que el comentario de abajo pide que no pase.
+        //
+        // `print-fit.js` NO cubre este caso y no puede: reescribe el
+        // <meta viewport>, un mecanismo EXCLUSIVAMENTE MOVIL que el escritorio
+        // ignora. En movil no cambia nada -`anchoNatural()` ya medía ~794px
+        // para todos los documentos, acotado por el `max-width`, y print-fit ya
+        // fijaba `width=794`-; lo que cambia es la ventana de escritorio
+        // estrecha, donde ahora la hoja DESPLAZA en vez de aplastarse.
+        //
+        // ⚠️ Efecto de borde conocido y aceptado: con la hoja mas ancha que la
+        // ventana, el `auto` del margen de abajo se resuelve a 0 y la hoja
+        // queda pegada al borde izquierdo, desbordando a la derecha. Es el
+        // comportamiento estandar de un bloque over-constrained en LTR.
+        //
+        // No afecta a `@media print`: alli manda `@page` y el margin/padding se
+        // anulan un poco mas abajo.
+        min-width: 210mm;
+
         margin: 8mm auto 24mm;
         // Mismo margen que @page boleta: la hoja simulada en pantalla debe
         // tener el MISMO ancho util que el papel, o la vista previa miente
@@ -97,6 +120,25 @@ body.boleta-body {
         display: flex;
         gap: 8px;
         z-index: 999;
+
+        // 🔴 LOS CONTROLES NO SON EL DOCUMENTO (08/09/2026). Cuando print-fit.js
+        // tiene que encoger la hoja para que quepa en un movil, el navegador
+        // dibuja TODA la pagina al ~47 % y estos botones quedaban en ~16px
+        // fisicos: por debajo del minimo tactil de 24px de WCAG 2.5.8 (AA), no
+        // digamos de los 44px del AAA.
+        //
+        // Y no habia forma de arreglarlo con una media query: en cuanto
+        // print-fit reescribe el <meta viewport> a 794, el viewport CSS ES 794 y
+        // `max-width: 640px` NO DISPARA en el movil. Tampoco sirve
+        // `(pointer: coarse)`: el problema no es el puntero, es el factor de
+        // zoom, que ninguna media query expone.
+        //
+        // Asi que la escala la publica quien la conoce -print-fit.js- y aqui se
+        // invierte. `transform` no reflowea nada ni toca el documento, y el
+        // origen en la esquina conserva el anclaje `bottom/right`.
+        // Sin JS, sin la propiedad, el `var(..., 1)` deja todo como estaba.
+        transform: scale(var(--doc-escala-inv, 1));
+        transform-origin: bottom right;
     }
 }
 

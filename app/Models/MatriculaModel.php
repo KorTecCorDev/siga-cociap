@@ -242,11 +242,22 @@ class MatriculaModel extends BaseModel
      * estudiantes reales del colegio. Lo que se excluye es quien ya no está:
      * `tipo IN ('trasladado','retirado')`.
      *
-     * Reutilizar el helper —y no escribir el filtro a mano— trae gratis la
-     * deduplicación del RETORNO DE GRADO, que era un defecto real de esta
-     * pantalla: `getResumen()` contaba las DOS matrículas del retorno mientras
-     * `getCuadroMatricula()` (más abajo, en la misma página) excluye la
-     * operativa, así que las dos mitades daban totales distintos del mismo año.
+     * 🔴 TODA LA PANTALLA SE ANCLA EN LA MATRÍCULA OFICIAL (02/09/2026,
+     * decisión del usuario). En un RETORNO DE GRADO el estudiante tiene dos
+     * matrículas del mismo año, y las SEIS consultas de este método aplican el
+     * criterio DOCUMENTO (`matricula_documento()`): fuera la OPERATIVA, sin
+     * condición de estado. Es la exclusión INVERSA a la de `roster_evaluacion()`.
+     *
+     * Por qué la oficial y no la operativa: esta pantalla no evalúa a nadie,
+     * DESCRIBE la matrícula del año, y el grado/sección al que el estudiante
+     * PERTENECE es el oficial. Anclar en la operativa lo ubicaba en el grado
+     * inferior, contradiciendo al cuadro del pie de la misma página —que ya
+     * usaba DOCUMENTO— y al lote de boletas.
+     *
+     * ⚠️ Antes del 02/09/2026 los chips usaban `roster_evaluacion()` (que
+     * CONSERVA la operativa) y los 5 gráficos NO aplicaban NINGUNA de las dos
+     * exclusiones, así que el retorno contaba DOS VECES en ellos: los pies
+     * pintaban 521 mientras el chip `aprobadas` decía 520 del mismo año.
      *
      * ⚠️ `kpis` lo consume TAMBIÉN `/admin/cuadros`
      * (`Admin\CuadrosEstadisticosController`). Se pueden AÑADIR claves; renombrar
@@ -255,20 +266,25 @@ class MatriculaModel extends BaseModel
      * ⚠️ Los gráficos de más abajo (por grado, sección, tipo y género) siguen
      * con `estado='aprobada'` A PROPÓSITO: describen la foto oficial de la
      * matrícula, que es otra pregunta. Los KPIs responden «cuántos estudiantes
-     * hay»; los gráficos, «cómo quedó la matrícula aprobada».
+     * hay»; los gráficos, «cómo quedó la matrícula aprobada». Lo que comparten
+     * desde hoy es el ANCLA del retorno, no el universo.
      *
      * Retorna ['kpis'=>..., 'por_grado'=>[...], 'por_tipo'=>[...], 'por_genero'=>[...]].
      */
     public function getResumen(int $anioId): array
     {
-        $roster = roster_evaluacion('m');
+        // Universo de los CHIPS: estudiantes del colegio, anclados en su
+        // matrícula oficial. Las dos condiciones salen de su punto único; no se
+        // escriben a mano ni se sustituyen por `roster_evaluacion()`, que trae
+        // el ancla contraria.
+        $ancla = matriculas_vigentes('m') . "\n              " . matricula_documento('m');
 
         // 1) KPIs por estado, DENTRO del universo de estudiantes del colegio.
         $estados = $this->query("
             SELECT m.estado, COUNT(*) AS n
             FROM matriculas m
             WHERE m.anio_id = ?
-              {$roster}
+              {$ancla}
             GROUP BY m.estado
         ", [$anioId]);
 
@@ -285,19 +301,25 @@ class MatriculaModel extends BaseModel
             SELECT COUNT(DISTINCT m.seccion_id) AS n
             FROM matriculas m
             WHERE m.anio_id = ?
-              {$roster}
+              {$ancla}
         ", [$anioId]);
         $nSecciones = (int) ($secc['n'] ?? 0);
 
         // Los que quedan FUERA del conteo. Se publican para que la pantalla pueda
         // decir por qué el total no cuadra con lo que alguien recuerda, en vez de
         // parecer un error (mismo criterio que "Exonerados · fuera del conteo").
+        //
+        // Lleva el ancla del retorno aunque hoy no cambie el número (ninguna
+        // operativa es trasladado/retirado): así las SEIS consultas del método
+        // comparten ancla. Dejar una fuera es exactamente cómo el cuadro perdió
+        // su columna `retirado` sin que nada fallara.
         $fuera = $this->queryOne("
             SELECT
                 SUM(m.tipo = 'trasladado') AS trasladados,
                 SUM(m.tipo = 'retirado')   AS retirados
             FROM matriculas m
             WHERE m.anio_id = ?
+              " . matricula_documento('m') . "
         ", [$anioId]);
 
         $kpis = [
@@ -319,6 +341,12 @@ class MatriculaModel extends BaseModel
             'retirados'    => (int) ($fuera['retirados'] ?? 0),
         ];
 
+        // ── Los 4 gráficos ──────────────────────────────────────────────
+        // Universo propio (`estado='aprobada'` = la foto oficial), pero el MISMO
+        // ancla de retorno que los chips y que el cuadro: sin ella el estudiante
+        // en retorno aparecía dos veces y en dos grados distintos.
+        $doc = matricula_documento('m');
+
         // 2) Matriculados por grado (agrupable por nivel en la vista).
         $porGrado = $this->query("
             SELECT
@@ -334,6 +362,7 @@ class MatriculaModel extends BaseModel
             INNER JOIN grados g    ON g.id = s.grado_id
             INNER JOIN niveles n   ON n.id = g.nivel_id
             WHERE m.anio_id = ? AND m.estado = 'aprobada'
+              {$doc}
             GROUP BY n.id, n.nombre, n.codigo, g.id, g.numero, g.nombre_display
             ORDER BY n.id, g.numero
         ", [$anioId]);
@@ -357,6 +386,7 @@ class MatriculaModel extends BaseModel
             INNER JOIN estudiantes e ON e.id = m.estudiante_id
             INNER JOIN personas p    ON p.id = e.persona_id
             WHERE m.anio_id = ? AND m.estado = 'aprobada'
+              {$doc}
             GROUP BY n.id, n.codigo, g.numero, s.id, s.nombre
             ORDER BY n.id, g.numero, s.nombre
         ", [$anioId]);
@@ -366,6 +396,7 @@ class MatriculaModel extends BaseModel
             SELECT m.tipo, COUNT(*) AS n
             FROM matriculas m
             WHERE m.anio_id = ? AND m.estado = 'aprobada'
+              {$doc}
             GROUP BY m.tipo
         ", [$anioId]);
 
@@ -376,6 +407,7 @@ class MatriculaModel extends BaseModel
             INNER JOIN estudiantes e ON e.id = m.estudiante_id
             INNER JOIN personas p    ON p.id = e.persona_id
             WHERE m.anio_id = ? AND m.estado = 'aprobada'
+              {$doc}
             GROUP BY COALESCE(p.sexo, 'ND')
         ", [$anioId]);
 
@@ -420,10 +452,35 @@ class MatriculaModel extends BaseModel
     /**
      * Cuadro cruzado de matrícula por grado (panorama del año para el comité):
      * filas = grado (agrupable por nivel), columnas = tipo × estado × género × total.
-     * Cuenta TODAS las matrículas del año (todos los estados). Retorno de grado:
-     * cuenta UNA sola vez por la matrícula OFICIAL (excluye la operativa) para no
-     * inflar el panorama. Filtro opcional por nivel. El género NO suma a quien no
-     * tiene sexo registrado (M + F puede ser < total, como acordado).
+     * Cuenta TODAS las matrículas del año, en todos los estados. Filtro opcional
+     * por nivel.
+     *
+     * 🔴 LAS CUATRO COLUMNAS DE TIPO SUMAN EL TOTAL, y hay que mantenerlo así.
+     * Eran tres —faltaba `retirado`, que existe desde la migración 045— y la fila
+     * de Primaria 3.º daba 48 sobre un total de 49 (02/09/2026). Si algún día
+     * nace un quinto tipo, aquí y en el parcial hay que añadirlo: el verificador
+     * pone en rojo cualquier fila cuyas columnas de tipo no sumen su total.
+     *
+     * 🔴 RETORNO DE GRADO — ESTE CUADRO ES UN **DOCUMENTO**, y usa el criterio
+     * DOCUMENTO de `docs/modulos/retorno-grado.md`: excluye TODA operativa, sin
+     * mirar el estado del retorno. Desde el 02/09/2026 la línea NO se escribe
+     * aquí: sale de `matricula_documento()` (`helpers.php`), el mismo punto
+     * único que usan `BoletaPublicaModel`, el token público y el resto de esta
+     * pantalla.
+     *
+     * ⚠️ Hasta el 02/09/2026 llevaba `WHERE estado = 'activo'` pegado al final:
+     * una TERCERA variante que no era ni el criterio documento ni el de
+     * evaluación —el `WHERE` es de este último—. Con un retorno `revertido` no
+     * excluía NINGUNA de las dos matrículas, así que el estudiante contaba dos
+     * veces, y la fila fantasma caía en el GRADO INFERIOR como
+     * `tipo='continuador'` + `estado='desactivado'` (así lo deja `revertir()`):
+     * un alumno inexistente engordando justo la columna que el comité lee como
+     * morosidad. Era latente —el único retorno real está `activo`— y por eso no
+     * lo vio nadie. Las dos exclusiones son INVERSAS: confundirlas es el error
+     * más fácil de este módulo, y está documentado como tal.
+     *
+     * El género NO suma a quien no tiene sexo registrado (M + F puede ser <
+     * total, como se acordó). La nota al pie del parcial da la cifra que falta.
      */
     public function getCuadroMatricula(int $anioId, ?int $nivelId = null): array
     {
@@ -444,11 +501,13 @@ class MatriculaModel extends BaseModel
                 SUM(m.tipo = 'nuevo')         AS t_nuevo,
                 SUM(m.tipo = 'continuador')   AS t_cont,
                 SUM(m.tipo = 'trasladado')    AS t_tras,
+                SUM(m.tipo = 'retirado')      AS t_retir,
                 SUM(m.estado = 'aprobada')    AS e_aprob,
                 SUM(m.estado = 'pendiente')   AS e_pend,
                 SUM(m.estado = 'desactivado') AS e_desact,
                 SUM(p.sexo = 'M')             AS gen_m,
                 SUM(p.sexo = 'F')             AS gen_f,
+                SUM(p.sexo IS NULL)           AS gen_nd,
                 COUNT(*)                      AS total
             FROM matriculas m
             INNER JOIN estudiantes e ON e.id = m.estudiante_id
@@ -457,9 +516,10 @@ class MatriculaModel extends BaseModel
             INNER JOIN grados g      ON g.id = s.grado_id
             INNER JOIN niveles n     ON n.id = g.nivel_id
             WHERE {$where}
-              AND m.id NOT IN (
-                  SELECT matricula_operativa_id FROM retornos_grado WHERE estado = 'activo'
-              )
+              -- Criterio DOCUMENTO: toda operativa fuera, SIN condicion de estado.
+              -- Ver el docblock: anadirle un `WHERE estado = ...` reintroduce el
+              -- doble conteo de los retornos revertidos.
+              " . matricula_documento('m') . "
             GROUP BY n.id, n.nombre, g.numero, g.nombre_display
             ORDER BY n.id, g.numero
         ", $params);
@@ -472,11 +532,16 @@ class MatriculaModel extends BaseModel
             't_nuevo'  => (int) $r['t_nuevo'],
             't_cont'   => (int) $r['t_cont'],
             't_tras'   => (int) $r['t_tras'],
+            't_retir'  => (int) $r['t_retir'],
             'e_aprob'  => (int) $r['e_aprob'],
             'e_pend'   => (int) $r['e_pend'],
             'e_desact' => (int) $r['e_desact'],
             'gen_m'    => (int) $r['gen_m'],
             'gen_f'    => (int) $r['gen_f'],
+            // NO es una columna del cuadro: se acordo mostrar solo M y F. Alimenta
+            // la cifra de la nota al pie, que antes decia "M + F puede ser menor
+            // al total" sin decir cuanto.
+            'gen_nd'   => (int) $r['gen_nd'],
             'total'    => (int) $r['total'],
         ], $rows);
     }

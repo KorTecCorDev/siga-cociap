@@ -421,6 +421,12 @@ al método que ya existe (`MatriculaModel::getResumen`,
 `AsistenciaModel::getProgresoPorSeccion`, `OrdenMeritoModel::gradosConEmpatesPendientes`).
 Si hace falta un indicador que no existe, **se añade al modelo que lo posee**.
 
+> ⚠️ **Llamar al dueño no basta si el dueño tiene una copia de la regla.** Hasta
+> el 04/09/2026 esta pantalla llamaba obedientemente a `getStatsCierre`… que
+> calculaba su propio ranking en vez de pedírselo al orden de mérito. La regla de
+> oro se cumplía a la letra y el número seguía siendo falso. Ver
+> **El mérito de esta pantalla no era el mérito**, más abajo.
+
 El selector de bimestre sale de `ControlOperativoModel::getPeriodos()` /
 `getPeriodoPorDefecto()`: escribirlo aquí habría sido la **quinta** copia de esa
 consulta en el repositorio.
@@ -530,6 +536,243 @@ Reglas que costaron un fallo cada una y no hay que deshacer:
   1047 px), así que `page-break-inside: avoid` de verdad evita que una sección se
   parta, y el listado baja de ~5 hojas a 4.
 
+### El mérito de esta pantalla no era el mérito (04/09/2026)
+
+🔴 El bloque **Orden de mérito** —su tabla, el gráfico G3 de brecha y las cards de
+`/director/periodos/{id}/stats`— salía de `AnioAcademicoModel::getRankingGrado`,
+un ranking **paralelo** al oficial. Le faltaban seis reglas: no exigía
+competencias **bloqueadas**, no excluía **extraordinarias** ni **áreas
+exoneradas**, metía la **TOE entera** en vez de solo Ética, y no aplicaba
+`ROSTER_MERITO`, el **anclaje de retorno** ni la **cascada de desempate**.
+
+**Medido en la BD antes de migrar:**
+
+| Bimestre | Grado | La pantalla decía | El orden de mérito |
+|---|---|---|---|
+| B3 **abierto** | 1.º primaria | 22 competidores, peor 8.00 | **0 competidores** |
+| B3 **abierto** | 1.º secundaria | peor 12.50 | peor **15.00** |
+| B2 **cerrado** | los 11 grados | idéntico | idéntico |
+
+🔴 **Lo que mantuvo vivo el defecto fue que en bimestre CERRADO las dos fuentes
+coinciden**: al cerrar está todo bloqueado y no hay nada que excluir. Quien
+revisara un bimestre pasado veía las cifras correctas. El error solo existía en
+el bimestre en curso — que es el que la pantalla abre por defecto y el único en
+el que estos indicadores sirven para decidir algo.
+
+**Cómo quedó:**
+
+- El cálculo vive en **`OrdenMeritoModel::statsPorGrado`**, el modelo dueño del
+  ranking. Devuelve por grado `mejor`, `peores`, `total` y `en_riesgo`, sobre
+  `gradosConRanking` + `rankingGrado` (los dos snapshot-aware). **Ni una consulta
+  nueva.**
+- `AnioAcademicoModel::getStatsCierre` es hoy una **fachada**: conserva firma y
+  shape, así que sus tres consumidores no se tocaron. Se **borraron** sus dos
+  privados (`getRankingGrado`, `getGradosConCalificaciones`): dejarlos era dejar
+  viva la copia.
+- **Un solo recorrido de grados** para los dos bloques: `rankingGrado` no está
+  memoizado, y pedirlo dos veces por grado duplicaba 11 consultas por render.
+- **Cambio visible que NO es una regresión:** al principio de un bimestre los
+  grados sin nada bloqueado desaparecen del bloque. Antes se anunciaba un «1.er
+  puesto» que el orden de mérito no reconocía. Por eso el vacío de
+  `director/anios/_grados.php` pasó de «aún no hay calificaciones» a **«aún no
+  hay competencias bloqueadas»**: con notas puestas y sin bloquear, el texto
+  viejo mandaba a buscar el problema al sitio equivocado.
+- **Coste medido:** 21-30 ms por render (B1 26 ms, B2 21 ms, B3 30 ms). El
+  cerrado lee snapshot y sale más barato que el abierto. No hizo falta memoizar.
+- **Verificación:** `verif_cuadros_merito_motor.php` (solo lectura, corre en
+  prod) contrasta la fachada contra `rankingGrado` grado a grado y periodo a
+  periodo, y comprueba que `AnioAcademicoModel` **no vuelve a exponer
+  `promedio_general` ni a ordenar por promedio**. ⚠️ Lo que prohíbe es el
+  RANKING, no el promedio: `getResumenBimestre` sigue promediando por estudiante
+  a propósito (ver abajo).
+
+### Estudiantes en riesgo (04/09/2026)
+
+Sección propia debajo de Orden de mérito, en pantalla y en el A4. Lista **a todos
+los que acumulan 3 competencias en C o más** (`OrdenMeritoModel::RIESGO_MIN_C`),
+por grado, resaltando el número de C. **Sin tope por grado** (decisión del
+usuario): un grado aporta las filas que tenga, y un grado sin casos no aparece.
+
+- **No cuesta ninguna consulta:** `num_c` ya lo calcula el ranking. Puesto,
+  promedio y número de C de una fila salen de la **misma fila** del motor, así
+  que no pueden contradecirse entre sí.
+- Orden: **más C primero**; a igual número de C, primero el promedio más bajo.
+- **Una tabla por grado**, con el rótulo en `<caption>` — mismo patrón que el
+  listado de inasistencias (T2), por el mismo motivo: 118 filas seguidas (B1)
+  dejan el encabezado de columnas fuera de pantalla.
+- **Tres estados vacíos, no uno**, y los tres dicen su causa: sin ranking («aún
+  no hay competencias bloqueadas»), con ranking y sin casos («ninguno acumula 3
+  C»), y la sección **nunca desaparece** — si se ocultara, no habría forma de
+  distinguir «no hay nadie en riesgo» de «se rompió».
+
+🔴 **HAY DOS PREGUNTAS DISTINTAS Y YA NO COMPARTEN RÓTULO (07/09/2026).** La del
+bloque de Calificaciones es el **promedio general** por debajo de `NOTA_MIN_B`,
+contado por NIVEL (`getResumenBimestre`). La de esta sección es el **número de
+C**, contado por GRADO sobre el universo del mérito. Medido en B2: **0** por
+promedio contra **77** por número de C.
+
+Hasta el 07/09/2026 las dos se llamaban **«En riesgo»** en la misma pantalla, a
+media pantalla de distancia, y lo único que las separaba era un pie de tres
+párrafos. Se resolvió **en el origen, no con una nota al pie**: aquella columna
+pasó a llamarse **«Promedio en C»** (`index.php`, `imprimir.php` y
+`director/anios/_panel-bimestre.php`, que también pinta
+`/director/periodos/{id}/stats`). Se eligió el literal y no «Promedio bajo 11»
+porque el 11 es `NOTA_MIN_B`: hardcodearlo en un rótulo lo desincroniza en
+silencio si la escala se mueve.
+
+**No unificar las cifras** — son preguntas legítimamente distintas. Dos
+verificadores lo sostienen: `verif_cuadros_merito_motor.php` imprime las dos
+juntas en cada corrida, y `verif_direccion_superficies.php` falla si la cadena
+«En riesgo» vuelve a aparecer en el HTML (el rótulo vivo es «Estudiantes en
+riesgo»).
+
+**Volumen medido:** B1 → 118 filas en 10 grados; B2 → 77 en 8; el bloque mayor,
+28 filas (1.º secundaria). Cabe holgado en la hoja A4 (~400 px de 1047 útiles).
+
+⚠️ `.cuadros-top` pasó a tener **dos consumidores** (`_top-incidencias.php` y
+`_estudiantes-riesgo.php`): al tocarlo, probar los dos. El `<table>` y el bloque
+del segundo llevan el modificador **`--riesgo`**, que en el bloque es un
+**marcador sin estilo a propósito**: es lo que permite al verificador contar «una
+tabla por unidad» sin mezclar los dos listados. No borrarlo por parecer inerte.
+
+### Rediseño de la sección: que se vea y que se pueda recorrer (07/09/2026)
+
+La sección era correcta y **inencontrable**: bloque 4 de 7, detrás de dos tablas
+y dos gráficos, sin decir en ninguna parte cuántos eran (había que sumar once
+`<caption>` a mano) y sin forma de ubicar a una persona entre 118 filas.
+
+**Banda de magnitud** (`.cuadros-riesgo__banda`) — total, grados con casos, % del
+alumnado evaluado y el caso más alto. Va en pantalla **y en el A4**: es dato, no
+control.
+
+🔴 **EL PESO VISUAL ES DE LA SECCIÓN, NO DE LAS PERSONAS.** Las filas siguen
+neutras: ni rojo, ni ámbar, ni semáforo por gravedad. La regla de
+`_cuadros.scss` («hay personas, no procesos») **no se derogó** — se precisó: lo
+prohibido es teñir a alguien por su gravedad, no dar jerarquía al bloque. Ojo al
+revisarlo: el motivo de esa regla **no es el mismo en los dos consumidores**. En
+inasistencias es **normativo** (no hay retiro automático por faltas); en riesgo
+es por analogía, porque comparten clases CSS. La banda usa `$brand-dark`, el azul
+institucional del topbar y del login: no es color de estado ni tono de
+wayfinding, así que no le roba significado a nada.
+🔴 **El A4 la imprime PLANA** (fondo blanco, borde negro). `.cuadros-print` lleva
+`print-color-adjust: exact`, así que sin esa contraparte cada informe salía con
+un rectángulo macizo de tinta azul marino.
+
+**Filtrado en cliente** (`resources/js/cuadros-riesgo.js`): buscador por nombre,
+sección o grado + chips de nivel + chips de grado, los tres en conjunción. El
+buscador reutiliza el normalizador canónico de `nomina.js` (NFD sin diacríticos),
+así que «nunez» encuentra a «NÚÑEZ» y al revés. Un grado sin filas visibles
+oculta **su bloque entero** —dejarlo con el rótulo y el cuerpo vacío se lee como
+un grado sin casos—, y los chips de grado se acotan al nivel elegido.
+
+**Cuarto estado vacío**: «tu filtro no encontró a nadie», que no es ninguno de
+los tres anteriores. El contador es `role="status"` para que el resultado del
+filtro también exista para quien no ve desaparecer las filas.
+
+🔴 **LA BARRA DE FILTROS NACE `hidden` Y LA DESTAPA EL JS.** Sin JS no quedan en
+pantalla un buscador que no busca y unos chips que no filtran; el informe se
+sigue leyendo entero, que es lo que el A4 demuestra que basta. Misma regla que
+las pestañas.
+⚠️ **Y eso necesitó una regla de CSS que no es obvia.** `[hidden] {display:none}`
+vive en la hoja del NAVEGADOR con especificidad (0,0,1), y cualquier `display:
+flex` sobre una clase es (0,1,0) y le gana: el atributo estaba puesto y el
+elemento se veía igual. Le pasaba a la barra **y** a los chips (`.orden-chip` es
+`inline-flex`). Hacen falta `.cuadros-riesgo__filtros[hidden]` y
+`.orden-chip[hidden]` explícitos, y hay aserto sobre el CSS **servido** porque
+desde PHP el defecto es invisible.
+
+**Perfil AD/A/B/C por estudiante**, no solo el número de C: responde «qué tan
+grave es» sin salir de la página. `num_a` **se deriva por resta** en
+`OrdenMeritoModel::statsPorGrado` (los cuatro literales son disjuntos y
+exhaustivos sobre 00-20) — cero consultas nuevas, y sale igual por las dos rutas
+del ranking, en vivo y snapshot. Hay aserto de que `AD+A+B+C = competencias` y de
+que A nunca es negativo: si esa premisa cayera, la tabla enseñaría un perfil
+plausible y falso sin ningún error.
+⚠️ La celda del nombre pasó a `th scope="row"` (nueve columnas: un lector de
+pantalla necesita saber de quién es cada celda) y se disfraza de `td` dentro de
+`--riesgo`. Esa regla **se colaba en el papel** —(0,3,2) le gana a
+`.cuadros-print .cuadros-top` (0,2,0)— e imprimía el nombre a 14 px con la fila a
+8 px, partiendo cada fila en dos. El bloque `.cuadros-print` la reescribe.
+
+**Anchos en porcentaje + `table-layout: fixed`.** Con el reparto automático cada
+tabla medía sus columnas según el largo de los nombres que le tocaron: medido en
+B1, «Sección» caía en x=529 en 1.º de primaria y en x=624 en 2.º. Son diez tablas
+apiladas que se leen como una sola. En porcentaje y no en px porque el mismo
+marcado se pinta en ~1150 px en pantalla y en 718 px en el A4.
+
+**Índice de anclas** (`.cuadros-indice`, solo pantalla): un chip por sección
+realmente renderizada —Reaperturas es condicional— con el conteo en el de riesgo.
+Resuelve el hallazgo de **toda** la página. Su destino es `.dash-grupo__titulo`,
+que ganó `scroll-margin-top` porque el topbar es `sticky`: sin él, saltar a un
+ancla deja el rótulo tapado por la barra.
+
+⚠️ **`.orden-chip` tiene ahora dos consumidores** (`/matriculas` sobre `<a>`,
+`/admin/cuadros` sobre `<button>` y sobre `<a>`). El reset de `<button>` va en un
+selector `button.orden-chip` acotado a propósito: `/matriculas` no lo ve.
+
+### El papel no tiene cursor (04/09/2026)
+
+🔴 Frappe Charts deja los valores **solo en el tooltip**. En pantalla se leen
+pasando el cursor; en una hoja impresa no existen. Medido antes de corregirlo:
+
+| | |
+|---|---|
+| Gráficos en el A4 | **11** |
+| Con sus números legibles en papel | **1** — el `pie` del embudo, cuya leyenda SVG escribe `Cerradas: 12` |
+| Con una tabla al lado que tuviera esos valores | **0** |
+
+Y la pérdida era más ancha que el hover: tres KPIs que la pantalla mostraba y el
+papel no (**Esperan al tutor**, **Esperan al auxiliar**, **Estudiantes con
+conducta calificada**), las **notas de lectura** de cada gráfico, y el
+`X de Y no cumplen` del mapa de calor. Los dos primeros KPIs llegaban al papel
+**solo** por la leyenda del embudo — y ese gráfico no se registra cuando la suma
+es cero, así que el informe podía quedarse sin decir a quién se está esperando.
+
+**Descartado por medición, no por gusto: `valuesOverPoints` no bastaba.** La
+opción existe en la 1.6.2 y sirve para `bar` y `line`, pero en las **apiladas
+solo etiqueta el último dataset con el acumulado** (G6 perdería AD/A/B/C y G12 el
+desglose justificadas/sin justificar) y el `pie` ni la lee. Además
+`truncateLegends` viene activo y recorta las etiquetas largas.
+
+**Cómo quedó:**
+
+- **`$chartTablas`**, en `_chart-data.php` junto a `$chartData`: normaliza las
+  **tres formas** del dato (`values`, `datasets`, y el `mejor`/`peor` de la
+  brecha) a una sola, más la columna de texto de los criterios.
+  ⚠️ **`$chartData` NO cambia de forma**: `cuadros.js` lee `d.mejor`/`d.peor` y el
+  verificador valida esa estructura exacta. La normalización vive aparte.
+- **La unidad deja de estar en el JavaScript.** El sufijo (`% en logro`,
+  ` faltas`…) estaba escrito a mano en `cuadros.js`; que la tabla lo repitiera
+  habría sido otra regla duplicada. Ahora viaja con el dato y `cuadros.js` la lee
+  (`unidad(d)`). Una sola fuente para gráfico, tooltip y papel.
+- **Las notas también.** Estaban a mano en `index.php` y el A4 no las imprimía;
+  ahora salen de `$chartTablas[...]['nota']` y las leen las dos vistas.
+- **Partial único `_tabla-grafico.php`**: en pantalla dentro de un `<details>`
+  cerrado («Ver valores»), en el A4 **suelta**.
+  🔴 **Un `<details>` cerrado NO IMPRIME SU CONTENIDO** — el mismo motivo por el
+  que el explorador de criterios tiene una vista imprimible aparte. Por eso el
+  imprimible pasa `$abierta = true`, y hay aserto que lo vigila: es el fallo
+  silencioso de esta entrega (saldría en blanco, sin ningún error).
+- 🔴 **La tabla va FUERA de `.cuadros-print__chart`, como hermana.** Ese
+  contenedor lleva `page-break-inside: avoid`: con la tabla dentro, el bloque
+  entero saltaría a la hoja siguiente dejando media página en blanco.
+- **El mapa de calor imprime su denominador**: `12/28` bajo el porcentaje. Las
+  columnas suben de 26 a 34 px en el A4 — 120 px de la columna de sección más
+  10×34 = **460 px de los 718** útiles, cabe de sobra.
+- Un hueco en la tabla es **un guion, no un cero**: «0 faltas» y «no hay dato»
+  son afirmaciones distintas, y en papel nadie puede preguntar cuál era.
+
+**Coste medido:** 95 filas nuevas en 11 tablas ≈ **1,5 hojas más** de A4. El
+usuario decidió que crezca: la prioridad es que el dato esté.
+
+**Verificación** (en `verif_direccion_superficies.php`): cada gráfico tiene su
+tabla; los valores **cuadran celda a celda con el mismo JSON** que dibuja el
+gráfico (asociando cada tabla a su gráfico por posición — comprobar que el número
+«aparezca en la página» sería un aserto inerte en un HTML de 300 KB); en el A4 no
+hay ni un `<details>`, ninguna tabla cuelga del bloque no partible, y están los
+KPIs y las notas. Probado con mutantes: celda alterada, celda extra, fila perdida
+y `<details>` reintroducido lo hacen fallar.
+
 #### 🔴 Contraste del mapa de calor — línea base medida
 
 Los seis escalones, en estado normal y en hover, **medidos en navegador** sobre
@@ -562,6 +805,16 @@ contenedor al instanciar y le escribe un `width` en px al SVG. Con un contenedor
 fluido el gráfico nacería del ancho de la VENTANA y saldría cortado en la hoja.
 718px ≈ 19 cm = A4 (21 cm) menos el margen de 1 cm por lado de `@page`.
 
+**Desde el 08/09/2026 lleva también `min-width: 718px`, el mismo número.** El
+`max-width` solo ponía un techo: en una ventana estrecha la hoja se compría igual, y
+`print-fit.js` **no puede ayudar ahí** —reescribe el `<meta viewport>`, que es un
+mecanismo *exclusivamente móvil*: el escritorio lo ignora—. Con el ancho fijo, además,
+**desaparece una dependencia de orden entre scripts que rompía el PDF de los móviles**:
+`cuadros.js` va dentro del `$content` y se ejecuta **antes** que `print-fit.js`, así que
+Frappe medía el contenedor con el viewport todavía sin ajustar (311 px en un móvil de
+371) y los 11 gráficos salían impresos al 43 % del ancho del papel. Ahora Frappe mide
+702 px pase lo que pase. En impresión es inocuo: `@page boleta` deja 194 mm = 733 px.
+
 ## Verificación
 
 ```bash
@@ -570,6 +823,7 @@ php database/verificaciones/verif_horario_modelo.php           # contraste contr
 php database/verificaciones/verif_rol_director_academico.php   # migración 055 + color
 php database/verificaciones/verif_direccion_solo_lectura.php   # las 30 guardas + integridad de vistas
 php database/verificaciones/verif_direccion_superficies.php    # fases 4-7, con render real
+php database/verificaciones/verif_cuadros_merito_motor.php     # el merito del tablero es el oficial
 ```
 
 Todas son de **solo lectura** y corren en producción.
@@ -578,3 +832,62 @@ Todas son de **solo lectura** y corren en producción.
 > Cuando estos cambios se mergeen a `main`, ese contraste dejará de tener sentido
 > (HEAD ya traerá el código nuevo) — es un verificador **de la migración**, no
 > permanente.
+
+> **Actualización 07/09/2026 — banda sobre fondo claro.** Mérito azul
+> (`$color-info-bg` + `$color-info`) y riesgo rojo (`$color-error-bg` +
+> `$color-error`), acento de 5 px. Nacieron sobre `$brand-dark` y era un error
+> de contraste DE ACENTO: azul sobre azul no se separaba, y el rojo había que
+> aclararlo hasta perder el rojo. Contrastes medidos: 10,9:1 y 5,9:1.
+
+## Desglose de las competencias en C (07/09/2026)
+
+Cada estudiante de la lista trae una fila hermana con **qué competencias tiene en C**:
+área, curso, competencia, nota y **docente responsable**. En pantalla va en un
+`<details>` plegado; en el A4 va **suelto**. Decisión del usuario: solo las C, en las
+dos superficies, y con docente.
+
+- **Punto único**: `OrdenMeritoModel::detalleCompetenciasC()`. Vive en el modelo del
+  mérito, no en `CalificacionModel`, porque **replica el universo del mérito**. Sacarlo
+  de `getBoletaAlumno` —que incluye extraordinarias, tutoría entera y las transversales
+  agregadas— listaría notas que la fila no cuenta.
+- ⚠️ **Replica los filtros de la NOTA, no los del ALUMNO.** Van: bloqueo,
+  `extraordinaria = 0`, transversal/tutoría salvo Ética, exoneraciones. **NO** van
+  `ROSTER_MERITO` ni el anclaje de retorno: esos deciden quién compite y la lista de
+  matrículas ya viene resuelta por el ranking. Volver a aplicarlos solo podría quitar
+  filas de una matrícula ya seleccionada —justo una que viene del snapshot y hoy no
+  pasaría el roster— y produciría un descuadre falso.
+- **Una sola consulta** para todos los grados (`IN`), llamada al final de
+  `statsPorGrado`. Coste medido: `getStatsCierre` pasa de 26 ms a 40 ms en B1.
+- **El docente sale de `cal.carga_id`**, camino que el mérito no usa para calcular. Es
+  seguro: dentro de este universo hay **cero** competencias con dos cargas (el JOIN a
+  `bloqueos_competencia` fija la carga dueña). Fuera de él hay 1 072 duplicadas y 1 052
+  notas en cargas inactivas.
+
+🔴 **EL GUARD DEL DESCUADRE.** `orden_merito_snapshot` guarda **solo agregados**: en un
+bimestre cerrado la fila viene congelada y el desglose se calcula en vivo. Si
+`count(detalle) !== num_c`, el modelo deja `detalle_c` en **NULL** y la vista dice que no
+puede mostrarlo, en vez de pintar dos cifras que se contradicen. `NULL` y `[]` significan
+cosas distintas. Hoy cuadran **195 de 195** (B1 118, B2 77).
+
+🔴 **EL ASERTO ESTUVO CIEGO Y HAY QUE SABER POR QUÉ.** La primera versión trataba ese
+NULL como legítimo, y con eso no detectó **ninguno** de los dos mutantes probados (quitar
+el filtro de extraordinarias y quitar el de transversales): una réplica rota devuelve otro
+número de filas, el modelo lo convierte en NULL y el verificador lo daba por bueno — **el
+guard que protege la pantalla enmascaraba justo los bugs que el verificador existe para
+cazar**. El umbral es CERO a propósito. Si algún día falla, hay que distinguir si fue una
+rectificación legítima tras el cierre o una réplica rota; **no relajar el umbral**.
+
+⚠️ **El mutante de extraordinarias no es observable con los datos actuales**: las 275
+extraordinarias de B1 tienen todas nota > 10, así que quitar ese filtro no cambia el
+desglose de C. El filtro es correcto y necesario, pero esa rama no está ejercitada.
+
+**Peso.** El desglose son 778 filas en B1 y 429 en B2 (~+9 hojas de A4). El HTML pasó de
+425 KB a 1,5 MB, y **el 62 % de eso eran espacios de indentación**: el bucle interno se
+repite 778 veces anidado ocho niveles. Se emite **sin sangrar** a propósito y el
+imprimible baja a 816 KB. No hay minificador de HTML en el pipeline (gulp solo toca SASS
+y JS), así que el único sitio donde se puede arreglar es la propia vista.
+
+⚠️ **`.cuadros-top__bloque--riesgo` pasa a `page-break-inside: auto` en el A4.** El
+`avoid` se midió cuando un grado eran ~28 filas (~400 px de 1047); con el desglose un
+grado se pasa de hoja y el `avoid` lo empujaría entero, dejando media página en blanco.
+Las FILAS conservan su `avoid`.

@@ -799,6 +799,80 @@ Ante un cambio de escala hay que venir aquí y actualizar estas dos líneas a ma
 revisar `num_alto`/`num_16`, congelados desde el cambio anterior). Las dos queries del
 modelo (`rankingGradoLive` y `rankingPorSeccionLive`) llevan la misma copia.
 
+## El tablero de Dirección consume el motor (04/09/2026)
+
+`OrdenMeritoModel::statsPorGrado($periodoId, $minC)` es un punto de entrada nuevo
+para pantallas que necesitan **indicadores por grado** y no el ranking completo:
+devuelve, por grado, `mejor` · `peores` · `total` · `en_riesgo` (los que acumulan
+`RIESGO_MIN_C` competencias en C o más). Recorre `gradosConRanking` +
+`rankingGrado` —ambos snapshot-aware— y **no añade ninguna consulta**.
+
+De él cuelgan **tres pantallas**, vía la fachada
+`AnioAcademicoModel::getStatsCierre`: `/admin/cuadros`, su imprimible A4 y
+`/director/periodos/{id}/stats` (más el modal de cierre). Antes esas tres se
+alimentaban de un ranking paralelo que llevaba **seis reglas de menos** y mentía
+en el bimestre abierto. El caso medido y las consecuencias, en
+`docs/modulos/usuarios-direccion.md` § *El mérito de esta pantalla no era el
+mérito*; la lección general, en la memoria de reglas duplicadas.
+
+⚠️ **Un solo recorrido de grados**: `rankingGrado` es snapshot-aware pero **no
+está memoizado** (lo memoizado es `debeUsarSnapshot`). Quien necesite dos
+indicadores del mismo periodo debe sacarlos de una sola pasada, como hace
+`statsPorGrado`, y no llamar al ranking una vez por indicador.
+
+`RIESGO_MIN_C` (3) es un umbral de **presentación**, no de la escala: quién es
+«C» lo sigue decidiendo `num_c` en las dos queries del ranking. Y no tiene nada
+que ver con el «en riesgo» de `AnioAcademicoModel::getResumenBimestre`, que es el
+promedio general bajo `NOTA_MIN_B` por nivel — **dos preguntas distintas que
+compartían pantalla y rótulo**. Desde el 07/09/2026 ya no comparten el rótulo:
+aquélla se llama **«Promedio en C»**. Detalle en
+`docs/modulos/usuarios-direccion.md`.
+
+### `num_a` se DERIVA, no se consulta (07/09/2026)
+
+`statsPorGrado` añade `num_a` a cada fila del ranking por **resta**:
+`num_competencias − num_ad − num_b − num_c`. Es exacto porque los cuatro
+literales son **disjuntos y exhaustivos** sobre 00-20 —AD (≥ `NOTA_MIN_AD`),
+A (14-17), B (11-13), C (≤ 10)—, así que lo que no es AD, B ni C es A.
+
+- **Cero consultas**: las otras tres columnas ya venían, y salen igual por las
+  dos rutas de `rankingGrado` (en vivo y snapshot, que las guarda tal cual).
+- ⚠️ **No usar `num_alto` para esto**: `(15,16)` **solapa** con A. Es un criterio
+  de desempate, no un tramo de la escala.
+- 🔴 **Es una premisa, y las premisas se vigilan.** Si algún día un tramo se
+  solapara, un `SUM()` cambiara de condición o un `COUNT()` contara notas que los
+  `SUM()` no cuentan, `num_a` saldría negativo o descuadrado y la tabla enseñaría
+  un perfil **plausible y falso**, sin ningún error. Hay aserto en
+  `verif_cuadros_merito_motor.php`: `AD+A+B+C = num_competencias` y `A >= 0` en
+  toda fila listada, en los tres bimestres. Probado con mutante.
+
+Lo consume el perfil por estudiante de «Estudiantes en riesgo» en
+`/admin/cuadros`.
+
+### `detalleCompetenciasC` — el desglose que cuadra (07/09/2026)
+
+`detalleCompetenciasC(array $matriculaIds, int $periodoId)` devuelve, por matrícula, las
+competencias en C con área, curso, nota y docente. Alimenta el desplegable de
+«Estudiantes en riesgo».
+
+Vive en ESTE modelo porque **replica el universo del mérito**; ninguna otra consulta del
+repo puede cuadrar con `num_c` (la de boleta incluye extraordinarias, tutoría entera y
+transversales agregadas).
+
+⚠️ **Replica los filtros de la NOTA, no los del ALUMNO.** Bloqueo, `extraordinaria = 0`,
+transversal/tutoría salvo Ética y exoneraciones **sí**. `ROSTER_MERITO` y el anclaje de
+retorno **no**: la lista de matrículas ya viene resuelta por el ranking, y volver a
+aplicarlos solo podría quitar filas de una matrícula ya seleccionada.
+
+Una sola consulta con `IN` para todos los grados — `statsPorGrado` promete un solo
+recorrido. Coste: `getStatsCierre` pasa de 26 ms a 40 ms en B1.
+
+🔴 El snapshot **no guarda detalle**, así que en bimestre cerrado la fila está congelada y
+esto va en vivo: si no cuadran, `statsPorGrado` deja `detalle_c` en NULL. Detalle del
+guard y del aserto (que estuvo ciego) en `docs/modulos/usuarios-direccion.md`.
+
+Verificación: `verif_cuadros_merito_motor.php` (solo lectura, corre en prod).
+
 ## Estado operativo
 Ver `docs/ESTADO.md`. **Rediseño 1 COMPLETADO (25/07/2026):** A = filtro por tipo (en
 prod); B = inmutabilidad tras publicar + versión rectificada no oficial en Centro de
