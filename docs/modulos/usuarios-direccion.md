@@ -805,6 +805,16 @@ contenedor al instanciar y le escribe un `width` en px al SVG. Con un contenedor
 fluido el gráfico nacería del ancho de la VENTANA y saldría cortado en la hoja.
 718px ≈ 19 cm = A4 (21 cm) menos el margen de 1 cm por lado de `@page`.
 
+**Desde el 08/09/2026 lleva también `min-width: 718px`, el mismo número.** El
+`max-width` solo ponía un techo: en una ventana estrecha la hoja se compría igual, y
+`print-fit.js` **no puede ayudar ahí** —reescribe el `<meta viewport>`, que es un
+mecanismo *exclusivamente móvil*: el escritorio lo ignora—. Con el ancho fijo, además,
+**desaparece una dependencia de orden entre scripts que rompía el PDF de los móviles**:
+`cuadros.js` va dentro del `$content` y se ejecuta **antes** que `print-fit.js`, así que
+Frappe medía el contenedor con el viewport todavía sin ajustar (311 px en un móvil de
+371) y los 11 gráficos salían impresos al 43 % del ancho del papel. Ahora Frappe mide
+702 px pase lo que pase. En impresión es inocuo: `@page boleta` deja 194 mm = 733 px.
+
 ## Verificación
 
 ```bash

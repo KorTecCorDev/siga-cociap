@@ -916,3 +916,54 @@ algún día se crean, este es el inventario.
 porque gulp emite `{-ms-flex-wrap:nowrap;flex-wrap:nowrap;…}`. Estos asertos van con
 **regex sobre el cuerpo de la regla** (`\{[^}]*propiedad`), nunca con la declaración
 literal pegada a la llave.
+
+## Un documento imprimible que reutiliza una tabla de pantalla (08/09/2026)
+
+Auditoría del A4 de `/admin/cuadros/imprimir`. **Síntoma reportado:** «encabezados
+desbordados en las tablas, tamaño de letra en los encabezados y títulos de las tablas».
+Resultaron ser **dos defectos independientes** que se manifestaban juntos.
+
+### 🔴 La regla general: en un imprimible, el `th` necesita `font-size: inherit`
+
+`.cuadros-print` fijaba el tamaño en el `<table>`, pero `components/_tables.scss` declara
+`font-size`, `color`, `font-weight` y `white-space` **directamente sobre**
+`.tabla-notas th` y `.tabla-resumen th`, con especificidad (0,1,1). **Un elemento con
+declaración propia no hereda la de su tabla**: las seis tablas del informe imprimían el
+cuerpo a 8-10 px y **la cabecera a 12 px**, en gris `#475569` y con `white-space: nowrap`.
+
+⚠️ **Es la segunda vez que aparece esta misma fuga.** El 07/09/2026 se corrigió para UNA
+celda (`.cuadros-top--riesgo tbody th.col-nombre`, que imprimía a 14 px sobre una fila de
+8 px) y **no se generalizó al `thead`**. La corrección de ahora es una sola regla
+`.cuadros-print thead th { font-size: inherit; … }` —especificidad (0,1,2): la mínima que
+gana a la fuga y no le gana a los overrides del propio bloque, que son (0,2,1) y (0,2,2)—.
+
+**`/admin/cuadros/imprimir` es la única de las 14 vistas del layout `print` que reutiliza
+los componentes de tabla de pantalla.** Las otras trece definen su tabla desde cero y por
+eso nunca sufrieron esto. Compartir partials entre pantalla y papel es correcto —los datos
+no divergen— pero **obliga a un bloque de reseteo explícito**, y ese reseteo se había ido
+escribiendo a trocitos: `min-width` de `.col-nombre`, el chip naranja de código, el
+denominador de la matriz a 9 px dentro de celdas de 8 px, los grises `#94a3b8` a 8 px.
+
+### El desborde no lo causaba la tipografía: la hoja se aplastaba
+
+Medido con métricas Arial, la fila de cabecera de la tabla de 9 columnas pide **432 px**
+con los `th` a 12 px y `nowrap`, contra **702 px** útiles: **a 718 px no desbordaba nada**.
+Reventaba por debajo de ~448 px de contenedor. La causa era que `.cuadros-print` solo tenía
+`max-width`, así que en pantalla estrecha se comprimía.
+
+🔴 **`print-fit.js` no podía arreglarlo, y conviene entender por qué antes de tocarlo:**
+reescribe el `<meta viewport>`, que es un **mecanismo exclusivamente móvil**. Chrome,
+Firefox y Safari de escritorio lo ignoran. Cambiar su `screen.width` por `innerWidth` no
+habría arreglado la ventana estrecha **y habría roto el móvil en horizontal**. La solución
+es CSS: `min-width` igual al `max-width`.
+
+### El efecto que no se veía venir: el PDF de los móviles
+
+Con la hoja fluida, **los 11 gráficos salían impresos al 43 % del ancho del papel desde un
+móvil**. `layouts/print.php` carga `cuadros.js` dentro del `$content`, **antes** que
+`print-fit.js`, y su `barrer()` es síncrono: Frappe medía el contenedor (311 px en un móvil
+de 371) y le escribía ese `width` al SVG antes de que el viewport se ajustara. **Un ancho
+fijo elimina la dependencia de orden entre los dos scripts sin tocar ninguno de los dos.**
+
+Aserto que lo vigila: `min-width` y `max-width` de la hoja deben ser **el mismo número**.
+Si divergen, vuelve el defecto en silencio.

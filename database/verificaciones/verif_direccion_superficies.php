@@ -246,6 +246,69 @@ $chk('la clase `.form-inline` del selector de bimestre existe en el CSS',
     str_contains($css, '.form-inline{'),
     str_contains($css, '.form-inline{') ? 'definida' : 'se usa en la vista pero no está definida');
 
+// ── El A4 de cuadros no imprime estilos de pantalla (08/09/2026) ──────
+// 🔴 ESTA HOJA ES LA UNICA DE LAS 14 QUE REUTILIZA LOS COMPONENTES DE TABLA DE
+// PANTALLA (`.tabla-notas`, `.tabla-resumen`). Las otras trece definen su tabla
+// desde cero —`.criterios-print__tabla`, `.resumen-print .cuadro-matricula`…— y
+// por eso ninguna sufre esta familia de fugas. Compartir los partials entre
+// pantalla y papel es CORRECTO (los datos no divergen), pero obliga a un bloque
+// de reseteo explícito, y ese reseteo se había ido escribiendo a trocitos.
+//
+// Lo que fallaba: `.cuadros-print` fija el `font-size` en el `<table>`, pero
+// `_tables.scss` lo declara OTRA VEZ sobre `.tabla-notas th` / `.tabla-resumen
+// th` con (0,1,1). Un elemento con declaración propia no hereda la de su tabla,
+// así que las SEIS tablas del informe imprimían el cuerpo a 8-10px y la
+// cabecera a 12px — con `color:#475569` y `white-space:nowrap` de propina.
+// Es el mismo fallo que `_cuadros.scss` ya había corregido para UNA celda
+// (`.cuadros-top--riesgo tbody th.col-nombre`) sin generalizarlo al `thead`.
+//
+// ⚠️ REGEX Y NO `str_contains` DE LA DECLARACION LITERAL: además de que
+// autoprefixer reordena, cssnano FUSIONA selectores con el mismo cuerpo y los
+// reordena alfabéticamente (comprobado: la regla de grises sale como
+// `.cuadros-print .cuadros-kpi__t,.cuadros-print .riesgo-detalle__aviso,…`).
+// Ni el selector ni el orden de las declaraciones son estables.
+$papel = [
+    '~\.cuadros-print thead th\{[^}]*font-size:inherit~'
+        => 'la cabecera del A4 hereda el tamaño de SU tabla (no los 12px de pantalla)',
+    '~\.cuadros-print thead th\{[^}]*white-space:normal~'
+        => 'los encabezados largos pueden partirse (sin el `nowrap` de .tabla-resumen)',
+    '~\.cuadros-print\{[^}]*min-width:718px~'
+        => 'la hoja conserva sus 718px en cualquier ventana (visor fiel)',
+    '~\.cuadros-print \.competencia-card__codigo\{[^}]*font-size:inherit~'
+        => 'el código de competencia se imprime como texto, no como pastilla naranja',
+    '~\.cuadros-print \.cuadros-matriz__den\{[^}]*font-size:7px~'
+        => 'el denominador de la matriz es más chico que su celda, no más grande',
+    '~\.cuadros-print \.col-nombre\{[^}]*min-width:0~'
+        => 'la columna de nombre suelta el suelo de 200px de pantalla',
+];
+foreach ($papel as $regla => $queEs) {
+    $chk("el CSS servido trae que $queEs",
+        (bool) preg_match($regla, $css),
+        preg_match($regla, $css) ? 'presente' : 'no está compilado (¿sin gulp build?)');
+}
+
+// ── Dos asertos que vigilan la CAUSA, no el sintoma ───────────────────
+// Son los que habrian atrapado esto el primer dia.
+
+// Si alguien vuelve a escribir un tamaño en px sobre una cabecera del A4, es
+// que ha vuelto a COPIAR el valor en vez de heredarlo, y la proxima tabla
+// volvera a descuadrarse en silencio.
+$chk('ninguna regla de `.cuadros-print` fija en px el tamaño de una cabecera',
+    !preg_match('~\.cuadros-print[^{}]*thead th\{[^}]*font-size:\d~', $css),
+    'la cabecera debe heredar de su tabla');
+
+// 🔴 `min-width` y `max-width` de la hoja tienen que ser EL MISMO NUMERO. Si
+// divergen, el documento vuelve a reflowearse en pantalla estrecha y —lo que
+// no se ve venir— los graficos de Frappe vuelven a nacer del ancho de la
+// VENTANA: `cuadros.js` se ejecuta antes que `print-fit.js` y mide el
+// contenedor en ese momento. Con la hoja fluida, el PDF de un movil salia con
+// los 11 graficos al 43 % del ancho del papel.
+preg_match('~\.cuadros-print\{([^}]*)\}~', $css, $mmHoja);
+$cuerpoHoja = $mmHoja[1] ?? '';
+$chk('la hoja de cuadros tiene ancho FIJO (min-width == max-width)',
+    str_contains($cuerpoHoja, 'min-width:718px') && str_contains($cuerpoHoja, 'max-width:718px'),
+    $cuerpoHoja ?: 'no existe la regla .cuadros-print');
+
 $anio = new App\Models\AnioAcademicoModel();
 $periodos = $anio->query("SELECT p.id, p.numero, p.nombre_display, p.estado, p.anio_id, a.anio
     FROM periodos p INNER JOIN anios_academicos a ON a.id = p.anio_id
@@ -726,6 +789,27 @@ foreach ($periodos as $p) {
             && !str_contains($htmlPrint, 'role="tablist"')
             && !preg_match('~<div[^>]*\shidden~', $htmlPrint),
         'sin role=tab ni hidden');
+
+    // ── Toda tabla del A4 tiene que estar dimensionada (08/09/2026) ───
+    // 🔴 LA RED QUE FALTABA. El informe reutiliza los componentes de tabla de
+    // PANTALLA, cuyo `th` trae su propio `font-size:12px` desde
+    // `_tables.scss`. Una tabla nueva que no lleve una de estas clases no la
+    // dimensiona nadie: se imprimira a 14px con el resto de la hoja a 8px, sin
+    // ningun error y sin que ningun otro aserto lo note. Asi empezo esto.
+    // Se mide sobre el HTML RENDERIZADO, no sobre la vista, para que cuente
+    // tambien las tablas que emiten los partials compartidos.
+    $dimensionadas = ['tabla-resumen', 'cuadros-valores__tabla', 'cuadros-matriz',
+                      'cuadros-top', 'riesgo-detalle__tabla'];
+    preg_match_all('~<table[^>]*class="([^"]*)"~', $htmlPrint, $mTablas);
+    foreach (array_unique($mTablas[1]) as $clasesTabla) {
+        $cubierta = (bool) array_filter(
+            $dimensionadas,
+            static fn(string $c): bool => str_contains($clasesTabla, $c)
+        );
+        $chk("en $etiquetaP la tabla `$clasesTabla` del A4 tiene tamaño de letra propio",
+            $cubierta,
+            $cubierta ? 'dimensionada por .cuadros-print' : 'heredaria los 12px de pantalla');
+    }
 
     // ── Las tablas de valores en el A4 (04/09/2026) ───────────────────
     // 🔴 NI UN `<details>` EN EL PAPEL. Un `<details>` cerrado no imprime su

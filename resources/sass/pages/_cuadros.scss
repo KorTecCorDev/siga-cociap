@@ -795,6 +795,34 @@ tr.fila-riesgo-detalle > td {
 // 1cm por lado que fija @page en _boleta.scss.
 .cuadros-print {
     max-width: 718px;
+
+    // 🔴 EL MISMO NUMERO QUE `max-width`, Y ES DELIBERADO: la hoja conserva sus
+    // 718px SIEMPRE y lo que se adapta es la ventana, que desplaza. Es la
+    // decision de "visor fiel del documento" (08/09/2026): el PDF que salga de
+    // un movil tiene que ser IDENTICO al de un escritorio.
+    //
+    // Sin esto fallaban DOS COSAS, y la segunda no se veia venir:
+    //
+    //   1. En una ventana de escritorio estrecha el bloque se comprimia y las
+    //      tablas desbordaban la hoja (aqui `.tabla-notas-wrapper` es
+    //      `overflow: visible`, asi que no hay scroll que lo absorba).
+    //      `print-fit.js` NO puede ayudar ahi: reescribe el `<meta viewport>`,
+    //      que es un mecanismo EXCLUSIVAMENTE MOVIL —el escritorio lo ignora—.
+    //      Por eso el arreglo es CSS y no JS, y por eso `print-fit.js` no se
+    //      toca: su rama de `screen.width` es correcta para su medio.
+    //
+    //   2. EN MOVIL LOS 11 GRAFICOS NACIAN AL 43% DE LA HOJA, y salian asi en
+    //      el PDF. `layouts/print.php` carga `cuadros.js` (dentro del content)
+    //      ANTES que `print-fit.js`, y `barrer()` es sincrono: Frappe medía el
+    //      contenedor con el viewport todavia sin ajustar —311px en un movil de
+    //      371— y le escribia ese width al SVG. Con el ancho fijo, Frappe mide
+    //      702px pase lo que pase y la dependencia de orden entre los dos
+    //      scripts deja de existir, sin tocar el layout ni el JS.
+    //
+    // En impresion es inocuo: `@page boleta` (_boleta.scss) deja 210-16 = 194mm
+    // = 733px utiles, y 718 < 733.
+    min-width: 718px;
+
     margin: 0 auto;
     padding: $spacing-sm;
     -webkit-print-color-adjust: exact;
@@ -874,6 +902,64 @@ tr.fila-riesgo-detalle > td {
         color: #444;
     }
 
+    // ── EL THEAD NO HEREDA EL TAMANO DE SU TABLA (08/09/2026) ────────
+    // 🔴 `components/_tables.scss` declara `font-size`, `color`, `font-weight`
+    // y `white-space` DIRECTAMENTE sobre `.tabla-notas th` y `.tabla-resumen
+    // th`, con especificidad (0,1,1). Las seis tablas de esta hoja fijan su
+    // tamano en el <table>, y eso NO llega al encabezado: el cuerpo salia a 8px
+    // o 10px y LA CABECERA A 12px, en papel, en las seis.
+    //
+    // Es EXACTAMENTE el mismo fallo que ya se corrigio mas abajo para una celda
+    // suelta (`.cuadros-top--riesgo tbody th.col-nombre`, ver su comentario):
+    // alli se arreglo UNA celda y no se generalizo, y por eso el defecto seguia
+    // vivo en todos los `thead`. Esta vez la regla es una sola y vale tambien
+    // para la tabla que alguien anada manana.
+    //
+    // `inherit` y no un valor: cada tabla del A4 ya declara el suyo y ese debe
+    // ser el unico numero que exista. Una tabla futura que quiera otra cabecera
+    // lo dice en su propio `thead th`, que es (0,2,2) y le gana a esto.
+    //
+    // ⚠️ NO se declaran aqui `background` ni `padding`: los overrides que ya
+    // existen —`.cuadros-print .X thead th{background:#eee}` (0,2,2) y
+    // `.cuadros-print .X td,th{padding:2px 3px}` (0,2,1)— deben seguir mandando.
+    // Esta regla es (0,1,2) a proposito: la minima que gana a la fuga y no le
+    // gana a nada del propio bloque.
+    thead th {
+        font-size: inherit;
+        color: inherit;
+
+        // A 8px el `font-weight: 500` de pantalla cae en Arial Regular y la
+        // cabecera solo se distinguia por el fondo `#eee`, que en una fotocopia
+        // se pierde. En un documento denso la jerarquia de una cabecera se da
+        // con PESO y FONDO, nunca con tamano.
+        font-weight: 700;
+
+        // `.tabla-resumen th` llega con `nowrap`: "Calificaciones", "% en
+        // logro", "Estudiantes" y "Promedio en C" no podian partirse e imponian
+        // un ancho minimo de 432px a la fila de cabecera (metricas Arial, th a
+        // 12px). En los 702px utiles de la hoja cabe —el A4 nunca desbordo por
+        // esto—, pero cualquier contenedor por debajo de 448px la reventaba.
+        // Con el `min-width` de la hoja eso ya no puede pasar; se anula igual
+        // porque un `nowrap` de pantalla no describe a este documento.
+        white-space: normal;
+    }
+
+    // ── Suelos de ancho que la version A4 nunca reseteo ──────────────
+    // `min-width: 200px` viene de `.tabla-notas .col-nombre` y de
+    // `.cuadros-top .col-nombre`, las dos (0,2,0). Los resets de este bloque
+    // son (0,3,0) pero solo tocaban `position` y `box-shadow`: el suelo seguia
+    // en pie. En pantalla lo justifica el scroll —la columna va `sticky` y no
+    // debe encogerse—; aqui NO HAY SCROLL, asi que son 200 de los 702px de la
+    // hoja reservados a celdas que dicen "1° A" o "I Bim.".
+    // `.cuadros-top--riesgo` ya lo hacia por su cuenta; esto lo extiende a las
+    // once tablas de valores y al listado de faltas. Precedente en este mismo
+    // bloque: `.cuadros-valores__texto { min-width: 0 }`.
+    .col-nombre { min-width: 0; }
+
+    // Los cuatro contadores de la tabla de faltas no necesitan 78px fijos de
+    // pantalla: a 8px son cifras de dos digitos.
+    .cuadros-top__n { width: auto; }
+
     // ── Tabla de valores de cada grafico ─────────────────────────────
     // 🔴 Va FUERA de `__chart` a proposito, como hermana suya: aquel lleva
     // `page-break-inside: avoid` y con la tabla dentro el bloque entero
@@ -926,6 +1012,52 @@ tr.fila-riesgo-detalle > td {
     // los 718px utiles de la hoja.
     .cuadros-matriz__th,
     .cuadros-matriz__c { width: 34px; min-width: 34px; }
+
+    // ── El codigo de competencia es TEXTO en papel, no una pastilla ──
+    // 🔴 `.competencia-card__codigo` es un chip de PANTALLA: 11px sobre una
+    // tabla de 8px, naranja (#e07b1a sobre #fef3e2), `padding: 2px 6px` y
+    // `border-radius: 20px`. Medido en Arial Bold, "C10" son 20,2px + 12px de
+    // padding = 32,2px de chip dentro de una celda cuya caja util es ~27px. Un
+    // inline con padding no encoge, asi que EMPUJABA cada columna de la matriz
+    // de los 34px de diseno a ~39px: con 10 criterios, 50px de la hoja.
+    //
+    // Y ademas se imprimia en color de verdad: `.cuadros-print` lleva
+    // `print-color-adjust: exact` porque lo necesita el mapa de calor.
+    //
+    // Sale en DOS sitios del A4: cada `th` de la matriz y cada celda
+    // "Competencia" del desglose de riesgo. La hoja hermana ya resolvio esto
+    // (`.criterios-print .competencia-card__codigo`); aqui se va mas lejos y se
+    // quita tambien el color, porque este documento es blanco y negro salvo el
+    // mapa de calor, que SI es informacion.
+    .competencia-card__codigo {
+        font-size: inherit;
+        font-weight: 700;
+        color: inherit;
+        background: none;
+        border-radius: 0;
+        padding: 0;
+        margin-right: 0;
+    }
+
+    // El denominador salia a 9px DENTRO de una celda de 8px: la letra chica era
+    // mas grande que la grande a la que acompana.
+    .cuadros-matriz__den { font-size: 7px; }
+
+    // ── Grises de pantalla ───────────────────────────────────────────
+    // #94a3b8 es el gris de "dato secundario" de la interfaz, calibrado para
+    // 12-14px en un monitor. A 8px sobre papel —y sobre todo en la fotocopia
+    // que se archiva— deja de leerse. Los TAMANOS de estos elementos ya se
+    // habian corregido aqui uno a uno; los COLORES se quedaron por el camino.
+    //
+    // La leyenda del pie es el caso que mas duele: es la unica forma de saber
+    // que dice C1..C10, porque la cabecera de la matriz solo lleva el codigo.
+    //
+    // #333 y no #000: conserva la jerarquia de dato secundario sin perder
+    // legibilidad. Es el valor que ya usan `__nota` (#444) y la hoja hermana.
+    .text-muted,
+    .tabla-pie__leyenda,
+    .cuadros-kpi__t,
+    .riesgo-detalle__aviso { color: #333; }
 
     // Cada bloque cabe entero en una hoja, asi que se le prohibe partirse. El
     // contenedor `--tabla` conserva su `page-break-inside: auto` para poder
@@ -1035,7 +1167,13 @@ tr.fila-riesgo-detalle > td {
         border: 1px solid #000;
     }
 
-    .cuadros-banda__n     { font-size: 1.4rem; }
+    // 🔴 Y LA CIFRA SALIA ROJA. El bloque de arriba ya habia neutralizado el
+    // fondo, el borde y el color de `__datos` de la banda de riesgo, pero se
+    // dejo `.cuadros-banda--riesgo .cuadros-banda__n{color:#b91c1c}` (0,2,0),
+    // que empata con esta regla y perdia solo por orden... hasta que se le
+    // anadio color. Un numero rojo sobre la lista de ninos con nombre y
+    // apellido es justo lo que la nota larga de `.cuadros-top` prohibe.
+    .cuadros-banda__n     { font-size: 1.4rem; color: #000; }
     .cuadros-banda__q     { font-size: 10px; }
     .cuadros-banda__datos { font-size: 8px; color: #000; }
     .cuadros-banda__datos strong { color: #000; }
