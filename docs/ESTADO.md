@@ -1,11 +1,96 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **08/09/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **10/09/2026**.
 > **Versión desplegada: v1.0.1** (`config/app.php` + tag anotado `v1.0.1`).
 
 
 
+
+## 🆕 REGISTRO DE CALIFICACIONES DE BIMESTRES CERRADOS — EN `dev` (10/09/2026)
+
+**Lleva DOS migraciones (`057` y `058`), aplicadas SOLO EN LOCAL.** Hay que aplicarlas a
+mano en producción **ANTES** del merge a `main`, como se hizo con la `044` y la `045`.
+Nada de esto está desplegado.
+
+### La decisión que reordenó todo
+
+El colegio precisó la regla y **partió en DOS lo que se trataba como una sola cosa**, con
+destinos **opuestos**:
+
+| | Notas del **colegio de origen** | Notas **nuestras** no registradas |
+|---|---|---|
+| Caso | trasladado que llega de otra IE | matriculado tarde (deudor con prórroga, matrícula provisional) |
+| ¿Boleta y SIAGIE? | **NO** — el Informe de Progreso lleva solo lo cursado aquí | **SÍ**, como cualquier nota |
+| Quién las ve | solo el **docente** con carga en su sección | familia, boleta, acta |
+| Escala | **literal** puro | **numérica** 00-20, literal derivado |
+| Dónde vive | `notas_externas` (+ `area_id`, migración `057`) | `calificaciones`, vía calificación **extraordinaria** |
+
+🔴 **Eso DEROGA el plan del 05/08** (`docs/modulos/registro-retroactivo-notas.md`), que
+mandaba las dos cosas a la boleta con una nota al pie. Caen sus decisiones **D2, D4, D6 y
+D7** y se cierra sola su pregunta abierta del SIAGIE. **`calificaciones_retroactivas` no
+se construye**, y con ella **la migración `049` queda LIBERADA**: hueco permanente, no
+reutilizar el número. Su cabecera ya lo dice; su análisis se conserva porque sigue siendo
+válido y caro de rehacer. La **F1** de aquel plan (asistencia en guion, en producción desde
+el 07/08) es independiente y no se tocó.
+
+### Lo que se descubrió midiendo, y que cambió el diseño
+
+- **La mitad del pedido ya estaba en producción.** La calificación extraordinaria
+  (migración `042`, desde el 16/07) ya hacía numérico→literal, conclusión obligatoria por
+  nivel, motivo, auditoría y exclusión del mérito. **Le faltaba captura en lote, no motor.**
+- **Las 275 extraordinarias son UN solo evento administrativo** (Ética B1, migración `050`):
+  un motivo idéntico, una competencia, un periodo. No es uso orgánico de la función.
+- **`notas_externas` no era un mecanismo muerto.** Que la boleta no la lea —lo que el plan
+  del 05/08 usó para justificar su borrado— resulta ser **el comportamiento pedido**.
+- **Ningún flag detecta el caso.** `matriculas.tipo`: de los 6 casos reales **3 son `nuevo`
+  y 3 `continuador`**. `tipo_matricula='traslado_entrada'`: **173 filas y las 173 con B1
+  completo**. Por eso **lo elige RA al registrar**, con dos entradas explícitas.
+- **La card de notas de origen exigía `tipo === 'nuevo'`** y por eso no existía para la
+  mitad de los casos reales (en todo el año hay **5** matrículas `nuevo`). Candado retirado.
+
+### Qué entró
+
+- **Extraordinaria EN LOTE** (sin migración): grilla del bimestre completo, literal en vivo,
+  conclusión que se revela sola, motivo común, todo en UNA transacción.
+  **PUNTO ÚNICO nuevo: `RectificacionController::escribirExtraordinaria`** — extraído del
+  alta individual, ahora las dos vías escriben por él.
+- **Notas del colegio de origen**: migración `057` (`area_id` NULL = mapeo opcional para el
+  resaltado), `NotaExternaModel` como punto único, captura en lote, card sin candado de
+  `tipo`, y vista de solo lectura del docente con guarda de carga activa.
+- **Módulo de notificaciones**: migración `058`, campana con contador en la barra, bandeja
+  con leída/no leída, y comunicados de admin/RA. **`alertas` NO se tocó** (va tutor→padre,
+  0 filas, otro público).
+- **Las COMPETENCIAS TRANSVERSALES entran en el lote (añadido el 10/09 tras probarlo él en
+  el navegador y preguntar dónde se registraban).** Eran **12 celdas vacías** — 2 por nivel
+  × 6 estudiantes — mientras 23 compañeros de la 690 sí las tenían.
+  - 🔴 **La razón de su exclusión era FALSA en bimestres cerrados.** Decía «una fila cruda
+    no llega a boleta»; medido con escritura + rollback, **sí llega**: la agregación del
+    tutor solo exige bloqueo + cierre vigente, y en un bimestre cerrado ya se cumplen.
+    La exclusión **sigue en pie para el alta individual** y el bimestre en curso.
+  - **Carga dueña DERIVADA del dato** (la que ya evalúa esa transversal en la sección), no
+    elegida a dedo; si nadie la trabajó, la competencia no se ofrece.
+  - 🔴 **La conclusión de una transversal NO vive en `calificaciones`** sino en
+    `conclusiones_transversales`. Por eso `escribirExtraordinaria` recibe
+    `bool $esTransversal` y bifurca. Guardarla mal la dejaría registrada e INVISIBLE, y en
+    primaria una transversal en B o C exige conclusión.
+
+### Verificación
+
+Dos scripts nuevos, ambos escriben y hacen **rollback** (no dejan filas):
+
+- `verif_extraordinaria_lote.php` — 12 comprobaciones. Sobre la matrícula 690: +25 notas,
+  las 25 dejan de ser insertables, **el ranking de B1 no mueve ni una posición** (está
+  publicado y bajo el candado `046`), la boleta gana 25 celdas y ninguna previa cambia.
+- `verif_notas_origen.php` — 15 comprobaciones. La central es **negativa**: registrar notas
+  de origen **no altera ni una celda de boleta** ni el mérito. Incluye las dos ramas de la
+  guarda del docente, el aislamiento entre bandejas y que dirección no emite comunicados.
+
+Las 4 vistas nuevas se renderizaron con datos reales (23 comprobaciones más).
+
+🔴 **Lo que NO se pudo verificar y hay que mirar con sesión abierta:** que el JS corra de
+verdad (literal en vivo, conclusión que aparece, campana que se actualiza sin recargar), el
+flujo completo con redirects y CSRF, y el aspecto de la campana en la barra.
 
 ## 🟢 RELEASE v1.0.1 — DESPLEGADA EN PRODUCCIÓN (08/09/2026)
 
@@ -1762,8 +1847,13 @@ pregunta siempre antes.
     migración**: el 07/08 se reportó como "error de documentación" un `limite_notas` de
     B2 distinto, y era simplemente que la copia local llevaba dos días de retraso. El valor
     bueno es el que dice el doc: **`2026-08-04 23:59`**.
-  La **`049`** será la del
-  registro retroactivo de notas, aún sin implementar —
+  🔴 **La `049` quedó LIBERADA el 10/09/2026 y es un HUECO PERMANENTE: no reutilizar ese
+  número.** Estaba reservada para `calificaciones_retroactivas`, del plan de registro
+  retroactivo, y ese plan quedó **derogado**: la funcionalidad se construyó con otro diseño
+  y otras dos migraciones, la **`057`** (`notas_externas.area_id`) y la **`058`**
+  (`notificaciones`). Se deja el hueco a propósito, porque reciclar el número haría que las
+  entradas viejas de este archivo —que hablan de la `049` como «la del registro
+  retroactivo»— apuntaran a otra cosa.
   ⚠️ **la 050 y la 051 se numeraron antes que la 049 a propósito**: son independientes y
   corrían primero. Al aplicarlas, el orden lo manda la dependencia, no el número: la `051`
   exigía que el fix F1 estuviera **antes** en producción, y así se hizo (deploy `cf8bdb2`
@@ -2243,8 +2333,23 @@ pregunta siempre antes.
     resuelve las dos, marcando `es_legado`.
   - **Cierra un hueco de roles real:** `director_general` y `director_ebr` no tienen hoy
     ninguna forma de ver conducta ni el agregado transversal.
-- **NOTAS DE BIMESTRES CERRADOS PARA QUIEN LLEGÓ DESPUÉS — PLAN DE IMPLEMENTACIÓN LISTO,
-  SIN IMPLEMENTAR (05/08/2026).** Plan completo con fases, archivos y SQL:
+- ⛔ **NOTAS DE BIMESTRES CERRADOS PARA QUIEN LLEGÓ DESPUÉS — PLAN DEROGADO Y SUSTITUIDO
+  EL 10/09/2026. NO IMPLEMENTAR NADA DE LO QUE SIGUE EN ESTA ENTRADA.** La funcionalidad se
+  construyó, pero con **otro diseño**: la regla del colegio partió el caso en DOS mecanismos
+  con destinos opuestos (colegio de origen = informativo, nunca en boleta · notas nuestras
+  no registradas = calificación extraordinaria, sí en boleta). Ver el bloque
+  **«REGISTRO DE CALIFICACIONES DE BIMESTRES CERRADOS»** al principio de este archivo, y
+  `matriculas.md` · `calificaciones.md` · `notificaciones.md`.
+  - 🔴 **`calificaciones_retroactivas` NO se construye y la migración `049` queda LIBERADA**
+    (hueco permanente: no reutilizar el número). Las que sí entraron son la `057` y la `058`.
+  - Caen las decisiones **D2, D4, D6 y D7**, y su pregunta abierta del SIAGIE se cierra sola.
+  - La **F1** (asistencia en guion) es independiente y **sigue en producción** desde el 07/08.
+  - **Lo que queda abajo se conserva como ANÁLISIS**, que sigue siendo válido y caro de
+    rehacer (los 45 usos de `nota_numerica`, el universo de los 6 casos, el estado de la
+    extraordinaria). **Su plan de implementación, no.**
+
+- ~~**NOTAS DE BIMESTRES CERRADOS PARA QUIEN LLEGÓ DESPUÉS — PLAN DE IMPLEMENTACIÓN LISTO,
+  SIN IMPLEMENTAR (05/08/2026).**~~ (derogado, ver arriba) Plan completo con fases, archivos y SQL:
   **`docs/modulos/registro-retroactivo-notas.md`** (empezar por §6 **F0**).
   - **Lleva migración `049`** (tabla `calificaciones_retroactivas` + `DROP notas_externas`)
     → al desplegar hay que aplicarla a mano en prod ANTES del merge, como la 044 y la 045.

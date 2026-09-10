@@ -628,3 +628,92 @@ entre por su matrícula **oficial**.
 escritas a mano a propósito: si salieran de los helpers no probarían nada.
 
 **Sin cambios en vistas, JS ni SASS**: la forma de `$chartData` no cambia.
+
+
+## Notas del COLEGIO DE ORIGEN (10/09/2026) — informativas, nunca en la boleta
+
+> Migración `057` (`notas_externas.area_id`). Punto único: `NotaExternaModel`.
+> Rutas: `GET|POST /matriculas/{id}/notas-externas` (RA) y
+> `GET /docente/notas-origen/{matricula}` (docente, solo lectura).
+
+### La regla del colegio
+
+El marco legal dice que el colegio destino debe incorporar lo que el estudiante trae. **El
+COCIAP acota esa regla:** el Informe de Progreso que emite **tras** el traslado lleva
+**solo las calificaciones cursadas aquí**. Lo del colegio anterior es **informativo**, y su
+público son los **docentes con carga en su sección**, que necesitan saber con qué llega.
+
+⚠️ **Por eso `BoletaModel` NO lee `notas_externas`, y no debe leerla.** Que estas notas no
+alcancen la boleta **no es un mecanismo a medio hacer: es el comportamiento pedido.** El
+plan del 05/08 llegó a catalogar esa tabla como «mecanismo muerto» y proponía borrarla
+(`docs/modulos/registro-retroactivo-notas.md`, D7): esa decisión quedó **invertida**.
+
+### NO confundir con el otro mecanismo
+
+| | Colegio de **origen** | Notas **nuestras** no registradas |
+|---|---|---|
+| De quién es la nota | del colegio anterior | del COCIAP, quedó en el cuaderno del docente |
+| Boleta y SIAGIE | **NO** | **SÍ** |
+| Escala | **literal** puro (AD/A/B/C) | **numérica** 00-20, literal derivado |
+| Dónde vive | `notas_externas` | `calificaciones` (`extraordinaria=1`) |
+| Por dónde entra | ficha de matrícula | `/rectificaciones/matricula/{id}` |
+
+**Ninguna detección automática decide cuál es cuál: lo elige quien registra.** Las dos
+entradas son explícitas y cada una avisa de la existencia de la otra.
+
+### Por qué no sirve ningún flag para detectar el caso
+
+Medido el 10/09/2026 en la BD:
+
+- `matriculas.tipo` **no distingue**: de los 6 estudiantes que llegaron con un bimestre
+  cerrado por delante, **3 son `nuevo` y 3 `continuador`**.
+- `tipo_matricula = 'traslado_entrada'` **miente**: **173 filas, y las 173 tienen B1
+  completo** (el flag se puso mal en la carga masiva del 19/05).
+
+⚠️ **Consecuencia práctica: la card de notas de origen ya NO exige `tipo === 'nuevo'`.**
+Ese candado —que estuvo en `matriculas/show.php` hasta hoy— dejaba la pantalla fuera del
+alcance de **la mitad de los casos reales**, y en todo el año activo solo hay **5**
+matrículas `nuevo`. **No reintroducirlo, ni sustituirlo por `traslado_entrada`.**
+
+### Mapeo de área: OPCIONAL a propósito
+
+`area_id` (NULL por defecto) enlaza una nota de origen con un área de **nuestro** plan, y
+sirve **solo para resaltarle la fila al docente que dicta esa área**. Es opcional porque el
+plan curricular del otro colegio no tiene por qué coincidir con el nuestro: **obligar a
+traducirlo dejaría fuera lo que no tenga equivalente**. Sin mapeo la fila se ve igual;
+simplemente no se resalta.
+
+Los nombres de área, competencia y periodo siguen en **texto libre** por el mismo motivo.
+
+### Qué ve el docente
+
+El informe **completo**, agrupado por periodo, con las filas de su(s) área(s) resaltadas.
+No se recorta por área: recortar escondería justo lo que no tiene equivalente aquí.
+
+**Guarda:** hay que tener **carga ACTIVA en la sección de esa matrícula**; si no,
+`notFound()` — ni siquiera se confirma que la matrícula exista. Probadas las dos ramas.
+
+### El aviso
+
+Al guardar, `crearParaDocentesDeSeccion` deja **una notificación por docente** de la
+sección (18 en la sección medida), no una por nota. Va **fuera de la transacción del lote**
+a propósito: que falle el aviso no puede tumbar un registro ya válido. Ver
+`docs/modulos/notificaciones.md`.
+
+### Puntos únicos y captura en lote
+
+`NotaExternaModel` es el punto único; `MatriculaModel::getNotasExternas` y
+`registrarNotaExterna` quedan como **delegadores** (no se rompió su interfaz pública). El
+formulario captura **varias filas por envío** —el informe de origen llega como un documento
+entero— y las filas en blanco se descartan sin error.
+
+⚠️ **`registrarLote` NO abre transacción: la owna quien llama.** PDO no anida, y abrirla en
+el modelo impedía envolver el lote desde fuera —empezando por el verificador, que escribe y
+hace rollback—. Mismo criterio que `escribirExtraordinaria`.
+
+### Verificación
+
+`database/verificaciones/verif_notas_origen.php`. La comprobación central es **negativa**:
+registrar notas de origen **no altera ni una celda de la boleta** (29 comparadas) ni el
+orden de mérito (47 filas). **Si algún día una de estas notas aparece en una boleta, ese
+script tiene que ponerse rojo.**

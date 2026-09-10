@@ -848,6 +848,89 @@ en `calificaciones` (4 tablas propias, ciclo por SECCIÓN en dos etapas).
 - Verificado end-to-end en local (16/07/2026, Inglés 4°A C2, 25 checks):
   boleta +1 fila, SIAGIE la exporta, ranking byte-idéntico, guardas activas.
 
+
+### Captura EN LOTE (10/09/2026) — el mismo motor, otra pantalla
+
+> Rutas `GET /rectificaciones/extraordinaria/lote?matricula=&periodo=` y
+> `POST .../lote/guardar`. Sin migración: **no cambia nada del motor**.
+
+**El problema era de UX, no de reglas.** El alta era de UNA competencia por vez, y un
+alumno matriculado después del cierre necesita **25-27 altas**: 25-27 pasadas por el
+formulario, con su ida y vuelta. Medido sobre los 6 casos reales: 25, 25, 25, 25, 27 y 27.
+
+**Qué se añadió:** una grilla con todas las competencias insertables de UN bimestre,
+agrupadas por área, con el literal en vivo, la conclusión que se revela sola donde el
+nivel la exige, y **un motivo común** para todo el lote.
+
+**PUNTO ÚNICO de escritura: `RectificacionController::escribirExtraordinaria`.** Se
+extrajo del cuerpo de `guardarExtraordinaria` y ahora **las dos vías —individual y lote—
+llaman al mismo método**. No abre transacción: la owna quien llama (el lote entero va en
+UNA, o entra completo o no entra nada). Era el riesgo real del cambio: dos escrituras
+copiadas a mano divergen sin síntoma, que es el patrón de fallo conocido de este repo.
+
+**Guardas:** `esInsertable()` se re-chequea **fila por fila** en el POST —ir en lote no lo
+salta—, más nota 0-20, conclusión obligatoria por `conclusionObligatoria($literal, $nivel)`
+y motivo no vacío. Si falla una sola fila, **aborta el lote entero**.
+
+⚠️ **Los umbrales de la escala NO se escriben en el JS.** `rectificaciones-lote.js` los
+recibe en `data-*` desde las constantes de `helpers.php`, y la lista de literales que
+exigen conclusión sale del mismo `conclusionObligatoria` que valida el POST. (El sibling
+`rectificaciones.js` sí los tiene a mano, con un comentario que lo avisa; el código nuevo
+no repite eso.)
+
+⚠️ **Hueco conocido, NO introducido aquí:** `guardarExtraordinaria` **no crea** la fila de
+`bloqueos_competencia`, y la boleta solo muestra competencias bloqueadas. Hoy no muerde
+—las 6 matrículas reales tienen el **100 %** de sus insertables bloqueadas—, pero una
+competencia que nadie evaluó dejaría la nota invisible. La grilla **marca esas filas con
+un aviso** y deja guardar: es el comportamiento que ya existía y no se cambió sin pedirlo.
+
+**Verificación:** `database/verificaciones/verif_extraordinaria_lote.php` (escribe y hace
+rollback). Sobre la matrícula 690: +25 en `calificaciones`, +25 marcadas
+`extraordinaria=1`, +25 en la auditoría, las 25 dejan de ser insertables, **el ranking de
+B1 no mueve ni una posición**, la boleta gana 25 celdas y **ninguna previa cambia**.
+
+#### Las COMPETENCIAS TRANSVERSALES sí entran en el lote (10/09/2026)
+
+**Y son la única parte donde el lote se aparta del alta individual.** El alta individual
+las sigue excluyendo (`getCompetenciasInsertables`: `a.tipo <> 'transversal'`), y esa
+exclusión **no se derogó**: sigue tal cual para el bimestre en curso.
+
+**Por qué se levanta solo aquí.** La exclusión se justificaba con que «una fila cruda no
+llega a boleta, porque las transversales se muestran AGREGADAS desde el cierre del tutor».
+**Medido el 10/09/2026 con escritura + rollback: eso NO se cumple en un bimestre CERRADO.**
+`getTransversalesAgregadas` promedia las cargas con **bloqueo** y solo exige un
+`cierres_transversales` **vigente** — y en un bimestre cerrado las tres condiciones ya se
+dan. La celda de la 690 pasó de vacía a `16 / A` con una sola fila. La razón documentada
+vale cuando *no* hay cierre ni bloqueo; no cuando el bimestre ya se cerró.
+
+**El hueco que cerraba:** cada nivel tiene **2** competencias transversales, así que los 6
+estudiantes que llegaron tarde arrastraban **12 celdas vacías** en B1 mientras **23
+compañeros** de la 690 sí las tenían.
+
+**Los tres candados que lo hacen seguro** (`RectificacionModel::getTransversalesInsertables`):
+
+1. **Periodo CERRADO** — el bimestre vivo del tutor no se toca.
+2. **`cierres_transversales` VIGENTE** en su sección — sin él la nota quedaría registrada
+   e **invisible**, que es peor que no registrarla.
+3. **CARGA DUEÑA DERIVADA DEL DATO, nunca elegida a dedo**: la carga que ya aporta esa
+   transversal al **resto de su sección** y que tiene bloqueo. Si nadie de la sección la
+   trabajó, la competencia **no se ofrece**. En la práctica es **una sola carga por
+   sección**, así que no hay ambigüedad. `esInsertableTransversal` rechaza cualquier otra
+   carga —verificado— para que no se pueda colar por una ajena.
+
+🔴 **LA TRAMPA, y el motivo de que esto lleve su propio camino de escritura: la CONCLUSIÓN
+de una transversal NO vive en `calificaciones`.** La boleta la lee de
+`conclusiones_transversales` (la escribe el tutor). Guardarla en
+`calificaciones.conclusion_descriptiva` la dejaría **registrada e invisible**, y en primaria
+una transversal en B o C **exige** conclusión. Por eso `escribirExtraordinaria` recibe
+`bool $esTransversal` y enruta a `TransversalModel::guardarConclusion`. **Si algún día se
+toca ese método, esa bifurcación es lo primero que hay que mirar.**
+
+En la grilla, esas filas llevan el chip **«Transversal»** y una línea que dice de dónde
+salen. Verificado en `verif_extraordinaria_lote.php` §5b (9 comprobaciones: las dos ramas
+de la guarda, que la ordinaria sigue excluyéndolas, la conclusión en su tabla y la celda
+—con su conclusión— saliendo en la boleta).
+
 ## Fixes importantes aplicados (sesión 2)
 - `periodos.nombre_display` es la columna correcta (no `nombre`). Si ves
   `Unknown column 'p.nombre'` en queries de periodos, verificar esto.

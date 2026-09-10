@@ -191,7 +191,9 @@ decisiones de diseño y gotchas que NO son visibles en el código:
 | **CERRAR un bimestre en producción** (secuencia, consultas, verificación) | `docs/runbooks/cierre-de-bimestre.md` |
 | Compuerta temporal de edición y los 4 registros del bimestre | `docs/modulos/cierre-cuatro-registros.md` |
 | Boleta con todas las competencias del plan y guion donde no hay dato | `docs/modulos/boleta-competencias-completas.md` |
-| **Notas de bimestres cerrados para quien llegó después** | `docs/modulos/registro-retroactivo-notas.md` |
+| **Notas del COLEGIO DE ORIGEN** (trasladado: informativas, nunca en boleta) | `docs/modulos/matriculas.md` |
+| **Completar notas de un bimestre CERRADO** (llegó tarde: extraordinaria, en lote) | `docs/modulos/calificaciones.md` |
+| **Notificaciones y comunicados** (bandeja, campana, avisos al docente) | `docs/modulos/notificaciones.md` |
 | **Consulta de notas con transversales y conducta** | `docs/modulos/consulta-notas-ampliada.md` |
 | **Bloqueos fantasma del cierre + visibilidad del tutor** | `docs/modulos/transversales-visibilidad-tutor.md` |
 | **Cambio de sección a mitad de bimestre** (mudanza, convalidación, reversión) | `docs/modulos/cambio-seccion.md` |
