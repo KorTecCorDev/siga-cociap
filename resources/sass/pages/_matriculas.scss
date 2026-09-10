@@ -800,3 +800,55 @@ button.orden-chip {
         margin: 0 auto;
     }
 }
+
+
+// ── Notas del colegio de origen (migración 057) ─────────────────────────
+// Dos superficies: la captura en lote de Registro Académico y la lectura del
+// docente. Reutilizan .tabla-notas y .card; aquí solo lo propio.
+//
+// ⚠️ Estas notas NO son de la boleta: son informativas. Por eso el resaltado
+// usa el azul de marca (navegación / "esto te toca a ti") y NO la paleta de
+// estados, que en este proyecto queda para lo que exige una acción.
+
+.notas-origen {
+
+    &__tabla {
+        input.form-input,
+        select.form-input { min-width: 110px; }
+
+        th { white-space: nowrap; }
+    }
+
+    // Fila del área que ESE docente dicta.
+    &__fila--mia {
+        background: rgba(30, 111, 168, .06);
+        box-shadow: inset 3px 0 0 $brand-mid;
+    }
+
+    &__marca {
+        display: inline-block;
+        margin-top: 2px;
+        padding: 1px 7px;
+        border-radius: $border-radius-sm;
+        background: $brand-mid;
+        color: $text-white;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .02em;
+    }
+
+    // Literal del informe de origen. Mismo criterio de color que el resto de
+    // la escala de logro en el proyecto.
+    &__literal {
+        display: inline-block;
+        min-width: 34px;
+        font-weight: 800;
+        font-size: $font-size-lg;
+        color: $text-muted;
+
+        &[data-literal="AD"] { color: #16a34a; }
+        &[data-literal="A"]  { color: #1e6fa8; }
+        &[data-literal="B"]  { color: #b45309; }
+        &[data-literal="C"]  { color: #dc2626; }
+    }
+}

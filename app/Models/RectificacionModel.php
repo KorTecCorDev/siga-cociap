@@ -334,6 +334,131 @@ class RectificacionModel extends BaseModel
         return $fila !== null;
     }
 
+
+    /**
+     * Competencias TRANSVERSALES sin nota del alumno en un bimestre CERRADO,
+     * candidatas al lote. Devuelve la MISMA forma que
+     * getCompetenciasInsertables para que la grilla las mezcle sin ramas.
+     *
+     * ⚠️ POR QUÉ EXISTE, SI `getCompetenciasInsertables` LAS EXCLUYE.
+     * Aquella exclusión (migración 042) se justificaba así: «su flujo es la
+     * agregación + cierre del tutor; una fila cruda no llega a boleta».
+     * **Medido el 10/09/2026: eso NO se cumple en un bimestre ya cerrado.**
+     * `CalificacionModel::getTransversalesAgregadas` promedia las cargas con
+     * BLOQUEO y solo exige un `cierres_transversales` vigente — y en los
+     * bimestres cerrados las tres condiciones ya se dan. Una nota nueva entra
+     * en ese AVG y SALE en la boleta (comprobado con escritura + rollback:
+     * la celda pasó de vacía a `16 / A`).
+     *
+     * La exclusión SIGUE VIGENTE para el alta individual, que es el flujo del
+     * bimestre en curso. Aquí se levanta solo para completar bimestres
+     * cerrados, y con tres candados que la hacen segura:
+     *
+     *   1. **Periodo CERRADO** (no se toca el bimestre vivo del tutor).
+     *   2. **`cierres_transversales` VIGENTE** en su sección: sin él la nota
+     *      no llegaría a la boleta y quedaría registrada e invisible.
+     *   3. **CARGA DUEÑA DERIVADA DEL DATO, nunca elegida a dedo**: es la
+     *      carga que ya aporta esa transversal al RESTO de su sección y que
+     *      tiene bloqueo. Si no existe (nadie de la sección la trabajó), la
+     *      competencia NO se ofrece. En la práctica es una sola carga por
+     *      sección, así que no hay ambigüedad que resolver.
+     *
+     * ⚠️ La CONCLUSIÓN de una transversal NO vive en `calificaciones`, vive en
+     * `conclusiones_transversales` (la escribe el tutor). Quien llame a esto
+     * tiene que enrutarla allí — lo hace `guardarExtraordinariaLote`.
+     */
+    public function getTransversalesInsertables(int $matriculaId): array
+    {
+        return $this->query("
+            SELECT * FROM (
+                SELECT
+                    per.id             AS periodo_id,
+                    per.numero         AS periodo_numero,
+                    per.nombre_display AS periodo_nombre,
+                    per.estado         AS periodo_estado,
+                    c.id               AS competencia_id,
+                    c.nombre_completo  AS competencia_nombre,
+                    c.nombre_corto,
+                    c.codigo_minedu,
+                    a.id               AS area_id,
+                    a.nombre           AS area_nombre,
+                    a.nombre_boleta,
+                    a.tipo             AS area_tipo,
+                    NULL               AS subarea_nombre,
+                    1                  AS bloqueada,
+                    1                  AS es_transversal,
+                    -- CARGA DUEÑA: la que ya aporta esta transversal al resto
+                    -- de la sección Y tiene bloqueo. Se deriva; no se elige.
+                    (SELECT cal2.carga_id
+                       FROM calificaciones cal2
+                       INNER JOIN matriculas m2
+                               ON m2.id = cal2.matricula_id
+                              AND m2.seccion_id = m.seccion_id
+                       INNER JOIN bloqueos_competencia bc2
+                               ON bc2.carga_id       = cal2.carga_id
+                              AND bc2.competencia_id = cal2.competencia_id
+                              AND bc2.periodo_id     = cal2.periodo_id
+                      WHERE cal2.competencia_id = c.id
+                        AND cal2.periodo_id     = per.id
+                      GROUP BY cal2.carga_id
+                      ORDER BY COUNT(*) DESC
+                      LIMIT 1)         AS carga_id,
+                    (SELECT COUNT(DISTINCT cal3.matricula_id)
+                       FROM calificaciones cal3
+                       INNER JOIN matriculas m3
+                               ON m3.id = cal3.matricula_id
+                              AND m3.seccion_id = m.seccion_id
+                      WHERE cal3.competencia_id = c.id
+                        AND cal3.periodo_id     = per.id) AS notas_seccion
+                FROM matriculas m
+                INNER JOIN secciones s ON s.id = m.seccion_id
+                INNER JOIN grados    g ON g.id = s.grado_id
+                INNER JOIN areas     a ON a.tipo = 'transversal' AND a.nivel_id = g.nivel_id
+                INNER JOIN competencias c ON c.area_id = a.id
+                INNER JOIN periodos per   ON per.anio_id = m.anio_id
+                                         AND per.estado  = 'cerrado'
+                -- Sin cierre vigente la nota no llegaria a la boleta.
+                INNER JOIN cierres_transversales ct
+                        ON ct.seccion_id = m.seccion_id
+                       AND ct.periodo_id = per.id
+                       AND ct.anulado_en IS NULL
+                WHERE m.id = ?
+                  -- Sin nota en NINGUNA carga: la boleta agrega por competencia.
+                  AND NOT EXISTS (
+                      SELECT 1 FROM calificaciones cal
+                      WHERE cal.matricula_id   = m.id
+                        AND cal.competencia_id = c.id
+                        AND cal.periodo_id     = per.id
+                  )
+            ) t
+            WHERE t.carga_id IS NOT NULL
+            ORDER BY t.periodo_numero, t.area_id, t.competencia_id
+        ", [$matriculaId]);
+    }
+
+    /**
+     * ¿Esta tupla transversal es insertable? Re-chequeo del POST.
+     *
+     * Se resuelve PREGUNTÁNDOLE a getTransversalesInsertables en vez de
+     * repetir sus condiciones: el universo es diminuto (2 competencias por
+     * bimestre cerrado) y duplicar la regla a mano es el patrón de fallo
+     * conocido de este repo. La carga tiene que coincidir con la DUEÑA.
+     */
+    public function esInsertableTransversal(
+        int $matriculaId,
+        int $cargaId,
+        int $competenciaId,
+        int $periodoId
+    ): bool {
+        foreach ($this->getTransversalesInsertables($matriculaId) as $t) {
+            if ((int) $t['competencia_id'] === $competenciaId
+                && (int) $t['periodo_id'] === $periodoId
+                && (int) $t['carga_id'] === $cargaId) {
+                return true;
+            }
+        }
+        return false;
+    }
     /**
      * Calificaciones extraordinarias registradas en una competencia+carga+
      * periodo, con el motivo y quién las registró. Alimenta el bloque

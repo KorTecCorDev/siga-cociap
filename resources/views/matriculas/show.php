@@ -177,17 +177,28 @@ $labelDoc = [
         </div>
     </div>
 
-    <!-- Notas externas (solo traslado de entrada / nuevo) -->
-    <?php if ($matricula['tipo'] === 'nuevo'): ?>
+    <!-- Notas del colegio de origen.
+         Regla del colegio (10/09/2026): NO entran en la boleta del COCIAP; son
+         informativas para los docentes con carga en la seccion del estudiante.
+         ⚠️ Ya NO se exige tipo === 'nuevo': ese candado dejaba fuera a la mitad
+         de los casos reales (3 de los 6 estudiantes que llegaron con un
+         bimestre cerrado por delante figuran como 'continuador'). Quien
+         registra decide si corresponde; el sistema no lo deduce de un flag. -->
     <div class="card">
         <div class="card__body">
-            <p class="form-section-title">Notas externas (colegio origen)</p>
+            <p class="form-section-title">Notas del colegio de origen</p>
+            <p class="text-muted text-sm">
+                Calificaciones que el estudiante trae de su colegio anterior.
+                Son <strong>informativas</strong>: no aparecen en la boleta del COCIAP
+                y no cuentan para el orden de mérito. Al registrarlas se avisa a los
+                docentes con carga en su sección.
+            </p>
             <?php if (empty($notasExternas)): ?>
-                <div class="empty-state"><p>Sin notas externas registradas.</p></div>
+                <div class="empty-state"><p>Sin notas del colegio de origen.</p></div>
             <?php else: ?>
                 <div class="tabla-notas-wrapper">
                     <table class="tabla-notas">
-                        <thead><tr><th>Área</th><th>Competencia</th><th>Periodo</th><th class="text-center">Nota</th></tr></thead>
+                        <thead><tr><th>Área (origen)</th><th>Competencia</th><th>Periodo</th><th class="text-center">Nota</th><th>Área nuestra</th></tr></thead>
                         <tbody>
                             <?php foreach ($notasExternas as $n): ?>
                             <tr>
@@ -195,6 +206,9 @@ $labelDoc = [
                                 <td class="text-sm"><?= e($n['competencia_nombre']) ?></td>
                                 <td class="text-sm"><?= e($n['periodo_nombre']) ?></td>
                                 <td class="text-center"><span class="matricula-badge matricula-badge--nuevo"><?= e($n['nota_literal']) ?></span></td>
+                                <td class="text-sm text-muted">
+                                    <?= e($n['area_mapeada_boleta'] ?: $n['area_mapeada'] ?: 'Sin mapear') ?>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -203,12 +217,13 @@ $labelDoc = [
             <?php endif; ?>
             <div class="btn-group">
                 <?php if ($puedeMatricular): ?>
-                <a href="<?= url('matriculas/' . $mid . '/notas-externas') ?>" class="btn btn--secondary btn--sm">Registrar notas externas</a>
+                <a href="<?= url('matriculas/' . $mid . '/notas-externas') ?>" class="btn btn--secondary btn--sm">
+                    <?= empty($notasExternas) ? 'Registrar notas de origen' : 'Agregar o corregir notas' ?>
+                </a>
                 <?php endif; ?>
             </div>
         </div>
     </div>
-    <?php endif; ?>
 
     <!-- Notas autorizadas para SIAGIE (dirección) — SOLO admin/RA. Informe
          aparte: notas para un alumno no evaluado por ausencia justificada,
@@ -544,11 +559,11 @@ $labelDoc = [
              bloqueadas con auditoría obligatoria (módulo aparte). -->
         <div class="mat-accion">
             <div class="mat-accion__info">
-                <span class="mat-accion__titulo">Rectificar calificaciones</span>
-                <span class="mat-accion__desc">Corrige notas de bimestres aprobados o competencias bloqueadas. Regenera el orden de mérito del bimestre.</span>
+                <span class="mat-accion__titulo">Rectificar o completar calificaciones</span>
+                <span class="mat-accion__desc">Dos operaciones en la misma pantalla. <strong>Rectificar:</strong> corrige notas de bimestres aprobados o competencias bloqueadas (regenera el orden de mérito del bimestre). <strong>Completar:</strong> registra las calificaciones que le faltan a un estudiante matriculado después del cierre — una a una, o el bimestre entero en una sola grilla.</span>
             </div>
             <div class="mat-accion__control">
-                <a href="<?= url('rectificaciones/matricula/' . $mid) ?>" class="btn btn--secondary">Rectificar notas</a>
+                <a href="<?= url('rectificaciones/matricula/' . $mid) ?>" class="btn btn--secondary">Abrir calificaciones</a>
             </div>
         </div>
 

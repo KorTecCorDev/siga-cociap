@@ -11,6 +11,8 @@ use App\Models\ExoneracionModel;
 use App\Models\NotaAutorizadaSiagieModel;
 use App\Models\DirectorEbrModel;
 use App\Models\OrdenMeritoModel;
+use App\Models\NotaExternaModel;
+use App\Models\NotificacionModel;
 use Core\Session;
 use Core\View;
 
@@ -34,6 +36,7 @@ class MatriculaController extends BaseController
     private ExoneracionModel $exoneraciones;
     private NotaAutorizadaSiagieModel $notasAut;
     private OrdenMeritoModel $ordenMerito;
+    private NotaExternaModel $notasExternasModel;
 
     /** Tipos de vínculo disponibles: valor BD => etiqueta mostrada. */
     private const TIPOS_VINCULO = [
@@ -119,6 +122,7 @@ class MatriculaController extends BaseController
         $this->exoneraciones = new ExoneracionModel();
         $this->notasAut    = new NotaAutorizadaSiagieModel();
         $this->ordenMerito = new OrdenMeritoModel();
+        $this->notasExternasModel = new NotaExternaModel();
     }
 
     /** Catálogo de tipos de vínculo (para reutilizar desde otros módulos). */
@@ -812,7 +816,7 @@ class MatriculaController extends BaseController
             'matricula'    => $matricula,
             'vinculos'     => $this->apoderados->getVinculos((int) $matricula['estudiante_id']),
             'documentos'   => $this->model->getDocumentos((int) $id),
-            'notasExternas'=> $this->model->getNotasExternas((int) $id),
+            'notasExternas'=> $this->notasExternasModel->getDeMatricula((int) $id),
             'tiposVinculo' => self::TIPOS_VINCULO,
             'retorno'      => $retorno,
             'traslado'     => $this->traslados->getUltimaPorMatricula((int) $id),
@@ -1172,52 +1176,124 @@ class MatriculaController extends BaseController
     }
 
     // ── GET /matriculas/{id}/notas-externas ──────────────────────
+    //
+    // NOTAS DEL COLEGIO DE ORIGEN. Regla del colegio (10/09/2026): NO entran en
+    // la boleta del COCIAP —la boleta lleva solo lo cursado aquí—; son
+    // INFORMATIVAS para los docentes con carga en la sección del estudiante.
+    //
+    // ⚠️ Ya NO se exige `tipo === 'nuevo'`. Ese candado dejaba la pantalla fuera
+    // del alcance de la mitad de los casos reales: de los 6 estudiantes que hoy
+    // llegaron con un bimestre cerrado por delante, 3 figuran como
+    // 'continuador'. El `tipo` no distingue este caso —y `tipo_matricula` menos
+    // aún: sus 173 filas 'traslado_entrada' tienen el bimestre completo—, así
+    // que la decisión de si corresponde registrar es de quien registra, no de
+    // un flag. Ver docs/modulos/matriculas.md.
     public function notasExternas(string $id): void
     {
         $this->requireRole(self::ROLES_MATRICULAN);
         $matricula = $this->requireMatricula((int) $id);
-        if ($matricula['tipo'] !== 'nuevo') {
-            $this->redirectWithError(url('matriculas/' . $id),
-                'Las notas externas solo aplican a traslados de entrada (tipo nuevo).');
-        }
 
         $this->view('matriculas/notas-externas', [
-            'titulo'    => 'Notas externas (traslado)',
+            'titulo'    => 'Notas del colegio de origen',
             'matricula' => $matricula,
-            'notas'     => $this->model->getNotasExternas((int) $id),
+            'notas'     => $this->notasExternasModel->getDeMatricula((int) $id),
+            'areas'     => $this->notasExternasModel->areasDeLaSeccion((int) $id),
+            'page_scripts' => ['notas-externas'],
         ]);
     }
 
     // ── POST /matriculas/{id}/notas-externas ─────────────────────
+    //
+    // Alta EN LOTE: el informe de progreso del colegio de origen llega como un
+    // documento entero, así que se captura entero y en una transacción. Las
+    // filas incompletas se omiten sin error (el formulario nace con filas de
+    // más para que no haya que ir añadiéndolas de una en una).
     public function storeNotasExternas(string $id): void
     {
         $this->requireRole(self::ROLES_MATRICULAN);
         $this->validateCsrf();
         $matricula = $this->requireMatricula((int) $id);
 
-        $area    = trim((string) $this->input('area_nombre'));
-        $comp    = trim((string) $this->input('competencia_nombre'));
-        $periodo = trim((string) $this->input('periodo_nombre'));
-        $literal = $this->input('nota_literal');
+        $volver  = url('matriculas/' . $id . '/notas-externas');
+        $colegio = trim((string) $this->input('colegio_origen')) ?: null;
+        $areas   = (array) $this->input('area_nombre', []);
+        $comps   = (array) $this->input('competencia_nombre', []);
+        $periodos = (array) $this->input('periodo_nombre', []);
+        $literales = (array) $this->input('nota_literal', []);
+        $areaIds  = (array) $this->input('area_id', []);
 
-        if ($area === '' || $comp === '' || $periodo === ''
-            || !in_array($literal, ['AD', 'A', 'B', 'C'], true)) {
-            $this->redirectWithError(url('matriculas/' . $id . '/notas-externas'),
-                'Completa área, competencia, periodo y nota literal válida.');
+        $filas = [];
+        foreach ($areas as $i => $areaNombre) {
+            $areaNombre = trim((string) $areaNombre);
+            $comp       = trim((string) ($comps[$i] ?? ''));
+            $periodo    = trim((string) ($periodos[$i] ?? ''));
+            $literal    = (string) ($literales[$i] ?? '');
+
+            // Fila entera en blanco: el formulario trae filas de sobra.
+            if ($areaNombre === '' && $comp === '' && $periodo === '' && $literal === '') {
+                continue;
+            }
+            if ($areaNombre === '' || $comp === '' || $periodo === ''
+                || !in_array($literal, NotaExternaModel::LITERALES, true)) {
+                $this->redirectWithError($volver,
+                    'Cada fila necesita área, competencia, periodo y una nota literal válida. Revisa la fila ' . ($i + 1) . '.');
+            }
+
+            $filas[] = [
+                'periodo_nombre'     => $periodo,
+                'competencia_nombre' => $comp,
+                'area_nombre'        => $areaNombre,
+                'area_id'            => (int) ($areaIds[$i] ?? 0) ?: null,
+                'nota_literal'       => $literal,
+            ];
         }
 
-        $this->model->registrarNotaExterna([
-            'matricula_id'       => (int) $id,
-            'periodo_nombre'     => $periodo,
-            'competencia_nombre' => $comp,
-            'area_nombre'        => $area,
-            'nota_literal'       => $literal,
-            'colegio_origen'     => trim((string) $this->input('colegio_origen')) ?: null,
-            'registrado_por'     => (int) (Session::user()['id'] ?? 0),
-        ]);
+        if ($filas === []) {
+            $this->redirectWithError($volver, 'No ingresaste ninguna nota.');
+        }
 
-        $this->redirectWithSuccess(url('matriculas/' . $id . '/notas-externas'),
-            'Nota externa registrada.');
+        // La transacción la owna el controlador: el modelo ya no la abre, para
+        // que el lote se pueda envolver desde fuera (PDO no anida).
+        $this->notasExternasModel->beginTransaction();
+        try {
+            $n = $this->notasExternasModel->registrarLote(
+                (int) $id, $filas, $colegio, (int) (Session::user()['id'] ?? 0)
+            );
+            $this->notasExternasModel->commit();
+        } catch (\Exception $e) {
+            $this->notasExternasModel->rollback();
+            log_error('Error al registrar notas del colegio de origen', [
+                'matricula' => (int) $id, 'filas' => count($filas),
+                'error' => $e->getMessage(),
+            ]);
+            $this->redirectWithError($volver, 'No se pudo registrar. No se guardó ninguna nota.');
+        }
+
+        // Aviso a los docentes con carga en su sección: estas notas NO salen en
+        // la boleta, así que sin la notificación el docente no sabría que
+        // existen. Fuera de la transacción del lote a propósito: que falle el
+        // aviso no puede tumbar un registro ya válido.
+        $avisados = 0;
+        try {
+            $avisados = (new NotificacionModel())->crearParaDocentesDeSeccion(
+                (int) $id,
+                NotificacionModel::TIPO_NOTAS_ORIGEN,
+                'Notas del colegio de origen: ' . $matricula['nombre_completo'],
+                'Registro Académico registró las calificaciones que ' . $matricula['nombre_completo']
+                    . ' trae de su colegio anterior. Son informativas: no aparecen en la boleta del COCIAP.',
+                'docente/notas-origen/' . (int) $id
+            );
+        } catch (\Exception $e) {
+            log_error('No se pudo notificar a los docentes de las notas de origen', [
+                'matricula' => (int) $id, 'error' => $e->getMessage(),
+            ]);
+        }
+
+        $this->redirectWithSuccess($volver,
+            $n . ($n === 1 ? ' nota registrada' : ' notas registradas') . '.'
+            . ($avisados > 0
+                ? ' Se avisó a ' . $avisados . ($avisados === 1 ? ' docente' : ' docentes') . ' de su sección.'
+                : ''));
     }
 
     // ── Notas autorizadas por dirección para SIAGIE (informe aparte) ─────

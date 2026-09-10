@@ -108,6 +108,14 @@
         color: #92400e;
         border: 1px dashed $color-warning;
     }
+
+    // Marca de competencia TRANSVERSAL en el lote: viene del flujo del tutor
+    // (carga dueña + conclusión en su propia tabla), no del registro ordinario.
+    &--transversal {
+        background: #eef2ff;
+        color: #3730a3;
+        border: 1px dashed #6366f1;
+    }
 }
 
 // ── Calificación extraordinaria (migración 042) ─────────────────────────
@@ -209,4 +217,106 @@
     &__motivo {
         color: #92400e;
     }
+}
+
+
+// ── Calificación extraordinaria EN LOTE ─────────────────────────────────
+// Grilla de /rectificaciones/extraordinaria/lote: una fila por competencia
+// del bimestre, con el literal en vivo y la conclusión que se revela sola.
+// Reutiliza .tabla-notas, .card, .rect-nota-input y .rect-chip; aquí solo lo
+// propio del lote.
+
+.rect-lote {
+
+    &__tabla {
+        th:first-child,
+        td:first-child { width: 42%; }
+    }
+
+    // Aviso por fila: la competencia no está bloqueada, así que la nota se
+    // guarda pero todavía no aparece en la boleta (la boleta solo muestra
+    // competencias bloqueadas).
+    &__aviso {
+        margin-top: $spacing-xs;
+        padding: $spacing-xs $spacing-sm;
+        border-left: 3px solid $color-warning;
+        border-radius: $border-radius-sm;
+        background: $color-warning-bg;
+        color: #92400e;
+        font-size: $font-size-sm;
+        line-height: 1.45;
+    }
+
+    // Pie de fila: explica de dónde sale una transversal sin gritar.
+    &__fila-pie {
+        margin-top: 2px;
+        font-size: $font-size-sm;
+        color: $text-muted;
+        line-height: 1.4;
+    }
+
+    // Literal en vivo. Mismo criterio de color que .rect-preview: la escala de
+    // logro NO usa la paleta de estados, para no competir con los badges.
+    &__literal {
+        display: inline-block;
+        min-width: 34px;
+        font-weight: 800;
+        font-size: $font-size-lg;
+        color: $text-muted;
+
+        &[data-literal="AD"] { color: #16a34a; }
+        &[data-literal="A"]  { color: #1e6fa8; }
+        &[data-literal="B"]  { color: #b45309; }
+        &[data-literal="C"]  { color: #dc2626; }
+    }
+
+    // Fila de conclusión descriptiva: oculta hasta que el literal la exige.
+    &__conclusion {
+        &[hidden] { display: none; }
+
+        td {
+            background: $bg-secondary;
+            padding-top: $spacing-sm;
+            padding-bottom: $spacing-md;
+        }
+    }
+
+    // Barra de acciones fija al pie: el contador y el envío siguen a la vista
+    // aunque la grilla tenga 27 filas.
+    &__barra {
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: $spacing-md;
+        padding: $spacing-md;
+        border: 1px solid $border-color;
+        border-radius: $border-radius;
+        background: $bg-white;
+        box-shadow: $shadow-md;
+    }
+
+    &__contador {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+
+        strong {
+            font-size: $font-size-xl;
+            color: $text-primary;
+        }
+    }
+}
+
+// Llamada al lote desde la lista de competencias insertables.
+.rect-lote-cta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: $spacing-sm $spacing-md;
+    margin-bottom: $spacing-md;
+
+    .rect-aviso { flex: 1 1 260px; }
 }

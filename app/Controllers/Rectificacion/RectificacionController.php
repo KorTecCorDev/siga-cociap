@@ -7,6 +7,7 @@ use App\Models\RectificacionModel;
 use App\Models\CalificacionModel;
 use App\Models\CriterioModel;
 use App\Models\OrdenMeritoModel;
+use App\Models\TransversalModel;
 use Core\Session;
 
 /**
@@ -30,6 +31,7 @@ class RectificacionController extends BaseController
     private CalificacionModel  $calModel;
     private CriterioModel      $critModel;
     private OrdenMeritoModel   $ordenMeritoModel;
+    private TransversalModel   $transModel;
 
     public function __construct()
     {
@@ -38,6 +40,7 @@ class RectificacionController extends BaseController
         $this->calModel         = new CalificacionModel();
         $this->critModel        = new CriterioModel();
         $this->ordenMeritoModel = new OrdenMeritoModel();
+        $this->transModel       = new TransversalModel();
     }
 
     /** GET /rectificaciones — buscador de estudiante + historial reciente. */
@@ -207,50 +210,10 @@ class RectificacionController extends BaseController
         // ── Escritura atómica ────────────────────────────────────
         $this->model->beginTransaction();
         try {
-            // Criterio único "Calificación extraordinaria" (nace confirmado:
-            // el promedio agregado y el blindaje anti-fantasma lo exigen).
-            $criterioId = $this->critModel->obtenerOCrearExtraordinario(
-                $cargaId, $competenciaId, $periodoId, $usuarioId
+            $this->escribirExtraordinaria(
+                $matriculaId, $cargaId, $competenciaId, $periodoId,
+                $nota, $conclusion, $motivo, $usuarioId
             );
-            if ($criterioId <= 0) {
-                throw new \RuntimeException('No se pudo obtener el criterio extraordinario.');
-            }
-
-            $this->calModel->guardarNotaCriterio($criterioId, $matriculaId, $nota);
-
-            // Promedio del alumno = su única nota viva confirmada (la extraordinaria).
-            $promedio = $this->calModel->calcularPromedio($matriculaId, $cargaId, $competenciaId, $periodoId);
-            if ($promedio === null) {
-                throw new \RuntimeException('No se pudo calcular el promedio extraordinario.');
-            }
-            $notaFinal = (int) round($promedio);
-
-            $this->calModel->guardarNotaFinal(
-                $matriculaId, $cargaId, $periodoId, $competenciaId, $notaFinal, $usuarioId
-            );
-            $this->calModel->marcarCalificacionExtraordinaria(
-                $matriculaId, $cargaId, $competenciaId, $periodoId
-            );
-            if ($conclusion !== '') {
-                $this->calModel->actualizarConclusion(
-                    $matriculaId, $cargaId, $competenciaId, $periodoId, $conclusion
-                );
-            }
-
-            $this->model->registrar([
-                'matricula_id'        => $matriculaId,
-                'carga_id'            => $cargaId,
-                'periodo_id'          => $periodoId,
-                'competencia_id'      => $competenciaId,
-                'tipo'                => 'extraordinaria',
-                'nota_anterior'       => null,
-                'nota_nueva'          => $notaFinal,
-                'conclusion_anterior' => null,
-                'conclusion_nueva'    => $conclusion !== '' ? $conclusion : null,
-                'motivo'              => $motivo,
-                'rectificado_por'     => $usuarioId,
-            ]);
-
             $this->model->commit();
         } catch (\Exception $e) {
             $this->model->rollback();
@@ -274,6 +237,319 @@ class RectificacionController extends BaseController
             . ' No cuenta para el orden de mérito.' . $extraAviso);
     }
 
+    /**
+     * PUNTO ÚNICO de escritura de UNA calificación extraordinaria: criterio
+     * único confirmado (extraordinario=1) + nota del alumno + promedio
+     * (= la nota) marcado `extraordinaria=1` + conclusión + auditoría
+     * `tipo='extraordinaria'`.
+     *
+     * ⚠️ NO abre ni cierra transacción: la owna quien llama. Así el alta
+     * INDIVIDUAL y la del LOTE comparten exactamente la misma escritura y no
+     * pueden divergir en silencio (el repo ya tuvo reglas copiadas a mano que
+     * se separaron sin sintoma). Lanza excepción si algo falla, para que el
+     * llamante haga rollback.
+     *
+     * @return int La nota final registrada en `calificaciones`.
+     */
+    private function escribirExtraordinaria(
+        int $matriculaId,
+        int $cargaId,
+        int $competenciaId,
+        int $periodoId,
+        int $nota,
+        string $conclusion,
+        string $motivo,
+        int $usuarioId,
+        bool $esTransversal = false
+    ): int {
+        // Criterio único "Calificación extraordinaria" (nace confirmado:
+        // el promedio agregado y el blindaje anti-fantasma lo exigen).
+        $criterioId = $this->critModel->obtenerOCrearExtraordinario(
+            $cargaId, $competenciaId, $periodoId, $usuarioId
+        );
+        if ($criterioId <= 0) {
+            throw new \RuntimeException('No se pudo obtener el criterio extraordinario.');
+        }
+
+        $this->calModel->guardarNotaCriterio($criterioId, $matriculaId, $nota);
+
+        // Promedio del alumno = su única nota viva confirmada (la extraordinaria).
+        $promedio = $this->calModel->calcularPromedio($matriculaId, $cargaId, $competenciaId, $periodoId);
+        if ($promedio === null) {
+            throw new \RuntimeException('No se pudo calcular el promedio extraordinario.');
+        }
+        $notaFinal = (int) round($promedio);
+
+        $this->calModel->guardarNotaFinal(
+            $matriculaId, $cargaId, $periodoId, $competenciaId, $notaFinal, $usuarioId
+        );
+        $this->calModel->marcarCalificacionExtraordinaria(
+            $matriculaId, $cargaId, $competenciaId, $periodoId
+        );
+        // ⚠️ La conclusión de una TRANSVERSAL no vive en `calificaciones`: la
+        // boleta la lee de `conclusiones_transversales`, que escribe el tutor.
+        // Guardarla en el sitio equivocado la dejaría registrada e INVISIBLE.
+        if ($conclusion !== '') {
+            if ($esTransversal) {
+                $this->transModel->guardarConclusion(
+                    $matriculaId, $competenciaId, $periodoId, $conclusion, $usuarioId
+                );
+            } else {
+                $this->calModel->actualizarConclusion(
+                    $matriculaId, $cargaId, $competenciaId, $periodoId, $conclusion
+                );
+            }
+        }
+        $this->model->registrar([
+            'matricula_id'        => $matriculaId,
+            'carga_id'            => $cargaId,
+            'periodo_id'          => $periodoId,
+            'competencia_id'      => $competenciaId,
+            'tipo'                => 'extraordinaria',
+            'nota_anterior'       => null,
+            'nota_nueva'          => $notaFinal,
+            'conclusion_anterior' => null,
+            'conclusion_nueva'    => $conclusion !== '' ? $conclusion : null,
+            'motivo'              => $motivo,
+            'rectificado_por'     => $usuarioId,
+        ]);
+
+        return $notaFinal;
+    }
+
+    /**
+     * Etiqueta legible de una fila de getCompetenciasInsertables, para los
+     * mensajes de error del lote: antepone la subárea en áreas con subáreas,
+     * igual que hacen las vistas del módulo.
+     */
+    private function etiquetaInsertable(array $c): string
+    {
+        $nombre = $c['nombre_corto'] ?: $c['competencia_nombre'];
+        if (($c['area_tipo'] ?? '') === 'con_subareas' && !empty($c['subarea_nombre'])) {
+            $nombre = $c['subarea_nombre'] . ' — ' . $nombre;
+        }
+        return ($c['nombre_boleta'] ?: $c['area_nombre'] ?: '—') . ' · ' . $nombre;
+    }
+
+    /**
+     * GET /rectificaciones/extraordinaria/lote?matricula=&periodo=
+     * Grilla de CALIFICACIÓN EXTRAORDINARIA EN LOTE: todas las competencias
+     * sin nota del alumno en UN bimestre, en una sola pantalla y con un
+     * motivo común.
+     *
+     * Nació porque el alta de una en una obligaba a 25-27 pasadas por el
+     * formulario para un alumno matriculado después del cierre. El motor es
+     * el mismo: cambia la captura, no la regla.
+     */
+    public function extraordinariaLote(): void
+    {
+        $matriculaId = (int) $this->query('matricula');
+        $periodoId   = (int) $this->query('periodo');
+
+        $info = $this->model->getMatriculaInfo($matriculaId);
+        if (!$info) {
+            $this->notFound();
+        }
+
+        // Misma fuente que la lista y que el alta individual: si una fila no
+        // sale de aqui, no es insertable y no se pinta.
+        $items = [];
+        foreach ($this->model->getCompetenciasInsertables($matriculaId) as $c) {
+            if ((int) $c['periodo_id'] === $periodoId) {
+                $items[] = $c;
+            }
+        }
+        // Las TRANSVERSALES llegan por su propia consulta (carga dueña derivada,
+        // cierre vigente exigido): para la grilla son una fila más.
+        foreach ($this->model->getTransversalesInsertables($matriculaId) as $c) {
+            if ((int) $c['periodo_id'] === $periodoId) {
+                $items[] = $c;
+            }
+        }
+        if ($items === []) {
+            $this->redirectWithError(
+                url('rectificaciones/matricula/' . $matriculaId),
+                'Ese bimestre no tiene competencias pendientes de calificación extraordinaria.'
+            );
+        }
+
+        // Agrupadas por área para que la grilla se lea como la boleta.
+        $porArea = [];
+        foreach ($items as $c) {
+            $aid = (int) $c['area_id'];
+            if (!isset($porArea[$aid])) {
+                $porArea[$aid] = [
+                    'area_id'     => $aid,
+                    'area_nombre' => $c['nombre_boleta'] ?: $c['area_nombre'] ?: '—',
+                    'items'       => [],
+                ];
+            }
+            $porArea[$aid]['items'][] = $c;
+        }
+
+        // Literales que EXIGEN conclusión descriptiva en este nivel. Sale del
+        // mismo punto único que valida el POST (conclusionObligatoria), para
+        // que la grilla no reimplemente la regla: primaria B y C, secundaria
+        // solo C. El JS revela el campo usando esta lista.
+        $literalesConclusion = [];
+        foreach (['AD', 'A', 'B', 'C'] as $lit) {
+            if (CalificacionModel::conclusionObligatoria($lit, (string) $info['nivel_codigo'])) {
+                $literalesConclusion[] = $lit;
+            }
+        }
+
+        $this->view('rectificaciones/extraordinaria-lote', [
+            'titulo'       => 'Calificación extraordinaria en lote',
+            'info'         => $info,
+            'periodo'      => [
+                'id'     => $periodoId,
+                'nombre' => $items[0]['periodo_nombre'],
+                'estado' => $items[0]['periodo_estado'],
+            ],
+            'porArea'      => array_values($porArea),
+            'total'        => count($items),
+            'literalesConclusion' => $literalesConclusion,
+            'page_scripts' => ['rectificaciones-lote'],
+        ]);
+    }
+
+    /**
+     * POST /rectificaciones/extraordinaria/lote/guardar
+     * Alta en LOTE. Valida TODAS las filas antes de escribir ninguna y
+     * escribe el lote entero en UNA transacción: o entra completo o no entra
+     * nada. Las filas sin nota se omiten sin error (no toda competencia del
+     * bimestre tiene por qué convalidarse).
+     *
+     * NO regenera el snapshot del mérito: el flag `extraordinaria` excluye
+     * estas notas del ranking, así que el orden vigente no cambia.
+     */
+    public function guardarExtraordinariaLote(): void
+    {
+        $this->validateCsrf();
+
+        $matriculaId  = (int) $this->input('matricula_id');
+        $periodoId    = (int) $this->input('periodo_id');
+        $motivo       = trim((string) $this->input('motivo', ''));
+        $notas        = (array) $this->input('nota', []);
+        $conclusiones = (array) $this->input('conclusion', []);
+        $usuarioId    = (int) (Session::user()['id'] ?? 0);
+
+        $volverForm  = url('rectificaciones/extraordinaria/lote?matricula=' . $matriculaId
+            . '&periodo=' . $periodoId);
+        $volverLista = url('rectificaciones/matricula/' . $matriculaId);
+
+        $info = $this->model->getMatriculaInfo($matriculaId);
+        if (!$info) {
+            $this->notFound();
+        }
+        if ($motivo === '') {
+            $this->redirectWithError($volverForm, 'El motivo de la calificación extraordinaria es obligatorio.');
+        }
+
+        // Metadatos del bimestre indexados por la misma clave "carga-competencia"
+        // que emiten los inputs de la grilla.
+        $meta = [];
+        foreach ($this->model->getCompetenciasInsertables($matriculaId) as $c) {
+            if ((int) $c['periodo_id'] === $periodoId) {
+                $meta[(int) $c['carga_id'] . '-' . (int) $c['competencia_id']] = $c;
+            }
+        }
+        foreach ($this->model->getTransversalesInsertables($matriculaId) as $c) {
+            if ((int) $c['periodo_id'] === $periodoId) {
+                $meta[(int) $c['carga_id'] . '-' . (int) $c['competencia_id']] = $c;
+            }
+        }
+
+        $nivel = (string) $info['nivel_codigo'];
+        $filas = [];
+
+        // ── Validación COMPLETA antes de escribir nada ───────────
+        foreach ($notas as $clave => $notaRaw) {
+            $clave   = (string) $clave;
+            $notaRaw = trim((string) $notaRaw);
+            if ($notaRaw === '') {
+                continue;   // fila vacia: no se registra, y no es un error
+            }
+            if (!isset($meta[$clave])) {
+                $this->redirectWithError($volverForm,
+                    'Una de las competencias enviadas no pertenece a este bimestre.');
+            }
+            $etiqueta = $this->etiquetaInsertable($meta[$clave]);
+            if (!is_numeric($notaRaw)) {
+                $this->redirectWithError($volverForm,
+                    'La nota de ' . $etiqueta . ' no es un número.');
+            }
+
+            $partes        = explode('-', $clave);
+            $cargaId       = (int) $partes[0];
+            $competenciaId = (int) $partes[1];
+            $nota          = max(0, min(20, (int) $notaRaw));
+
+            // Invariante de seguridad: re-chequeo del estado insertable POR
+            // FILA. Ir en lote no lo salta. Las TRANSVERSALES tienen su propio
+            // candado (carga dueña + cierre vigente), así que van por él.
+            $esTransversal = !empty($meta[$clave]['es_transversal']);
+            $admitida = $esTransversal
+                ? $this->model->esInsertableTransversal($matriculaId, $cargaId, $competenciaId, $periodoId)
+                : $this->model->esInsertable($matriculaId, $cargaId, $competenciaId, $periodoId);
+            if (!$admitida) {
+                $this->redirectWithError($volverLista,
+                    $etiqueta . ' ya no admite calificación extraordinaria (el alumno ya tiene nota, está exonerado, o la competencia volvió al flujo del docente).');
+            }
+
+            $conclusion = trim((string) ($conclusiones[$clave] ?? ''));
+            $literal    = nota_a_literal($nota);
+            if (CalificacionModel::conclusionObligatoria($literal, $nivel) && $conclusion === '') {
+                $this->redirectWithError($volverForm,
+                    'La conclusión descriptiva es obligatoria para el literal ' . $literal
+                    . ' en este nivel: ' . $etiqueta . '.');
+            }
+
+            $filas[] = [
+                'carga_id'       => $cargaId,
+                'competencia_id' => $competenciaId,
+                'nota'           => $nota,
+                'conclusion'     => $conclusion,
+                'transversal'    => $esTransversal,
+            ];
+        }
+
+        if ($filas === []) {
+            $this->redirectWithError($volverForm, 'No ingresaste ninguna nota.');
+        }
+
+        // ── Escritura atómica del lote completo ──────────────────
+        $this->model->beginTransaction();
+        try {
+            foreach ($filas as $f) {
+                $this->escribirExtraordinaria(
+                    $matriculaId, $f['carga_id'], $f['competencia_id'], $periodoId,
+                    $f['nota'], $f['conclusion'], $motivo, $usuarioId, $f['transversal']
+                );
+            }
+            $this->model->commit();
+        } catch (\Exception $e) {
+            $this->model->rollback();
+            log_error('Error al registrar el lote de calificaciones extraordinarias', [
+                'matricula' => $matriculaId, 'periodo' => $periodoId,
+                'filas' => count($filas), 'error' => $e->getMessage(),
+            ]);
+            $this->redirectWithError($volverForm,
+                'No se pudo registrar el lote. No se guardó ninguna nota.');
+        }
+
+        $avisoBoleta = $this->calModel->queryOne(
+            "SELECT estado FROM periodos WHERE id = ?", [$periodoId]
+        );
+        $extraAviso = ($avisoBoleta && $avisoBoleta['estado'] === 'cerrado')
+            ? ' Ya son visibles en la boleta de la familia (bimestre cerrado).'
+            : '';
+
+        $n = count($filas);
+        $this->redirectWithSuccess($volverLista,
+            $n . ($n === 1 ? ' calificación extraordinaria registrada' : ' calificaciones extraordinarias registradas')
+            . '. No cuentan para el orden de mérito.' . $extraAviso);
+    }
     /**
      * GET /rectificaciones/editar?matricula=&carga=&competencia=&periodo=
      * Formulario de rectificación por criterio de UNA competencia.

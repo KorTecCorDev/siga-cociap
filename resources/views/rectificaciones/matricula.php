@@ -138,6 +138,16 @@ $labelComp = static function (array $c): string {
                         <span class="rect-chip rect-chip--cerrado">Cerrado</span>
                     <?php endif; ?>
                 </p>
+                <div class="rect-lote-cta">
+                    <a href="<?= url('rectificaciones/extraordinaria/lote?matricula=' . (int) $info['matricula_id'] . '&periodo=' . (int) $per['periodo_id']) ?>"
+                       class="btn btn--primary btn--sm">
+                        Calificar todo el bimestre (<?= count($per['items']) ?>)
+                    </a>
+                    <span class="rect-aviso">
+                        Una sola pantalla con las <?= count($per['items']) ?> competencias y un
+                        motivo común. Las que dejes vacías no se registran.
+                    </span>
+                </div>
                 <div class="tabla-notas-wrapper">
                     <table class="tabla-notas">
                         <thead>
