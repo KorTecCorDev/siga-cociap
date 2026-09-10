@@ -123,6 +123,72 @@ lo lee nadie todavía**: hoy es documental.
 🔴 **Comprobar en producción lo que no pudo medirse en local**: vista previa de impresión
 (Ctrl+P), el PDF generado desde un móvil frente al de escritorio, y —por el cambio en la
 raíz compartida— una boleta imprimible, una constancia y el reporte de mérito en móvil.
+## 🟡 DIRECCIÓN SOLO VE BIMESTRES CERRADOS (08/09/2026, 2.º del día)
+
+En `dev`, **sin desplegar**. **Sin migración.** Detalle completo en
+`docs/modulos/usuarios-direccion.md` § «Dirección solo ve bimestres CERRADOS».
+
+El plan estaba aprobado desde esa misma mañana y se construyó el mismo día. Extiende al
+**bimestre entero** la «regla del dato oficial»: un director podía abrir `/admin/cuadros`
+sobre el bimestre **activo**, a medio llenar, y ver porcentajes, rankings y una línea de
+tendencia con la misma pinta que los del bimestre cerrado. Y la serie de evolución lo
+incluía: `$bimestresComparables` solo descarta un bimestre si **algún nivel tiene CERO**,
+así que en cuanto los dos tienen algo el último punto cae en picado.
+
+### Qué entró
+
+- **`helpers.php`**: `solo_bimestres_cerrados()`, `periodos_cerrados()` y
+  `ultimo_periodo_cerrado()`, junto a `ROLES_DIRECCION`. 🔴 **Primer helper de punto único
+  del archivo que lee la SESIÓN** — los seis anteriores emiten fragmentos SQL. Es una regla
+  de **audiencia**, no de datos, y el docblock lo dice.
+- **`Admin\CuadrosEstadisticosController`**: `periodosVisibles()`, `elegirPeriodo()` y
+  `serieIds()`. `index()` cae al último cerrado **con banner**; `imprimir()` responde
+  **404** (el A4 va firmado con el sello del Director EBR). Antes `?periodo_id=3` funcionaba
+  en las dos entradas **sin validar nada**.
+- **`_chart-data.php`**: corte de G2, G7 y G11 **por ids** (solo G2 expone `estado`), en el
+  **eje de las series** y nunca en la fuente (G6 la comparte con G7 y desaparecería). Las
+  tres notas de lectura llevan coletilla condicional.
+- **`admin/cuadros/index.php`**: banner `.alert alert--info` y estado vacío explicativo.
+- `admin` y `registro_academico` **no cambian**: `serieIds` es `null` para ellos y la lista
+  sigue trayendo el activo. Esa es la mitad que se rompe en silencio, y tiene sus asertos.
+
+### Correcciones al plan que dejó por escrito
+
+- `verif_direccion_superficies.php:443` **no era un aserto** (es una clave del array que se
+  renderiza); el que exige la celda del bimestre activo en conducta es **`:1062-1078`**.
+- `getPeriodos()` **no lo comparte `/consulta-notas`**: esa pantalla tiene su propio SQL
+  inline. Lo comparte `/admin/control`.
+- Las copias de la comprobación «cerrado» son **16-17 en PHP con 7 redacciones**, no 5.
+
+### Medido
+
+**35 de 36 verificadores en verde**, y los 30 asertos del bloque nuevo también. El único
+rojo es `verif_direccion_superficies.php` con 5 fallos **preexistentes**, reproducidos uno
+a uno en una copia limpia de `HEAD` (`git archive`) contra la misma base.
+
+### 🔴 Pendiente que este trabajo destapó (preexistente, sin arreglar)
+
+**Con el bimestre a la vista sin calificaciones, G2 se calcula pero no tiene dónde
+dibujarse.** `admin/cuadros/index.php:146` cambia la sección entera de calificaciones por
+un estado vacío, y el `<div id="chart-evolucion">` vive dentro; pero `$chartData['evolucion']`
+sí existe, porque sale de los bimestres anteriores. Arrastra su tabla de valores y su nota
+de lectura, en pantalla y en papel. **Para Dirección desaparece con este cambio** (ya no ve
+el bimestre abierto); para `admin` y RA sigue. Arreglarlo es decidir si la evolución ANUAL
+debe vivir dentro de la sección del BIMESTRE. Detalle en `docs/modulos/usuarios-direccion.md`.
+
+⚠️ **La migración 056 lo destapó, no lo causó**: sin ella el verificador abortaba antes del
+render y estos 5 asertos no llegaban a correr nunca.
+
+### Pendiente
+
+- 🔴 **Sin probar en navegador**, y sería la primera vez que una superficie de Dirección se
+  abre **con sesión de director** (id 35 `director_ebr`, id 41 `director_academico`).
+- ⚠️ **La BD del escritorio no es la de la laptop**: III Bimestre con **0** calificaciones
+  aquí frente a 222 allí, así que el «desplome falso» no es observable en este equipo; por
+  eso el corte de las series se mide con fuente sintética.
+- ✅ **Migración 056 aplicada en la BD local del escritorio** el 08/09/2026 (idempotente;
+  10 criterios de conducta, 10 con código). No toca producción.
+
 ## 🟡 CUADROS — responsive del A4 imprimible (08/09/2026)
 
 En `dev`, **sin desplegar**. Sin migración. Commits `53f0faa` (cuadros) y `3a1de82`
