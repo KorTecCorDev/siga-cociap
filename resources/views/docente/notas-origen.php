@@ -21,7 +21,10 @@
 <div class="page-header">
     <a href="<?= url('notificaciones') ?>" class="btn btn--secondary btn--sm">← Notificaciones</a>
     <div>
-        <h1 class="page-title">Notas del colegio de origen</h1>
+        <h1 class="page-title">
+            Notas del colegio de origen
+            <?php $proc = PROCEDENCIA_ORIGEN; $procIcono = true; require VIEW_PATH . '/shared/_procedencia-chip.php'; ?>
+        </h1>
         <p class="page-subtitle">
             <?= e($estudiante['nombre_completo']) ?> ·
             <?= e($estudiante['grado_nombre']) ?> "<?= e($estudiante['seccion_nombre']) ?>"

@@ -216,6 +216,68 @@ const NOTA_MIN_B  = 11;
 const ROLES_DIRECCION = ['director_general', 'director_ebr', 'director_academico'];
 
 /**
+ * PROCEDENCIA de una nota que NO salió del registro ordinario del docente.
+ *
+ * Conviven TRES mecanismos y hasta el 10/09/2026 solo uno llevaba marca, así
+ * que se confundían entre sí — sobre todo en la ficha de matrícula, donde sus
+ * cards son vecinas. Lo que de verdad los separa no es cómo se registran, sino
+ * **A DÓNDE VA LA NOTA**, y eso es lo que dice cada `destino`.
+ *
+ * ⚠️ LA CATEGORÍA ES DERIVABLE, NO SE GUARDA. Cada mecanismo vive en su propia
+ * tabla (`calificaciones.extraordinaria=1`, `notas_externas`,
+ * `notas_autorizadas_siagie`), así que saber de cuál viene una nota no necesita
+ * ninguna columna. Si algún día alguien propone una columna `categoria`,
+ * es señal de que dos mecanismos se están mezclando en una misma tabla.
+ *
+ * ⚠️ EL COLOR NO DISTINGUE: distinguen el NOMBRE y el ICONO. Los tres chips
+ * comparten forma (el borde punteado, que ya significa "esto no salió de tu
+ * registro") y solo la extraordinaria conserva el ámbar, porque es la única que
+ * llega a la boleta y por tanto pide atención. Es lo que exige la regla de
+ * wayfinding (`docs/modulos/ui.md`): rojo y ámbar son de ESTADO, y los cuatro
+ * colores de concepto (azul, teal, púrpura, naranja) ya tienen dueño.
+ *
+ * ⚠️ Los tres ICONOS deben ser distintos entre sí y no coincidir con los de las
+ * cards del dashboard — misma regla del glifo fijo por concepto. Lo comprueba
+ * `verif_notas_origen.php`.
+ */
+const PROCEDENCIA_EXTRAORDINARIA = 'extraordinaria';
+const PROCEDENCIA_ORIGEN         = 'origen';
+const PROCEDENCIA_SIAGIE         = 'siagie';
+
+const PROCEDENCIAS_NOTA = [
+    PROCEDENCIA_EXTRAORDINARIA => [
+        'corto'   => 'EXTRAORDINARIA · RA',
+        'nombre'  => 'Calificación extraordinaria',
+        'icono'   => 'edit-pen',
+        'destino' => 'Va a la boleta y al SIAGIE. No cuenta para el orden de mérito.',
+        'ambar'   => true,
+    ],
+    PROCEDENCIA_ORIGEN => [
+        'corto'   => 'COLEGIO DE ORIGEN',
+        'nombre'  => 'Notas del colegio de origen',
+        'icono'   => 'social-city',
+        'destino' => 'Informativa: solo la ve el docente. NO aparece en la boleta.',
+        'ambar'   => false,
+    ],
+    PROCEDENCIA_SIAGIE => [
+        'corto'   => 'SIAGIE · DIRECCIÓN',
+        'nombre'  => 'Autorizada para SIAGIE',
+        'icono'   => 'doc-add',
+        'destino' => 'Solo para el acta SIAGIE. No toca la boleta ni el orden de mérito.',
+        'ambar'   => false,
+    ],
+];
+
+/**
+ * Datos de una procedencia. Devuelve null si la clave no existe, para que una
+ * vista pueda decidir no pintar nada en vez de reventar.
+ */
+function procedencia_nota(string $clave): ?array
+{
+    return PROCEDENCIAS_NOTA[$clave] ?? null;
+}
+
+/**
  * ¿La audiencia que mira ahora mismo solo puede ver bimestres CERRADOS?
  * PUNTO ÚNICO DE VERDAD de esa pregunta.
  *

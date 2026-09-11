@@ -56,6 +56,18 @@
                 <span class="notif__tipo notif__tipo--<?= e($tipo) ?>">
                     <?= e($n['origen'] === 'comunicado' ? 'Comunicado' : 'Aviso del sistema') ?>
                 </span>
+                <?php
+                // Chip de PROCEDENCIA: cuando el aviso habla de notas, dice de
+                // cual de los tres mecanismos vienen. Un comunicado no tiene
+                // procedencia, y el partial no pinta nada si la clave no existe.
+                $procDeTipo = [
+                    App\Models\NotificacionModel::TIPO_NOTAS_ORIGEN => PROCEDENCIA_ORIGEN,
+                ];
+                if (isset($procDeTipo[$tipo])):
+                    $proc = $procDeTipo[$tipo];
+                    require VIEW_PATH . '/shared/_procedencia-chip.php';
+                endif;
+                ?>
                 <?php if ($sinLeer): ?>
                     <span class="notif__punto" aria-label="Sin leer" title="Sin leer"></span>
                 <?php endif; ?>

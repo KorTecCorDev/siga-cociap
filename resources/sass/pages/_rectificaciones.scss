@@ -119,30 +119,18 @@
 }
 
 // ── Calificación extraordinaria (migración 042) ─────────────────────────
-// Marca visual compartida por el panel del docente, el resumen, el historial
-// y la consulta de notas: la nota NO salió del registro ordinario del docente,
-// la ingresó RA con autorización. Ámbar = estado que pide atención (regla de
-// wayfinding: rojo/ámbar solo para estados).
-
-.extra-badge {
-    display: inline-block;
-    padding: 1px 6px;
-    border-radius: $border-radius-sm;
-    border: 1px dashed $color-warning;
-    background: $color-warning-bg;
-    color: #92400e;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    vertical-align: middle;
-}
+// ⚠️ EL CHIP YA NO SE DEFINE AQUÍ. Vive en `components/_procedencia.scss`
+// (`.proc-chip`, con `.extra-badge` como alias), porque la extraordinaria es
+// UNA de las TRES procedencias posibles de una nota —junto al colegio de
+// origen y a las autorizadas para SIAGIE— y las tres tienen que verse como
+// una familia. Tenerlo definido en dos sitios era pedir que divergieran.
+// Aquí queda solo lo propio de las grillas de rectificación.
 
 // Cabecera de columna del criterio extraordinario en las grillas read-only.
 .col-criterio--extraordinario {
     background: $color-warning-bg;
 
+    .proc-chip,
     .extra-badge {
         display: block;
         margin: 0 auto 2px;

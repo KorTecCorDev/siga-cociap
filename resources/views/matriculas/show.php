@@ -186,12 +186,16 @@ $labelDoc = [
          registra decide si corresponde; el sistema no lo deduce de un flag. -->
     <div class="card">
         <div class="card__body">
-            <p class="form-section-title">Notas del colegio de origen</p>
+            <p class="form-section-title">
+                Notas del colegio de origen
+                <?php $proc = PROCEDENCIA_ORIGEN; $procIcono = true; require VIEW_PATH . '/shared/_procedencia-chip.php'; ?>
+            </p>
+            <?php // El "a donde va" sale del punto unico (PROCEDENCIAS_NOTA): es
+                  // lo que de verdad separa a las tres cards vecinas de esta ficha. ?>
+            <p class="proc-destino"><?= e(procedencia_nota(PROCEDENCIA_ORIGEN)['destino']) ?></p>
             <p class="text-muted text-sm">
                 Calificaciones que el estudiante trae de su colegio anterior.
-                Son <strong>informativas</strong>: no aparecen en la boleta del COCIAP
-                y no cuentan para el orden de mérito. Al registrarlas se avisa a los
-                docentes con carga en su sección.
+                Al registrarlas se avisa a los docentes con carga en su sección.
             </p>
             <?php if (empty($notasExternas)): ?>
                 <div class="empty-state"><p>Sin notas del colegio de origen.</p></div>
@@ -231,10 +235,14 @@ $labelDoc = [
     <?php if ($puedeGestionar): ?>
     <div class="card">
         <div class="card__body">
-            <p class="form-section-title">Notas autorizadas para SIAGIE (dirección)</p>
+            <p class="form-section-title">
+                Notas autorizadas para SIAGIE (dirección)
+                <?php $proc = PROCEDENCIA_SIAGIE; $procIcono = true; require VIEW_PATH . '/shared/_procedencia-chip.php'; ?>
+            </p>
+            <p class="proc-destino"><?= e(procedencia_nota(PROCEDENCIA_SIAGIE)['destino']) ?></p>
             <p class="text-muted text-sm">
-                Notas que dirección autoriza para un alumno <strong>no evaluado</strong> (con un motivo de omisión registrado).
-                Válidas <strong>solo para el SIAGIE</strong>: no afectan la boleta ni el orden de mérito.
+                Notas que dirección autoriza para un alumno <strong>no evaluado</strong>
+                (con un motivo de omisión registrado).
             </p>
             <?php if (empty($notasAutSiagie)): ?>
                 <div class="empty-state"><p>Sin notas autorizadas registradas.</p></div>
@@ -559,7 +567,11 @@ $labelDoc = [
              bloqueadas con auditoría obligatoria (módulo aparte). -->
         <div class="mat-accion">
             <div class="mat-accion__info">
-                <span class="mat-accion__titulo">Rectificar o completar calificaciones</span>
+                <span class="mat-accion__titulo">
+                    Rectificar o completar calificaciones
+                    <?php $proc = PROCEDENCIA_EXTRAORDINARIA; $procIcono = true; require VIEW_PATH . '/shared/_procedencia-chip.php'; ?>
+                </span>
+                <span class="proc-destino"><?= e(procedencia_nota(PROCEDENCIA_EXTRAORDINARIA)['destino']) ?></span>
                 <span class="mat-accion__desc">Dos operaciones en la misma pantalla. <strong>Rectificar:</strong> corrige notas de bimestres aprobados o competencias bloqueadas (regenera el orden de mérito del bimestre). <strong>Completar:</strong> registra las calificaciones que le faltan a un estudiante matriculado después del cierre — una a una, o el bimestre entero en una sola grilla.</span>
             </div>
             <div class="mat-accion__control">

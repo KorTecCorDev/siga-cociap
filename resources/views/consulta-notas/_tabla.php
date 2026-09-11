@@ -47,7 +47,7 @@ $extraordinarias = $extraordinarias ?? [];
                         ?>
                         <th class="col-criterio text-center<?= $esExtra ? ' col-criterio--extraordinario' : '' ?>" title="<?= e($tooltipCriterio) ?>">
                             <?php if ($esExtra): ?>
-                                <span class="extra-badge">EXTRAORDINARIA · RA</span>
+                                <?php $proc = PROCEDENCIA_EXTRAORDINARIA; require VIEW_PATH . '/shared/_procedencia-chip.php'; ?>
                             <?php endif; ?>
                             <span class="criterio-header">
                                 <?= e(mb_strlen($criterio['nombre']) > 15

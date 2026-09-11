@@ -265,7 +265,7 @@
                                             <h4 class="criterio-bloque__nombre">
                                                 <?= e($criterio['nombre']) ?>
                                                 <?php if ($esExtraCrit): ?>
-                                                    <span class="extra-badge">EXTRAORDINARIA · RA</span>
+                                                    <?php $proc = PROCEDENCIA_EXTRAORDINARIA; require VIEW_PATH . '/shared/_procedencia-chip.php'; ?>
                                                 <?php endif; ?>
                                             </h4>
                                             <?php if ($esExtraCrit): ?>
