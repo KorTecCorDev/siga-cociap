@@ -7,6 +7,95 @@
 
 
 
+## 🆕 IMPORTAR LA CURRÍCULA + CATEGORÍAS DE PROCEDENCIA — EN `dev` (10/09/2026)
+
+Segundo bloque del mismo día, sobre el módulo de notas del colegio de origen. **Añade la
+migración `059`**, que se suma a la cola de la `057` y la `058`: **ninguna de las tres está
+en producción**.
+
+### Importar la currícula
+
+Transcribir a mano el informe del colegio anterior eran **27-29 competencias POR BIMESTRE**.
+Ahora se traen las del plan de su sección, eligiendo bimestres y áreas. Se apoya en
+`estructuraCompetenciasSeccion()`, que ya existía: no se escribió consulta nueva.
+
+- **Sin subáreas** (son organización interna del COCIAP) y con el **`nombre_completo`** de la
+  competencia, que es la redacción oficial del MINEDU.
+- **Importar no escribe nada**: pre-rellena las filas del formulario de siempre, que siguen
+  editables. **El camino manual para una currícula extranjera queda intacto.**
+- `areasDeLaSeccion()` pasa a **derivar** de `curriculaParaImportar()`: si el select ofreciera
+  otras áreas que el importador, el mapeo se perdería al guardar.
+
+### 🔴 Dos cosas que había que arreglar sí o sí
+
+**1. La UNIQUE perdía filas en silencio (migración `059`).** El COCIAP evalúa la misma
+competencia del MINEDU en dos cursos —«Resuelve problemas de cantidad» en Matemática y en
+Taller de Razonamiento Matemático—, así que con
+`(matricula_id, periodo_nombre, competencia_nombre)` y `ON DUPLICATE KEY UPDATE` importar 29
+guardaba 27. Afectaba a **4 de los 6 estudiantes reales**. ⚠️ **Ya pasaba al teclear a mano**:
+el importador solo lo volvía masivo. Con `area_nombre` en la clave: **0 colisiones**. La tabla
+estaba vacía en los dos entornos.
+
+**2. El guardado rechazaba las filas sin nota.** Se omitía solo la fila con los CUATRO campos
+vacíos, así que una fila importada (periodo, área y competencia llenos, nota vacía) hacía
+**fallar el guardado en la fila 21 de 58** — el caso normal, porque el informe de origen no
+trae todas las competencias. Ahora **sin nota se omite**, y las omitidas **se cuentan en el
+mensaje** para que no sea silencioso.
+
+### Categorías de procedencia
+
+Los tres mecanismos que producen notas fuera del registro del docente —extraordinaria,
+colegio de origen y autorizadas para SIAGIE— llevan **chip de categoría** desde un punto
+único (`PROCEDENCIAS_NOTA` en `helpers.php`), en **7 vistas**.
+
+- **La categoría es DERIVABLE**: cada mecanismo vive en su propia tabla. Sin migración y sin
+  tocar las extraordinarias existentes.
+- 🔴 **El color NO distingue: distinguen el nombre y el icono.** Los tres comparten el borde
+  punteado y **solo la extraordinaria conserva el ámbar**, la única que llega a la boleta. Es
+  lo que exige el sistema de wayfinding (rojo/ámbar son de estado; los 4 colores de concepto
+  ya tienen dueño). **No añadir colores a esta familia.**
+- `.extra-badge` **se conserva como alias y su aspecto no cambió**: las 3 vistas que ya lo
+  usaban ahora sacan el texto del punto único. Su definición duplicada en
+  `_rectificaciones.scss` se retiró.
+
+### Verificación
+
+`verif_notas_origen.php` sube a **33 comprobaciones**, con dos bloques nuevos: el **7c**
+prueba la `059` (importar N competencias guarda N filas y la competencia compartida por dos
+áreas conserva las dos) y el **7d** el punto único de categorías (iconos distintos, SVG
+existentes, un solo ámbar). Los otros dos verificadores siguen en verde.
+
+Render con datos reales: sin importar salen **6 filas**; importando 2 bimestres de la 694,
+**58 filas con su área ya preseleccionada** más 3 en blanco.
+
+🔴 **Sin verificar (necesita sesión):** el envío real del formulario GET de importación, el
+JS de marcar/desmarcar áreas, y cómo se lee el chip en la grilla del docente.
+
+### Correcciones de la revisión previa al despliegue (11/09/2026)
+
+Salieron de revisar el propio diff antes de commitear. Ninguna cambia el comportamiento
+esperado del módulo; las tres primeras están medidas.
+
+1. **La currícula se leía dos veces por carga de pantalla** (la card y `areasDeLaSeccion()`,
+   que deriva de ella). Memorizada por matrícula en `NotaExternaModel`. Medido con
+   `SHOW SESSION STATUS LIKE 'Questions'`: 2 consultas → **0** en la segunda lectura, y otra
+   matrícula sigue leyendo las suyas.
+2. **Dos consultas SQL idénticas de bimestres**, escritas a mano en el controlador, pasan a
+   **una** llamada a `AnioAcademicoModel::getPeriodos()`, que ya existía. Quedan otras dos
+   inline en esa clase, **preexistentes** (notas autorizadas SIAGIE), sin tocar.
+3. **Importar sin marcar bimestre o sin áreas ya no es un silencio**: guarda en servidor
+   (flash `warning` + redirect) **y** en cliente. Las dos ramas probadas con
+   `render_guarda.php`; la rama que deja pasar sigue rindiendo sus filas.
+4. Limpiezas del propio diff: clave muerta `area_tipo`, el `unset` del partial
+   `_procedencia-chip.php` antes del `return` temprano, y el salto de línea final del JS.
+
+🔴 **Y un defecto PREEXISTENTE que la revisión destapó, ya arreglado**: cuatro sitios
+llamaban `$this->view('shared/404')` —lo que CLAUDE.md prohíbe por su nombre— en
+`MatriculaController`, `RetornoGradoController` y `TrasladoController` (dos). `shared/404.php`
+es una página HTML completa, así que el layout la anidaba **dentro de otra página**. Ahora
+usan `notFound()`, que es el punto único. **Quedan 0 usos** de la forma prohibida en `app/`.
+Va en commit aparte porque no nació en este trabajo.
+
 ## 🆕 REGISTRO DE CALIFICACIONES DE BIMESTRES CERRADOS — EN `dev` (10/09/2026)
 
 **Lleva DOS migraciones (`057` y `058`), aplicadas SOLO EN LOCAL.** Hay que aplicarlas a

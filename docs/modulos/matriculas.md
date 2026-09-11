@@ -717,3 +717,93 @@ hace rollback—. Mismo criterio que `escribirExtraordinaria`.
 registrar notas de origen **no altera ni una celda de la boleta** (29 comparadas) ni el
 orden de mérito (47 filas). **Si algún día una de estas notas aparece en una boleta, ese
 script tiene que ponerse rojo.**
+
+### Importar la currícula del COCIAP (10/09/2026)
+
+> Migración **`059`**. `NotaExternaModel::curriculaParaImportar()`.
+> Ruta: la misma, con `?importar=1&periodos[]=&areas[]=`.
+
+Transcribir a mano el informe del colegio anterior son **27-29 competencias POR BIMESTRE**, y
+quien llega en el III trae dos. Como la mayoría de colegios peruanos sigue el **Currículo
+Nacional del MINEDU** —el mismo que usa el COCIAP—, se traen las nuestras ya escritas y RA
+solo pone las notas.
+
+**Se apoya en `CalificacionModel::estructuraCompetenciasSeccion()`**, que ya resolvía las
+áreas con subáreas y añadía las transversales. No se escribió consulta nueva.
+
+- **Sin subáreas** (Aritmética, Plan Lector, Química…): son organización **interna** del
+  COCIAP y el colegio de origen pudo repartirse de otra forma. Se importa el **área** y la
+  **competencia**; atribuirle una división que no usa sería inventarle datos.
+- **`nombre_completo`**, la redacción oficial del currículo nacional: es la que más
+  probablemente coincida con el informe que trae el estudiante.
+- **Varios bimestres a la vez** y **elección de áreas**, porque no todo colegio dicta lo mismo.
+- **Importar NO escribe nada**: solo **pre-rellena las filas del formulario de siempre**, que
+  siguen editables. Guardar sigue siendo el POST. Por eso el **camino manual sobrevive
+  intacto** — es literalmente el mismo formulario, en blanco — y sirve para una currícula
+  extranjera.
+- Lo **ya registrado se excluye**: importar dos veces no duplica filas en pantalla.
+
+⚠️ **`areasDeLaSeccion()` ahora deriva de `curriculaParaImportar()`**, no de una consulta
+propia. Si el `<select>` de mapeo ofreciera un juego de áreas distinto del que importa el
+importador, una fila importada apuntaría a un área que el select no tiene y **el mapeo —y con
+él el resaltado al docente— se perdería al guardar**. Efecto colateral querido: el select ya
+incluye las transversales, que la consulta por cargas no traía.
+
+#### 🔴 La migración `059`: el área entra en la clave única
+
+La UNIQUE era `(matricula_id, periodo_nombre, competencia_nombre)` y el alta usa
+`ON DUPLICATE KEY UPDATE`. El COCIAP **evalúa la misma competencia del MINEDU en dos cursos**:
+
+```
+"Resuelve problemas de cantidad."         Matemática + Taller de Razonamiento Matemático
+"Resuelve problemas de regularidad…"      Matemática + Taller de Pre-Cálculo
+```
+
+Con la clave vieja, la segunda fila **pisaba a la primera en silencio**: importar 29
+guardaba 27. Afectaba a **4 de los 6 estudiantes reales** (2-3 colisiones cada uno; primaria
+0). ⚠️ **No lo trajo el importador: ya pasaba al teclear a mano.** Añadir `area_nombre` a la
+clave deja **0 colisiones**; la tabla estaba vacía en los dos entornos, así que no arrastró
+datos.
+
+#### 🔴 El criterio de «fila vacía» cambió, y no era opcional
+
+Antes se omitía la fila con los **cuatro** campos vacíos. Una fila importada llega con
+periodo, área y competencia llenos y **la nota vacía**, así que importar 58 y llenar 20
+**reventaba el guardado en la fila 21** — y es el caso NORMAL: el informe de origen no trae
+todas las competencias del plan.
+
+Ahora: **sin `nota_literal`, la fila se omite**; con nota, los otros tres son obligatorios.
+Las omitidas **se cuentan y se dicen** en el mensaje de éxito, porque una omisión silenciosa
+parecería pérdida de datos.
+
+#### Importar sin elegir nada AVISA (11/09/2026)
+
+Pulsar «Traer competencias» sin marcar bimestre —o sin ninguna área— recargaba la pantalla
+**idéntica**, y se leía como un botón roto. Ahora hay guarda en las **dos capas**, como el
+resto del proyecto:
+
+- **Servidor** (`MatriculaController::notasExternas`): `Session::flash('warning', …)` y
+  `redirect()` a la misma ruta. Cubre los dos casos con mensajes distintos, y es la que
+  manda: el POST de guardado nunca dependió del JS y esto tampoco.
+- **Cliente** (`notas-externas.js`): no deja enviar el formulario y pinta un `.form-error`
+  junto al botón. ⚠️ El mensaje se **crea desde el JS**, no se deja oculto en la vista, para
+  no depender de que un `[hidden]` le gane al CSS de su contenedor — eso ya falló una vez en
+  este proyecto (ver `docs/modulos/ui.md`). Los botones «Marcar todas» / «Ninguna» cambian
+  las casillas **por código**, que NO dispara `change`: por eso el aviso también escucha el
+  click.
+
+#### Una sola lectura de la currícula y de los bimestres (11/09/2026)
+
+Dos duplicaciones que traía la primera versión del importador, ambas medidas:
+
+- **La currícula se leía DOS VECES por carga**: una para la card y otra dentro de
+  `areasDeLaSeccion()`, que deriva de ella. Es la consulta más cara de la pantalla.
+  `curriculaParaImportar()` ahora **memoriza por matrícula** en la instancia del modelo
+  (no en propiedad estática: dos matrículas del mismo proceso siguen leyendo cada una la
+  suya). Medido con `SHOW SESSION STATUS LIKE 'Questions'`: 1.ª llamada 2 consultas, 2.ª y
+  `areasDeLaSeccion()` **0**, y otra matrícula vuelve a leer sus 2.
+- **Los bimestres del año** salían de **dos consultas SQL idénticas escritas a mano** en el
+  propio controlador. Ahora es **una** llamada a `AnioAcademicoModel::getPeriodos()`, que ya
+  existía y los devuelve ordenados por número. ⚠️ Quedan **otras dos** consultas de periodos
+  inline en `MatriculaController` (las de notas autorizadas SIAGIE), anteriores a este
+  trabajo y no tocadas: si alguien las unifica, este es el método al que deben ir.

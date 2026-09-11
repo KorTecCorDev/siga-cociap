@@ -1034,3 +1034,50 @@ una página ligera y una pestaña recién creada (`Page.captureScreenshot timed 
 la página y no sirve reintentar: es distinto del «captura en blanco por encima de ~7 000 px»
 ya documentado. **Las mediciones numéricas por `getBoundingClientRect` y `getComputedStyle`
 sí funcionan**, y son las que prueban el cambio.
+
+
+## Chip de PROCEDENCIA de una nota (10/09/2026)
+
+> PUNTO ÚNICO: `PROCEDENCIAS_NOTA` en `app/Helpers/helpers.php`.
+> Markup: `resources/views/shared/_procedencia-chip.php`.
+> Estilos: `resources/sass/components/_procedencia.scss`.
+
+Conviven **tres** mecanismos que producen notas fuera del registro ordinario del docente, y
+hasta hoy solo uno llevaba marca, así que se confundían — sobre todo en la ficha de
+matrícula, donde sus cards son vecinas:
+
+| Categoría | Dónde vive | A dónde va la nota |
+|---|---|---|
+| **Calificación extraordinaria** | `calificaciones.extraordinaria = 1` | Boleta **y** SIAGIE. No al mérito. |
+| **Notas del colegio de origen** | `notas_externas` | **Solo al docente.** Nunca a la boleta. |
+| **Autorizada para SIAGIE** | `notas_autorizadas_siagie` | **Solo al acta.** Ni boleta ni mérito. |
+
+⚠️ **La categoría es DERIVABLE, no se guarda.** Cada mecanismo vive en su propia tabla. Si
+algún día alguien propone una columna `categoria`, es señal de que dos mecanismos se están
+mezclando en una misma tabla.
+
+### 🔴 EL COLOR NO DISTINGUE: distinguen el NOMBRE y el ICONO
+
+Los tres chips comparten forma —el **borde punteado**, que ya significaba «esto no salió de
+tu registro»— y **solo la extraordinaria conserva el ámbar**, porque es la única que llega a
+la boleta y por tanto pide atención.
+
+Es lo que exige el sistema de color de arriba: **rojo y ámbar son de ESTADO** y los cuatro
+colores de concepto (azul cargas, teal tutoría, púrpura conducta, naranja nómina) **ya tienen
+dueño**. Inventar dos tintes más habría chocado con él: el índigo que quedaba libre se
+confunde con el púrpura de Conducta a tamaño de chip. **No añadir colores a esta familia.**
+
+Los tres iconos (`edit-pen`, `social-city`, `doc-add`) son **distintos entre sí** y no
+coinciden con ninguna card del dashboard — la misma regla del glifo fijo por concepto. Lo
+comprueba `verif_notas_origen.php` §7d, que además verifica que los SVG existen.
+
+### Dónde se pinta
+
+`.extra-badge` **se conserva como alias** y su aspecto **no cambió ni un pixel**: era el
+nombre que ya usaban `docente/calificaciones.php`, `docente/resumen-competencia.php` y
+`consulta-notas/_tabla.php`, que ahora sacan el texto del punto único en vez de tenerlo a
+mano. El chip se pinta además en la ficha de matrícula (con la línea de **destino**), en las
+dos vistas de notas de origen y en la bandeja de notificaciones.
+
+**El icono solo donde hay sitio** (cards y cabeceras); en las grillas densas el chip va con el
+nombre corto a 10px, como el badge de siempre. La variable `$procIcono` lo decide.

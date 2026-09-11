@@ -848,6 +848,11 @@ en `calificaciones` (4 tablas propias, ciclo por SECCIÓN en dos etapas).
 - Verificado end-to-end en local (16/07/2026, Inglés 4°A C2, 25 checks):
   boleta +1 fila, SIAGIE la exporta, ranking byte-idéntico, guardas activas.
 
+- **Las notas del colegio de origen y las autorizadas para SIAGIE NO son esto.** Desde el
+  10/09/2026 los tres mecanismos llevan chip de PROCEDENCIA desde un punto único
+  (`PROCEDENCIAS_NOTA` en `helpers.php`); el `.extra-badge` de la extraordinaria pasó a
+  salir de ahí sin cambiar de aspecto. Ver `docs/modulos/ui.md`.
+
 
 ### Captura EN LOTE (10/09/2026) — el mismo motor, otra pantalla
 
