@@ -1463,9 +1463,10 @@ class MatriculaController extends BaseController
     {
         $matricula = $this->model->findById($id);
         if (!$matricula) {
-            http_response_code(404);
-            $this->view('shared/404');
-            exit;
+            // `notFound()` es el punto único del 404 (BaseController): responde
+            // 404 y carga `shared/404.php` SIN layout. Con `view()` esa página
+            // —que es un HTML completo— quedaba anidada dentro del layout.
+            $this->notFound();
         }
         return $matricula;
     }
