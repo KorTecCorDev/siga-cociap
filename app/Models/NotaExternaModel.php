@@ -27,6 +27,9 @@ class NotaExternaModel extends BaseModel
 
     public const LITERALES = ['AD', 'A', 'B', 'C'];
 
+    /** Currícula ya leída, por matrícula. Ver `curriculaParaImportar()`. */
+    private array $curriculaCache = [];
+
     /** Notas de origen de una matrícula, con el nombre del área mapeada. */
     public function getDeMatricula(int $matriculaId): array
     {
@@ -171,24 +174,108 @@ class NotaExternaModel extends BaseModel
     }
 
     /**
-     * Áreas del plan de la SECCIÓN de una matrícula, para el <select> de mapeo
-     * opcional que usa Registro Académico al registrar.
+     * La CURRÍCULA de la sección del estudiante, lista para importarla como
+     * notas de origen: áreas con sus competencias, agrupadas y ordenadas.
+     *
+     * POR QUÉ EXISTE: transcribir a mano el informe del colegio anterior son
+     * 27-29 competencias POR BIMESTRE, y quien llega en el III trae dos. La
+     * mayoría de colegios peruanos sigue el Currículo Nacional del MINEDU —el
+     * mismo que usa el COCIAP—, así que las competencias coinciden casi siempre
+     * y traerlas ahorra el 100 % del tecleo.
+     *
+     * ⚠️ SIN SUBÁREAS. Aritmética, Plan Lector, Química… son organización
+     * INTERNA del COCIAP: el colegio de origen pudo repartirse de otra forma, y
+     * atribuirle una división que no usa sería inventarle datos. Se importa el
+     * ÁREA y la COMPETENCIA; la subárea se descarta a propósito.
+     *
+     * ⚠️ El nombre de la competencia es `nombre_completo`, la redacción oficial
+     * del currículo nacional: es la que más probablemente coincida con el
+     * informe que trae el estudiante. El `nombre_corto` es abreviatura nuestra.
+     *
+     * ⚠️ Dos áreas PUEDEN traer la misma competencia (el COCIAP evalúa
+     * "Resuelve problemas de cantidad" en Matemática y en Taller de Razonamiento
+     * Matemático). Son filas distintas y deben seguir siéndolo: por eso la
+     * UNIQUE de `notas_externas` incluye `area_nombre` desde la migración 059.
+     * Aquí solo se deduplica DENTRO de un área.
+     *
+     * @return array [['area_id','area_nombre','competencias'=>[nombre,…]], …]
+     */
+    public function curriculaParaImportar(int $matriculaId): array
+    {
+        // MEMORIZADO POR MATRÍCULA. La pantalla de notas de origen la pide dos
+        // veces —una para la card de importación y otra, vía
+        // `areasDeLaSeccion()`, para el `<select>` de mapeo—, y detrás hay la
+        // consulta más cara de la vista. Se cachea por instancia (vive lo que
+        // el request), no en propiedad estática: dos matrículas distintas en el
+        // mismo proceso siguen leyendo cada una lo suyo.
+        if (isset($this->curriculaCache[$matriculaId])) {
+            return $this->curriculaCache[$matriculaId];
+        }
+
+        $filas = (new CalificacionModel())->estructuraCompetenciasSeccion($matriculaId);
+
+        $porArea = [];
+        foreach ($filas as $f) {
+            $areaId     = (int) $f['area_id'];
+            $areaNombre = $this->nombreDeArea($f);
+            $competencia = trim((string) $f['competencia_nombre']);
+            if ($competencia === '') {
+                continue;
+            }
+
+            if (!isset($porArea[$areaId])) {
+                $porArea[$areaId] = [
+                    'area_id'      => $areaId,
+                    'area_nombre'  => $areaNombre,
+                    'competencias' => [],
+                ];
+            }
+            // Deduplica DENTRO del área: dos subáreas de la misma área no deben
+            // producir dos filas idénticas.
+            $porArea[$areaId]['competencias'][$competencia] = $competencia;
+        }
+
+        foreach ($porArea as &$area) {
+            $area['competencias'] = array_values($area['competencias']);
+        }
+        unset($area);
+
+        return $this->curriculaCache[$matriculaId] = array_values($porArea);
+    }
+
+    /**
+     * Nombre visible de un área: el de boleta si lo tiene. PUNTO ÚNICO para que
+     * el texto que se importa y el del `<select>` de mapeo sean el MISMO; si
+     * divergen, la fila importada apunta a un área que el select no ofrece.
+     */
+    private function nombreDeArea(array $fila): string
+    {
+        $boleta = trim((string) ($fila['nombre_boleta'] ?? ''));
+        return $boleta !== '' ? $boleta : (string) $fila['area_nombre'];
+    }
+
+    /**
+     * Áreas del plan de la SECCIÓN, para el `<select>` de mapeo opcional que usa
+     * Registro Académico al registrar.
+     *
+     * ⚠️ SALE DE `curriculaParaImportar()`, no de una consulta propia. Si el
+     * select ofreciera un juego de áreas distinto del que trae el importador,
+     * una fila importada apuntaría a un área que el select no tiene y el mapeo
+     * —y con él el resaltado al docente— se perdería al guardar. Una sola
+     * fuente y un solo nombre.
+     *
+     * Efecto colateral querido: ahora incluye las TRANSVERSALES, que la consulta
+     * por cargas no traía porque su área no tiene cargas propias.
+     *
+     * El orden es el del PLAN (`areas.orden`), no alfabético: es el mismo que
+     * usan la boleta y la card de importación.
      */
     public function areasDeLaSeccion(int $matriculaId): array
     {
-        return $this->query("
-            SELECT DISTINCT
-                a.id,
-                COALESCE(NULLIF(a.nombre_boleta, ''), a.nombre) AS nombre
-            FROM matriculas m
-            INNER JOIN cargas_academicas ca
-                    ON ca.seccion_id = m.seccion_id
-                   AND ca.anio_id    = m.anio_id
-                   AND ca.estado     = 'activa'
-            LEFT  JOIN subareas sa ON sa.id = ca.subarea_id
-            INNER JOIN areas a     ON a.id  = COALESCE(ca.area_id, sa.area_id)
-            WHERE m.id = ?
-            ORDER BY nombre
-        ", [$matriculaId]);
+        $out = [];
+        foreach ($this->curriculaParaImportar($matriculaId) as $area) {
+            $out[] = ['id' => $area['area_id'], 'nombre' => $area['area_nombre']];
+        }
+        return $out;
     }
 }

@@ -233,6 +233,155 @@ try {
     $ok(!in_array('padre', App\Models\NotificacionModel::ROLES_RECEPTORES, true),
         'los padres quedan fuera (su superficie sigue oscura: 0 usuarios con ese rol)');
 
+    // ── 7c. IMPORTADOR DE CURRÍCULA + migración 059 ───────────────
+    echo "\n=== 7c. IMPORTADOR — la currícula y la clave única con área ===\n";
+
+    $curricula = $externas->curriculaParaImportar($mid);
+    $totalComp = 0;
+    foreach ($curricula as $a) { $totalComp += count($a['competencias']); }
+
+    $ok($totalComp >= 20 && count($curricula) >= 8,
+        "la currícula de su sección trae {$totalComp} competencias en " . count($curricula) . " áreas");
+
+    // Las SUBÁREAS son organización interna del COCIAP y NO deben importarse.
+    $conSubarea = 0;
+    foreach ($curricula as $a) {
+        foreach ($a['competencias'] as $c) {
+            if (str_contains($c, ' — ') || str_contains($c, ' | ')) { $conSubarea++; }
+        }
+    }
+    $ok($conSubarea === 0, "ninguna competencia arrastra la subárea en su nombre ({$conSubarea})");
+
+    // El <select> de mapeo y el importador tienen que ofrecer LAS MISMAS áreas:
+    // si divergen, la fila importada apunta a un área que el select no tiene.
+    $idsCurricula = array_map(static fn (array $a): int => (int) $a['area_id'], $curricula);
+    $idsSelect    = array_map(static fn (array $a): int => (int) $a['id'], $externas->areasDeLaSeccion($mid));
+    sort($idsCurricula); sort($idsSelect);
+    $ok($idsCurricula === $idsSelect,
+        'el select de áreas ofrece exactamente las del importador (' . count($idsSelect) . ')');
+
+    // 🔴 EL BLOQUE QUE PRUEBA LA MIGRACIÓN 059.
+    // Dos áreas evalúan la misma competencia del MINEDU: con la clave vieja la
+    // segunda pisaba a la primera y se perdía una fila EN SILENCIO.
+    $porNombre = [];
+    foreach ($curricula as $a) {
+        foreach ($a['competencias'] as $c) { $porNombre[$c][] = $a['area_nombre']; }
+    }
+    $repetidas = array_filter($porNombre, static fn (array $v): bool => count($v) > 1);
+    echo '  (informativo) competencias que dos áreas comparten: ' . count($repetidas) . "\n";
+
+    $filasImport = [];
+    foreach ($curricula as $a) {
+        foreach ($a['competencias'] as $c) {
+            $filasImport[] = [
+                'periodo_nombre'     => 'I Bimestre',
+                'competencia_nombre' => $c,
+                'area_nombre'        => $a['area_nombre'],
+                'area_id'            => (int) $a['area_id'],
+                'nota_literal'       => 'A',
+            ];
+        }
+    }
+    $antesImport = $contar("SELECT COUNT(*) FROM notas_externas WHERE matricula_id = ?", [$mid]);
+    $externas->registrarLote($mid, $filasImport, 'IE de verificación', 1);
+    $despuesImport = $contar("SELECT COUNT(*) FROM notas_externas WHERE matricula_id = ?", [$mid]);
+
+    $ok($despuesImport - $antesImport === $totalComp,
+        "importar {$totalComp} competencias guarda " . ($despuesImport - $antesImport)
+        . " filas (esperado {$totalComp}; con la clave vieja se perdían las repetidas)");
+
+    if ($repetidas !== []) {
+        $nombreRep = array_key_first($repetidas);
+        $filasRep = $contar(
+            "SELECT COUNT(*) FROM notas_externas WHERE matricula_id = ? AND competencia_nombre = ?",
+            [$mid, $nombreRep]
+        );
+        $ok($filasRep === count($repetidas[$nombreRep]),
+            'la competencia compartida por ' . count($repetidas[$nombreRep])
+            . " áreas conserva sus {$filasRep} filas");
+    }
+
+    echo "\n=== 7d. PROCEDENCIAS — el punto único de las categorías ===\n";
+    $ok(count(PROCEDENCIAS_NOTA) === 3, 'hay 3 procedencias declaradas');
+    foreach ([PROCEDENCIA_EXTRAORDINARIA, PROCEDENCIA_ORIGEN, PROCEDENCIA_SIAGIE] as $clave) {
+        $p = procedencia_nota($clave);
+        $ok($p !== null && $p['corto'] !== '' && $p['nombre'] !== '' && $p['destino'] !== '',
+            "'{$clave}': nombre, chip y destino completos");
+    }
+    $iconos = array_column(PROCEDENCIAS_NOTA, 'icono');
+    $ok(count($iconos) === count(array_unique($iconos)),
+        'ninguna procedencia comparte icono con otra (' . implode(', ', $iconos) . ')');
+    foreach ($iconos as $ico) {
+        $ok(is_file(ROOT_PATH . '/public/assets/icons/' . $ico . '.svg'), "el icono {$ico}.svg existe");
+    }
+    $ambar = array_filter(PROCEDENCIAS_NOTA, static fn (array $p): bool => $p['ambar']);
+    $ok(count($ambar) === 1 && array_key_first($ambar) === PROCEDENCIA_EXTRAORDINARIA,
+        'solo la extraordinaria usa el ámbar: es la única que llega a la boleta');
+
+    // ── 7e. UNA SOLA LECTURA Y GUARDA EN LAS DOS CAPAS ────────────
+    // (correcciones de la revisión previa al despliegue, 11/09/2026)
+    echo "\n=== 7e. Importador — lectura única de la currícula y guarda del formulario ===\n";
+
+    // La currícula es la consulta MÁS CARA de la pantalla y se pedía DOS veces:
+    // una para la card y otra dentro de `areasDeLaSeccion()`, que deriva de
+    // ella. Ahora se memoriza por matrícula, y aquí se MIDE de verdad contando
+    // las consultas de esta conexión, no se declara.
+    //
+    // ⚠️ Instancia NUEVA a propósito: `$externas` ya leyó la currícula en el
+    // bloque 7c, así que con ella la "primera" lectura saldría de la memoria y
+    // la comprobación se acusaría sola.
+    $fresco   = new App\Models\NotaExternaModel();
+    $consultas = static function () use ($fresco): int {
+        $f = $fresco->query("SHOW SESSION STATUS LIKE 'Questions'");
+        return (int) ($f[0]['Value'] ?? 0);
+    };
+
+    $base    = $consultas();
+    $fresco->curriculaParaImportar($mid);
+    $costePrimera = $consultas() - $base - 1;   // -1: la consulta del propio contador
+
+    $base = $consultas();
+    $fresco->curriculaParaImportar($mid);
+    $fresco->areasDeLaSeccion($mid);
+    $costeRepetir = $consultas() - $base - 1;
+
+    $ok($costePrimera > 0, "la 1.ª lectura de la currícula cuesta {$costePrimera} consulta(s)");
+    $ok($costeRepetir === 0,
+        "repetirla y pedir `areasDeLaSeccion()` cuesta {$costeRepetir}: las dos salen de la memoria");
+
+    $otraMat = (int) $pdo->query(
+        "SELECT id FROM matriculas WHERE id <> {$mid} ORDER BY id DESC LIMIT 1")->fetchColumn();
+    if ($otraMat > 0) {
+        $base = $consultas();
+        $fresco->curriculaParaImportar($otraMat);
+        $costeOtra = $consultas() - $base - 1;
+        $ok($costeOtra > 0,
+            "otra matrícula ({$otraMat}) NO se sirve de la memoria ajena: {$costeOtra} consulta(s)");
+    }
+
+    // La guarda de "importar sin elegir nada" vive en el controlador y acaba en
+    // `redirect()`, que hace exit: invocarla aquí mataría el script antes del
+    // ROLLBACK. Lo que se ancla es que siga estando EN LAS DOS CAPAS, que es
+    // justo lo que se pierde sin avisar en una refactorización.
+    $ctrlSrc = file_get_contents(APP_PATH . '/Controllers/Matricula/MatriculaController.php');
+    $jsSrc   = file_get_contents(ROOT_PATH . '/resources/js/notas-externas.js');
+
+    $ok(str_contains($ctrlSrc, '$importar && ($periodosPedidos === [] || $areasPedidas === [])'),
+        'el servidor bloquea importar sin bimestres Y sin áreas (las dos condiciones)');
+    $ok(str_contains($ctrlSrc, "Session::flash('warning'"),
+        'y lo dice con un aviso, en vez de recargar en silencio');
+    $ok(str_contains($jsSrc, 'data-importar-form') && str_contains($jsSrc, 'form-error'),
+        'el cliente lleva la guarda gemela, con su mensaje junto al botón');
+
+    // Los bimestres salen de `AnioAcademicoModel::getPeriodos()`. Las únicas
+    // consultas de periodos que quedan a mano en el controlador son las DOS
+    // preexistentes de notas autorizadas SIAGIE.
+    $ok(substr_count($ctrlSrc, 'FROM periodos') === 2,
+        'el controlador conserva solo sus 2 consultas de periodos preexistentes ('
+        . substr_count($ctrlSrc, 'FROM periodos') . ')');
+    $ok(str_contains($ctrlSrc, 'AnioAcademicoModel())->getPeriodos'),
+        'el importador y las casillas leen los bimestres del modelo, una sola vez');
+
 } catch (Throwable $e) {
     echo "  [ERROR] " . $e->getMessage() . "\n";
     $fallos++;

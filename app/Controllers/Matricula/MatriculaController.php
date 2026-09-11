@@ -13,6 +13,7 @@ use App\Models\DirectorEbrModel;
 use App\Models\OrdenMeritoModel;
 use App\Models\NotaExternaModel;
 use App\Models\NotificacionModel;
+use App\Models\AnioAcademicoModel;
 use Core\Session;
 use Core\View;
 
@@ -1193,12 +1194,84 @@ class MatriculaController extends BaseController
         $this->requireRole(self::ROLES_MATRICULAN);
         $matricula = $this->requireMatricula((int) $id);
 
+        $mid       = (int) $id;
+        $curricula = $this->notasExternasModel->curriculaParaImportar($mid);
+        $yaHay     = $this->notasExternasModel->getDeMatricula($mid);
+
+        // Los bimestres del año, UNA sola lectura para los dos usos que tienen
+        // aquí: el importador y las casillas de la card. Sale de
+        // `AnioAcademicoModel::getPeriodos()`, que ya existía y los devuelve
+        // ordenados por número — antes eran dos consultas idénticas escritas a
+        // mano en este mismo método.
+        $periodos = (new AnioAcademicoModel())->getPeriodos((int) $matricula['anio_id']);
+
+        // ── Importación de la currícula ──────────────────────────
+        //
+        // Transcribir a mano el informe del colegio anterior son 27-29
+        // competencias POR BIMESTRE. Como la mayoría de colegios sigue el mismo
+        // Currículo Nacional, se traen las nuestras ya escritas.
+        //
+        // ⚠️ NO ESCRIBE NADA: solo PRE-RELLENA las filas del formulario de
+        // siempre, que siguen siendo editables. Guardar sigue siendo el POST.
+        // Por eso el camino manual —el de una currícula extranjera— queda
+        // intacto: es literalmente el mismo formulario, solo que en blanco.
+        $periodosPedidos = array_map('intval', (array) $this->query('periodos', []));
+        $areasPedidas    = array_map('intval', (array) $this->query('areas', []));
+        $filasImportadas = [];
+        $importar        = (bool) $this->query('importar');
+
+        // 🔴 IMPORTAR SIN ELEGIR NADA NO PUEDE SER UN SILENCIO. Sin esta guarda
+        // la pantalla recargaba idéntica y parecía que el botón no funcionaba.
+        // El JS tampoco deja enviar el formulario vacío: la comprobación está
+        // en las dos capas, como el resto del proyecto.
+        if ($importar && ($periodosPedidos === [] || $areasPedidas === [])) {
+            Session::flash('warning', $periodosPedidos === []
+                ? 'Marca al menos un bimestre para traer sus competencias.'
+                : 'Marca al menos un área para traer sus competencias.');
+            redirect(url('matriculas/' . $mid . '/notas-externas'));
+        }
+
+        if ($importar) {
+            // Lo ya registrado se excluye: importar dos veces no duplica filas
+            // en pantalla. La clave es la misma que la UNIQUE (migración 059).
+            $registradas = [];
+            foreach ($yaHay as $n) {
+                $registradas[$n['periodo_nombre'] . '||' . $n['area_nombre'] . '||' . $n['competencia_nombre']] = true;
+            }
+
+            foreach ($periodos as $p) {
+                if (!in_array((int) $p['id'], $periodosPedidos, true)) {
+                    continue;
+                }
+                foreach ($curricula as $area) {
+                    if (!in_array((int) $area['area_id'], $areasPedidas, true)) {
+                        continue;
+                    }
+                    foreach ($area['competencias'] as $comp) {
+                        $clave = $p['nombre_display'] . '||' . $area['area_nombre'] . '||' . $comp;
+                        if (isset($registradas[$clave])) {
+                            continue;
+                        }
+                        $filasImportadas[] = [
+                            'periodo_nombre'     => $p['nombre_display'],
+                            'area_nombre'        => $area['area_nombre'],
+                            'area_id'            => (int) $area['area_id'],
+                            'competencia_nombre' => $comp,
+                        ];
+                    }
+                }
+            }
+        }
+
         $this->view('matriculas/notas-externas', [
             'titulo'    => 'Notas del colegio de origen',
             'matricula' => $matricula,
-            'notas'     => $this->notasExternasModel->getDeMatricula((int) $id),
-            'areas'     => $this->notasExternasModel->areasDeLaSeccion((int) $id),
-            'page_scripts' => ['notas-externas'],
+            'notas'     => $yaHay,
+            'areas'     => $this->notasExternasModel->areasDeLaSeccion($mid),
+            'curricula' => $curricula,
+            'periodos'  => $periodos,
+            'filasImportadas' => $filasImportadas,
+            'page_scripts'    => ['notas-externas'],
         ]);
     }
 
@@ -1222,21 +1295,37 @@ class MatriculaController extends BaseController
         $literales = (array) $this->input('nota_literal', []);
         $areaIds  = (array) $this->input('area_id', []);
 
-        $filas = [];
+        $filas    = [];
+        $sinNota  = 0;   // filas con competencia pero sin calificación: se omiten
         foreach ($areas as $i => $areaNombre) {
             $areaNombre = trim((string) $areaNombre);
             $comp       = trim((string) ($comps[$i] ?? ''));
             $periodo    = trim((string) ($periodos[$i] ?? ''));
             $literal    = (string) ($literales[$i] ?? '');
 
-            // Fila entera en blanco: el formulario trae filas de sobra.
-            if ($areaNombre === '' && $comp === '' && $periodo === '' && $literal === '') {
+            // 🔴 SIN NOTA, NO SE REGISTRA — y no es un error.
+            //
+            // Antes se omitía solo la fila con los CUATRO campos vacíos, lo que
+            // bastaba mientras el formulario nacía en blanco. Con el importador
+            // deja de valer: una fila importada llega con periodo, área y
+            // competencia llenos y la nota vacía, así que importar 58 y llenar
+            // 20 reventaba el guardado en la fila 21. Y es el caso NORMAL: el
+            // informe de origen no trae todas las competencias del plan.
+            //
+            // Las omitidas se cuentan y se dicen en el mensaje de éxito, para
+            // que la omisión no sea silenciosa.
+            if ($literal === '') {
+                if ($areaNombre !== '' || $comp !== '' || $periodo !== '') {
+                    $sinNota++;
+                }
                 continue;
             }
+
+            // Con nota, los tres datos que la identifican son obligatorios.
             if ($areaNombre === '' || $comp === '' || $periodo === ''
                 || !in_array($literal, NotaExternaModel::LITERALES, true)) {
                 $this->redirectWithError($volver,
-                    'Cada fila necesita área, competencia, periodo y una nota literal válida. Revisa la fila ' . ($i + 1) . '.');
+                    'La fila ' . ($i + 1) . ' tiene nota pero le falta área, competencia o periodo.');
             }
 
             $filas[] = [
@@ -1291,6 +1380,12 @@ class MatriculaController extends BaseController
 
         $this->redirectWithSuccess($volver,
             $n . ($n === 1 ? ' nota registrada' : ' notas registradas') . '.'
+            // Las filas sin calificación se omiten a propósito (el informe de
+            // origen no trae todas las competencias del plan), pero se dicen:
+            // una omisión silenciosa parecería una pérdida de datos.
+            . ($sinNota > 0
+                ? ' Se omitieron ' . $sinNota . ($sinNota === 1 ? ' fila sin nota.' : ' filas sin nota.')
+                : '')
             . ($avisados > 0
                 ? ' Se avisó a ' . $avisados . ($avisados === 1 ? ' docente' : ' docentes') . ' de su sección.'
                 : ''));

@@ -33,3 +33,79 @@
         if (primer) primer.focus();
     });
 })();
+
+
+/**
+ * Card de importación: marcar / desmarcar todas las áreas de una vez.
+ *
+ * Vive fuera del IIFE de las filas repetibles porque la card puede existir sin
+ * el formulario (y al revés): cada bloque comprueba lo suyo y sale si no está.
+ */
+(function () {
+    var casillas = document.querySelectorAll('[data-area-casilla]');
+    if (casillas.length === 0) return;
+
+    function marcarTodas(valor) {
+        Array.prototype.forEach.call(casillas, function (c) { c.checked = valor; });
+    }
+
+    var todas = document.querySelector('[data-areas-todas]');
+    var ninguna = document.querySelector('[data-areas-ninguna]');
+
+    if (todas)   todas.addEventListener('click', function () { marcarTodas(true); });
+    if (ninguna) ninguna.addEventListener('click', function () { marcarTodas(false); });
+})();
+
+
+/**
+ * Card de importación: no enviar sin elegir bimestre ni área.
+ *
+ * El servidor tiene la MISMA guarda y avisa con un flash; esto solo ahorra el
+ * viaje y señala el error donde está. El mensaje se crea desde el JS en vez de
+ * dejarlo oculto en la vista para no depender de que un `[hidden]` le gane al
+ * CSS de su contenedor, que en este proyecto ya falló una vez.
+ */
+(function () {
+    var form = document.querySelector('[data-importar-form]');
+    if (!form) return;
+
+    function marcadas(nombre) {
+        return form.querySelectorAll('input[name="' + nombre + '[]"]:checked').length;
+    }
+
+    function avisar(texto) {
+        var p = form.querySelector('[data-importar-error]');
+
+        if (!texto) {
+            if (p && p.parentNode) p.parentNode.removeChild(p);
+            return;
+        }
+        if (!p) {
+            p = document.createElement('p');
+            p.className = 'form-error';
+            p.setAttribute('data-importar-error', '');
+            form.insertBefore(p, form.querySelector('.form-actions'));
+        }
+        p.textContent = texto;
+    }
+
+    form.addEventListener('submit', function (e) {
+        if (marcadas('periodos') === 0) {
+            e.preventDefault();
+            avisar('Marca al menos un bimestre para traer sus competencias.');
+        } else if (marcadas('areas') === 0) {
+            e.preventDefault();
+            avisar('Marca al menos un area para traer sus competencias.');
+        }
+    });
+
+    // Corregida la selección, el aviso sobra. Los botones "Marcar todas" y
+    // "Ninguna" cambian las casillas por codigo, que NO dispara `change`: por
+    // eso escuchan tambien el click.
+    form.addEventListener('change', function () { avisar(''); });
+    form.addEventListener('click', function (e) {
+        var origen = e.target;
+        if (!origen || !origen.closest) return;   // el objetivo puede no ser un elemento
+        if (origen.closest('[data-areas-todas], [data-areas-ninguna]')) avisar('');
+    });
+})();

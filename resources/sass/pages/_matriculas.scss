@@ -812,6 +812,29 @@ button.orden-chip {
 
 .notas-origen {
 
+    // Card de importacion: casillas de bimestre y de area.
+    &__importar {
+        border-left: 4px solid $brand-mid;
+    }
+
+    &__casillas {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+        gap: $spacing-xs $spacing-md;
+        margin-bottom: $spacing-md;
+    }
+
+    &__casilla {
+        display: flex;
+        align-items: flex-start;
+        gap: $spacing-sm;
+        padding: 4px 6px;
+        border-radius: $border-radius-sm;
+        cursor: pointer;
+
+        &:hover { background: $bg-secondary; }
+    }
+
     &__tabla {
         input.form-input,
         select.form-input { min-width: 110px; }
