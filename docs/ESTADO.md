@@ -1,11 +1,43 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **10/09/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **11/09/2026**.
 > **Versión desplegada: v1.0.1** (`config/app.php` + tag anotado `v1.0.1`).
 
 
 
+
+## ⏭ PARA RETOMAR EN EL ESCRITORIO (11/09/2026)
+
+`dev` quedó pusheado en **`63b8670`**, **12 commits por delante de `main`** (`e51349d`,
+v1.0.1). **El merge NO se hizo**: el turno de oficina terminó antes de las pruebas de
+navegador, que son las que faltan.
+
+Lo cerrado hoy en la laptop, todo en `dev`:
+
+- Los **4 commits** del lote: `cf598f2` (404), `e47e87c` (importador + migración `059`),
+  `63c6562` (procedencias), `63b8670` (docs).
+- **Batería completa: 37 de 38 verificadores en verde**, y `verif_notas_origen` subió a
+  **41 comprobaciones**. El único rojo es `verif_estructura_boleta`, y **falla igual en
+  `main`**: su aserto cuenta cualquier nota no nula sin exigir el bloqueo, así que se pone
+  rojo en cuanto el bimestre activo tiene notas sin bloquear. **No es regresión**, y
+  arreglarlo es una línea en el verificador, no en la boleta.
+- **Ensayo de las migraciones `057` → `058` → `059`** en una BD desechable: corren **dos
+  veces seguidas** sin error y dejan la estructura idéntica a la local.
+- Render de las 4 vistas con datos reales y las **dos ramas** de la guarda nueva.
+
+Lo que falta, en orden:
+
+1. ⚠️ **Aplicar `057`, `058` y `059` en la BD LOCAL del escritorio**, si no están. Se
+   aplicaron en la laptop, y **cada máquina tiene su propia copia**: sin ellas el módulo
+   no levanta allá.
+2. **Checklist de navegador** — nada de este lote se ha visto con sesión iniciada:
+   importar la currícula, marcar/desmarcar áreas, las dos ramas de la guarda nueva, los
+   chips en las 7 vistas, la campana, la extraordinaria en lote, y `/admin/cuadros` con
+   sesión de director (sigue sin abrirse nunca con ese rol).
+3. **`057`, `058` y `059` en PRODUCCIÓN, a mano y ANTES del merge.** El auto-deploy
+   publica código, no repara datos.
+4. `chore(release): v1.0.2`, merge `--no-ff` a `main`, tag anotado y push.
 
 ## 🆕 IMPORTAR LA CURRÍCULA + CATEGORÍAS DE PROCEDENCIA — EN `dev` (10/09/2026)
 
