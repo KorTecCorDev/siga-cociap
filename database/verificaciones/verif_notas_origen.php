@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Verificación — NOTAS DEL COLEGIO DE ORIGEN + NOTIFICACIONES.
+ * Verificación — NOTAS DEL COLEGIO DE ORIGEN.
  * Uso: php database/verificaciones/verif_notas_origen.php
  *
  * ⚠️ ESCRIBE PARA PROBAR, siempre dentro de una TRANSACCIÓN QUE TERMINA EN
@@ -22,9 +22,7 @@
  *   2. El orden de mérito del bimestre NO se mueve.
  *   3. GUARDA del docente, en sus DOS ramas: con carga → accede; sin carga → no.
  *   4. RESALTADO: las áreas marcadas son exactamente las cargas de ese docente.
- *   5. NOTIFICACIÓN: se crea una por docente de la sección, ni una de más.
- *   6. AISLAMIENTO: marcar leída la de un usuario no toca la de otro.
- *   7. `alertas` (tutor → padre) sigue intacta: son mecanismos distintos.
+ *   5-7b. (mudados a verif_notificaciones.php el 16/09/2026)
  *   8. ROLLBACK: todos los contadores vuelven a su valor inicial.
  */
 
@@ -47,7 +45,6 @@ require_once APP_PATH . '/Helpers/helpers.php';
 
 $pdo     = Core\Database::connect();
 $externas = new App\Models\NotaExternaModel();
-$notifs   = new App\Models\NotificacionModel();
 $boletas  = new App\Models\BoletaModel();
 $meritos  = new App\Models\OrdenMeritoModel();
 
@@ -182,56 +179,9 @@ try {
     $ok($externas->areasDelDocenteEnSeccion($mid, $sinDocente) === [],
         "un docente sin carga no resalta ninguna fila");
 
-    echo "\n=== 5. NOTIFICACIÓN — una por docente, ni una de más ===\n";
-    $creadas = $notifs->crearParaDocentesDeSeccion(
-        $mid,
-        App\Models\NotificacionModel::TIPO_NOTAS_ORIGEN,
-        'Verificación',
-        'Mensaje de verificación (se revierte).',
-        'docente/notas-origen/' . $mid
-    );
-    $ok($creadas === count($idsDocentes),
-        "notificaciones creadas: {$creadas} = docentes de la sección (" . count($idsDocentes) . ")");
-    $ok($contar("SELECT COUNT(*) FROM notificaciones") === $antes['notificaciones'] + $creadas,
-        "filas nuevas en notificaciones: +{$creadas}");
-
-    echo "\n=== 6. AISLAMIENTO entre bandejas ===\n";
-    $otro = $idsDocentes[1] ?? $conDocente;
-    $noLeidasOtroAntes = $notifs->contarNoLeidas($otro);
-    $suya = $pdo->prepare("SELECT id FROM notificaciones WHERE usuario_id = ? ORDER BY id DESC LIMIT 1");
-    $suya->execute([$conDocente]);
-    $idSuya = (int) $suya->fetchColumn();
-
-    $notifs->marcarLeida($idSuya, $conDocente);
-    $ok($notifs->contarNoLeidas($conDocente) === 0 || $notifs->contarNoLeidas($conDocente) >= 0,
-        "marcar leída la propia funciona");
-    if ($otro !== $conDocente) {
-        $ok($notifs->contarNoLeidas($otro) === $noLeidasOtroAntes,
-            "la bandeja del docente {$otro} no se movió ({$noLeidasOtroAntes} sin leer)");
-    }
-    $ajena = $pdo->prepare("SELECT id FROM notificaciones WHERE usuario_id <> ? ORDER BY id DESC LIMIT 1");
-    $ajena->execute([$conDocente]);
-    $idAjena = (int) $ajena->fetchColumn();
-    if ($idAjena > 0) {
-        $notifs->marcarLeida($idAjena, $conDocente);   // usuario equivocado a propósito
-        $sigue = $contar("SELECT COUNT(*) FROM notificaciones WHERE id = ? AND leida_en IS NULL", [$idAjena]);
-        $ok($sigue === 1, "nadie puede marcar la notificación de otro aunque adivine el id");
-    }
-
-    echo "\n=== 7. `alertas` (tutor → padre) intacta ===\n";
-    $ok($contar("SELECT COUNT(*) FROM alertas") === $antes['alertas'],
-        "alertas sigue en {$antes['alertas']} filas: son mecanismos distintos");
-
-    echo "\n=== 7b. ROLES — dirección NO emite comunicados ===\n";
-    $emisores = App\Models\NotificacionModel::ROLES_EMISORES;
-    $solapan  = array_intersect($emisores, ROLES_DIRECCION);
-    $ok($solapan === [],
-        'ROLES_EMISORES [' . implode(',', $emisores) . '] no incluye ningún rol de dirección'
-        . ($solapan === [] ? '' : ' (aparecen: ' . implode(',', $solapan) . ')'));
-    $ok(in_array('docente', App\Models\NotificacionModel::ROLES_RECEPTORES, true),
-        'los docentes SÍ reciben notificaciones');
-    $ok(!in_array('padre', App\Models\NotificacionModel::ROLES_RECEPTORES, true),
-        'los padres quedan fuera (su superficie sigue oscura: 0 usuarios con ese rol)');
+    // Los bloques 5, 6, 7 y 7b (aviso a docentes, aislamiento entre bandejas,
+    // `alertas` intacta y roles) se mudaron el 16/09/2026 a
+    // verif_notificaciones.php, el verificador propio de ese módulo.
 
     // ── 7c. IMPORTADOR DE CURRÍCULA + migración 059 ───────────────
     echo "\n=== 7c. IMPORTADOR — la currícula y la clave única con área ===\n";
@@ -396,6 +346,6 @@ foreach ($antes as $k => $v) {
 }
 
 echo "\n" . ($fallos === 0
-    ? "TODO CORRECTO — las notas de origen no tocan la boleta ni el mérito, y el aviso llega.\n"
+    ? "TODO CORRECTO — las notas de origen no tocan la boleta ni el mérito.\n"
     : "{$fallos} COMPROBACIÓN(ES) FALLIDA(S).\n") . "\n";
 exit($fallos === 0 ? 0 : 1);

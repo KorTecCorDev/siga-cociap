@@ -1368,7 +1368,7 @@ class MatriculaController extends BaseController
                 (int) $id,
                 NotificacionModel::TIPO_NOTAS_ORIGEN,
                 'Notas del colegio de origen: ' . $matricula['nombre_completo'],
-                'Registro Académico registró las calificaciones que ' . $matricula['nombre_completo']
+                'Se registraron las calificaciones que ' . $matricula['nombre_completo']
                     . ' trae de su colegio anterior. Son informativas: no aparecen en la boleta del COCIAP.',
                 'docente/notas-origen/' . (int) $id
             );

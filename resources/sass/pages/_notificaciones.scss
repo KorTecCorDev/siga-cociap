@@ -91,7 +91,7 @@
     }
 }
 
-// Opciones de destinatario del comunicado: radio + descripción en bloque.
+// Opciones de destinatario del comunicado: casilla + descripción en bloque.
 .notif-opcion {
     display: flex;
     align-items: flex-start;
@@ -109,5 +109,23 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
+    }
+}
+
+.notif-aviso { margin-top: $spacing-sm; }
+
+// Historial de comunicados enviados: reutiliza .notif y añade los destinos
+// y la lectura. Sin color de estado: «leído por X de N» es un dato, no alarma.
+.notif-enviado {
+    &__destinos {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-xs;
+    }
+
+    &__lectura {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        font-weight: 600;
     }
 }

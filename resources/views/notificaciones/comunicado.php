@@ -1,13 +1,25 @@
 <?php
 /**
- * Redactar un COMUNICADO a docentes (migración 058).
+ * Redactar un COMUNICADO (migraciones 058 y 060).
  *
  * Solo admin / registro académico llegan aquí: los tres roles de dirección son
  * SOLO LECTURA y entran a su bandeja, pero no redactan. El gate real está en el
  * controlador, por método.
  *
- * @var array $secciones filas de SeccionModel::listarConTutor()
+ * Los destinos son CASILLAS COMBINABLES: el servidor une los destinatarios,
+ * los deduplica y excluye a quien envía.
+ *
+ * @var array $secciones filas de NotificacionModel::seccionesParaComunicado()
+ * @var array $destinos  NotificacionModel::DESTINOS (clave => etiqueta)
  */
+use App\Models\NotificacionModel;
+
+$ayudaDestino = [
+    NotificacionModel::DESTINO_DOCENTES       => 'Llega a cada docente activo del colegio.',
+    NotificacionModel::DESTINO_SECCION        => 'Solo quienes tienen carga activa en esa sección.',
+    NotificacionModel::DESTINO_DIRECCION      => 'Los tres directores. Lo leen, no responden.',
+    NotificacionModel::DESTINO_ADMINISTRATIVO => 'Registro Académico y administración.',
+];
 ?>
 
 <div class="page-header">
@@ -20,26 +32,25 @@
     </div>
 </div>
 
-<form method="POST" action="<?= url('notificaciones/comunicado') ?>" class="card">
+<form method="POST" action="<?= url('notificaciones/comunicado') ?>" class="card"
+      data-comunicado-form>
     <div class="card__body">
         <?= csrf_field() ?>
 
         <p class="form-section-title">Destinatarios <span class="text-danger">*</span></p>
+        <p class="text-sm text-muted">Puedes marcar varios: nadie recibe el comunicado dos veces.</p>
         <div class="form-group">
+            <?php foreach ($destinos as $clave => $etiqueta): ?>
             <label class="notif-opcion">
-                <input type="radio" name="destino" value="docentes" checked>
+                <input type="checkbox" name="destinos[]" value="<?= e($clave) ?>"
+                       <?= $clave === NotificacionModel::DESTINO_DOCENTES ? 'checked' : '' ?>>
                 <span>
-                    <strong>Todos los docentes</strong>
-                    <span class="text-sm text-muted">Llega a cada docente activo del colegio.</span>
+                    <strong><?= e($etiqueta) ?></strong>
+                    <span class="text-sm text-muted"><?= e($ayudaDestino[$clave] ?? '') ?></span>
                 </span>
             </label>
-            <label class="notif-opcion">
-                <input type="radio" name="destino" value="seccion">
-                <span>
-                    <strong>Docentes de una sección</strong>
-                    <span class="text-sm text-muted">Solo quienes tienen carga activa en esa sección.</span>
-                </span>
-            </label>
+            <?php endforeach; ?>
+            <p class="text-sm text-danger notif-aviso" data-comunicado-error hidden></p>
         </div>
 
         <div class="form-group">
@@ -53,7 +64,7 @@
                     </option>
                 <?php endforeach; ?>
             </select>
-            <p class="text-sm text-muted">Solo se usa si elegiste "Docentes de una sección".</p>
+            <p class="text-sm text-muted">Solo se usa si marcaste "Docentes de una sección". Secciones del año activo.</p>
         </div>
 
         <p class="form-section-title">Mensaje</p>

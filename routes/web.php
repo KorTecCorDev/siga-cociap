@@ -32,6 +32,7 @@ $router->post('/notificaciones/leer',         'NotificacionController@leer');
 $router->post('/notificaciones/leer-todas',   'NotificacionController@leerTodas');
 $router->get( '/notificaciones/comunicado',   'NotificacionController@comunicado');
 $router->post('/notificaciones/comunicado',   'NotificacionController@guardarComunicado');
+$router->get( '/notificaciones/enviados',     'NotificacionController@enviados');
 
 // ─── Admin — Currículo Académico ────────────────────────────
 $router->get( '/admin/curriculum',                                  'Admin\CurriculumController@index');

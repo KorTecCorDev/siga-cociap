@@ -1,10 +1,44 @@
 /**
  * notificaciones.js — SIGA-COCIAP
  * Bandeja /notificaciones: marcar como leída sin recargar la página.
+ * Comunicado /notificaciones/comunicado: validación en cliente de los destinos
+ * (el servidor valida lo mismo; esto solo evita el viaje de ida y vuelta).
  *
  * El servidor devuelve el contador actualizado, así que la campana de la barra
  * se sincroniza con la misma respuesta: no hay dos fuentes de verdad.
  */
+(function () {
+    var form = document.querySelector('[data-comunicado-form]');
+    if (!form) return;
+
+    var error   = form.querySelector('[data-comunicado-error]');
+    var seccion = form.querySelector('#seccion_id');
+
+    function mostrarError(texto) {
+        if (!error) return;
+        error.textContent = texto;
+        error.hidden = texto === '';
+    }
+
+    form.addEventListener('submit', function (ev) {
+        var marcadas = form.querySelectorAll('input[name="destinos[]"]:checked');
+        var conSeccion = form.querySelector('input[name="destinos[]"][value="seccion"]:checked');
+
+        if (marcadas.length === 0) {
+            ev.preventDefault();
+            mostrarError('Elige a quién va dirigido el comunicado.');
+            return;
+        }
+        if (conSeccion && seccion && seccion.value === '') {
+            ev.preventDefault();
+            mostrarError('Elige la sección a la que va el comunicado.');
+            seccion.focus();
+            return;
+        }
+        mostrarError('');
+    });
+})();
+
 (function () {
     var lista = document.querySelector('.notif-lista');
     if (!lista) return;
@@ -48,7 +82,11 @@
             method: 'POST',
             body: datos,
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            // «Ver detalle» navega en el mismo clic: sin keepalive el navegador
+            // puede cancelar la petición al salir y la notificación quedaría
+            // sin leer.
+            keepalive: true
         })
             .then(function (r) { return r.json(); })
             .then(function (res) {

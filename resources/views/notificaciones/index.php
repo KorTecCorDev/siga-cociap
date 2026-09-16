@@ -27,6 +27,9 @@
     </div>
     <div class="btn-group">
         <?php if ($puedeEmitir): ?>
+            <a href="<?= url('notificaciones/enviados') ?>" class="btn btn--secondary btn--sm">
+                Comunicados enviados
+            </a>
             <a href="<?= url('notificaciones/comunicado') ?>" class="btn btn--primary btn--sm">
                 Nuevo comunicado
             </a>
