@@ -1,43 +1,108 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **11/09/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **16/09/2026**.
 > **Versión desplegada: v1.0.1** (`config/app.php` + tag anotado `v1.0.1`).
 
 
 
 
-## ⏭ PARA RETOMAR EN EL ESCRITORIO (11/09/2026)
+## ⏭ PARA RETOMAR EN EL ESCRITORIO (16/09/2026, turno tarde en la laptop)
 
-`dev` quedó pusheado en **`63b8670`**, **12 commits por delante de `main`** (`e51349d`,
-v1.0.1). **El merge NO se hizo**: el turno de oficina terminó antes de las pruebas de
-navegador, que son las que faltan.
+Sustituye al traspaso del 11/09. `dev` queda pusheado con el cierre de notificaciones,
+**15 commits por delante de `main`** (v1.0.1). **El merge NO se hizo.**
 
-Lo cerrado hoy en la laptop, todo en `dev`:
+### 1. Antes de abrir nada en el escritorio
+1. `git pull` en `dev`. **No hace falta `gulp build`**: `app.css` y los JS compilados van
+   en el commit.
+2. ⚠️ **Aplicar en la BD LOCAL del escritorio `057` → `058` → `059` → `060`**, las que
+   falten. Cada máquina tiene su copia, y la `060` es de hoy: **sin ella la bandeja y el
+   comunicado revientan** (columna `comunicado_id` y tabla `comunicados`). Comprobar:
+   `SHOW TABLES LIKE 'comunicados'`.
+3. Correr `verif_notificaciones.php` (37), `verif_notas_origen.php` (32) y
+   `verif_extraordinaria_lote.php`. Referencia de la batería completa en la laptop:
+   **38 de 39 en verde**; el único rojo es `verif_estructura_boleta`, preexistente y
+   también rojo en `main` (su aserto no exige el bloqueo).
+4. Los ids de las pruebas de abajo son **de la BD de la laptop**. Si la del escritorio
+   difiere, buscar equivalentes antes de concluir que algo falla.
 
-- Los **4 commits** del lote: `cf598f2` (404), `e47e87c` (importador + migración `059`),
-  `63c6562` (procedencias), `63b8670` (docs).
-- **Batería completa: 37 de 38 verificadores en verde**, y `verif_notas_origen` subió a
-  **41 comprobaciones**. El único rojo es `verif_estructura_boleta`, y **falla igual en
-  `main`**: su aserto cuenta cualquier nota no nula sin exigir el bloqueo, así que se pone
-  rojo en cuanto el bimestre activo tiene notas sin bloquear. **No es regresión**, y
-  arreglarlo es una línea en el verificador, no en la boleta.
-- **Ensayo de las migraciones `057` → `058` → `059`** en una BD desechable: corren **dos
-  veces seguidas** sin error y dejan la estructura idéntica a la local.
-- Render de las 4 vistas con datos reales y las **dos ramas** de la guarda nueva.
+### 2. Checklist de navegador — lo YA PROBADO (16/09, laptop, con sesión)
+Pasaron sin observaciones:
+- **§0 preparación** · **§1 notificaciones completas**: comunicados con las 4 casillas y
+  combinados, validaciones, historial con «leído por X de N», docente (marcar una, todas,
+  «Ver detalle» queda leída), **director con sesión** (campana, marcar leída, 403 al
+  redactar y al historial), refresco de avisos repetidos y móvil.
+- **§2 notas del colegio de origen**: importador, guardas en cliente y servidor, filas sin
+  nota omitidas, competencia compartida por dos áreas, vista del docente con sus dos ramas,
+  y **no aparecen en la boleta**.
+- **§3 extraordinaria en lote**: literal en vivo, conclusión por nivel, transversales,
+  motivo, transacción, **sí aparecen en la boleta**, mérito B1 intacto.
+- **§4 chips de procedencia**: los 3 chips en `/matriculas/693`, `/matriculas/693/notas-externas`,
+  `/consulta-notas/2/carga/295`, y con la docente SAARA SOTELO (id 6) en `/notificaciones`,
+  `/docente/notas-origen/693` y `/docente/calificaciones/295/historial/2`.
 
-Lo que falta, en orden:
+🔴 **Dos vistas NO probadas, a sabiendas:** la grilla del docente
+(`/docente/calificaciones/{carga}`) y el resumen de competencia
+(`/docente/calificaciones/{carga}/resumen/{comp}`). Solo muestran el bimestre ACTIVO y en
+local **no hay ninguna extraordinaria en el III Bimestre** (están en I y II). Pintan el
+chip con el mismo partial que `/consulta-notas`, que sí pasó: **riesgo bajo, pero no es
+cero**. Probarlas exige crear una extraordinaria sobre una competencia bloqueada del III.
 
-1. ⚠️ **Aplicar `057`, `058` y `059` en la BD LOCAL del escritorio**, si no están. Se
-   aplicaron en la laptop, y **cada máquina tiene su propia copia**: sin ellas el módulo
-   no levanta allá.
-2. **Checklist de navegador** — nada de este lote se ha visto con sesión iniciada:
-   importar la currícula, marcar/desmarcar áreas, las dos ramas de la guarda nueva, los
-   chips en las 7 vistas, la campana, la extraordinaria en lote, y `/admin/cuadros` con
-   sesión de director (sigue sin abrirse nunca con ese rol).
-3. **`057`, `058` y `059` en PRODUCCIÓN, a mano y ANTES del merge.** El auto-deploy
-   publica código, no repara datos.
-4. `chore(release): v1.0.2`, merge `--no-ff` a `main`, tag anotado y push.
+⚠️ La primera versión del checklist daba **nombres de archivo de vista** en vez de URLs
+(`matriculas/show` → 404). Corregido arriba; si se reutiliza el checklist, usar URLs.
+
+### 3. Lo que FALTA probar (en este orden)
+**§5 — Dirección solo ve bimestres CERRADOS en `/admin/cuadros`** (en la laptop: I y II
+cerrados = ids 1 y 2; III activo = id 3). Es la primera vez que `/admin/cuadros` se abre
+con sesión de director.
+- [ ] Director: el selector solo ofrece bimestres cerrados; el activo no aparece.
+- [ ] Director: las series de evolución terminan en el último cerrado (sin caída final).
+- [ ] Director: `/admin/cuadros/imprimir?periodo_id=3` → **404**; con `periodo_id=2` funciona.
+- [ ] Director: `/admin/cuadros?periodo_id=3` no muestra el activo.
+- [ ] Admin y RA: siguen viendo el III **en vivo**, como antes.
+- [ ] Director: `/consulta-notas/3/seccion/{s}/asistencia` sigue en vivo (excepción que se conserva).
+
+**§6 — 404 limpios** (con admin; una sola página, sin barra duplicada):
+- [ ] `/matriculas/999999/notas-siagie/informe`
+- [ ] `/matriculas/999999/retorno`
+- [ ] `/matriculas/999999/trasladar`
+- [ ] `/traslados/999999/imprimir`
+
+**§7 — Regresión general**
+- [ ] Login y dashboard con cada rol; la campana solo para docente, RA, admin y directores.
+- [ ] Un docente registra y guarda una nota por el flujo normal.
+- [ ] Boleta digital e imprimible de un alumno cualquiera, igual que en producción.
+- [ ] Orden de mérito de un grado, igual que en producción.
+- [ ] `/rectificaciones` de un alumno sin casos especiales.
+- [ ] Consola del navegador sin errores en todo el recorrido.
+
+### 4. Despliegue (solo con §5–§7 en verde)
+1. **`057`, `058`, `059` y `060` en PRODUCCIÓN, a mano y ANTES del merge.** El
+   auto-deploy publica código, no repara datos. Ensayadas dos veces seguidas en BD
+   desechable (057–059 el 11/09, 060 el 16/09).
+2. `chore(release): v1.0.2`, **preguntar antes del merge** `--no-ff` a `main`, tag anotado
+   y push.
+3. Al desplegar: cabeceras de `notificaciones.md` y `usuarios-direccion.md`, y registrar el
+   deploy aquí.
+
+### 5. Qué entró hoy (16/09) — cierre del módulo de notificaciones
+Detalle en `docs/modulos/notificaciones.md`. **Migración `060`** (`comunicados` +
+`notificaciones.comunicado_id`).
+- **Defectos arreglados:** «Ver detalle» podía no marcar la leída (`keepalive`) · título
+  sin validar en servidor · el select ofrecía secciones del año planificado, que daban
+  «No hay destinatarios» · texto fijo «Registro Académico registró…» · avisos a docentes
+  inactivos.
+- **Decisiones del usuario:** dirección **recibe** comunicados y marca leídas solo SU
+  bandeja (excepción acotada, en `usuarios-direccion.md`) · destino *Personal
+  administrativo* · destinos **combinables**, deduplicados y sin el emisor · avisos
+  repetidos se **refrescan** · **historial de enviados** para todos los emisores.
+- **Verificador propio** `verif_notificaciones.php` (37); sus asertos salieron de
+  `verif_notas_origen.php`.
+- **Diferido sin decisión:** paginación o limpieza de la bandeja (hoy, las 100 más recientes).
+
+⚠️ Al empezar la sesión había un cambio sin commit en `public/js/anio-academico.js`;
+`gulp build` lo regeneró desde su fuente (sin cambios) y quedó igual a `HEAD`. Si aquel
+cambio se hizo a mano en el escritorio, **allí sigue**; en la laptop se perdió.
 
 ## 🆕 IMPORTAR LA CURRÍCULA + CATEGORÍAS DE PROCEDENCIA — EN `dev` (10/09/2026)
 

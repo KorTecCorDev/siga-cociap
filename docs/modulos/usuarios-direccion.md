@@ -67,6 +67,16 @@ retorno de grado).
 Las vistas se pintan sin controles vía `$puedeEscribir`, pero **eso es UX, no
 control de acceso**: la guarda real está en el método.
 
+### Excepción acotada: marcar leídas SUS notificaciones (16/09/2026)
+
+Desde el cierre del módulo de notificaciones, los tres directores **reciben
+comunicados y tienen campana** (`NotificacionModel::ROLES_RECEPTORES` incluye
+`...ROLES_DIRECCION`). `POST /notificaciones/leer` y `/leer-todas` **no llevan gate
+de rol a propósito**: solo cambian el estado personal de **su propia bandeja** (el
+modelo filtra por `usuario_id`), no un dato académico, y sin ellos su campana nunca
+bajaría a cero. **Redactar sigue vedado** (`ROLES_EMISORES` no incluye dirección).
+Lo comprueba `verif_notificaciones.php` §6 y §9. Ver `docs/modulos/notificaciones.md`.
+
 ### 🔴 La UX iba nueve botones por detrás (02/09/2026)
 
 El servidor estaba **completo y correcto** —los 30 métodos guardados, verificador
