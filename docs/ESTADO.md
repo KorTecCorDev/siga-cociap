@@ -21,8 +21,10 @@ Sustituye al traspaso del 11/09. `dev` queda pusheado con el cierre de notificac
    `SHOW TABLES LIKE 'comunicados'`.
 3. Correr `verif_notificaciones.php` (37), `verif_notas_origen.php` (32) y
    `verif_extraordinaria_lote.php`. Referencia de la batería completa en la laptop:
-   **38 de 39 en verde**; el único rojo es `verif_estructura_boleta`, preexistente y
-   también rojo en `main` (su aserto no exige el bloqueo).
+   **39 de 39 en verde desde el 17/09/2026.** El rojo que se daba por normal,
+   `verif_estructura_boleta`, era del verificador: su esperado ignoraba el bloqueo, y sus
+   verdes no discriminaban. Reescrito y probado con mutantes (ver
+   `database/verificaciones/README.md`).
 4. Los ids de las pruebas de abajo son **de la BD de la laptop**. Si la del escritorio
    difiere, buscar equivalentes antes de concluir que algo falla.
 

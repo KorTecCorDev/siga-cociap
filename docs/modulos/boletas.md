@@ -825,6 +825,12 @@ publicado**, aunque el bimestre en curso ya tenga notas en la BD. Su paso 3 es e
 compara los bimestres con datos **con y sin** el flag y exige que sean los mismos — si
 difirieran, el flag estaría filtrando datos y no solo formato.
 
+> ⚠️ **Hasta el 17/09/2026 esa verificación NO discriminaba con datos reales**: todo lo
+> cerrado estaba publicado, no había Hito A en curso y nada bloqueado en el bimestre activo,
+> así que los cuatro umbrales daban lo mismo. Su **sección 4** fuerza ahora, en transacción
+> + ROLLBACK, los tres estados que los separan, y está probada con mutantes. Detalle en
+> `database/verificaciones/README.md`.
+
 Es además el argumento original de la regla del 09/07 (`BoletaController:68-70`): con la
 estructura anual fija, una columna vacía **no revela** si el bimestre cerró. *Colapsarlas
 era justo lo que lo delataba* — y la digital de familias, que es el destino del QR, era la
