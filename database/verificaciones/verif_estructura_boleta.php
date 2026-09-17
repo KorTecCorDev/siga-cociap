@@ -35,6 +35,10 @@
  *      fuga. Aqui se fuerzan, sobre un bimestre con notas en boleta, los tres
  *      estados que separan umbrales: cerrado SIN publicar, activo CON Hito A y
  *      activo en registro. Cada umbral debe mostrar u ocultar ese bimestre.
+ *   4b. INVARIANTE (17/09/2026): sin bloqueo, una nota NO llega a ningun umbral
+ *      —ni a la vista previa de RA—. Ningun otro verificador del repo cubre la
+ *      regla «boleta = solo competencias BLOQUEADAS», y la seccion 2 no puede:
+ *      su esperado sale de la misma consulta que podria perder el JOIN.
  */
 
 define('ROOT_PATH', dirname(__DIR__, 2));
@@ -301,6 +305,78 @@ if (is_file('/home/u761410128/siga_secrets/database.php')) {
         }
 
         $check('ROLLBACK: periodo y publicacion intactos', $huellaAntes, $huella());
+
+        // ── 4b. INVARIANTE: sin bloqueo la nota no llega a NINGUN umbral ──
+        // Es el invariante mayor de la boleta ("solo competencias BLOQUEADAS") y
+        // NINGUN verificador del repo lo cubria: si alguien quitara el INNER JOIN a
+        // `bloqueos_competencia` de getBoletaAlumno, el esperado y el obtenido de la
+        // seccion 2 se moverian JUNTOS —los dos leen de ahi— y esto seguiria verde.
+        // Por eso se prueba quitando el bloqueo y exigiendo que la celda desaparezca.
+        $enFuentes = implode(',', array_fill(0, count($fuentes), '?'));
+        $stCelda   = $pdo->prepare("
+            SELECT cal.carga_id, cal.competencia_id, comp.nombre_corto
+            FROM calificaciones cal
+            INNER JOIN bloqueos_competencia bc ON bc.carga_id       = cal.carga_id
+                                              AND bc.competencia_id = cal.competencia_id
+                                              AND bc.periodo_id     = cal.periodo_id
+            INNER JOIN competencias comp ON comp.id = cal.competencia_id
+            LEFT  JOIN areas a           ON a.id    = comp.area_id
+            WHERE cal.matricula_id IN ({$enFuentes})
+              AND cal.periodo_id    = ?
+              AND cal.nota_numerica IS NOT NULL
+              -- Las transversales se agregan aparte (promedio por carga + cierre del
+              -- tutor): quitar UN bloqueo no tiene por que borrar su fila.
+              AND (a.tipo IS NULL OR a.tipo <> 'transversal')
+            ORDER BY cal.id
+            LIMIT 1
+        ");
+        $stCelda->execute([...array_map('intval', $fuentes), $pid]);
+        $celda = $stCelda->fetch();
+
+        if (!$celda) {
+            echo "  AVISO sin competencia academica bloqueada en el bimestre {$num}: no se prueba el invariante.\n";
+        } else {
+            /** Celdas CON dato del bimestre de prueba, en toda la boleta. */
+            $celdasConDato = static function (array $d) use ($pid): int {
+                $n = 0;
+                foreach ($d['areas'] as $area) {
+                    foreach ($area as $comp) {
+                        $b = $comp['bimestres'][$pid] ?? null;
+                        if (is_array($b) && (($b['literal'] ?? null) !== null || ($b['nota'] ?? null) !== null)) {
+                            $n++;
+                        }
+                    }
+                }
+                return $n;
+            };
+
+            $antes = [];
+            foreach (['oficial', 'archivo', 'borrador', 'todos'] as $modo) {
+                $antes[$modo] = $celdasConDato($boletas->armar($matriculaId, $verPeriodo, $modo, true));
+            }
+            $bloqueosAntes = (int) $pdo->query("SELECT COUNT(*) FROM bloqueos_competencia")->fetchColumn();
+            echo "  -- sin el bloqueo de «{$celda['nombre_corto']}» (carga {$celda['carga_id']})\n";
+
+            $pdo->beginTransaction();
+            try {
+                $del = $pdo->prepare("DELETE FROM bloqueos_competencia WHERE carga_id = ? AND competencia_id = ? AND periodo_id = ?");
+                $del->execute([(int) $celda['carga_id'], (int) $celda['competencia_id'], $pid]);
+                $check('el bloqueo de prueba se retiro (1 fila)', '1', (string) $del->rowCount());
+
+                foreach (['oficial', 'archivo', 'borrador', 'todos'] as $modo) {
+                    $check(
+                        sprintf("'%s' pierde esa celda del bimestre %d", $modo, $num),
+                        (string) ($antes[$modo] - 1),
+                        (string) $celdasConDato($boletas->armar($matriculaId, $verPeriodo, $modo, true))
+                    );
+                }
+            } finally {
+                $pdo->rollBack();
+            }
+
+            $check('ROLLBACK: los bloqueos vuelven', (string) $bloqueosAntes,
+                (string) (int) $pdo->query("SELECT COUNT(*) FROM bloqueos_competencia")->fetchColumn());
+        }
     }
 }
 

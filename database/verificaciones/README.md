@@ -92,6 +92,13 @@ grado concretos del I Bimestre (541 retirado, 220/666 pendientes, 692/190 retorn
     qué umbral muestra y cuál oculta ese bimestre. **Probado con 4 mutantes** de
     `periodoAportaNotas` (uno por umbral): la versión nueva los detecta todos; la anterior,
     **ninguno**.
+  - Su **bloque 4b** cubre el invariante mayor de la boleta —«solo competencias
+    BLOQUEADAS»—, que **ningún verificador del repo vigilaba**: retira un bloqueo en
+    transacción y exige que esa celda desaparezca de los cuatro umbrales. La sección 2 no
+    puede hacerlo, porque su esperado sale de la misma consulta que podría perder el JOIN.
+    Medido con el mutante (`INNER JOIN` → `LEFT JOIN` en `getBoletaAlumno`): el bloque nuevo
+    falla en los 4 umbrales y **la versión anterior del verificador se ponía VERDE** — el
+    fallo le quitaba además su propio rojo.
 
 - **`verif_universo_merito.php`** — **SOLO LECTURA**, apto para producción. Lista, grado por
   grado y periodo por periodo, **qué áreas aportan al promedio del orden de mérito** y
