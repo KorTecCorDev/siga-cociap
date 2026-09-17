@@ -106,6 +106,21 @@ Detalle en `docs/modulos/notificaciones.md`. **Migración `060`** (`comunicados`
 `gulp build` lo regeneró desde su fuente (sin cambios) y quedó igual a `HEAD`. Si aquel
 cambio se hizo a mano en el escritorio, **allí sigue**; en la laptop se perdió.
 
+## 🔴 DATOS PERSONALES SERVIDOS DESDE `public/` — EN `dev` (17/09/2026)
+
+Detalle y medición en `docs/infraestructura.md` § «Datos personales servidos desde
+`public/`». En una línea: `public/matriculados.csv` (528 estudiantes con DNI, apoderado,
+domicilio y celular) y `public/hash.php` (contraseña en texto plano) estaban versionados y
+el `.htaccess` no negaba `.csv`. Salen del repo, entran al `.gitignore` y los dos
+`.htaccess` los niegan.
+
+**Pendiente del usuario (NO lo hace el deploy):**
+- [ ] Comprobar en producción qué responden `/matriculados.csv` y `/hash.php`.
+- [ ] **Borrarlos a mano del servidor**: el auto-deploy solo los retira al mergear a `main`.
+- [ ] Repo de GitHub **era público** → pasarlo a privado; el historial conserva los archivos.
+- [ ] Decidir si se reescribe el historial (y, si el colegio lo exige, el aviso por la
+      Ley 29733 de protección de datos personales).
+
 ## 🆕 IMPORTAR LA CURRÍCULA + CATEGORÍAS DE PROCEDENCIA — EN `dev` (10/09/2026)
 
 Segundo bloque del mismo día, sobre el módulo de notas del colegio de origen. **Añade la
