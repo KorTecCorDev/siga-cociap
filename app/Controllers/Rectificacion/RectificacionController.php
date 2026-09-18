@@ -391,12 +391,7 @@ class RectificacionController extends BaseController
         // mismo punto único que valida el POST (conclusionObligatoria), para
         // que la grilla no reimplemente la regla: primaria B y C, secundaria
         // solo C. El JS revela el campo usando esta lista.
-        $literalesConclusion = [];
-        foreach (['AD', 'A', 'B', 'C'] as $lit) {
-            if (CalificacionModel::conclusionObligatoria($lit, (string) $info['nivel_codigo'])) {
-                $literalesConclusion[] = $lit;
-            }
-        }
+        $literalesConclusion = $this->literalesConclusion((string) $info['nivel_codigo']);
 
         $this->view('rectificaciones/extraordinaria-lote', [
             'titulo'       => 'Calificación extraordinaria en lote',
@@ -409,6 +404,7 @@ class RectificacionController extends BaseController
             'porArea'      => array_values($porArea),
             'total'        => count($items),
             'literalesConclusion' => $literalesConclusion,
+            'old'          => Session::getFlash('lote_old'),
             'page_scripts' => ['rectificaciones-lote'],
         ]);
     }
@@ -437,13 +433,14 @@ class RectificacionController extends BaseController
         $volverForm  = url('rectificaciones/extraordinaria/lote?matricula=' . $matriculaId
             . '&periodo=' . $periodoId);
         $volverLista = url('rectificaciones/matricula/' . $matriculaId);
+        $entrada     = ['motivo' => $motivo, 'notas' => $notas, 'conclusiones' => $conclusiones];
 
         $info = $this->model->getMatriculaInfo($matriculaId);
         if (!$info) {
             $this->notFound();
         }
         if ($motivo === '') {
-            $this->redirectWithError($volverForm, 'El motivo de la calificación extraordinaria es obligatorio.');
+            $this->volverConEntrada($volverForm, 'El motivo de la calificación extraordinaria es obligatorio.', 'lote_old', $entrada);
         }
 
         // Metadatos del bimestre indexados por la misma clave "carga-competencia"
@@ -471,13 +468,13 @@ class RectificacionController extends BaseController
                 continue;   // fila vacia: no se registra, y no es un error
             }
             if (!isset($meta[$clave])) {
-                $this->redirectWithError($volverForm,
-                    'Una de las competencias enviadas no pertenece a este bimestre.');
+                $this->volverConEntrada($volverForm,
+                    'Una de las competencias enviadas no pertenece a este bimestre.', 'lote_old', $entrada);
             }
             $etiqueta = $this->etiquetaInsertable($meta[$clave]);
             if (!is_numeric($notaRaw)) {
-                $this->redirectWithError($volverForm,
-                    'La nota de ' . $etiqueta . ' no es un número.');
+                $this->volverConEntrada($volverForm,
+                    'La nota de ' . $etiqueta . ' no es un número.', 'lote_old', $entrada);
             }
 
             $partes        = explode('-', $clave);
@@ -500,9 +497,9 @@ class RectificacionController extends BaseController
             $conclusion = trim((string) ($conclusiones[$clave] ?? ''));
             $literal    = nota_a_literal($nota);
             if (CalificacionModel::conclusionObligatoria($literal, $nivel) && $conclusion === '') {
-                $this->redirectWithError($volverForm,
+                $this->volverConEntrada($volverForm,
                     'La conclusión descriptiva es obligatoria para el literal ' . $literal
-                    . ' en este nivel: ' . $etiqueta . '.');
+                    . ' en este nivel: ' . $etiqueta . '.', 'lote_old', $entrada);
             }
 
             $filas[] = [
@@ -515,7 +512,7 @@ class RectificacionController extends BaseController
         }
 
         if ($filas === []) {
-            $this->redirectWithError($volverForm, 'No ingresaste ninguna nota.');
+            $this->volverConEntrada($volverForm, 'No ingresaste ninguna nota.', 'lote_old', $entrada);
         }
 
         // ── Escritura atómica del lote completo ──────────────────
@@ -534,8 +531,8 @@ class RectificacionController extends BaseController
                 'matricula' => $matriculaId, 'periodo' => $periodoId,
                 'filas' => count($filas), 'error' => $e->getMessage(),
             ]);
-            $this->redirectWithError($volverForm,
-                'No se pudo registrar el lote. No se guardó ninguna nota.');
+            $this->volverConEntrada($volverForm,
+                'No se pudo registrar el lote. No se guardó ninguna nota.', 'lote_old', $entrada);
         }
 
         $avisoBoleta = $this->calModel->queryOne(
@@ -550,6 +547,35 @@ class RectificacionController extends BaseController
             $n . ($n === 1 ? ' calificación extraordinaria registrada' : ' calificaciones extraordinarias registradas')
             . '. No cuentan para el orden de mérito.' . $extraAviso);
     }
+    /**
+     * Literales que EXIGEN conclusión descriptiva en un nivel. Sale del mismo
+     * punto único que valida el POST (conclusionObligatoria): primaria B y C,
+     * secundaria solo C. Las vistas lo pasan al JS en data-* para que el
+     * cliente no reimplemente la regla.
+     */
+    private function literalesConclusion(string $nivelCodigo): array
+    {
+        $out = [];
+        foreach (['AD', 'A', 'B', 'C'] as $lit) {
+            if (CalificacionModel::conclusionObligatoria($lit, $nivelCodigo)) {
+                $out[] = $lit;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Rechazo que CONSERVA lo escrito: guarda la entrada en un flash y vuelve
+     * al formulario, que la repinta. Antes el rechazo repintaba las notas de
+     * la BD y el reenvío guardaba la nota VIEJA sin aviso (así falló la prueba
+     * §B1 del 18/09/2026: una rectificación 17→10 quedó registrada 17→17).
+     */
+    private function volverConEntrada(string $url, string $mensaje, string $clave, array $entrada): never
+    {
+        Session::flash($clave, $entrada);
+        $this->redirectWithError($url, $mensaje);
+    }
+
     /**
      * GET /rectificaciones/editar?matricula=&carga=&competencia=&periodo=
      * Formulario de rectificación por criterio de UNA competencia.
@@ -587,6 +613,11 @@ class RectificacionController extends BaseController
             'cargaId'       => $cargaId,
             'competenciaId' => $competenciaId,
             'periodoId'     => $periodoId,
+            'literalesConclusion' => $this->literalesConclusion((string) $info['nivel_codigo']),
+            // Lo que se escribio antes de un rechazo del servidor (ver
+            // volverConEntrada): sin esto el formulario se repintaba con las
+            // notas de la BD y reenviarlo guardaba la nota VIEJA sin aviso.
+            'old'           => Session::getFlash('rect_old'),
             'page_scripts'  => ['rectificaciones'],
         ]);
     }
@@ -612,6 +643,11 @@ class RectificacionController extends BaseController
         $volverEditar = url('rectificaciones/editar?matricula=' . $matriculaId
             . '&carga=' . $cargaId . '&competencia=' . $competenciaId . '&periodo=' . $periodoId);
         $volverLista  = url('rectificaciones/matricula/' . $matriculaId);
+        $entrada      = [
+            'notas'      => is_array($notasPost) ? $notasPost : [],
+            'conclusion' => $conclusion,
+            'motivo'     => $motivo,
+        ];
 
         // ── Validaciones de entrada ──────────────────────────────
         $info = $this->model->getMatriculaInfo($matriculaId);
@@ -619,7 +655,7 @@ class RectificacionController extends BaseController
             $this->notFound();
         }
         if ($motivo === '') {
-            $this->redirectWithError($volverEditar, 'El motivo de la rectificación es obligatorio.');
+            $this->volverConEntrada($volverEditar, 'El motivo de la rectificación es obligatorio.', 'rect_old', $entrada);
         }
         // Invariante de seguridad: estado rectificable.
         if (!$this->model->esRectificable($matriculaId, $cargaId, $competenciaId, $periodoId)) {
@@ -649,7 +685,7 @@ class RectificacionController extends BaseController
             }
         }
         if (empty($notas)) {
-            $this->redirectWithError($volverEditar, 'Ingresa al menos una nota de criterio.');
+            $this->volverConEntrada($volverEditar, 'Ingresa al menos una nota de criterio.', 'rect_old', $entrada);
         }
 
         // Estado ANTERIOR (para la traza).
@@ -667,7 +703,7 @@ class RectificacionController extends BaseController
             $promedio = $this->calModel->calcularPromedio($matriculaId, $cargaId, $competenciaId, $periodoId);
             if ($promedio === null) {
                 $this->model->rollback();
-                $this->redirectWithError($volverEditar, 'No se pudo calcular el promedio. Revisa las notas.');
+                $this->volverConEntrada($volverEditar, 'No se pudo calcular el promedio. Revisa las notas.', 'rect_old', $entrada);
             }
             $notaNueva = (int) round($promedio);
             $literal   = nota_a_literal($notaNueva);
@@ -675,8 +711,9 @@ class RectificacionController extends BaseController
             // Conclusión obligatoria según literal + nivel.
             if (CalificacionModel::conclusionObligatoria($literal, $nivelCodigo) && $conclusion === '') {
                 $this->model->rollback();
-                $this->redirectWithError($volverEditar,
-                    'La conclusión descriptiva es obligatoria para el literal ' . $literal . ' en este nivel.');
+                $this->volverConEntrada($volverEditar,
+                    'La conclusión descriptiva es obligatoria para el literal ' . $literal . ' en este nivel.',
+                    'rect_old', $entrada);
             }
 
             $this->calModel->guardarNotaFinal(
@@ -707,7 +744,7 @@ class RectificacionController extends BaseController
                 'competencia' => $competenciaId, 'periodo' => $periodoId,
                 'error' => $e->getMessage(),
             ]);
-            $this->redirectWithError($volverEditar, 'No se pudo aplicar la rectificación.');
+            $this->volverConEntrada($volverEditar, 'No se pudo aplicar la rectificación.', 'rect_old', $entrada);
         }
 
         // ── Regeneración del orden de mérito + aviso de empate ────
@@ -745,8 +782,20 @@ class RectificacionController extends BaseController
             $avisoEmpate = ' (No se pudo regenerar el orden de mérito automáticamente; revísalo manualmente.)';
         }
 
+        // Una nota que nacio EXTRAORDINARIA sigue siendolo tras corregirla (el
+        // flag sobrevive al recalculo), asi que no mueve el orden de merito. Sin
+        // este aviso, RA buscaba el cambio en el ranking y no lo encontraba.
+        $avisoExtra = '';
+        $filaCal = $this->calModel->queryOne("
+            SELECT extraordinaria FROM calificaciones
+            WHERE matricula_id = ? AND carga_id = ? AND competencia_id = ? AND periodo_id = ?
+        ", [$matriculaId, $cargaId, $competenciaId, $periodoId]);
+        if ($filaCal && (int) $filaCal['extraordinaria'] === 1) {
+            $avisoExtra = ' Esta nota es extraordinaria: no cuenta para el orden de mérito.';
+        }
+
         $this->redirectWithSuccess($volverLista,
-            'Rectificación aplicada.' . $notaRanking . $avisoEmpate);
+            'Rectificación aplicada.' . $avisoExtra . $notaRanking . $avisoEmpate);
     }
 
 }

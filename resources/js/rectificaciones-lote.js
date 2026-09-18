@@ -2,12 +2,15 @@
  * rectificaciones-lote.js — SIGA-COCIAP
  * Grilla de CALIFICACIÓN EXTRAORDINARIA EN LOTE (/rectificaciones/extraordinaria/lote).
  *
- * Hace tres cosas, todas de captura; ninguna regla de negocio vive aquí:
- *   1. Muestra el literal en vivo de cada nota tecleada.
- *   2. Revela la conclusión descriptiva SOLO en las filas cuyo literal la
- *      exige, y le pone `required` únicamente cuando está visible (un campo
+ * Hace cuatro cosas, todas de captura; ninguna regla de negocio vive aquí:
+ *   1. Valida la nota igual que la grilla del docente (calificaciones.js):
+ *      solo dígitos al teclear, limpia lo pegado y, al salir, recorta a 0-20
+ *      con dos dígitos.
+ *   2. Muestra el literal en vivo de cada nota tecleada.
+ *   3. Revela la conclusión descriptiva en TODA fila con nota —es opcional
+ *      (18/09/2026)— y le pone `required` solo si el literal la exige (un campo
  *      required oculto bloquea el envío sin decir por qué).
- *   3. Cuenta las filas con nota y habilita el botón de registrar.
+ *   4. Cuenta las filas con nota y habilita el botón de registrar.
  *
  * ⚠️ Los umbrales de la escala y los literales que exigen conclusión NO se
  * escriben aquí: llegan en data-* desde PHP, que los saca de las constantes de
@@ -65,6 +68,9 @@
         var textarea = bloqueConclusion
             ? bloqueConclusion.querySelector('textarea')
             : null;
+        var marca = bloqueConclusion
+            ? bloqueConclusion.querySelector('[data-concl-obligatoria]')
+            : null;
 
         var n = notaDe(input);
 
@@ -86,13 +92,27 @@
             celda.dataset.literal = lit;
         }
 
-        // La conclusión se pide SOLO donde la regla del nivel la exige, y
-        // `required` se pone únicamente con el campo a la vista.
-        var hace = exigenConclusion.indexOf(lit) !== -1;
+        // Con nota, la conclusión siempre está a la vista (es opcional); solo
+        // es OBLIGATORIA donde la regla del nivel la exige.
+        var exige = exigenConclusion.indexOf(lit) !== -1;
         if (bloqueConclusion) {
-            bloqueConclusion.hidden = !hace;
-            if (textarea) textarea.required = hace;
+            bloqueConclusion.hidden = false;
+            if (textarea) textarea.required = exige;
+            if (marca)    marca.hidden = !exige;
         }
+    }
+
+    /** Al salir del campo: recorta a 0-20 con dos dígitos (como el docente). */
+    function normalizar(input) {
+        var bruto = input.value.trim();
+        if (bruto === '') return;
+        var n = parseInt(bruto, 10);
+        if (isNaN(n)) {
+            input.value = '';
+            return;
+        }
+        n = Math.min(20, Math.max(0, n));
+        input.value = (n < 10 ? '0' : '') + n;
     }
 
     function actualizarContador() {
@@ -105,7 +125,22 @@
     }
 
     inputs.forEach(function (input) {
+        // Bloquea en vivo toda tecla que no sea dígito (navegación y atajos pasan).
+        input.addEventListener('keydown', function (e) {
+            var navegacion = ['Backspace', 'Delete', 'Tab', 'ArrowLeft',
+                'ArrowRight', 'Home', 'End', 'Enter'].indexOf(e.key) !== -1;
+            if (navegacion || e.ctrlKey || e.metaKey) return;
+            if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+        });
         input.addEventListener('input', function () {
+            // Limpia lo que entre pegado y no sea dígito.
+            var soloDigitos = input.value.replace(/\D/g, '');
+            if (input.value !== soloDigitos) input.value = soloDigitos;
+            actualizarFila(input);
+            actualizarContador();
+        });
+        input.addEventListener('blur', function () {
+            normalizar(input);
             actualizarFila(input);
             actualizarContador();
         });

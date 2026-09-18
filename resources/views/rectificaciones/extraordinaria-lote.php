@@ -13,8 +13,13 @@
  * @var array $porArea             [{area_id, area_nombre, items[]}]
  * @var int   $total               competencias insertables del bimestre
  * @var array $literalesConclusion literales que EXIGEN conclusión en este nivel
+ * @var array|null $old            lo escrito antes de un rechazo del servidor
+ *                                 (motivo, notas[clave], conclusiones[clave])
  */
 $volver     = url('rectificaciones/matricula/' . (int) $info['matricula_id']);
+$old        = is_array($old ?? null) ? $old : null;
+$oldNotas   = is_array($old['notas'] ?? null) ? $old['notas'] : [];
+$oldConcl   = is_array($old['conclusiones'] ?? null) ? $old['conclusiones'] : [];
 
 /** Etiqueta de competencia: antepone la subárea en áreas con subáreas. */
 $labelComp = static function (array $c): string {
@@ -25,9 +30,11 @@ $labelComp = static function (array $c): string {
     return $nombre;
 };
 
+// La conclusión se puede escribir con CUALQUIER nota (18/09/2026); solo es
+// obligatoria en los literales que exige el nivel (los desaprobados).
 $obligatoriaTxt = $literalesConclusion === []
-    ? 'En este nivel no se exige conclusión descriptiva.'
-    : 'Obligatoria cuando el resultado sea ' . implode(' o ', $literalesConclusion) . '.';
+    ? 'Opcional: en este nivel no se exige conclusión descriptiva.'
+    : 'Opcional; obligatoria cuando el resultado sea ' . implode(' o ', $literalesConclusion) . '.';
 ?>
 
 <div class="page-header">
@@ -102,7 +109,7 @@ $obligatoriaTxt = $literalesConclusion === []
             </p>
             <div class="form-group">
                 <textarea id="motivo" name="motivo" class="form-input" rows="3" required
-                          placeholder="Fundamenta la autorizacion (p. ej. estudiante matriculado el 13/07; notas tomadas del registro fisico del docente)."></textarea>
+                          placeholder="Fundamenta la autorizacion (p. ej. estudiante matriculado el 13/07; notas tomadas del registro fisico del docente)."><?= e((string) ($old['motivo'] ?? '')) ?></textarea>
             </div>
         </div>
     </div>
@@ -158,12 +165,18 @@ $obligatoriaTxt = $literalesConclusion === []
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
-                                <input type="number"
+                                <?php // Mismo input que la grilla del docente
+                                      // (texto, 2 dígitos, 0-20): el JS bloquea
+                                      // lo que no sea dígito y recorta al salir. ?>
+                                <input type="text"
                                        id="<?= e($idNota) ?>"
                                        aria-label="Nota de <?= e($labelComp($c)) ?>"
                                        name="nota[<?= e($clave) ?>]"
                                        class="form-input rect-nota-input rect-lote__nota"
-                                       min="0" max="20" step="1" inputmode="numeric"
+                                       inputmode="numeric" maxlength="2"
+                                       pattern="(0?[0-9]|1[0-9]|20)"
+                                       placeholder="—"
+                                       value="<?= e(trim((string) ($oldNotas[$clave] ?? ''))) ?>"
                                        autocomplete="off">
                             </td>
                             <td class="text-center">
@@ -174,12 +187,12 @@ $obligatoriaTxt = $literalesConclusion === []
                             <td colspan="4">
                                 <label class="form-label" for="concl_<?= e(str_replace('-', '_', $clave)) ?>">
                                     Conclusión descriptiva de <?= e($labelComp($c)) ?>
-                                    <span class="text-danger">*</span>
+                                    <span class="text-danger" data-concl-obligatoria hidden>*</span>
                                 </label>
                                 <textarea id="concl_<?= e(str_replace('-', '_', $clave)) ?>"
                                           name="conclusion[<?= e($clave) ?>]"
                                           class="form-input" rows="2"
-                                          placeholder="Describe el nivel de logro alcanzado."></textarea>
+                                          placeholder="Describe el nivel de logro alcanzado."><?= e((string) ($oldConcl[$clave] ?? '')) ?></textarea>
                                 <p class="text-sm text-muted"><?= e($obligatoriaTxt) ?></p>
                             </td>
                         </tr>
