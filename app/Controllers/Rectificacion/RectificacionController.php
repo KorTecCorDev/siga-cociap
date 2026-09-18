@@ -109,7 +109,7 @@ class RectificacionController extends BaseController
     /**
      * GET /rectificaciones/extraordinaria?matricula=&carga=&competencia=&periodo=
      * Formulario de CALIFICACIÓN EXTRAORDINARIA: alta de nota (con motivo)
-     * a un alumno SIN calificación en una competencia cerrada/bloqueada.
+     * a un alumno SIN calificación en una competencia de un bimestre CERRADO.
      * La nota va a boleta y SIAGIE; NO cuenta en el orden de mérito.
      */
     public function extraordinaria(): void
@@ -125,11 +125,11 @@ class RectificacionController extends BaseController
         }
 
         // Invariante de seguridad: solo tuplas insertables (sin nota previa,
-        // cerrada/bloqueada, no exonerado, carga de su sección).
+        // bimestre cerrado, no exonerado, carga de su sección).
         if (!$this->model->esInsertable($matriculaId, $cargaId, $competenciaId, $periodoId)) {
             $this->redirectWithError(
                 url('rectificaciones/matricula/' . $matriculaId),
-                'Esa competencia no admite calificación extraordinaria (el alumno ya tiene nota, está exonerado, o la competencia sigue en el flujo del docente).'
+                'Esa competencia no admite calificación extraordinaria (el alumno ya tiene nota, está exonerado, o el bimestre no está cerrado).'
             );
         }
 

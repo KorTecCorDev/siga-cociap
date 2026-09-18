@@ -229,10 +229,7 @@
                 // y promedio lo leen), pero no es parte del registro del docente.
                 $extraordinarias = $extraordinariasPorComp[$compCargaId . '-' . (int) $competencia['id']] ?? [];
                 require VIEW_PATH . '/docente/_extraordinaria-info.php';
-                $criteriosOrdinarios = array_values(array_filter(
-                    $competencia['criterios'] ?? [],
-                    fn($cr) => empty($cr['extraordinario'])
-                ));
+                $criteriosOrdinarios = criterios_ordinarios($competencia['criterios'] ?? []);
                 ?>
 
                 <?php if ($compBloqueada): ?>

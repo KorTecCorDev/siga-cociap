@@ -109,7 +109,8 @@ class RectificacionModel extends BaseModel
      * Detalle de UNA competencia para el formulario de rectificación:
      *   - 'meta'      : encabezado (área, competencia, periodo, nota/conclusión
      *                   actuales, flags de estado).
-     *   - 'criterios' : criterios activos con la nota actual de ESTA matrícula.
+     *   - 'criterios' : criterios activos con la nota actual de ESTA matrícula
+     *                   (el extraordinario, solo si ESTA matrícula lo tiene).
      * Devuelve null si la matrícula no tiene calificación en esa competencia.
      */
     public function getDetalleCompetencia(
@@ -169,6 +170,12 @@ class RectificacionModel extends BaseModel
               AND cr.competencia_id = ?
               AND cr.periodo_id     = ?
               AND cr.eliminado_en   IS NULL
+              -- El criterio EXTRAORDINARIO solo es del alumno que tiene nota en
+              -- él (18/09/2026). Antes salía vacío y editable para cualquier
+              -- compañero, y llenarlo metía una extraordinaria en el promedio de
+              -- un alumno ordinario. Como `guardar` valida contra esta misma
+              -- lista, el filtro protege también el POST.
+              AND (cr.extraordinario = 0 OR cc.nota IS NOT NULL)
             ORDER BY cr.orden, cr.id
         ", [$matriculaId, $cargaId, $competenciaId, $periodoId]);
 
@@ -207,11 +214,17 @@ class RectificacionModel extends BaseModel
 
     /**
      * Competencias INSERTABLES de una matrícula: el alumno NO tiene fila en
-     * `calificaciones` y la competencia ya salió del flujo del docente
-     * (periodo cerrado y/o bloqueada) → candidatas a CALIFICACIÓN
+     * `calificaciones` y el periodo está CERRADO → candidatas a CALIFICACIÓN
      * EXTRAORDINARIA por RA (migración 042). Cubre los dos casos: alumno
      * suelto sin promedio (omisiones con motivo) y competencia entera
      * "No se evaluó" (`notas_seccion = 0`).
+     *
+     * SOLO BIMESTRES CERRADOS (decisión del usuario, 18/09/2026). Antes bastaba
+     * con que la competencia estuviera BLOQUEADA, y eso la abría en el bimestre
+     * activo: si luego se desbloqueaba, el alumno volvía a la grilla del
+     * docente y `calcularPromedio` mezclaba la nota de RA con las ordinarias.
+     * `bloqueada` se sigue devolviendo: un cerrado puede tener competencias
+     * sin bloqueo, y el lote lo advierte.
      *
      * Se excluyen: transversales (su flujo es la agregación + cierre del
      * tutor; una fila cruda no llega a boleta), cargas inactivas y alumnos
@@ -256,7 +269,7 @@ class RectificacionModel extends BaseModel
                    AND bc.periodo_id     = per.id
             WHERE m.id = ?
               AND a.tipo <> 'transversal'
-              AND (per.estado = 'cerrado' OR bc.competencia_id IS NOT NULL)
+              AND per.estado = 'cerrado'
               AND NOT EXISTS (
                   SELECT 1 FROM calificaciones cal
                   WHERE cal.matricula_id   = m.id
@@ -280,7 +293,8 @@ class RectificacionModel extends BaseModel
 
     /**
      * ¿La tupla es INSERTABLE como calificación extraordinaria? Mismas
-     * condiciones que getCompetenciasInsertables, para UNA combinación.
+     * condiciones que getCompetenciasInsertables, para UNA combinación
+     * (periodo CERRADO, no basta con que esté bloqueada).
      * Es el invariante de seguridad del alta: sin esto, no se inserta.
      */
     public function esInsertable(
@@ -304,13 +318,9 @@ class RectificacionModel extends BaseModel
             LEFT  JOIN subareas sa ON sa.id = ca.subarea_id
             LEFT  JOIN areas a     ON a.id  = COALESCE(ca.area_id, sa.area_id)
             INNER JOIN periodos per ON per.id = ? AND per.anio_id = m.anio_id
-            LEFT  JOIN bloqueos_competencia bc
-                    ON bc.carga_id       = ca.id
-                   AND bc.competencia_id = c.id
-                   AND bc.periodo_id     = per.id
             WHERE m.id = ?
               AND a.tipo <> 'transversal'
-              AND (per.estado = 'cerrado' OR bc.competencia_id IS NOT NULL)
+              AND per.estado = 'cerrado'
               AND NOT EXISTS (
                   SELECT 1 FROM calificaciones cal
                   WHERE cal.matricula_id   = m.id

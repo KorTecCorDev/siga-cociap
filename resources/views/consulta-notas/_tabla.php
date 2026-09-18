@@ -16,6 +16,10 @@
 $esTransversal   = !empty($competencia['es_transversal']);
 $exoneradosSet   = array_flip($exonerados ?? []);
 $extraordinarias = $extraordinarias ?? [];
+// La extraordinaria de RA no se pinta como columna (18/09/2026): se explica
+// solo en la tarjeta de abajo. `empty($criterios)` sigue mirando TODOS: una
+// competencia completada solo por RA sí tiene calificaciones.
+$criteriosVisibles = criterios_ordinarios($criterios ?? []);
 ?>
 
 <?php if (empty($alumnos)): ?>
@@ -36,19 +40,12 @@ $extraordinarias = $extraordinarias ?? [];
                 <tr>
                     <th class="col-num">N°</th>
                     <th class="col-nombre">Apellidos y nombres</th>
-                    <?php foreach ($criterios as $criterio): ?>
+                    <?php foreach ($criteriosVisibles as $criterio): ?>
                         <?php
-                        $esExtra = !empty($criterio['extraordinario']);
                         $tooltipCriterio = $criterio['nombre']
                             . (!empty($criterio['descripcion']) ? "\n\n" . $criterio['descripcion'] : '');
-                        if ($esExtra) {
-                            $tooltipCriterio = "CALIFICACIÓN EXTRAORDINARIA — registrada por Registro Académico, NO forma parte del registro ordinario del docente.\n\n" . $tooltipCriterio;
-                        }
                         ?>
-                        <th class="col-criterio text-center<?= $esExtra ? ' col-criterio--extraordinario' : '' ?>" title="<?= e($tooltipCriterio) ?>">
-                            <?php if ($esExtra): ?>
-                                <?php $proc = PROCEDENCIA_EXTRAORDINARIA; require VIEW_PATH . '/shared/_procedencia-chip.php'; ?>
-                            <?php endif; ?>
+                        <th class="col-criterio text-center" title="<?= e($tooltipCriterio) ?>">
                             <span class="criterio-header">
                                 <?= e(mb_strlen($criterio['nombre']) > 15
                                     ? mb_substr($criterio['nombre'], 0, 15) . '...'
@@ -72,7 +69,7 @@ $extraordinarias = $extraordinarias ?? [];
                         <td class="col-num"><?= $i + 1 ?></td>
                         <td class="col-nombre"><?= e($alumno['apellido_paterno'] . ' ' . $alumno['apellido_materno'] . ', ' . $alumno['nombres']) ?></td>
 
-                        <?php foreach ($criterios as $criterio): ?>
+                        <?php foreach ($criteriosVisibles as $criterio): ?>
                             <td class="col-criterio text-center">
                                 <?php if ($esExonerado): ?>
                                     <span class="exo-badge" title="Exonerado(a)">EXO</span>

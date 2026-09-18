@@ -260,7 +260,7 @@ $labelDoc = [
                     </p>
                     <p class="proc-destino"><?= e(procedencia_nota(PROCEDENCIA_EXTRAORDINARIA)['destino']) ?></p>
                     <?php if (empty($pendientesExtra)): ?>
-                        <div class="empty-state"><p>No hay competencias sin nota en bimestres cerrados o bloqueados.</p></div>
+                        <div class="empty-state"><p>No hay competencias sin nota en bimestres cerrados.</p></div>
                     <?php else: ?>
                         <ul class="mat-llegada__lista">
                             <?php foreach ($pendientesExtra as $pe): ?>

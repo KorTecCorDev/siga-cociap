@@ -3,7 +3,7 @@
  * Competencias rectificables de una matrícula, agrupadas por bimestre.
  * @var array $info           datos del estudiante (incl. nivel_codigo)
  * @var array $porPeriodo     [{periodo_id, periodo_nombre, periodo_estado, items[]}]
- * @var array $porPeriodoIns  competencias SIN nota del alumno (cerradas/bloqueadas)
+ * @var array $porPeriodoIns  competencias SIN nota del alumno (solo bimestres cerrados)
  *                            → candidatas a calificación EXTRAORDINARIA
  * @var array $historial      rectificaciones previas de esta matrícula
  */
@@ -119,7 +119,7 @@ $labelComp = static function (array $c): string {
             </p>
             <p class="rect-aviso mb-md">
                 Este estudiante <strong>no tiene nota</strong> en estas competencias
-                cerradas o bloqueadas. Puedes registrarle una
+                de bimestres cerrados. Puedes registrarle una
                 <strong>calificación extraordinaria</strong> (con motivo obligatorio):
                 aparece en la boleta y se exporta al SIAGIE, pero
                 <strong>no cuenta para el orden de mérito</strong>.

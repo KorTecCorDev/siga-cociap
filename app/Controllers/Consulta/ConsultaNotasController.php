@@ -923,8 +923,10 @@ class ConsultaNotasController extends BaseController
 
         // Criterios vivos del periodo, indexados por "carga-competencia". Una
         // sola consulta para todo el bimestre (ver CriterioModel).
+        // Sin el extraordinario de RA (18/09/2026): no es un criterio que el
+        // docente haya definido, y esta pantalla (y su imprimible) lista esos.
         $porPar = [];
-        foreach ($this->criterioModel->getCriteriosPorPeriodo($periodoId) as $cr) {
+        foreach (criterios_ordinarios($this->criterioModel->getCriteriosPorPeriodo($periodoId)) as $cr) {
             $porPar[(int) $cr['carga_id'] . '-' . (int) $cr['competencia_id']][] = $cr;
         }
 

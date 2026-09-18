@@ -278,6 +278,26 @@ function procedencia_nota(string $clave): ?array
 }
 
 /**
+ * Criterios que se PINTAN como criterio (columna, casilla o fila de la lista):
+ * todos menos el `extraordinario` de RA. PUNTO ÚNICO de esa regla de
+ * presentación (18/09/2026, decisión del usuario): la extraordinaria no forma
+ * parte del registro del docente, así que en las grillas solo se explica con
+ * la tarjeta `.extraordinaria-info`.
+ *
+ * ⚠️ SOLO PRESENTACIÓN. El criterio sigue en los datos: el promedio, la boleta,
+ * SIAGIE y la puerta de aprobación lo leen. Nunca usar esto para calcular.
+ * La rectificación no lo usa: allí el criterio sí se muestra, pero solo al
+ * alumno que lo tiene (`RectificacionModel::getDetalleCompetencia`).
+ */
+function criterios_ordinarios(array $criterios): array
+{
+    return array_values(array_filter(
+        $criterios,
+        static fn(array $c): bool => empty($c['extraordinario'])
+    ));
+}
+
+/**
  * ¿La audiencia que mira ahora mismo solo puede ver bimestres CERRADOS?
  * PUNTO ÚNICO DE VERDAD de esa pregunta.
  *

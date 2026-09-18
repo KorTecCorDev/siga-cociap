@@ -516,6 +516,7 @@ class CalificacionModel extends BaseModel
                     cr.nombre      AS criterio_nombre,
                     cr.descripcion AS criterio_descripcion,
                     cr.orden,
+                    cr.extraordinario,
                     cc.nota
                 FROM criterios cr
                 LEFT JOIN calificaciones_criterio cc
@@ -803,6 +804,49 @@ class CalificacionModel extends BaseModel
         return $this->execute("
             DELETE FROM bloqueos_competencia WHERE id = ?
         ", [$bloqueoId]);
+    }
+
+    /**
+     * Condición SQL para un bloqueo con alias `bc`: su competencia NO tiene
+     * calificaciones EXTRAORDINARIAS de RA. PUNTO ÚNICO de la guarda de
+     * desbloqueo (18/09/2026): la usan `eliminarBloqueosDeCierre` y
+     * `seccionesConBloqueosDeCierre`, y `alumnosConExtraordinaria` responde
+     * lo mismo para un solo bloqueo.
+     *
+     * POR QUÉ: desbloquear devuelve al alumno a la grilla del docente, y
+     * `calcularPromedio` promedia TODOS los criterios confirmados, el
+     * extraordinario incluido: la nota de RA se mezclaría en silencio con las
+     * ordinarias, y la marca `extraordinaria` la seguiría sacando del mérito.
+     */
+    public const SIN_EXTRAORDINARIAS_BC = "NOT EXISTS (
+                SELECT 1 FROM calificaciones cx
+                WHERE cx.carga_id       = bc.carga_id
+                  AND cx.competencia_id = bc.competencia_id
+                  AND cx.periodo_id     = bc.periodo_id
+                  AND cx.extraordinaria = 1
+            )";
+
+    /**
+     * Estudiantes con calificación EXTRAORDINARIA en una carga+competencia+
+     * periodo (nombres en orden alfabético). Vacío ⇒ se puede desbloquear.
+     * Misma regla que SIN_EXTRAORDINARIAS_BC.
+     */
+    public function alumnosConExtraordinaria(int $cargaId, int $competenciaId, int $periodoId): array
+    {
+        $filas = $this->query("
+            SELECT CONCAT(p.apellido_paterno, ' ', p.apellido_materno, ', ', p.nombres) AS estudiante
+            FROM calificaciones cx
+            INNER JOIN matriculas m  ON m.id = cx.matricula_id
+            INNER JOIN estudiantes e ON e.id = m.estudiante_id
+            INNER JOIN personas p    ON p.id = e.persona_id
+            WHERE cx.carga_id       = ?
+              AND cx.competencia_id = ?
+              AND cx.periodo_id     = ?
+              AND cx.extraordinaria = 1
+            ORDER BY " . orden_alfabetico('p') . "
+        ", [$cargaId, $competenciaId, $periodoId]);
+
+        return array_column($filas, 'estudiante');
     }
 
     /**

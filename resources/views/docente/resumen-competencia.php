@@ -97,6 +97,12 @@ $esTransversal = !empty($competencia['es_transversal']);
 
         <?php require VIEW_PATH . '/shared/_stats-competencia.php'; ?>
 
+        <?php
+        // La extraordinaria de RA no se pinta como columna (18/09/2026): se
+        // explica solo en la tarjeta de abajo.
+        $criteriosVisibles = criterios_ordinarios($criterios);
+        ?>
+
         <div class="tabla-responsive">
             <table class="tabla-resumen">
                 <thead>
@@ -104,20 +110,13 @@ $esTransversal = !empty($competencia['es_transversal']);
                         <th class="col-num">N°</th>
                         <th class="col-nombre">Apellidos y nombres</th>
                         <!-- Criterios con tooltip (nombre completo + descripción) -->
-                        <?php foreach ($criterios as $criterio): ?>
+                        <?php foreach ($criteriosVisibles as $criterio): ?>
                             <?php
-                            $esExtra = !empty($criterio['extraordinario']);
                             $tooltipCriterio = $criterio['nombre']
                                 . (!empty($criterio['descripcion'])
                                     ? "\n\n" . $criterio['descripcion'] : '');
-                            if ($esExtra) {
-                                $tooltipCriterio = "CALIFICACIÓN EXTRAORDINARIA — registrada por Registro Académico, NO forma parte de tu registro ordinario del bimestre.\n\n" . $tooltipCriterio;
-                            }
                             ?>
-                            <th class="col-criterio text-center<?= $esExtra ? ' col-criterio--extraordinario' : '' ?>" title="<?= e($tooltipCriterio) ?>">
-                                <?php if ($esExtra): ?>
-                                    <?php $proc = PROCEDENCIA_EXTRAORDINARIA; require VIEW_PATH . '/shared/_procedencia-chip.php'; ?>
-                                <?php endif; ?>
+                            <th class="col-criterio text-center" title="<?= e($tooltipCriterio) ?>">
                                 <span class="criterio-header">
                                     <?= e(mb_strlen($criterio['nombre']) > 15
                                         ? mb_substr($criterio['nombre'], 0, 15) . '...'
@@ -154,7 +153,7 @@ $esTransversal = !empty($competencia['es_transversal']);
                             <td class="col-nombre"><?= e($alumno['apellido_paterno'] . ' ' . $alumno['apellido_materno'] . ', ' . $alumno['nombres']) ?></td>
 
                             <!-- Notas por criterio -->
-                            <?php foreach ($criterios as $criterio): ?>
+                            <?php foreach ($criteriosVisibles as $criterio): ?>
                                 <td class="col-criterio text-center">
                                     <?php if ($esExonerado): ?>
                                         <span class="exo-badge" title="Exonerado(a)">EXO</span>
