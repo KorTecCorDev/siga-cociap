@@ -5,6 +5,34 @@
 > **Versión desplegada: v1.0.1** (`config/app.php` + tag anotado `v1.0.1`).
 
 
+## 🔴 PENDIENTE INMEDIATO — PRUEBAS DEL USUARIO EN EL NAVEGADOR (18/09/2026)
+
+Lo que Claude **no puede** probar: exige iniciar sesión (docente o admin) y ejecutar el JS
+real contra el servidor. Todo lo demás ya se verificó (batería 39/39, 15 comprobaciones
+propias y render de las pantallas con el controlador real). **El merge a `main` espera a que
+el usuario lo indique**, después de estas pruebas. Ids de la BD LOCAL de la laptop.
+
+**Con sesión DOCENTE (ZAMBRANO EDINZON ALEX, DNI 77170080):**
+- [ ] `/docente/calificaciones/271`, competencia 46: **agregar un criterio sin notas** →
+      «Ver resumen» se bloquea y «Próximo pendiente» apunta a él. **Eliminarlo** → sin
+      recargar desaparece el bloque, «Ver resumen» vuelve a habilitarse y el banner se va.
+      Consola (F12) sin errores.
+- [ ] Docente **20** (carga 157), historial `/docente/calificaciones/157/historial/1`: la
+      competencia 9 **no** tiene columna «Calificación extraordinaria»; la fila de ÑIQUEN
+      PAJUELO muestra «—» y su promedio, y la tarjeta informativa sale debajo.
+
+**Con sesión ADMIN o RA:**
+- [ ] `/rectificaciones/editar?matricula=181&carga=157&competencia=9&periodo=1` → **sin**
+      la casilla «Calificación extraordinaria». Con `matricula=690` → **con** ella.
+- [ ] `/rectificaciones/matricula/{id}` de un alumno sin nota en el III Bimestre: el III
+      (activo) **no** se ofrece para calificación extraordinaria, aunque tenga competencias
+      bloqueadas; los bimestres cerrados sí.
+- [ ] `/director/bloqueos?periodo_id=3`: desbloquear una competencia **sin** extraordinarias
+      → pasa como siempre (volver a bloquearla después). La rama que rechaza no tiene caso
+      real en el III (se probó por código con la 157/9 de B1).
+- [ ] `/consulta-notas/1/criterios` → la lista no muestra el criterio extraordinario.
+
+Resultado de cada prueba: marcar aquí y, si algo falla, anotar URL y lo que se vio.
 
 
 ## ⏭ PARA RETOMAR EN EL ESCRITORIO (16/09/2026, turno tarde en la laptop)
@@ -106,6 +134,31 @@ Detalle en `docs/modulos/notificaciones.md`. **Migración `060`** (`comunicados`
 `gulp build` lo regeneró desde su fuente (sin cambios) y quedó igual a `HEAD`. Si aquel
 cambio se hizo a mano en el escritorio, **allí sigue**; en la laptop se perdió.
 
+## 🆕 EXTRAORDINARIA SOLO EN CERRADOS + GUARDA DE DESBLOQUEO — EN `dev` (18/09/2026, tarde)
+
+Dos observaciones del usuario. Sin migración. Detalle en `calificaciones.md` («Solo
+bimestres cerrados, guarda de desbloqueo y fuera de las grillas»).
+- La extraordinaria **solo** se registra en bimestres **cerrados** (antes bastaba con
+  «bloqueada», y se colaba en el activo).
+- **No se desbloquea** una competencia con extraordinarias (individual y transversal abortan;
+  liberar los bloqueos del cierre las conserva). Motivo medido: al desbloquear,
+  `calcularPromedio` mezclaba la nota de RA con las del docente sin aviso.
+- El criterio extraordinario **ya no se pinta como criterio** en ninguna pantalla
+  (`criterios_ordinarios()`); en la rectificación, solo al alumno que lo tiene.
+- **Dato revertido en LOCAL:** la extraordinaria de prueba **1460** (431/271/46, III activo):
+  criterio 6137 eliminado, fila de `calificaciones` borrada, auditoría 1460 conservada.
+- Verificado: 15 comprobaciones propias (dos ramas por guarda), render de 4 pantallas con el
+  controlador real y **batería completa en 39 de 39**.
+- ➡️ Pruebas en navegador: en «PENDIENTE INMEDIATO» al inicio de este archivo.
+- 🔴 **Decisión bloqueante para la REGLA DEL PERIODO FINAL (tope 05/10):** su válvula era la
+      extraordinaria ANTES del cierre, y ahora solo existe DESPUÉS. Aviso en la sección de esa
+      regla en `calificaciones.md`.
+- [ ] **No existe un flujo para REVERTIR una extraordinaria** (solo se corrige). La guarda de
+      desbloqueo lo hace visible: hoy la única salida es a mano.
+- [ ] Sin decidir: en la rectificación, el alumno CON extraordinaria sigue viendo también los
+      criterios ordinarios vacíos; si RA los llena, mezcla. Preguntado al usuario.
+- [ ] `.col-criterio--extraordinario` (`_rectificaciones.scss`) quedó sin uso.
+
 ## 🆕 AJUSTES TRAS PROBAR EXTRAORDINARIA Y RECTIFICACIÓN — EN `dev` (18/09/2026)
 
 Ocho observaciones de las pruebas en navegador (§A-§B del checklist del 17/09). Sin
@@ -129,16 +182,23 @@ como traza de la prueba fallida.
       (el tercero es la antigua card de notas autorizadas SIAGIE) y trasladado con solo el
       tercero, notas de origen en orden de la currícula, rectificado con resaltado. **NO
       probado:** guardar §B1, grilla del docente y eliminar criterio (piden sesión docente).
+- ✅ **§B1 repetida en Chrome con sesión admin (18/09, tarde):** conclusión obligatoria en
+      vivo en sus dos ramas (A → no, C → sí), rechazo del servidor que vuelve con 10/10/10 y el
+      motivo, un solo flash, y guardado **17→10** (fila **1541**; el 6115 quedó vacío). Boleta
+      B1 de la 181 con C y su conclusión; en el rectificado la 181 sale resaltada, 1.º → 4.º.
+- ✅ **Grilla y resumen del docente (carga 271, comp 46) renderizados con el controlador
+      REAL** y la sesión simulada del docente 13, sin avisos PHP: el criterio 6137 no se pinta,
+      la card informativa sí (en `comp-46` y en el resumen), y «Próximo pendiente» apunta a un
+      criterio ordinario (5514). Admin **no** puede abrir esa grilla (carga ajena).
+- ➡️ Lo que queda (grilla en pantalla y borrar un criterio vacío) está en «PENDIENTE
+      INMEDIATO» al inicio de este archivo.
 - Verificación sin sesión (18/09): `php -l`, `gulp build`, 6 verificadores en verde
   (lote, origen, notificaciones, estructura de boleta, universo del mérito, roster) y 10
   comprobaciones de render con datos reales.
 
 **Pendientes detectados, NO arreglados (fuera de alcance):**
-- [ ] El lote de la 690 creó el criterio «Calificación extraordinaria» (id 6115) en la carga
-      157 / comp 9 de B1, y `getDetalleCompetencia` lo ofrece **vacío y editable al
-      rectificar a CUALQUIER compañero** (la 181 incluida). Si RA lo llena, mete una nota
-      extraordinaria en el promedio de un alumno ordinario. Conviene excluirlo para quien no
-      tiene esa extraordinaria.
+- [x] ~~El criterio 6115 vacío y editable al rectificar a cualquier compañero~~ — resuelto el
+      18/09 (tarde): `getDetalleCompetencia` solo lo ofrece a quien tiene nota en él.
 - [ ] El alta **individual** (`rectificaciones/extraordinaria`) sigue perdiendo lo escrito
       tras un rechazo del servidor, como la rectificación antes del arreglo.
 - [ ] Flash duplicado también en `dashboard/index.php`, `docente/inicio.php` y

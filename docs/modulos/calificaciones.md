@@ -265,6 +265,12 @@ las transversales las sigue registrando cada docente en su carga y aprobando el 
   el único registro permanente de por qué esa nota existe. Escribir la regla en términos
   de **"RA con motivo"**, NO del nombre del flujo actual: el plan de registro retroactivo
   (migración `049`) unifica ese punto de entrada y retira el flujo de la extraordinaria.
+  - 🔴 **CHOQUE ABIERTO (18/09/2026): la válvula ya no sirve tal cual.** Desde ese día la
+    extraordinaria **solo** se registra en bimestres CERRADOS, y esta regla aborta el cierre
+    del periodo final si falta una competencia: con las dos juntas, una competencia vacía
+    del IV Bimestre no se podría cerrar nunca. El usuario decidió **resolverlo al
+    implementar esta regla** (antes del 05/10). Opciones ya planteadas: excepción en el
+    periodo final, o que su cierre admita competencias vacías y RA las complete después.
 
 ### Por qué existe: cierra el punto ciego del logro anual
 El logro anual sale **solo del último periodo**. Sin esta regla, una competencia que el
@@ -816,8 +822,9 @@ en `calificaciones` (4 tablas propias, ciclo por SECCIÓN en dos etapas).
 ### Guardas
 
 - **Descubrimiento** (`RectificacionModel::getCompetenciasInsertables` /
-  `esInsertable`): alumno SIN fila en `calificaciones` + (periodo cerrado OR
-  bloqueada) + carga activa de SU sección + NO exonerado del área/subárea +
+  `esInsertable`): alumno SIN fila en `calificaciones` + **periodo CERRADO**
+  (hasta el 18/09/2026 bastaba con «bloqueada»; ver «Solo bimestres cerrados»
+  abajo) + carga activa de SU sección + NO exonerado del área/subárea +
   áreas `tipo <> 'transversal'` (las transversales van por la agregación del
   tutor; una fila cruda no llega a boleta). Re-chequeo en el POST.
 - **El docente NO toca el criterio extraordinario en ningún estado** (incluida
@@ -826,10 +833,10 @@ en `calificaciones` (4 tablas propias, ciclo por SECCIÓN en dos etapas).
   (`CriterioModel::esExtraordinario`). En su panel el criterio se pinta solo
   lectura (badge `EXTRAORDINARIA · RA`, sin input, sin Confirmar/Editar/
   Eliminar).
-- **El docente lo ve claramente diferenciado**: en formulario, resumen,
-  historial y consulta de notas el criterio lleva badge ámbar y un bloque
-  informativo (`.extraordinaria-info`) con el detalle por alumno — nota,
-  MOTIVO registrado, quién y cuándo — dejando claro que NO es parte de su
+- **El docente lo ve claramente diferenciado**: ~~el criterio lleva badge ámbar~~
+  (derogado el 18/09/2026: **ya no se pinta como criterio en ninguna pantalla**)
+  y un bloque informativo (`.extraordinaria-info`) con el detalle por alumno —
+  nota, MOTIVO registrado, quién y cuándo — dejando claro que NO es parte de su
   registro ordinario (`getExtraordinariasDeCompetencia`).
 - **No rompe puertas del docente**: nace confirmado (no bloquea
   `competenciaListaParaResumen`) y la completitud de aprobar mira el promedio
@@ -841,8 +848,8 @@ en `calificaciones` (4 tablas propias, ciclo por SECCIÓN en dos etapas).
   NO regenera snapshot (el ranking no cambia).
 - Tras el alta la competencia es rectificable por el flujo normal (corregir la
   extraordinaria = rectificación estándar, con su propia auditoría).
-- El padre ve el criterio "Calificación extraordinaria" con su descripción
-  genérica en `/padre/notas` (mismo mecanismo de criterios de la boleta).
+- ~~El padre ve el criterio "Calificación extraordinaria"~~ en `/padre/notas`:
+  desde el 18/09/2026 ve la nota de la competencia **sin** ese criterio.
 - **Bimestre cerrado ⇒ la nota aparece AL INSTANTE en la boleta de la
   familia** (regla general de `soloOficiales`); el formulario lo advierte.
 - Verificado end-to-end en local (16/07/2026, Inglés 4°A C2, 25 checks):
@@ -974,6 +981,50 @@ Salieron de probar el lote y la rectificación con sesión. **Ninguno cambia el 
   ese criterio.
 - Flash duplicado en `/rectificaciones`, `/rectificaciones/matricula/{id}` y `editar`: esas
   vistas repetían lo que ya pinta el layout.
+
+### Solo bimestres cerrados, guarda de desbloqueo y fuera de las grillas (18/09/2026)
+
+Tres decisiones del usuario tras probar la extraordinaria en el bimestre activo.
+
+**1. La extraordinaria solo se registra en bimestres CERRADOS.** Antes bastaba con que
+la competencia estuviera **bloqueada**, y eso la abría en el bimestre activo. Se quitó el
+`OR bloqueada` de `getCompetenciasInsertables` y `esInsertable` (alta individual, lote y
+contador de la ficha; las transversales ya exigían cerrado). La **rectificación** de notas
+existentes NO cambia: sigue admitiendo cerrado **o** bloqueada.
+
+**2. No se desbloquea una competencia con extraordinarias.** Motivo medido en local: al
+desbloquear, el alumno vuelve a la grilla del docente con los criterios ordinarios vacíos,
+«Próximo pendiente» lo empuja a calificarlo y **`calcularPromedio` promedia TODOS los
+criterios confirmados, el extraordinario incluido**: un 10 de RA más un 14 del docente da
+12, en silencio, y la marca `extraordinaria=1` lo sigue sacando del mérito. Aunque (1)
+impide que nazca en el activo, un cerrado puede **reabrirse** y desbloquearse después.
+- PUNTO ÚNICO: `CalificacionModel::SIN_EXTRAORDINARIAS_BC` (condición sobre `bc`) y
+  `alumnosConExtraordinaria()`, que mira el DATO vivo (`calificaciones.extraordinaria`),
+  **no** la auditoría (que sobrevive a una reversión).
+- `BloqueoController::desbloquear` y `liberarTransversalCompetencia` abortan con los
+  nombres (`abortarSiHayExtraordinarias`). `limpiarBloqueosCierre` **conserva** esas
+  competencias y lo informa (`eliminarBloqueosDeCierre` +
+  `bloqueosDeCierreConExtraordinarias`); `seccionesConBloqueosDeCierre` usa la misma
+  condición para no anular el cierre transversal de una sección a la que no se liberó nada.
+- ⚠️ **No existe flujo para REVERTIR una extraordinaria**: hoy solo se corrige (rectificación
+  estándar). Si hubiera que desbloquear una, la reversión es a mano (así se hizo con la 1460).
+
+**3. El criterio extraordinario ya no se pinta como criterio en NINGUNA pantalla.**
+PUNTO ÚNICO de presentación: `criterios_ordinarios()` en `helpers.php` — **solo
+presentación, nunca para calcular**. Pantallas: grilla y resumen del docente, historial y
+`/consulta-notas/{p}/carga/{c}` (`_tabla.php`), `/consulta-notas/{p}/criterios` y su
+imprimible (`arbolCriterios`) y `/padre/notas`. La fila del alumno muestra «—» en los
+criterios y su promedio; la explicación queda **solo en la tarjeta** (decisión del
+usuario). Una competencia completada solo por RA se ve sin columnas de criterio pero con
+su nota: `_tabla.php` sigue mirando la lista completa para no decir «sin calificaciones».
+- **Rectificación:** el criterio extraordinario sale **solo al alumno que tiene nota en él**
+  (filtro en `getDetalleCompetencia`, que también fija los ids que acepta `guardar`). Cierra
+  el pendiente del criterio 6115, que salía vacío y editable para cualquier compañero.
+
+Verificado: 15 comprobaciones propias con las dos ramas de cada guarda (la de liberar
+bloqueos del cierre, forzada en transacción: con los datos reales ningún bloqueo del
+cierre tiene extraordinarias), la guarda del controlador en sus dos ramas, las pantallas
+generadas con el controlador real y la batería completa en 39 de 39.
 
 ## Fixes importantes aplicados (sesión 2)
 - `periodos.nombre_display` es la columna correcta (no `nombre`). Si ves
