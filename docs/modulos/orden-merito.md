@@ -130,6 +130,15 @@ es información pública; corregirlo sin acto formal es una regresión grave.
   el flujo normal del director; la rectificada es "registrada pero no mostrada" ahí.
 - `orden_merito_rectificado` guarda **la última** versión no oficial por periodo (se
   sobrescribe); la traza por criterio vive en `rectificaciones_calificacion`.
+- **Comparación con el oficial (18/09/2026).** La vista suma «Puesto oficial» y «Cambio»
+  (`OrdenMeritoModel::puestosOficiales`). ⚠️ **Se resalta la fila cuyo PROMEDIO cambió, no la
+  que cambió de puesto**: en B1 el oficial reconstruido lleva 13 estudiantes (10 trasladados +
+  3 retirados) que el cálculo de hoy ya no incluye, así que **121 puestos se corren sin que
+  nadie cambie de nota**, frente a **1** promedio rectificado (medido). La vista cuenta y
+  explica a esos estudiantes que faltan, y dice que **las extraordinarias no cuentan**. Ese era
+  el otro «no muestra la rectificación»: la prueba 697 era un alumno con sus 27 notas de B1
+  extraordinarias, que por regla no entra al ranking. **La regla se mantiene** (decisión del
+  18/09). Al rectificar una nota extraordinaria, el flash ahora lo avisa.
 
 ## Rectificación de calificaciones (17/06/2026)
 

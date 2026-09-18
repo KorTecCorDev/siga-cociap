@@ -807,3 +807,28 @@ Dos duplicaciones que traía la primera versión del importador, ambas medidas:
   existía y los devuelve ordenados por número. ⚠️ Quedan **otras dos** consultas de periodos
   inline en `MatriculaController` (las de notas autorizadas SIAGIE), anteriores a este
   trabajo y no tocadas: si alguien las unifica, este es el método al que deben ir.
+
+### Dos botones en la ficha y orden de la currícula (18/09/2026)
+
+- **Ficha `/matriculas/{id}`: card «Registrar notas fuera del registro del docente»** con
+  `<details>` nativos (sin JS) cuyo `summary` es el botón:
+  «Registrar notas de I bimestre (solo informativo)» despliega la card de notas de origen
+  (movida adentro sin cambios), y «Registrar notas de bimestres cerrados (Boleta
+  SIAGIE-SIGACOCIAP)» despliega los bimestres con competencias sin nota, cada uno con su
+  enlace a la grilla en lote. Este segundo solo lo ve admin/RA.
+  **Tercer panel (18/09/2026):** «Registrar nota autorizada solo para SIAGIE (no va a la
+  boleta)». Es la antigua card suelta de notas autorizadas por dirección (migración 040),
+  movida adentro **sin cambiar datos ni enlaces**. Solo admin/RA. Como antes, sale también
+  para un trasladado: en ese caso la card muestra **solo** este panel.
+  - **Sin filtro por tipo ni estado** (decisión del usuario; ningún flag detecta el caso),
+    **salvo el trasladado de SALIDA** (`tipo='trasladado'`): ahí la card no sale.
+  - Los totales salen de `RectificacionModel::insertablesPorPeriodo`, que es el **mismo
+    universo que la grilla** (ordinarias + transversales). ⚠️ El «Calificar todo el
+    bimestre (N)» de `/rectificaciones/matricula/{id}` cuenta solo las ordinarias
+    (preexistente): los dos números pueden diferir en las transversales.
+- **`/docente/notas-origen/{id}` ordena según la currícula** de la sección
+  (`NotaExternaModel::ordenarSegunCurricula`, sobre `curriculaParaImportar()`): área por
+  `area_id` o, si falta, por el nombre del importador; competencia por su posición en el
+  área. Lo que no calza con el plan va **al final**. No filtra nada, y «Tu área» sigue.
+  Medido con la 693: 23 filas en orden del plan, y EPT y Religión (del otro colegio) al final.
+

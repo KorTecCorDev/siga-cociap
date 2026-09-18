@@ -1,7 +1,7 @@
 # ESTADO vivo del proyecto
 
 > Único lugar donde se registran pendientes, migraciones y planes con fecha.
-> Actualizar aquí (no en CLAUDE.md). Última revisión: **16/09/2026**.
+> Actualizar aquí (no en CLAUDE.md). Última revisión: **18/09/2026**.
 > **Versión desplegada: v1.0.1** (`config/app.php` + tag anotado `v1.0.1`).
 
 
@@ -105,6 +105,44 @@ Detalle en `docs/modulos/notificaciones.md`. **Migración `060`** (`comunicados`
 ⚠️ Al empezar la sesión había un cambio sin commit en `public/js/anio-academico.js`;
 `gulp build` lo regeneró desde su fuente (sin cambios) y quedó igual a `HEAD`. Si aquel
 cambio se hizo a mano en el escritorio, **allí sigue**; en la laptop se perdió.
+
+## 🆕 AJUSTES TRAS PROBAR EXTRAORDINARIA Y RECTIFICACIÓN — EN `dev` (18/09/2026)
+
+Ocho observaciones de las pruebas en navegador (§A-§B del checklist del 17/09). Sin
+migración. Detalle en `calificaciones.md` («Ajustes tras las pruebas…»), `orden-merito.md`
+(rectificado) y `matriculas.md` (dos botones y orden de la currícula).
+
+🔴 **Lo que parecía un fallo de boleta y de mérito era PÉRDIDA DE LO ESCRITO.** La
+rectificación §B1 de la 181 quedó auditada **17→17** (fila 1461): el rechazo por falta de
+conclusión repintó las notas de la BD y el reenvío guardó la vieja. Arreglado en las dos
+capas. **Hay que REPETIR §B1** (bajar los 3 criterios de la 181 a 10), y la fila 1461 queda
+como traza de la prueba fallida.
+
+- [ ] **Probar en navegador:** §B1 de nuevo · rechazo del servidor que conserva lo escrito
+      (editar y lote) · lote con conclusión opcional y el input nuevo · ficha
+      `/matriculas/693` con los dos botones (y una matrícula `trasladado` sin la card) ·
+      `/docente/notas-origen/693` · grilla del docente con extraordinaria en el bimestre
+      activo (caso 431/271/46) · borrar un criterio vacío con los demás confirmados ·
+      `/admin/control/1/orden-merito-rectificado`.
+- **Probado en Chrome con sesión admin (18/09):** rechazo del servidor que conserva lo
+      escrito (editar y lote), conclusión en vivo, input del lote, ficha con los TRES paneles
+      (el tercero es la antigua card de notas autorizadas SIAGIE) y trasladado con solo el
+      tercero, notas de origen en orden de la currícula, rectificado con resaltado. **NO
+      probado:** guardar §B1, grilla del docente y eliminar criterio (piden sesión docente).
+- Verificación sin sesión (18/09): `php -l`, `gulp build`, 6 verificadores en verde
+  (lote, origen, notificaciones, estructura de boleta, universo del mérito, roster) y 10
+  comprobaciones de render con datos reales.
+
+**Pendientes detectados, NO arreglados (fuera de alcance):**
+- [ ] El lote de la 690 creó el criterio «Calificación extraordinaria» (id 6115) en la carga
+      157 / comp 9 de B1, y `getDetalleCompetencia` lo ofrece **vacío y editable al
+      rectificar a CUALQUIER compañero** (la 181 incluida). Si RA lo llena, mete una nota
+      extraordinaria en el promedio de un alumno ordinario. Conviene excluirlo para quien no
+      tiene esa extraordinaria.
+- [ ] El alta **individual** (`rectificaciones/extraordinaria`) sigue perdiendo lo escrito
+      tras un rechazo del servidor, como la rectificación antes del arreglo.
+- [ ] Flash duplicado también en `dashboard/index.php`, `docente/inicio.php` y
+      `admin/boletas-publicas/index.php`.
 
 ## 🔴 DATOS PERSONALES SERVIDOS DESDE `public/` — EN `dev` (17/09/2026)
 

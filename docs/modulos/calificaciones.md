@@ -936,6 +936,45 @@ salen. Verificado en `verif_extraordinaria_lote.php` §5b (9 comprobaciones: las
 de la guarda, que la ordinaria sigue excluyéndolas, la conclusión en su tabla y la celda
 —con su conclusión— saliendo en la boleta).
 
+### Ajustes tras las pruebas en navegador (18/09/2026)
+
+Salieron de probar el lote y la rectificación con sesión. **Ninguno cambia el motor.**
+
+- 🔴 **La rectificación perdía lo escrito al rechazarse.** `guardar()` hacía
+  `redirectWithError` y `editar()` se repintaba **con las notas de la BD**. Si se reenviaba
+  (ya con la conclusión que pedía la C), se guardaba **la nota vieja, sin aviso**. Así falló la
+  prueba §B1: una rectificación 17→10 de la 181 quedó auditada como **17→17** (fila 1461),
+  y de ahí vinieron los falsos «la boleta y el mérito no reflejan la rectificación». La
+  boleta estaba bien: lee en vivo.
+  - Servidor: `volverConEntrada()` guarda la entrada en un flash (`rect_old` / `lote_old`) y
+    el formulario la repinta. Cubre la rectificación y el lote. El alta individual **no**
+    (pendiente, ver `ESTADO.md`).
+  - Cliente: `rectificaciones.js` pone `required` en la conclusión en vivo según el literal
+    del promedio. Los umbrales y los literales llegan en `data-*`
+    (`RectificacionController::literalesConclusion`, que sale de `conclusionObligatoria`).
+    **Ya no están escritos a mano en el JS.**
+- **Lote: la conclusión es OPCIONAL con cualquier nota.** Aparece en cuanto se escribe una nota
+  y solo es obligatoria donde la exige `conclusionObligatoria` (los desaprobados: primaria
+  B/C, secundaria C). El servidor ya aceptaba conclusión con cualquier literal.
+- **Lote: el input de nota es el del docente**: texto de 2 dígitos, solo dígitos al teclear y
+  recorte a 0-20 con dos cifras al salir (como `calificaciones.js`). El servidor recorta
+  igual que el del docente.
+- **Grilla del docente: la extraordinaria ya no se pinta como un criterio.** Se oculta su
+  `criterio-bloque` y en su lugar va la card informativa. Ese marcado vive ahora en el partial
+  **`docente/_extraordinaria-info.php`**, que comparten grilla y resumen. «Próximo pendiente»
+  y «Sin criterios aún» miran solo los criterios ordinarios. **Solo es presentación**: el
+  criterio `extraordinario` sigue en los datos (promedio, boleta y SIAGIE lo leen), y
+  `$tieneCriterios` / `$todosConfirmados` lo siguen contando (nace confirmado). Datos:
+  `CalificacionController::extraordinariasPorCompetencia` (clave `carga-competencia`, válida
+  también en la vista de área).
+- **Eliminar un criterio vacío ya sincroniza «Ver resumen».** La rama sin notas no recarga la
+  página, así que si el borrado era el único pendiente, el botón seguía bloqueado. Ahora
+  `eliminarCriterio` devuelve `resumenAccesible` (`competenciaListaParaResumen`, como
+  autosave, Confirmar y Renombrar) y el JS retira el banner «Próximo pendiente» si apuntaba a
+  ese criterio.
+- Flash duplicado en `/rectificaciones`, `/rectificaciones/matricula/{id}` y `editar`: esas
+  vistas repetían lo que ya pinta el layout.
+
 ## Fixes importantes aplicados (sesión 2)
 - `periodos.nombre_display` es la columna correcta (no `nombre`). Si ves
   `Unknown column 'p.nombre'` en queries de periodos, verificar esto.
