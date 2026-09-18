@@ -370,6 +370,7 @@ class CalificacionController extends BaseController
         ];
 
         $this->view('docente/calificaciones', [
+            'extraordinariasPorComp' => $this->extraordinariasPorCompetencia($competencias, (int) $meta['carga_id'], (int) $periodo['id']),
             'titulo'           => 'Calificaciones — ' . ($meta['area_nombre'] ?? ''),
             'carga'            => $carga,
             'periodo'          => $periodo,
@@ -562,8 +563,32 @@ class CalificacionController extends BaseController
             'bloqueos'        => $bloqueos,
             'exonerados'      => $exonerados,
             'permiteNoEvaluar' => $permiteNoEvaluar,
+            'extraordinariasPorComp' => $this->extraordinariasPorCompetencia($competencias, $cargaId, (int) $periodo['id']),
             'page_scripts'    => ['calificaciones'],
         ]);
+    }
+
+    /**
+     * Calificaciones extraordinarias de RA por competencia de la grilla,
+     * indexadas "carga-competencia". En la grilla del docente la
+     * extraordinaria YA NO se pinta como un criterio más (18/09/2026): se
+     * muestra solo esta card informativa. El dato no cambia —sigue siendo el
+     * criterio `extraordinario`—; solo cambia cómo se presenta.
+     */
+    private function extraordinariasPorCompetencia(array $competencias, int $cargaFallback, int $periodoId): array
+    {
+        $out = [];
+        foreach ($competencias as $comp) {
+            foreach ($comp['criterios'] ?? [] as $cr) {
+                if (!empty($cr['extraordinario'])) {
+                    $cid = (int) ($comp['carga_id'] ?? $cargaFallback);
+                    $out[$cid . '-' . (int) $comp['id']] = (new RectificacionModel())
+                        ->getExtraordinariasDeCompetencia($cid, (int) $comp['id'], $periodoId);
+                    break;
+                }
+            }
+        }
+        return $out;
     }
 
     /**
@@ -1106,10 +1131,18 @@ class CalificacionController extends BaseController
             ], 500);
         }
 
+        // Borrar un criterio vacío (pendiente) puede dejar la competencia con
+        // TODOS sus criterios confirmados: sin esto "Ver resumen" seguía
+        // bloqueado hasta recargar (la rama sin notas no recarga la página).
+        $resumenAccesible = $this->critModel->competenciaListaParaResumen(
+            $cargaId, $competenciaId, $periodoId
+        );
+
         $this->json([
             'success'           => true,
             'mensaje'           => 'Criterio eliminado.',
             'tenia_calificaciones' => $teniaCals,
+            'resumenAccesible'  => $resumenAccesible,
         ]);
     }
 
