@@ -286,10 +286,15 @@ class PanelController extends BaseController
             $this->notFound();
         }
 
-        // Agrupadas por periodo, tal y como vienen en el informe de origen.
+        // Agrupadas por periodo, tal y como vienen en el informe de origen, y
+        // dentro de cada periodo en el ORDEN DE LA CURRÍCULA (18/09/2026): lo
+        // que no calza con nuestro plan va al final.
         $porPeriodo = [];
         foreach ($notas as $n) {
             $porPeriodo[(string) $n['periodo_nombre']][] = $n;
+        }
+        foreach ($porPeriodo as $periodoNombre => $filas) {
+            $porPeriodo[$periodoNombre] = $model->ordenarSegunCurricula($mid, $filas);
         }
 
         $this->view('docente/notas-origen', [

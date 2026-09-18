@@ -366,6 +366,63 @@
     }
 }
 
+// ── Registrar notas de un estudiante que llegó tarde (show) ──────
+// Dos <details> cuyo summary ES el botón: al pulsarlo se despliega su
+// sección debajo, a ancho completo de la grilla (las tablas no caben en
+// una columna de 280px).
+.mat-llegada {
+    grid-column: 1 / -1;
+
+    &__panel {
+        margin-top: $spacing-sm;
+
+        > summary {
+            list-style: none;
+            &::-webkit-details-marker { display: none; }
+            &::marker               { display: none; }
+        }
+
+        &[open] > .mat-llegada__boton {
+            background: $bg-secondary;
+            border-color: $color-info;
+        }
+    }
+
+    &__boton {
+        display: flex;
+        width: 100%;
+        justify-content: flex-start;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    &__contenido {
+        margin-top: $spacing-sm;
+        padding: $spacing-md;
+        border: 1px solid $border-color;
+        border-left: 4px solid $color-info;
+        border-radius: $border-radius;
+    }
+
+    &__lista {
+        list-style: none;
+        margin: 0 0 $spacing-md;
+        padding: 0;
+    }
+
+    &__item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-sm;
+        flex-wrap: wrap;
+        padding: $spacing-sm 0;
+        border-bottom: 1px solid $border-color;
+
+        &:last-child { border-bottom: 0; }
+    }
+}
+
 @media (max-width: 640px) {
     .mat-filtros { grid-template-columns: 1fr 1fr; }
     .wizard-steps__sep { width: 14px; }

@@ -244,6 +244,47 @@ class NotaExternaModel extends BaseModel
     }
 
     /**
+     * Ordena notas de origen según la CURRÍCULA de la sección del estudiante
+     * (orden de áreas y de competencias del plan, transversales al final),
+     * que es el orden en que el docente lee la boleta. Lo que no calza con
+     * nuestro plan —áreas o competencias propias del otro colegio— va AL
+     * FINAL, conservando el orden en que llegó. No filtra nada: se devuelven
+     * todas las notas recibidas (18/09/2026).
+     *
+     * El área se reconoce por `area_id` (el mapeo que eligió RA) o, si no lo
+     * tiene, por el mismo nombre que ofrece el importador (`nombreDeArea`).
+     */
+    public function ordenarSegunCurricula(int $matriculaId, array $notas): array
+    {
+        $posArea   = [];   // area_id => posición
+        $posNombre = [];   // nombre visible => posición
+        $posComp   = [];   // posición de área => [competencia => posición]
+        foreach ($this->curriculaParaImportar($matriculaId) as $i => $area) {
+            $posArea[(int) $area['area_id']] = $i;
+            $posNombre[mb_strtolower(trim((string) $area['area_nombre']))] ??= $i;
+            foreach ($area['competencias'] as $j => $comp) {
+                $posComp[$i][mb_strtolower(trim((string) $comp))] = $j;
+            }
+        }
+
+        $sinPlan = PHP_INT_MAX;
+        $claves  = [];
+        foreach ($notas as $k => $n) {
+            $aid = isset($n['area_id']) ? (int) $n['area_id'] : 0;
+            $pa  = $posArea[$aid]
+                ?? $posNombre[mb_strtolower(trim((string) ($n['area_nombre'] ?? '')))]
+                ?? $sinPlan;
+            $pc  = $pa === $sinPlan
+                ? $sinPlan
+                : ($posComp[$pa][mb_strtolower(trim((string) ($n['competencia_nombre'] ?? '')))] ?? $sinPlan);
+            $claves[$k] = [$pa, $pc, $k];
+        }
+
+        uksort($notas, static fn($a, $b): int => $claves[$a] <=> $claves[$b]);
+        return array_values($notas);
+    }
+
+    /**
      * Nombre visible de un área: el de boleta si lo tiene. PUNTO ÚNICO para que
      * el texto que se importa y el del `<select>` de mapeo sean el MISMO; si
      * divergen, la fila importada apunta a un área que el select no ofrece.

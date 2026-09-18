@@ -334,6 +334,37 @@ class RectificacionModel extends BaseModel
         return $fila !== null;
     }
 
+    /**
+     * Bimestres con competencias pendientes de calificación extraordinaria,
+     * con cuántas tiene cada uno. Es el MISMO universo que la grilla en lote
+     * (ordinarias + transversales), así que el total que ve la ficha de
+     * matrícula coincide con las filas que abre «Calificar todo el bimestre».
+     *
+     * @return array [{periodo_id, periodo_numero, periodo_nombre, periodo_estado, total}]
+     */
+    public function insertablesPorPeriodo(int $matriculaId): array
+    {
+        $porPeriodo = [];
+        $filas = array_merge(
+            $this->getCompetenciasInsertables($matriculaId),
+            $this->getTransversalesInsertables($matriculaId)
+        );
+        foreach ($filas as $c) {
+            $pid = (int) $c['periodo_id'];
+            if (!isset($porPeriodo[$pid])) {
+                $porPeriodo[$pid] = [
+                    'periodo_id'     => $pid,
+                    'periodo_numero' => (int) $c['periodo_numero'],
+                    'periodo_nombre' => $c['periodo_nombre'],
+                    'periodo_estado' => $c['periodo_estado'],
+                    'total'          => 0,
+                ];
+            }
+            $porPeriodo[$pid]['total']++;
+        }
+        usort($porPeriodo, static fn(array $a, array $b): int => $a['periodo_numero'] <=> $b['periodo_numero']);
+        return $porPeriodo;
+    }
 
     /**
      * Competencias TRANSVERSALES sin nota del alumno en un bimestre CERRADO,

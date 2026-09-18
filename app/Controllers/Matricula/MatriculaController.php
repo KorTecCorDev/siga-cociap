@@ -14,6 +14,7 @@ use App\Models\OrdenMeritoModel;
 use App\Models\NotaExternaModel;
 use App\Models\NotificacionModel;
 use App\Models\AnioAcademicoModel;
+use App\Models\RectificacionModel;
 use Core\Session;
 use Core\View;
 
@@ -812,7 +813,19 @@ class MatriculaController extends BaseController
         // detalle— verian esos tres botones y se toparian con un 403.
         $puedeMatricular = has_role(self::ROLES_MATRICULAN);
 
+        // Registrar notas de un estudiante que llegó tarde (18/09/2026): SIN
+        // filtro por tipo o estado —ningún flag detecta el caso, lo decide
+        // quien registra—, salvo el trasladado de SALIDA, que ya no está en el
+        // colegio. Los bimestres pendientes solo los ve admin/RA, que son
+        // quienes pueden abrir la grilla de Rectificación.
+        $registraLlegadaTarde = $matricula['tipo'] !== 'trasladado';
+        $pendientesExtra = ($registraLlegadaTarde && $puedeGestionar)
+            ? (new RectificacionModel())->insertablesPorPeriodo((int) $id)
+            : [];
+
         $this->view('matriculas/show', [
+            'registraLlegadaTarde' => $registraLlegadaTarde,
+            'pendientesExtra'      => $pendientesExtra,
             'titulo'       => 'Detalle de matrícula',
             'matricula'    => $matricula,
             'vinculos'     => $this->apoderados->getVinculos((int) $matricula['estudiante_id']),
